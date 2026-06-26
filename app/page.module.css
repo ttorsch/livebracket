@@ -338,14 +338,14 @@
   display: grid;
   grid-template-columns: 0.85fr 1.15fr; /* reversed: card on left, headline on right */
   gap: 56px;
-  align-items: center;
+  align-items: stretch;
   width: 100%;
 }
 
 .heroCardCol {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
 }
 
@@ -354,6 +354,7 @@
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
+  height: 100%;
 }
 
 .kicker {
@@ -441,7 +442,7 @@
 }
 
 .nearbyCard {
-  margin-top: 32px;
+  margin-top: auto;
   width: 100%;
   max-width: 440px;
   padding: 24px;
@@ -1660,6 +1661,9 @@
   }
   .heroCtas {
     justify-content: center;
+  }
+  .nearbyCard {
+    margin-top: 32px;
   }
   .grid { 
     flex-direction: column; 
