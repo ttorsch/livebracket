@@ -208,7 +208,7 @@
   font-family: var(--font-heading);
   font-weight: 900;
   font-size: clamp(72px, 15vw, 110px);
-  color: #fff;
+  color: var(--orange, #EE7A4C);
   line-height: 1;
   text-shadow: 0 0 30px rgba(238, 122, 76, 0.2);
   font-variant-numeric: tabular-nums;

@@ -12,6 +12,7 @@ import {
   Star
 } from 'lucide-react';
 import styles from './page.module.css';
+import { DateChip } from '@/components/livebracket-ds';
 
 type Status = 'live' | 'upcoming' | 'finished';
 
@@ -48,6 +49,8 @@ interface Tournament {
   image: string;
   timeLabel: string;
   registrations?: RegistrationInfo[];
+  organizerName?: string;
+  organizerInitials?: string;
 }
 
 function ProgressCircle({ filled, total }: { filled: number; total: number }) {
@@ -149,6 +152,8 @@ const TOURNAMENTS: Tournament[] = [
       { division: 'Men', filled: 19, total: 24 },
       { division: 'Women', filled: 19, total: 24 },
     ],
+    organizerName: 'Memories Beach Club',
+    organizerInitials: 'MB',
   },
   {
     id: 'sunset-shootout',
@@ -167,6 +172,8 @@ const TOURNAMENTS: Tournament[] = [
       { division: 'Men', filled: 10, total: 12 },
       { division: 'Women', filled: 8, total: 12 },
     ],
+    organizerName: 'Sunset Sports Association',
+    organizerInitials: 'SS',
   },
   {
     id: 'monsoon-cup',
@@ -184,6 +191,8 @@ const TOURNAMENTS: Tournament[] = [
     registrations: [
       { division: 'Mixed', filled: 20, total: 24 },
     ],
+    organizerName: 'Andaman Volley League',
+    organizerInitials: 'AV',
   },
   {
     id: 'ladies-night-league',
@@ -201,6 +210,8 @@ const TOURNAMENTS: Tournament[] = [
     registrations: [
       { division: 'Women', filled: 6, total: 8 },
     ],
+    organizerName: 'Phang Nga Volleyball',
+    organizerInitials: 'PN',
   },
   {
     id: 'andaman-open',
@@ -219,6 +230,8 @@ const TOURNAMENTS: Tournament[] = [
       { division: 'Men', filled: 28, total: 32 },
       { division: 'Women', filled: 24, total: 32 },
     ],
+    organizerName: 'Khao Lak Sports Club',
+    organizerInitials: 'KL',
   },
   {
     id: 'full-moon-smash',
@@ -238,6 +251,8 @@ const TOURNAMENTS: Tournament[] = [
       { division: 'Men', filled: 16, total: 16 },
       { division: 'Women', filled: 16, total: 16 },
     ],
+    organizerName: 'White Sand Beach Club',
+    organizerInitials: 'WS',
   },
   {
     id: 'low-season-cup',
@@ -382,10 +397,8 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
 ];
 
 const FILTERS: { key: 'all' | Status; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'live', label: 'Live' },
-  { key: 'upcoming', label: 'Upcoming' },
-  { key: 'finished', label: 'Finished' },
+  { key: 'all', label: 'Latest' },
+  { key: 'upcoming', label: 'Starting Soon' },
 ];
 
 const STATUS_LABEL: Record<Status, string> = { 
@@ -406,6 +419,7 @@ const getTeamName = (players: { name: string }[]) => {
 export default function LiveBracketHome() {
   const [filter, setFilter] = useState<'all' | Status>('all');
   const [query, setQuery] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
 
   // Morphing Navigation States
   const [scrolled, setScrolled] = useState(false);
@@ -517,25 +531,29 @@ export default function LiveBracketHome() {
   // Filter lists based on Search input and Filter tabs.
   const filteredActiveUpcoming = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const l = locationQuery.trim().toLowerCase();
     return TOURNAMENTS.filter((t) => {
       if (t.status === 'finished') return false;
       if (filter === 'live' && t.status !== 'live') return false;
       if (filter === 'upcoming' && t.status !== 'upcoming') return false;
       if (filter === 'finished') return false;
       if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
+      if (l && !t.location.toLowerCase().includes(l)) return false;
       return true;
     });
-  }, [filter, query]);
+  }, [filter, query, locationQuery]);
 
   const filteredFinished = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const l = locationQuery.trim().toLowerCase();
     return TOURNAMENTS.filter((t) => {
       if (t.status !== 'finished') return false;
       if (filter === 'live' || filter === 'upcoming') return false;
       if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
+      if (l && !t.location.toLowerCase().includes(l)) return false;
       return true;
     });
-  }, [filter, query]);
+  }, [filter, query, locationQuery]);
 
   const hasAnyResults = filteredActiveUpcoming.length > 0 || filteredFinished.length > 0;
 
@@ -676,11 +694,6 @@ export default function LiveBracketHome() {
                   <motion.div 
                     key={carouselIndex}
                     className={styles.carouselMatchCard}
-                    whileHover={{ 
-                      scale: 1.02, 
-                      boxShadow: '0 12px 36px rgba(0, 0, 0, 0.3)' 
-                    }}
-                    whileTap={{ scale: 0.94 }}
                     initial={{ 
                       clipPath: 'circle(8px at 50% 50%)',
                       scale: 0.05,
@@ -703,7 +716,6 @@ export default function LiveBracketHome() {
                     style={{
                       backdropFilter: 'blur(12px) saturate(160%)',
                       WebkitBackdropFilter: 'blur(12px) saturate(160%)',
-                      cursor: 'pointer',
                       background: 'rgba(255, 255, 255, 0.88)',
                       border: '1px solid rgba(255, 255, 255, 0.4)'
                     }}
@@ -844,13 +856,20 @@ export default function LiveBracketHome() {
                       <h3 className={styles.nearbyCardTitle}>{nearbyEvent.title}</h3>
                       
                       <div className={styles.nearbyCardMeta}>
+                        <DateChip 
+                          style={{
+                            fontWeight: 700,
+                            fontSize: '13.5px',
+                            padding: '6px 14px',
+                            border: 'none',
+                            width: 'fit-content'
+                          }}
+                        >
+                          {nearbyEvent.dateLabel}
+                        </DateChip>
                         <span className={styles.nearbyMetaItem}>
                           <MapPin size={13} className={styles.nearbyMetaIcon} />
                           {nearbyEvent.location}
-                        </span>
-                        <span className={styles.nearbyMetaItem}>
-                          <Calendar size={13} className={styles.nearbyMetaIcon} />
-                          {nearbyEvent.dateLabel}
                         </span>
                       </div>
                     </div>
@@ -893,16 +912,28 @@ export default function LiveBracketHome() {
 
             {/* Controls: search + status filters */}
             <div className={styles.controls}>
-              <div className={styles.search}>
-                <Search size={18} className={styles.searchIconLeft} />
-                <input
-                  type="search"
-                  placeholder="Search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  aria-label="Search tournaments"
-                />
-                <Mic size={18} className={styles.searchIconRight} />
+              <div className={styles.searchRow}>
+                <div className={styles.search}>
+                  <Search size={18} className={styles.searchIconLeft} />
+                  <input
+                    type="search"
+                    placeholder="Search tournaments"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    aria-label="Search tournaments"
+                  />
+                  <Mic size={18} className={styles.searchIconRight} />
+                </div>
+                <div className={styles.locationSearch}>
+                  <MapPin size={18} className={styles.searchIconLeft} />
+                  <input
+                    type="search"
+                    placeholder="Location"
+                    value={locationQuery}
+                    onChange={(e) => setLocationQuery(e.target.value)}
+                    aria-label="Search location"
+                  />
+                </div>
               </div>
               <div className={styles.chips} role="tablist" aria-label="Filter by status">
                 {FILTERS.map((f) => (
@@ -913,12 +944,11 @@ export default function LiveBracketHome() {
                     className={`${styles.chip} ${filter === f.key ? styles.chipActive : ''}`}
                     onClick={() => setFilter(f.key)}
                   >
-                    {f.key === 'live' && <span className={styles.chipDot} aria-hidden="true" />}
                     {f.label}
                   </button>
                 ))}
                 <button className={styles.favoriteBtn} aria-label="Add to favorites">
-                  <Star size={13} style={{ marginRight: '6px', strokeWidth: '2.5px' }} /> Add Favorite
+                  <Star size={16} style={{ marginRight: '8px' }} /> Add Favorite
                 </button>
               </div>
             </div>
@@ -929,7 +959,7 @@ export default function LiveBracketHome() {
                 <p>No tournaments match that search query or filter.</p>
                 <button
                   className={styles.linkBtn}
-                  onClick={() => { setQuery(''); setFilter('all'); }}
+                  onClick={() => { setQuery(''); setLocationQuery(''); setFilter('all'); }}
                 >
                   Clear filters
                 </button>
@@ -953,37 +983,52 @@ export default function LiveBracketHome() {
                       <img src={t.image} alt={t.title} className={styles.cardPoster} />
                     </div>
                     
-                    <div className={styles.cardDetailsCol}>
-                      <div className={styles.cardLocationRow}>
-                        <MapPin size={13} className={styles.cardLocIcon} />
-                        <span className={styles.cardLocationText}>{t.location}</span>
-                      </div>
+                    <div className={`${styles.cardDetailsCol} ${!t.registrations ? styles.cardDetailsNoReg : ''}`}>
+                      <div className={styles.cardMainInfo}>
+                        <div className={styles.cardLocationRow}>
+                          <MapPin size={13} className={styles.cardLocIcon} />
+                          <span className={styles.cardLocationText}>{t.location}</span>
+                        </div>
 
-                      <h3 className={styles.cardTitle}>{t.title}</h3>
+                        <h3 className={styles.cardTitle}>{t.title}</h3>
 
-                      <div className={styles.cardPillsRow}>
-                        <span className={styles.cardPillBadge}>{t.dateLabel}</span>
-                        <span className={styles.cardPillBadge}>{t.timeLabel}</span>
+                        <div className={styles.cardPillsRow}>
+                          <span className={styles.cardPillBadge}>{t.dateLabel}</span>
+                          <span className={styles.cardPillBadge}>{t.timeLabel}</span>
+                        </div>
+
+                        <div className={styles.organizerRow}>
+                          <div className={styles.organizerAvatar}>
+                            {t.organizerInitials || 'LB'}
+                          </div>
+                          <span className={styles.organizerName}>
+                            {t.organizerName || 'Live Bracket'}
+                          </span>
+                        </div>
                       </div>
 
                       {t.registrations && (
-                        <div className={styles.cardDivisionsGrid}>
+                        <div className={styles.cardDivisionsSection}>
                           {t.registrations.map((reg, idx) => (
-                            <div key={idx} className={styles.cardDivisionCol}>
-                              <ProgressCircle filled={reg.filled} total={reg.total} />
-                              <span className={styles.cardDivisionName}>{reg.division}</span>
+                            <div key={idx} className={styles.divisionItem}>
+                              <div className={styles.divisionHeader}>
+                                <span className={styles.divisionName}>{reg.division}</span>
+                                <span className={styles.divisionSeats}>
+                                  <strong>{reg.filled}</strong>/{reg.total} seats
+                                </span>
+                              </div>
+                              <div className={styles.progressBarBg}>
+                                <div
+                                  className={styles.progressBarFill}
+                                  style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
+                                />
+                              </div>
                             </div>
                           ))}
                           {t.divisions && t.divisions.length > t.registrations.length && (
-                            <>
-                              <div className={styles.cardDivisionDivider} />
-                              <div className={styles.cardDivisionCol}>
-                                <div className={styles.moreDivisionsCircle}>
-                                  <span>+{t.divisions.length - t.registrations.length}</span>
-                                </div>
-                                <span className={styles.moreDivisionsLabel}>More</span>
-                              </div>
-                            </>
+                            <div className={styles.moreDivisionsText}>
+                              + {t.divisions.length - t.registrations.length} more divisions available
+                            </div>
                           )}
                         </div>
                       )}
