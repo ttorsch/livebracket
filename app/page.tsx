@@ -91,7 +91,7 @@ function ProgressCircle({ filled, total }: { filled: number; total: number }) {
   );
 }
 
-function RollingDigit({ digit }: { digit: string }) {
+function RollingDigit({ digit, className }: { digit: string; className?: string }) {
   return (
     <div className={styles.rollingDigitContainer}>
       <AnimatePresence mode="popLayout">
@@ -105,7 +105,7 @@ function RollingDigit({ digit }: { digit: string }) {
             stiffness: 300,
             damping: 30
           }}
-          className={styles.activePoints}
+          className={`${styles.activePoints} ${className || ''}`}
           style={{
             position: 'absolute',
             fontVariantNumeric: 'tabular-nums'
@@ -118,13 +118,13 @@ function RollingDigit({ digit }: { digit: string }) {
   );
 }
 
-function RollingNumber({ value }: { value: number }) {
+function RollingNumber({ value, className }: { value: number; className?: string }) {
   const digits = useMemo(() => String(value).split(''), [value]);
 
   return (
     <div style={{ display: 'inline-flex', overflow: 'hidden' }}>
       {digits.map((digit, idx) => (
-        <RollingDigit key={`${idx}-${digit}`} digit={digit} />
+        <RollingDigit key={`${idx}-${digit}`} digit={digit} className={className} />
       ))}
     </div>
   );
@@ -267,18 +267,18 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Quarterfinals",
     court: "Court 1",
     teamAPlayers: [
-      { name: "Name 1", flag: "🇹🇭" },
-      { name: "Name 2", flag: "🇹🇭" }
+      { name: "Aroon", flag: "🇹🇭" },
+      { name: "Niran", flag: "🇹🇭" }
     ],
     teamBPlayers: [
-      { name: "Name 1", flag: "🇺🇸" },
-      { name: "Name 2", flag: "🇺🇸" }
+      { name: "Lukas", flag: "🇩🇪" },
+      { name: "Felix", flag: "🇩🇪" }
     ],
-    currentPointsA: 7,
-    currentPointsB: 11,
+    currentPointsA: 2,
+    currentPointsB: 1,
     sets: [
-      { a: 21, b: 19 },
-      { a: 18, b: 21 }
+      { a: 21, b: 18 },
+      { a: 19, b: 21 }
     ]
   },
   {
@@ -287,12 +287,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Semifinals",
     court: "Court 2",
     teamAPlayers: [
-      { name: "Name 1", flag: "🇩🇪" },
-      { name: "Name 2", flag: "🇩🇪" }
+      { name: "Marie", flag: "🇩🇪" },
+      { name: "Klara", flag: "🇩🇪" }
     ],
     teamBPlayers: [
-      { name: "Name 1", flag: "🇧🇷" },
-      { name: "Name 2", flag: "🇧🇷" }
+      { name: "Larissa", flag: "🇧🇷" },
+      { name: "Talita", flag: "🇧🇷" }
     ],
     currentPointsA: 15,
     currentPointsB: 12,
@@ -306,12 +306,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Final",
     court: "Court 1",
     teamAPlayers: [
-      { name: "Name 1", flag: "🇨🇦" },
-      { name: "Name 2", flag: "🇨🇦" }
+      { name: "Sarah", flag: "🇨🇦" },
+      { name: "Melissa", flag: "🇨🇦" }
     ],
     teamBPlayers: [
-      { name: "Name 1", flag: "🇫🇷" },
-      { name: "Name 2", flag: "🇫🇷" }
+      { name: "Alix", flag: "🇫🇷" },
+      { name: "Clémentine", flag: "🇫🇷" }
     ],
     currentPointsA: 9,
     currentPointsB: 7,
@@ -326,12 +326,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Semifinals",
     court: "Court 3",
     teamAPlayers: [
-      { name: "Name 1", flag: "🇪🇸" },
-      { name: "Name 2", flag: "🇪🇸" }
+      { name: "Pablo", flag: "🇪🇸" },
+      { name: "Adrian", flag: "🇪🇸" }
     ],
     teamBPlayers: [
-      { name: "Name 1", flag: "🇮🇹" },
-      { name: "Name 2", flag: "🇮🇹" }
+      { name: "Marco", flag: "🇮🇹" },
+      { name: "Paolo", flag: "🇮🇹" }
     ],
     currentPointsA: 4,
     currentPointsB: 6,
@@ -345,18 +345,18 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Quarterfinals",
     court: "Court 4",
     teamAPlayers: [
-      { name: "Name 1", flag: "🇯🇵" },
-      { name: "Name 2", flag: "🇯🇵" }
+      { name: "Miki", flag: "🇯🇵" },
+      { name: "Megumi", flag: "🇯🇵" }
     ],
     teamBPlayers: [
-      { name: "Name 1", flag: "🇦🇺" },
-      { name: "Name 2", flag: "🇦🇺" }
+      { name: "Sophie", flag: "🇦🇺" },
+      { name: "Emma", flag: "🇦🇺" }
     ],
-    currentPointsA: 11,
-    currentPointsB: 9,
+    currentPointsA: 18,
+    currentPointsB: 20,
     sets: [
-      { a: 17, b: 21 },
-      { a: 21, b: 14 }
+      { a: 21, b: 19 },
+      { a: 17, b: 21 }
     ]
   },
   {
@@ -365,12 +365,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Semifinals",
     court: "Court 2",
     teamAPlayers: [
-      { name: "Name 1", flag: "🇬🇧" },
-      { name: "Name 2", flag: "🇬🇧" }
+      { name: "Emma", flag: "🇬🇧" },
+      { name: "Liam", flag: "🇬🇧" }
     ],
     teamBPlayers: [
-      { name: "Name 1", flag: "🇨🇭" },
-      { name: "Name 2", flag: "🇨🇭" }
+      { name: "Chloé", flag: "🇨🇭" },
+      { name: "Noah", flag: "🇨🇭" }
     ],
     currentPointsA: 20,
     currentPointsB: 19,
@@ -378,7 +378,7 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
       { a: 22, b: 20 },
       { a: 15, b: 21 }
     ]
-  },
+  }
 ];
 
 const FILTERS: { key: 'all' | Status; label: string }[] = [
@@ -392,6 +392,15 @@ const STATUS_LABEL: Record<Status, string> = {
   live: 'Live Now', 
   upcoming: 'Upcoming', 
   finished: 'Finished' 
+};
+
+const getAvatarText = (players: { name: string }[]) => {
+  if (!players || players.length === 0) return '?/';
+  return `${players[0].name.charAt(0).toUpperCase()}/`;
+};
+
+const getTeamName = (players: { name: string }[]) => {
+  return players.map(p => p.name).join(' / ');
 };
 
 export default function LiveBracketHome() {
@@ -692,74 +701,79 @@ export default function LiveBracketHome() {
                       boxShadow: { type: 'spring', stiffness: 400, damping: 25 }
                     }}
                     style={{
-                      backdropFilter: 'blur(15px) saturate(140%)',
-                      WebkitBackdropFilter: 'blur(15px) saturate(140%)',
-                      cursor: 'pointer'
+                      backdropFilter: 'blur(12px) saturate(160%)',
+                      WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+                      cursor: 'pointer',
+                      background: 'rgba(255, 255, 255, 0.88)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)'
                     }}
                   >
-                    <div className={styles.carouselContainer} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                      <div className={styles.carouselMatchHeader}>
-                        <span className={styles.carouselDivision}>
-                          {activeMatch.division} - <span className={styles.carouselRound}>{activeMatch.round}</span>
+                    <div className={styles.newCarouselContainer} style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%' }}>
+                      
+                      {/* Header Row */}
+                      <div className={styles.newCarouselHeader}>
+                        <span className={styles.newCarouselTitle}>
+                          {activeMatch.division.toUpperCase()} • {activeMatch.round.toUpperCase()}
+                        </span>
+                        <span className={styles.newLiveBadge}>
+                          <span className={styles.newLiveDot} />
+                          LIVE
                         </span>
                       </div>
 
-                      <div className={styles.carouselMatchupRow}>
-                        
-                        {/* Left Team: Names & Flag circles */}
-                        <div className={styles.carouselTeamLeft}>
-                          {activeMatch.teamAPlayers.map((player, idx) => (
-                            <div key={idx} className={styles.playerRow}>
-                              <div className={styles.flagCircle} title="Country flag">
-                                {player.flag}
-                              </div>
-                              <span className={styles.playerName}>{player.name}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Middle Score Block (Point Score + Set stacks) */}
-                        <div className={styles.carouselScoresMiddle}>
-                          {/* Team A score stack */}
-                          <div className={styles.scoreBlock}>
-                            <div className={styles.setHistoryStack}>
-                              <span className={styles.historySetPoints}>
-                                {activeMatch.sets[0] !== undefined ? activeMatch.sets[0].a : '-'}
-                              </span>
-                              <span className={styles.historySetPoints}>
-                                {activeMatch.sets[1] !== undefined ? activeMatch.sets[1].a : '-'}
-                              </span>
-                            </div>
-                            <RollingNumber value={activeMatch.currentPointsA} />
+                      {/* Team A Row */}
+                      <div className={`${styles.newTeamRow} ${activeMatch.currentPointsA >= activeMatch.currentPointsB ? styles.leadingTeam : styles.trailingTeam}`}>
+                        <div className={styles.teamLeftGroup}>
+                          <div className={styles.teamAvatar}>
+                            {getAvatarText(activeMatch.teamAPlayers)}
                           </div>
-
-                          {/* Team B score stack */}
-                          <div className={styles.scoreBlock}>
-                            <div className={styles.setHistoryStack}>
-                              <span className={styles.historySetPoints}>
-                                {activeMatch.sets[0] !== undefined ? activeMatch.sets[0].b : '-'}
+                          <span className={styles.teamNameText}>
+                            {getTeamName(activeMatch.teamAPlayers)}
+                          </span>
+                        </div>
+                        <div className={styles.teamRightGroup}>
+                          <div className={styles.setHistoryRow}>
+                            {activeMatch.sets.map((set, sIdx) => (
+                              <span key={sIdx} className={styles.historyPointsValue}>
+                                {set.a}
                               </span>
-                              <span className={styles.historySetPoints}>
-                                {activeMatch.sets[1] !== undefined ? activeMatch.sets[1].b : '-'}
-                              </span>
-                            </div>
-                            <RollingNumber value={activeMatch.currentPointsB} />
+                            ))}
                           </div>
+                          <RollingNumber 
+                            value={activeMatch.currentPointsA} 
+                            className={activeMatch.currentPointsA >= activeMatch.currentPointsB ? styles.orangePoints : styles.darkPoints} 
+                          />
                         </div>
-
-                        {/* Right Team: Names & Flag circles */}
-                        <div className={styles.carouselTeamRight}>
-                          {activeMatch.teamBPlayers.map((player, idx) => (
-                            <div key={idx} className={styles.playerRow}>
-                              <span className={styles.playerName}>{player.name}</span>
-                              <div className={styles.flagCircle} title="Country flag">
-                                {player.flag}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
                       </div>
+
+                      {/* Divider */}
+                      <div className={styles.newMatchDivider} />
+
+                      {/* Team B Row */}
+                      <div className={`${styles.newTeamRow} ${activeMatch.currentPointsB > activeMatch.currentPointsA ? styles.leadingTeam : styles.trailingTeam}`}>
+                        <div className={styles.teamLeftGroup}>
+                          <div className={styles.teamAvatar}>
+                            {getAvatarText(activeMatch.teamBPlayers)}
+                          </div>
+                          <span className={styles.teamNameText}>
+                            {getTeamName(activeMatch.teamBPlayers)}
+                          </span>
+                        </div>
+                        <div className={styles.teamRightGroup}>
+                          <div className={styles.setHistoryRow}>
+                            {activeMatch.sets.map((set, sIdx) => (
+                              <span key={sIdx} className={styles.historyPointsValue}>
+                                {set.b}
+                              </span>
+                            ))}
+                          </div>
+                          <RollingNumber 
+                            value={activeMatch.currentPointsB} 
+                            className={activeMatch.currentPointsB > activeMatch.currentPointsA ? styles.orangePoints : styles.darkPoints} 
+                          />
+                        </div>
+                      </div>
+
                     </div>
                   </motion.div>
                 </AnimatePresence>

@@ -487,7 +487,7 @@
 }
 
 .nearbyCardTitle {
-  font-family: var(--font-heading);
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 21px;
   color: #fff;
@@ -660,7 +660,7 @@
   width: 100%;
 }
 .pulseTitle {
-  font-family: var(--font-heading);
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 800;
   font-size: 28px;
   color: #fff;
@@ -1246,7 +1246,7 @@
 }
 
 .cardTitle {
-  font-family: var(--font-heading);
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 24px;
   color: var(--ink-1, #14181E);
@@ -1422,7 +1422,7 @@
 }
 
 .completedCardTitle {
-  font-family: var(--font-heading);
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 800;
   font-size: 20px;
   color: var(--ink-1, #14181E);
@@ -1739,4 +1739,146 @@
   display: none;
 }
 
+/* ── New Carousel Livescore Card styles ────────────────────────── */
+.newCarouselContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
 
+.newCarouselHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.newCarouselTitle {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7A8294;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.newLiveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--coral, #F26749);
+  letter-spacing: 0.05em;
+}
+
+.newLiveDot {
+  width: 7px;
+  height: 7px;
+  background-color: var(--coral, #F26749);
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(0.85); opacity: 0.5; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.5; }
+}
+
+.newTeamRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+}
+
+.teamLeftGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.teamAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #E7E2D9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  color: #7A8294;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.teamNameText {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.leadingTeam .teamNameText {
+  color: var(--ink-1, #14181E);
+  font-weight: 700;
+}
+
+.trailingTeam .teamNameText {
+  color: #7A8294;
+  font-weight: 500;
+}
+
+.teamRightGroup {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.setHistoryRow {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.historyPointsValue {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.leadingTeam .historyPointsValue {
+  color: var(--ink-1, #14181E);
+  font-weight: 700;
+}
+
+.trailingTeam .historyPointsValue {
+  color: #7A8294;
+  font-weight: 500;
+}
+
+.orangePoints {
+  color: var(--coral, #F26749) !important;
+  font-size: 34px !important;
+  font-weight: 800 !important;
+  text-shadow: none !important;
+}
+
+.darkPoints {
+  color: var(--ink-1, #14181E) !important;
+  font-size: 34px !important;
+  font-weight: 800 !important;
+  text-shadow: none !important;
+}
+
+.newMatchDivider {
+  height: 1px;
+  background-color: rgba(20, 24, 30, 0.06);
+  width: 100%;
+  margin: 2px 0;
+}
