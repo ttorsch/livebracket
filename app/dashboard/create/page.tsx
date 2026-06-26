@@ -329,14 +329,17 @@ function TopBar() {
         <div className={styles.topBarInner}>
           <Link href="/" className={styles.brand}>
             <span className={styles.brandMark}>
-              <svg viewBox="283 51 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="626.5" cy="394.5" r="343.5" fill="#EE7A4C" />
-                <line x1="465" y1="258" x2="573" y2="258" stroke="white" strokeWidth="30" strokeLinecap="round" />
-                <line x1="603" y1="320" x2="711" y2="320" stroke="white" strokeWidth="30" strokeLinecap="round" />
-                <line x1="465" y1="531" x2="573" y2="531" stroke="white" strokeWidth="30" strokeLinecap="round" />
-                <line x1="573" y1="259" x2="573" y2="380" stroke="white" strokeWidth="30" strokeLinecap="round" />
-                <line x1="573" y1="410" x2="573" y2="531" stroke="white" strokeWidth="30" strokeLinecap="round" />
-              </svg>
+              <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
+  <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
+  <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
+  <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
+  <rect x="722.713" y="462.822" width="129.386" height="35.9406" rx="15" fill="white" />
+  <rect x="593.327" y="489.178" width="129.386" height="35.9406" rx="15" fill="white" />
+  <rect x="557.386" y="416.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 557.386 416.099)" fill="white" />
+  <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
+  <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
+</svg>
             </span>
             Live Bracket
           </Link>

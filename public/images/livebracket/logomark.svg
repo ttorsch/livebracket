@@ -1,16 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 687 687" width="687" height="687" role="img" aria-label="Live Bracket">
-  <circle cx="343.5" cy="343.5" r="343.5" fill="#EE7A4C"></circle>
-  <g transform="translate(167,193)" fill="#ffffff">
-    <clipPath id="lbclip"><rect x="0" y="0" width="354" height="302"></rect></clipPath>
-    <g clip-path="url(#lbclip)">
-      <svg x="0" y="29" width="138" height="30" viewBox="0 -15 138 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 123 0 C 131.284 0 138 -6.716 138 -15 C 138 -23.284 131.284 -30 123 -30 L 123 -15 L 123 0 Z M 15 -15 L 15 0 L 123 0 L 123 -15 L 123 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg>
-      <svg x="138" y="91" width="138" height="30" viewBox="0 -15 138 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 123 0 C 131.284 0 138 -6.716 138 -15 C 138 -23.284 131.284 -30 123 -30 L 123 -15 L 123 0 Z M 15 -15 L 15 0 L 123 0 L 123 -15 L 123 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg>
-      <svg x="138" y="242" width="108" height="30" viewBox="0 -15 108 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 93 0 C 101.284 0 108 -6.716 108 -15 C 108 -23.284 101.284 -30 93 -30 L 93 -15 L 93 0 Z M 15 -15 L 15 0 L 93 0 L 93 -15 L 93 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg>
-      <svg x="246" y="220" width="108" height="30" viewBox="0 -15 108 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 93 0 C 101.284 0 108 -6.716 108 -15 C 108 -23.284 101.284 -30 93 -30 L 93 -15 L 93 0 Z M 15 -15 L 15 0 L 93 0 L 93 -15 L 93 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg>
-      <svg x="0" y="272" width="138" height="30" viewBox="0 -15 138 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 123 0 C 131.284 0 138 -6.716 138 -15 C 138 -23.284 131.284 -30 123 -30 L 123 -15 L 123 0 Z M 15 -15 L 15 0 L 123 0 L 123 -15 L 123 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg>
-      <g transform="matrix(0,1,-1,0,108,0)"><svg x="0" y="0" width="151" height="30" viewBox="0 -15 151 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 136 0 C 144.284 0 151 -6.716 151 -15 C 151 -23.284 144.284 -30 136 -30 L 136 -15 L 136 0 Z M 15 -15 L 15 0 L 136 0 L 136 -15 L 136 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg></g>
-      <g transform="matrix(0,1,-1,0,246,61)"><svg x="0" y="0" width="159" height="30" viewBox="0 -15 159 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 144 0 C 152.284 0 159 -6.716 159 -15 C 159 -23.284 152.284 -30 144 -30 L 144 -15 L 144 0 Z M 15 -15 L 15 0 L 144 0 L 144 -15 L 144 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg></g>
-      <g transform="matrix(0,1,-1,0,108,151)"><svg x="0" y="0" width="151" height="30" viewBox="0 -15 151 30"><path d="M 15 -30 C 6.716 -30 0 -23.284 0 -15 C 0 -6.716 6.716 0 15 0 L 15 -15 L 15 -30 Z M 136 0 C 144.284 0 151 -6.716 151 -15 C 151 -23.284 144.284 -30 136 -30 L 136 -15 L 136 0 Z M 15 -15 L 15 0 L 136 0 L 136 -15 L 136 -30 L 15 -30 L 15 -15 Z" fill="#ffffff"></path></svg></g>
-    </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="296 73 687 687" width="687" height="687" role="img" aria-label="Live Bracket">
+  <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
+  <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
+  <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
+  <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
+  <rect x="722.713" y="462.822" width="129.386" height="35.9406" rx="15" fill="white" />
+  <rect x="593.327" y="489.178" width="129.386" height="35.9406" rx="15" fill="white" />
+  <rect x="557.386" y="416.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 557.386 416.099)" fill="white" />
+  <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
+  <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
 </svg>
