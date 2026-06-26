@@ -84,7 +84,7 @@ function PhotoBackdrop({ children, dim = true }: { children: React.ReactNode; di
     <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 520, overflow: "hidden", borderRadius: "var(--radius-xl)" }}>
       <div style={{
         position: "absolute", inset: 0,
-        background: `url("/images/livebracket/beach-volleyball.jpg") center/cover no-repeat`,
+        background: `url("/images/Hero.jpg") center/cover no-repeat`,
       }} />
       {dim && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,16,24,0.35) 0%, rgba(10,16,24,0.15) 30%, rgba(10,16,24,0.20) 100%)" }} />}
       <div style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column" }}>{children}</div>
