@@ -49,7 +49,7 @@ export function Button({
     secondary: {
       bg: "var(--color-primary-soft)",
       bgHover: "rgba(235,111,67,0.30)",
-      fg: "var(--color-primary)",
+      fg: "#ffffff",
       shadow: "none",
     },
     general: {
