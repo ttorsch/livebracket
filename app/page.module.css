@@ -600,14 +600,16 @@
 /* ── Live "Pulse" Card & Carousel (Alined to User's Light Glass Image) ── */
 .pulseCard {
   width: 100%;
-  max-width: 460px;
+  max-width: 520px;
   background: rgba(255, 255, 255, 0.16); /* glassmorphism value from login */
-  border-radius: 32px;
-  padding: 28px;
+  border-radius: 36px;
+  padding: 40px 36px;
   box-shadow: 0 30px 80px -30px rgba(8, 18, 35, 0.6); /* glassmorphism shadow from login */
   position: relative;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
   color: var(--orange, #EE7A4C);
+  display: flex;
+  flex-direction: column;
 }
 .pulseCard:hover {
   transform: translateY(-4px);
@@ -797,15 +799,16 @@
 .activePoints {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 38px;
+  font-size: inherit; /* inherit from container */
   color: #fff;
   line-height: 1;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
 }
 .rollingDigitContainer {
   position: relative;
-  height: 38px;
-  width: 24px;
+  font-size: 38px; /* default size */
+  height: 1.1em;
+  width: 0.65em;
   overflow: hidden;
   display: inline-flex;
   justify-content: center;
@@ -1756,7 +1759,7 @@
 
 .newCarouselTitle {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #7A8294;
   text-transform: uppercase;
@@ -1768,7 +1771,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   color: var(--coral, #F26749);
   letter-spacing: 0.05em;
@@ -1794,25 +1797,25 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  height: 40px;
+  height: 56px;
 }
 
 .teamLeftGroup {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .teamAvatar {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: #E7E2D9;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-heading);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: #7A8294;
   border: 1px solid rgba(0, 0, 0, 0.03);
@@ -1820,7 +1823,7 @@
 
 .teamNameText {
   font-family: var(--font-heading);
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.2;
 }
 
@@ -1837,18 +1840,18 @@
 .teamRightGroup {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
 .setHistoryRow {
   display: flex;
-  gap: 14px;
+  gap: 18px;
   align-items: center;
 }
 
 .historyPointsValue {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 17px;
+  font-size: 19px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1864,14 +1867,14 @@
 
 .orangePoints {
   color: var(--coral, #F26749) !important;
-  font-size: 34px !important;
+  font-size: 48px !important;
   font-weight: 800 !important;
   text-shadow: none !important;
 }
 
 .darkPoints {
   color: var(--ink-1, #14181E) !important;
-  font-size: 34px !important;
+  font-size: 48px !important;
   font-weight: 800 !important;
   text-shadow: none !important;
 }

@@ -93,7 +93,7 @@ function ProgressCircle({ filled, total }: { filled: number; total: number }) {
 
 function RollingDigit({ digit, className }: { digit: string; className?: string }) {
   return (
-    <div className={styles.rollingDigitContainer}>
+    <div className={`${styles.rollingDigitContainer} ${className || ''}`}>
       <AnimatePresence mode="popLayout">
         <motion.span
           key={digit}
@@ -105,7 +105,7 @@ function RollingDigit({ digit, className }: { digit: string; className?: string 
             stiffness: 300,
             damping: 30
           }}
-          className={`${styles.activePoints} ${className || ''}`}
+          className={styles.activePoints}
           style={{
             position: 'absolute',
             fontVariantNumeric: 'tabular-nums'
@@ -122,7 +122,7 @@ function RollingNumber({ value, className }: { value: number; className?: string
   const digits = useMemo(() => String(value).split(''), [value]);
 
   return (
-    <div style={{ display: 'inline-flex', overflow: 'hidden' }}>
+    <div style={{ display: 'inline-flex', overflow: 'hidden' }} className={className}>
       {digits.map((digit, idx) => (
         <RollingDigit key={`${idx}-${digit}`} digit={digit} className={className} />
       ))}
