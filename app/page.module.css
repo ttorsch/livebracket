@@ -1882,3 +1882,39 @@
   width: 100%;
   margin: 2px 0;
 }
+
+.nearbyCardContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.nearbyCardTextCol {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.nearbyArrowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.nearbyArrowBtn:hover {
+  background: var(--coral, #F26749);
+  border-color: var(--coral, #F26749);
+  transform: translateX(3px);
+}
+

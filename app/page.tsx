@@ -833,41 +833,34 @@ export default function LiveBracketHome() {
                   }}
                 >
                   <div className={styles.nearbyCardHeader}>
-                    <span className={styles.nearbyCardKicker}>
-                      📍 Next event near {userLoc}
+                    <span className={styles.nearbyCardKicker} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={12} style={{ color: 'var(--coral)' }} /> Phang Nga
                     </span>
                     <span className={styles.nearbyStatusPill}>Upcoming</span>
                   </div>
                   
-                  <h3 className={styles.nearbyCardTitle}>{nearbyEvent.title}</h3>
-                  
-                  <div className={styles.nearbyCardMeta}>
-                    <span className={styles.nearbyMetaItem}>
-                      <MapPin size={13} className={styles.nearbyMetaIcon} />
-                      {nearbyEvent.location}
-                    </span>
-                    <span className={styles.nearbyMetaItem}>
-                      <Calendar size={13} className={styles.nearbyMetaIcon} />
-                      {nearbyEvent.dateLabel}
-                    </span>
-                  </div>
-
-                  {nearbyEvent.divisions && (
-                    <div className={styles.nearbyDivisionsRow}>
-                      <span className={styles.nearbyDivisionsLabel}>Divisions:</span>
-                      <div className={styles.nearbyDivisionsList}>
-                        {nearbyEvent.divisions.map((div, idx) => (
-                          <span key={idx} className={styles.nearbyDivisionBadge}>
-                            {div}
-                          </span>
-                        ))}
+                  <div className={styles.nearbyCardContent}>
+                    <div className={styles.nearbyCardTextCol}>
+                      <h3 className={styles.nearbyCardTitle}>{nearbyEvent.title}</h3>
+                      
+                      <div className={styles.nearbyCardMeta}>
+                        <span className={styles.nearbyMetaItem}>
+                          <MapPin size={13} className={styles.nearbyMetaIcon} />
+                          {nearbyEvent.location}
+                        </span>
+                        <span className={styles.nearbyMetaItem}>
+                          <Calendar size={13} className={styles.nearbyMetaIcon} />
+                          {nearbyEvent.dateLabel}
+                        </span>
                       </div>
                     </div>
-                  )}
 
-                  <div className={styles.nearbyCardFooter}>
-                    <Link href="#events" className={styles.nearbyCardLink} onClick={() => setFilter('upcoming')}>
-                      View bracket & details <ArrowRight size={13} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                    <Link 
+                      href={`/tournament/${nearbyEvent.id}`} 
+                      className={styles.nearbyArrowBtn}
+                      aria-label="View tournament details"
+                    >
+                      <ArrowRight size={18} />
                     </Link>
                   </div>
                 </div>
