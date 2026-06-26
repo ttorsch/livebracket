@@ -161,7 +161,7 @@ const TOURNAMENTS: Tournament[] = [
     format: 'Pools → knockout',
     accent: 'linear-gradient(135deg, #EA9836 0%, #F26749 100%)',
     divisions: ['Men', 'Women', 'Mixed'],
-    image: '/images/Activity-KOB.jpg',
+    image: '/images/Hero.jpg',
     timeLabel: '4:00 PM',
     registrations: [
       { division: 'Men', filled: 10, total: 12 },
