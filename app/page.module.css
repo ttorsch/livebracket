@@ -618,7 +618,6 @@
 }
 .pulseCard:hover {
   transform: translateY(-4px);
-  box-shadow: 0 40px 90px -30px rgba(8, 18, 35, 0.8);
 }
 
 /* Stacked Header Layout */
@@ -1156,9 +1155,7 @@
   text-decoration: none;
 }
 .card:hover {
-  transform: translateY(-3px);
   background: #ffffff;
-  border-color: rgba(255, 255, 255, 0.9);
 }
 
 .cardImageCol {
@@ -1404,13 +1401,43 @@
   gap: 22px;
 }
 
+.completedSlideshow {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.completedDots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.completedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(20, 31, 46, 0.18);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.25s, width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.completedDotActive {
+  background: var(--ink-1, #14181E);
+  width: 24px;
+}
+
 .completedCard {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 32px;
-  padding: 24px;
+  padding: 36px;
+  min-height: 300px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 14px;
   box-shadow: 0 20px 40px -12px rgba(20, 31, 46, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(24px) saturate(200%);
@@ -1425,82 +1452,153 @@
   box-shadow: 0 25px 45px -12px rgba(20, 31, 46, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
+/* Line 1 */
 .completedMetaRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
+
 .completedBadge {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 700;
-  font-size: 9px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(20, 24, 30, 0.6);
-  background: rgba(20, 31, 46, 0.06);
-  border: 1px solid rgba(20, 31, 46, 0.12);
-  padding: 4px 8px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: rgba(20, 24, 30, 0.5);
+  background: rgba(20, 31, 46, 0.07);
+  padding: 5px 12px;
   border-radius: 999px;
 }
-.completedDate {
+
+.completedMetaRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.completedDatePill {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 11px;
+  color: rgba(20, 24, 30, 0.5);
+  background: rgba(20, 31, 46, 0.07);
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+
+.completedLocation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-family: var(--font-body, 'DM Sans', sans-serif);
   font-size: 12px;
   color: rgba(20, 24, 30, 0.45);
 }
 
+/* Body: title left, champion center */
+.completedBody {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 24px;
+}
+
 .completedCardTitle {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 800;
-  font-size: 20px;
+  font-size: clamp(22px, 3vw, 32px);
   color: var(--ink-1, #14181E);
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
-.completedWinnerRow {
-  background: rgba(20, 31, 46, 0.05);
-  border: 1px solid rgba(20, 31, 46, 0.1);
-  border-radius: 12px;
-  padding: 10px 14px;
+/* Champion block */
+.completedChampionBlock {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 13.5px;
-  color: var(--ink-2, #3A414D);
-  margin-top: 4px;
-}
-.completedWinnerRow span {
-  font-size: 16px;
-}
-.completedWinnerName {
-  font-weight: 700;
-  color: var(--orange, #EE7A4C);
 }
 
-.completedFooter {
-  margin-top: auto;
+.completedTrophyIcon {
+  font-size: 36px;
+  line-height: 1;
+  text-align: center;
+}
+
+.completedChampionRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(20, 31, 46, 0.12);
+  gap: 14px;
+}
+
+.completedChampionAvatars {
+  display: flex;
+}
+
+.completedAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #EE7A4C, #d4622f);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid rgba(255, 255, 255, 0.9);
+  margin-left: -12px;
+  flex-shrink: 0;
+}
+
+.completedChampionAvatars .completedAvatar:first-child {
+  margin-left: 0;
+}
+
+.completedPlayerName {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink-1, #14181E);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+/* Footer */
+.completedFooter {
+  display: flex;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(20, 31, 46, 0.1);
 }
 
 .completedLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 700;
+  font-weight: 500;
   font-size: 13px;
-  color: var(--ink-2, #3A414D);
-  transition: color 0.15s;
+  color: rgba(20, 24, 30, 0.45);
   text-decoration: none;
+  transition: color 0.15s;
 }
-.completedCard:hover .completedLink {
-  color: var(--orange, #EE7A4C);
+
+.completedLink:hover {
+  color: var(--ink-1, #14181E);
+}
+
+.completedCongrats {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 12px;
+  color: rgba(20, 24, 30, 0.4);
+}
+
+.completedWinnerName {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink-1, #14181E);
 }
 
 .completedArrow {

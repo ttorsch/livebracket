@@ -1,0 +1,5331 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "hyperedges": [
+      {
+        "id": "he_ds_components_design_system",
+        "label": "All DS components form the Live Bracket Design System",
+        "nodes": [
+          "ds_button_component",
+          "ds_searchfield_component",
+          "ds_logo_component",
+          "ds_badge_component",
+          "ds_icon_component",
+          "ds_glasscard_component",
+          "ds_matchcard_component"
+        ],
+        "relation": "implement",
+        "confidence": "INFERRED",
+        "confidence_score": 0.95,
+        "source_file": "CLAUDE.md"
+      },
+      {
+        "id": "he_matchcard_avatar_bracket",
+        "label": "MatchCard composes Avatar and is part of bracket UI",
+        "nodes": [
+          "ds_matchcard_component",
+          "ds_avatar_component",
+          "ds_bracket_card"
+        ],
+        "relation": "participate_in",
+        "confidence": "INFERRED",
+        "confidence_score": 0.85,
+        "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md"
+      },
+      {
+        "id": "he_forms_search_icon",
+        "label": "SearchField and SegmentedControl use Icon and form the Forms group",
+        "nodes": [
+          "ds_searchfield_component",
+          "ds_segmentedcontrol_component",
+          "ds_icon_component"
+        ],
+        "relation": "participate_in",
+        "confidence": "EXTRACTED",
+        "confidence_score": 1.0,
+        "source_file": "components/livebracket-ds/forms/SearchField.prompt.md"
+      },
+      {
+        "id": "livebracket_logo_assets",
+        "label": "Live Bracket Logo Assets",
+        "nodes": [
+          "logo_lb",
+          "images_livebracket_logomark",
+          "concept_brand_identity",
+          "concept_tournament_bracket"
+        ],
+        "relation": "implement",
+        "confidence": "INFERRED",
+        "confidence_score": 0.9,
+        "source_file": "public/images/livebracket/logomark.svg"
+      },
+      {
+        "id": "beach_volleyball_media",
+        "label": "Beach Volleyball Tournament Media Assets",
+        "nodes": [
+          "images_activity_social",
+          "images_hero",
+          "images_activity_league",
+          "images_livebracket_beach_volleyball",
+          "images_memories_beach_poster",
+          "images_livebracket_memories_beach_poster",
+          "concept_beach_volleyball_tournament"
+        ],
+        "relation": "participate_in",
+        "confidence": "INFERRED",
+        "confidence_score": 0.9,
+        "source_file": "public/images/Activity-social.jpg"
+      },
+      {
+        "id": "nextjs_default_public_assets",
+        "label": "Next.js Default Public Folder Assets",
+        "nodes": [
+          "public_vercel",
+          "public_next",
+          "public_globe",
+          "public_window",
+          "public_file",
+          "concept_nextjs_default_assets"
+        ],
+        "relation": "participate_in",
+        "confidence": "INFERRED",
+        "confidence_score": 0.85,
+        "source_file": "public/vercel.svg"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "label": "postcss.config.mjs",
+      "file_type": "code",
+      "source_file": "postcss.config.mjs",
+      "source_location": "L1",
+      "id": "postcss_config_mjs",
+      "community": 30,
+      "norm_label": "postcss.config.mjs"
+    },
+    {
+      "label": "config",
+      "file_type": "code",
+      "source_file": "postcss.config.mjs",
+      "source_location": "L1",
+      "id": "livebracket_postcss_config_config",
+      "community": 30,
+      "norm_label": "config"
+    },
+    {
+      "label": "package.json",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L1",
+      "id": "package_json",
+      "community": 3,
+      "norm_label": "package.json"
+    },
+    {
+      "label": "name",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L2",
+      "id": "livebracket_package_name",
+      "community": 3,
+      "norm_label": "name"
+    },
+    {
+      "label": "version",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L3",
+      "id": "livebracket_package_version",
+      "community": 3,
+      "norm_label": "version"
+    },
+    {
+      "label": "private",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L4",
+      "id": "livebracket_package_private",
+      "community": 3,
+      "norm_label": "private"
+    },
+    {
+      "label": "scripts",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L5",
+      "id": "livebracket_package_scripts",
+      "community": 3,
+      "norm_label": "scripts"
+    },
+    {
+      "label": "dev",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L6",
+      "id": "livebracket_package_scripts_dev",
+      "community": 3,
+      "norm_label": "dev"
+    },
+    {
+      "label": "build",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L7",
+      "id": "livebracket_package_scripts_build",
+      "community": 3,
+      "norm_label": "build"
+    },
+    {
+      "label": "start",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L8",
+      "id": "livebracket_package_scripts_start",
+      "community": 3,
+      "norm_label": "start"
+    },
+    {
+      "label": "lint",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L9",
+      "id": "livebracket_package_scripts_lint",
+      "community": 3,
+      "norm_label": "lint"
+    },
+    {
+      "label": "dependencies",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L11",
+      "id": "livebracket_package_dependencies",
+      "community": 3,
+      "norm_label": "dependencies"
+    },
+    {
+      "label": "framer-motion",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L12",
+      "id": "livebracket_package_dependencies_framer_motion",
+      "community": 3,
+      "norm_label": "framer-motion"
+    },
+    {
+      "label": "lucide-react",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "id": "livebracket_package_dependencies_lucide_react",
+      "community": 3,
+      "norm_label": "lucide-react"
+    },
+    {
+      "label": "next",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L14",
+      "id": "livebracket_package_dependencies_next",
+      "community": 3,
+      "norm_label": "next"
+    },
+    {
+      "label": "react",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L15",
+      "id": "livebracket_package_dependencies_react",
+      "community": 3,
+      "norm_label": "react"
+    },
+    {
+      "label": "react-dom",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L16",
+      "id": "livebracket_package_dependencies_react_dom",
+      "community": 3,
+      "norm_label": "react-dom"
+    },
+    {
+      "label": "devDependencies",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L18",
+      "id": "livebracket_package_devdependencies",
+      "community": 3,
+      "norm_label": "devdependencies"
+    },
+    {
+      "label": "@tailwindcss/postcss",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L19",
+      "id": "livebracket_package_devdependencies_tailwindcss_postcss",
+      "community": 3,
+      "norm_label": "@tailwindcss/postcss"
+    },
+    {
+      "label": "@types/node",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L20",
+      "id": "livebracket_package_devdependencies_types_node",
+      "community": 3,
+      "norm_label": "@types/node"
+    },
+    {
+      "label": "@types/react",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L21",
+      "id": "livebracket_package_devdependencies_types_react",
+      "community": 3,
+      "norm_label": "@types/react"
+    },
+    {
+      "label": "@types/react-dom",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L22",
+      "id": "livebracket_package_devdependencies_types_react_dom",
+      "community": 3,
+      "norm_label": "@types/react-dom"
+    },
+    {
+      "label": "eslint",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L23",
+      "id": "livebracket_package_devdependencies_eslint",
+      "community": 3,
+      "norm_label": "eslint"
+    },
+    {
+      "label": "eslint-config-next",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L24",
+      "id": "livebracket_package_devdependencies_eslint_config_next",
+      "community": 3,
+      "norm_label": "eslint-config-next"
+    },
+    {
+      "label": "tailwindcss",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L25",
+      "id": "livebracket_package_devdependencies_tailwindcss",
+      "community": 3,
+      "norm_label": "tailwindcss"
+    },
+    {
+      "label": "typescript",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L26",
+      "id": "livebracket_package_devdependencies_typescript",
+      "community": 3,
+      "norm_label": "typescript"
+    },
+    {
+      "label": "tsconfig.json",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L1",
+      "id": "tsconfig_json",
+      "community": 4,
+      "norm_label": "tsconfig.json"
+    },
+    {
+      "label": "compilerOptions",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L2",
+      "id": "livebracket_tsconfig_compileroptions",
+      "community": 4,
+      "norm_label": "compileroptions"
+    },
+    {
+      "label": "target",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L3",
+      "id": "livebracket_tsconfig_compileroptions_target",
+      "community": 4,
+      "norm_label": "target"
+    },
+    {
+      "label": "lib",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L4",
+      "id": "livebracket_tsconfig_compileroptions_lib",
+      "community": 4,
+      "norm_label": "lib"
+    },
+    {
+      "label": "allowJs",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L5",
+      "id": "livebracket_tsconfig_compileroptions_allowjs",
+      "community": 4,
+      "norm_label": "allowjs"
+    },
+    {
+      "label": "skipLibCheck",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L6",
+      "id": "livebracket_tsconfig_compileroptions_skiplibcheck",
+      "community": 4,
+      "norm_label": "skiplibcheck"
+    },
+    {
+      "label": "strict",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L7",
+      "id": "livebracket_tsconfig_compileroptions_strict",
+      "community": 4,
+      "norm_label": "strict"
+    },
+    {
+      "label": "noEmit",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L8",
+      "id": "livebracket_tsconfig_compileroptions_noemit",
+      "community": 4,
+      "norm_label": "noemit"
+    },
+    {
+      "label": "esModuleInterop",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L9",
+      "id": "livebracket_tsconfig_compileroptions_esmoduleinterop",
+      "community": 4,
+      "norm_label": "esmoduleinterop"
+    },
+    {
+      "label": "module",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L10",
+      "id": "livebracket_tsconfig_compileroptions_module",
+      "community": 4,
+      "norm_label": "module"
+    },
+    {
+      "label": "moduleResolution",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L11",
+      "id": "livebracket_tsconfig_compileroptions_moduleresolution",
+      "community": 4,
+      "norm_label": "moduleresolution"
+    },
+    {
+      "label": "resolveJsonModule",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L12",
+      "id": "livebracket_tsconfig_compileroptions_resolvejsonmodule",
+      "community": 4,
+      "norm_label": "resolvejsonmodule"
+    },
+    {
+      "label": "isolatedModules",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L13",
+      "id": "livebracket_tsconfig_compileroptions_isolatedmodules",
+      "community": 4,
+      "norm_label": "isolatedmodules"
+    },
+    {
+      "label": "jsx",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L14",
+      "id": "livebracket_tsconfig_compileroptions_jsx",
+      "community": 4,
+      "norm_label": "jsx"
+    },
+    {
+      "label": "incremental",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L15",
+      "id": "livebracket_tsconfig_compileroptions_incremental",
+      "community": 4,
+      "norm_label": "incremental"
+    },
+    {
+      "label": "plugins",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L16",
+      "id": "livebracket_tsconfig_compileroptions_plugins",
+      "community": 4,
+      "norm_label": "plugins"
+    },
+    {
+      "label": "paths",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L21",
+      "id": "livebracket_tsconfig_compileroptions_paths",
+      "community": 4,
+      "norm_label": "paths"
+    },
+    {
+      "label": "@/*",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L22",
+      "id": "livebracket_tsconfig_paths",
+      "community": 4,
+      "norm_label": "@/*"
+    },
+    {
+      "label": "include",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L25",
+      "id": "livebracket_tsconfig_include",
+      "community": 4,
+      "norm_label": "include"
+    },
+    {
+      "label": "exclude",
+      "file_type": "code",
+      "source_file": "tsconfig.json",
+      "source_location": "L33",
+      "id": "livebracket_tsconfig_exclude",
+      "community": 4,
+      "norm_label": "exclude"
+    },
+    {
+      "label": "eslint.config.mjs",
+      "file_type": "code",
+      "source_file": "eslint.config.mjs",
+      "source_location": "L1",
+      "id": "eslint_config_mjs",
+      "community": 28,
+      "norm_label": "eslint.config.mjs"
+    },
+    {
+      "label": "eslintConfig",
+      "file_type": "code",
+      "source_file": "eslint.config.mjs",
+      "source_location": "L5",
+      "id": "livebracket_eslint_config_eslintconfig",
+      "community": 28,
+      "norm_label": "eslintconfig"
+    },
+    {
+      "label": "next.config.ts",
+      "file_type": "code",
+      "source_file": "next.config.ts",
+      "source_location": "L1",
+      "id": "next_config_ts",
+      "community": 29,
+      "norm_label": "next.config.ts"
+    },
+    {
+      "label": "nextConfig",
+      "file_type": "code",
+      "source_file": "next.config.ts",
+      "source_location": "L3",
+      "id": "livebracket_next_config_nextconfig",
+      "community": 29,
+      "norm_label": "nextconfig"
+    },
+    {
+      "label": "layout.tsx",
+      "file_type": "code",
+      "source_file": "app/layout.tsx",
+      "source_location": "L1",
+      "id": "app_layout_tsx",
+      "community": 11,
+      "norm_label": "layout.tsx"
+    },
+    {
+      "label": "metadata",
+      "file_type": "code",
+      "source_file": "app/layout.tsx",
+      "source_location": "L5",
+      "id": "app_layout_metadata",
+      "community": 11,
+      "norm_label": "metadata"
+    },
+    {
+      "label": "RootLayout()",
+      "file_type": "code",
+      "source_file": "app/layout.tsx",
+      "source_location": "L24",
+      "id": "app_layout_rootlayout",
+      "community": 11,
+      "norm_label": "rootlayout()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L1",
+      "id": "app_page_tsx",
+      "community": 5,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "Status",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L17",
+      "id": "app_page_status",
+      "community": 5,
+      "norm_label": "status"
+    },
+    {
+      "label": "CarouselMatch",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L19",
+      "id": "app_page_carouselmatch",
+      "community": 5,
+      "norm_label": "carouselmatch"
+    },
+    {
+      "label": "RegistrationInfo",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L31",
+      "id": "app_page_registrationinfo",
+      "community": 5,
+      "norm_label": "registrationinfo"
+    },
+    {
+      "label": "Tournament",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L37",
+      "id": "app_page_tournament",
+      "community": 5,
+      "norm_label": "tournament"
+    },
+    {
+      "label": "ProgressCircle()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L56",
+      "id": "app_page_progresscircle",
+      "community": 5,
+      "norm_label": "progresscircle()"
+    },
+    {
+      "label": "RollingDigit()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L97",
+      "id": "app_page_rollingdigit",
+      "community": 5,
+      "norm_label": "rollingdigit()"
+    },
+    {
+      "label": "RollingNumber()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L124",
+      "id": "app_page_rollingnumber",
+      "community": 5,
+      "norm_label": "rollingnumber()"
+    },
+    {
+      "label": "TOURNAMENTS",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L137",
+      "id": "app_page_tournaments",
+      "community": 5,
+      "norm_label": "tournaments"
+    },
+    {
+      "label": "CAROUSEL_MATCHES",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L278",
+      "id": "app_page_carousel_matches",
+      "community": 5,
+      "norm_label": "carousel_matches"
+    },
+    {
+      "label": "FILTERS",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L399",
+      "id": "app_page_filters",
+      "community": 5,
+      "norm_label": "filters"
+    },
+    {
+      "label": "STATUS_LABEL",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L404",
+      "id": "app_page_status_label",
+      "community": 5,
+      "norm_label": "status_label"
+    },
+    {
+      "label": "getAvatarText()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L410",
+      "id": "app_page_getavatartext",
+      "community": 5,
+      "norm_label": "getavatartext()"
+    },
+    {
+      "label": "getTeamName()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L415",
+      "id": "app_page_getteamname",
+      "community": 5,
+      "norm_label": "getteamname()"
+    },
+    {
+      "label": "LiveBracketHome()",
+      "file_type": "code",
+      "source_file": "app/page.tsx",
+      "source_location": "L419",
+      "id": "app_page_livebrackethome",
+      "community": 5,
+      "norm_label": "livebrackethome()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L1",
+      "id": "app_tournament_id_page_tsx",
+      "community": 6,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "TournamentStatus",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L9",
+      "id": "id_page_tournamentstatus",
+      "community": 6,
+      "norm_label": "tournamentstatus"
+    },
+    {
+      "label": "TOURNAMENT",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L12",
+      "id": "id_page_tournament",
+      "community": 6,
+      "norm_label": "tournament"
+    },
+    {
+      "label": "MatchPlayer",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L30",
+      "id": "id_page_matchplayer",
+      "community": 6,
+      "norm_label": "matchplayer"
+    },
+    {
+      "label": "BracketMatch",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L31",
+      "id": "id_page_bracketmatch",
+      "community": 6,
+      "norm_label": "bracketmatch"
+    },
+    {
+      "label": "BRACKET",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L43",
+      "id": "id_page_bracket",
+      "community": 6,
+      "norm_label": "bracket"
+    },
+    {
+      "label": "POOL_STANDINGS",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L68",
+      "id": "id_page_pool_standings",
+      "community": 6,
+      "norm_label": "pool_standings"
+    },
+    {
+      "label": "SCHEDULE",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L75",
+      "id": "id_page_schedule",
+      "community": 6,
+      "norm_label": "schedule"
+    },
+    {
+      "label": "TEAMS",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L85",
+      "id": "id_page_teams",
+      "community": 6,
+      "norm_label": "teams"
+    },
+    {
+      "label": "Tab",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L96",
+      "id": "id_page_tab",
+      "community": 6,
+      "norm_label": "tab"
+    },
+    {
+      "label": "Nav()",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L99",
+      "id": "id_page_nav",
+      "community": 6,
+      "norm_label": "nav()"
+    },
+    {
+      "label": "BracketMatchCard()",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L165",
+      "id": "id_page_bracketmatchcard",
+      "community": 6,
+      "norm_label": "bracketmatchcard()"
+    },
+    {
+      "label": "TournamentDetail()",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L208",
+      "id": "id_page_tournamentdetail",
+      "community": 6,
+      "norm_label": "tournamentdetail()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L1",
+      "id": "app_tournament_id_register_page_tsx",
+      "community": 2,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "DIVISIONS",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L10",
+      "id": "register_page_divisions",
+      "community": 2,
+      "norm_label": "divisions"
+    },
+    {
+      "label": "STEPS",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L16",
+      "id": "register_page_steps",
+      "community": 2,
+      "norm_label": "steps"
+    },
+    {
+      "label": "Player",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L18",
+      "id": "register_page_player",
+      "community": 2,
+      "norm_label": "player"
+    },
+    {
+      "label": "TournamentRegister()",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L20",
+      "id": "register_page_tournamentregister",
+      "community": 2,
+      "norm_label": "tournamentregister()"
+    },
+    {
+      "label": "TopBar()",
+      "file_type": "code",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L312",
+      "id": "register_page_topbar",
+      "community": 2,
+      "norm_label": "topbar()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L1",
+      "id": "app_dashboard_page_tsx",
+      "community": 2,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "ORGANIZER",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L9",
+      "id": "dashboard_page_organizer",
+      "community": 2,
+      "norm_label": "organizer"
+    },
+    {
+      "label": "STATS",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L15",
+      "id": "dashboard_page_stats",
+      "community": 2,
+      "norm_label": "stats"
+    },
+    {
+      "label": "ACTIVE_TOURNAMENTS",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L21",
+      "id": "dashboard_page_active_tournaments",
+      "community": 2,
+      "norm_label": "active_tournaments"
+    },
+    {
+      "label": "PAST_TOURNAMENTS",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L48",
+      "id": "dashboard_page_past_tournaments",
+      "community": 2,
+      "norm_label": "past_tournaments"
+    },
+    {
+      "label": "OrganizerDashboard()",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L53",
+      "id": "dashboard_page_organizerdashboard",
+      "community": 2,
+      "norm_label": "organizerdashboard()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L1",
+      "id": "app_dashboard_create_page_tsx",
+      "community": 8,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "STEPS",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L9",
+      "id": "create_page_steps",
+      "community": 8,
+      "norm_label": "steps"
+    },
+    {
+      "label": "FORMATS",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L10",
+      "id": "create_page_formats",
+      "community": 8,
+      "norm_label": "formats"
+    },
+    {
+      "label": "Division",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L17",
+      "id": "create_page_division",
+      "community": 8,
+      "norm_label": "division"
+    },
+    {
+      "label": "Court",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L18",
+      "id": "create_page_court",
+      "community": 8,
+      "norm_label": "court"
+    },
+    {
+      "label": "CreateTournament()",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L20",
+      "id": "create_page_createtournament",
+      "community": 8,
+      "norm_label": "createtournament()"
+    },
+    {
+      "label": "ReviewRow()",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L316",
+      "id": "create_page_reviewrow",
+      "community": 8,
+      "norm_label": "reviewrow()"
+    },
+    {
+      "label": "TopBar()",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L325",
+      "id": "create_page_topbar",
+      "community": 8,
+      "norm_label": "topbar()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L1",
+      "id": "app_score_token_page_tsx",
+      "community": 2,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "MATCH",
+      "file_type": "code",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L9",
+      "id": "token_page_match",
+      "community": 2,
+      "norm_label": "match"
+    },
+    {
+      "label": "SetScore",
+      "file_type": "code",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L21",
+      "id": "token_page_setscore",
+      "community": 2,
+      "norm_label": "setscore"
+    },
+    {
+      "label": "ScorekeeperPage()",
+      "file_type": "code",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L23",
+      "id": "token_page_scorekeeperpage",
+      "community": 2,
+      "norm_label": "scorekeeperpage()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L1",
+      "id": "app_profile_page_tsx",
+      "community": 2,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "PLAYER",
+      "file_type": "code",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L9",
+      "id": "profile_page_player",
+      "community": 2,
+      "norm_label": "player"
+    },
+    {
+      "label": "STARRED",
+      "file_type": "code",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L24",
+      "id": "profile_page_starred",
+      "community": 2,
+      "norm_label": "starred"
+    },
+    {
+      "label": "HISTORY",
+      "file_type": "code",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L29",
+      "id": "profile_page_history",
+      "community": 2,
+      "norm_label": "history"
+    },
+    {
+      "label": "Tab",
+      "file_type": "code",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L37",
+      "id": "profile_page_tab",
+      "community": 2,
+      "norm_label": "tab"
+    },
+    {
+      "label": "PlayerProfile()",
+      "file_type": "code",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L39",
+      "id": "profile_page_playerprofile",
+      "community": 2,
+      "norm_label": "playerprofile()"
+    },
+    {
+      "label": "Simulator.tsx",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L1",
+      "id": "app_design_system_simulator_tsx",
+      "community": 0,
+      "norm_label": "simulator.tsx"
+    },
+    {
+      "label": "TOURNAMENTS",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L21",
+      "id": "design_system_simulator_tournaments",
+      "community": 0,
+      "norm_label": "tournaments"
+    },
+    {
+      "label": "PhotoBackdrop()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L82",
+      "id": "design_system_simulator_photobackdrop",
+      "community": 0,
+      "norm_label": "photobackdrop()"
+    },
+    {
+      "label": "TopBar()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L96",
+      "id": "design_system_simulator_topbar",
+      "community": 0,
+      "norm_label": "topbar()"
+    },
+    {
+      "label": "BackBtn()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L117",
+      "id": "design_system_simulator_backbtn",
+      "community": 0,
+      "norm_label": "backbtn()"
+    },
+    {
+      "label": "LoginScreen()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L135",
+      "id": "design_system_simulator_loginscreen",
+      "community": 0,
+      "norm_label": "loginscreen()"
+    },
+    {
+      "label": "ListingScreen()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L175",
+      "id": "design_system_simulator_listingscreen",
+      "community": 0,
+      "norm_label": "listingscreen()"
+    },
+    {
+      "label": "DetailScreen()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L237",
+      "id": "design_system_simulator_detailscreen",
+      "community": 0,
+      "norm_label": "detailscreen()"
+    },
+    {
+      "label": "BracketScreen()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L285",
+      "id": "design_system_simulator_bracketscreen",
+      "community": 0,
+      "norm_label": "bracketscreen()"
+    },
+    {
+      "label": "Simulator()",
+      "file_type": "code",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L338",
+      "id": "design_system_simulator_simulator",
+      "community": 0,
+      "norm_label": "simulator()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/design-system/page.tsx",
+      "source_location": "L1",
+      "id": "app_design_system_page_tsx",
+      "community": 17,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "DesignSystemPage()",
+      "file_type": "code",
+      "source_file": "app/design-system/page.tsx",
+      "source_location": "L5",
+      "id": "design_system_page_designsystempage",
+      "community": 17,
+      "norm_label": "designsystempage()"
+    },
+    {
+      "label": "layout.tsx",
+      "file_type": "code",
+      "source_file": "app/login/layout.tsx",
+      "source_location": "L1",
+      "id": "app_login_layout_tsx",
+      "community": 12,
+      "norm_label": "layout.tsx"
+    },
+    {
+      "label": "metadata",
+      "file_type": "code",
+      "source_file": "app/login/layout.tsx",
+      "source_location": "L3",
+      "id": "login_layout_metadata",
+      "community": 12,
+      "norm_label": "metadata"
+    },
+    {
+      "label": "LoginLayout()",
+      "file_type": "code",
+      "source_file": "app/login/layout.tsx",
+      "source_location": "L8",
+      "id": "login_layout_loginlayout",
+      "community": 12,
+      "norm_label": "loginlayout()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L1",
+      "id": "app_login_page_tsx",
+      "community": 10,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "Role",
+      "file_type": "code",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L7",
+      "id": "login_page_role",
+      "community": 10,
+      "norm_label": "role"
+    },
+    {
+      "label": "Arrow()",
+      "file_type": "code",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L9",
+      "id": "login_page_arrow",
+      "community": 10,
+      "norm_label": "arrow()"
+    },
+    {
+      "label": "LiveBracketLogin()",
+      "file_type": "code",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L17",
+      "id": "login_page_livebracketlogin",
+      "community": 10,
+      "norm_label": "livebracketlogin()"
+    },
+    {
+      "label": "settings.local.json",
+      "file_type": "code",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L1",
+      "id": "claude_settings_local_json",
+      "community": 14,
+      "norm_label": "settings.local.json"
+    },
+    {
+      "label": "permissions",
+      "file_type": "code",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L2",
+      "id": "claude_settings_local_permissions",
+      "community": 14,
+      "norm_label": "permissions"
+    },
+    {
+      "label": "allow",
+      "file_type": "code",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L3",
+      "id": "claude_settings_local_permissions_allow",
+      "community": 14,
+      "norm_label": "allow"
+    },
+    {
+      "label": "index.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_index_ts",
+      "community": 0,
+      "norm_label": "index.ts"
+    },
+    {
+      "label": "SearchField.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SearchField.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_forms_searchfield_d_ts",
+      "community": 23,
+      "norm_label": "searchfield.d.ts"
+    },
+    {
+      "label": "SearchFieldProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SearchField.d.ts",
+      "source_location": "L3",
+      "id": "forms_searchfield_d_searchfieldprops",
+      "community": 23,
+      "norm_label": "searchfieldprops"
+    },
+    {
+      "label": "SegmentedControl.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_forms_segmentedcontrol_jsx",
+      "community": 0,
+      "norm_label": "segmentedcontrol.jsx"
+    },
+    {
+      "label": "SegmentedControl()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.jsx",
+      "source_location": "L9",
+      "id": "forms_segmentedcontrol_segmentedcontrol",
+      "community": 0,
+      "norm_label": "segmentedcontrol()"
+    },
+    {
+      "label": "SearchField.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_forms_searchfield_jsx",
+      "community": 0,
+      "norm_label": "searchfield.jsx"
+    },
+    {
+      "label": "SearchField()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L9",
+      "id": "forms_searchfield_searchfield",
+      "community": 0,
+      "norm_label": "searchfield()"
+    },
+    {
+      "label": "SegmentedControl.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_forms_segmentedcontrol_d_ts",
+      "community": 15,
+      "norm_label": "segmentedcontrol.d.ts"
+    },
+    {
+      "label": "SegmentOption",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.d.ts",
+      "source_location": "L3",
+      "id": "forms_segmentedcontrol_d_segmentoption",
+      "community": 15,
+      "norm_label": "segmentoption"
+    },
+    {
+      "label": "SegmentedControlProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.d.ts",
+      "source_location": "L9",
+      "id": "forms_segmentedcontrol_d_segmentedcontrolprops",
+      "community": 15,
+      "norm_label": "segmentedcontrolprops"
+    },
+    {
+      "label": "Button.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/buttons/Button.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_buttons_button_jsx",
+      "community": 0,
+      "norm_label": "button.jsx"
+    },
+    {
+      "label": "Button()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/buttons/Button.jsx",
+      "source_location": "L18",
+      "id": "buttons_button_button",
+      "community": 0,
+      "norm_label": "button()"
+    },
+    {
+      "label": "Button.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/buttons/Button.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_buttons_button_d_ts",
+      "community": 18,
+      "norm_label": "button.d.ts"
+    },
+    {
+      "label": "ButtonProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/buttons/Button.d.ts",
+      "source_location": "L3",
+      "id": "buttons_button_d_buttonprops",
+      "community": 18,
+      "norm_label": "buttonprops"
+    },
+    {
+      "label": "Logo.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/brand/Logo.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_brand_logo_jsx",
+      "community": 0,
+      "norm_label": "logo.jsx"
+    },
+    {
+      "label": "Mark()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/brand/Logo.jsx",
+      "source_location": "L9",
+      "id": "brand_logo_mark",
+      "community": 0,
+      "norm_label": "mark()"
+    },
+    {
+      "label": "Logo()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/brand/Logo.jsx",
+      "source_location": "L26",
+      "id": "brand_logo_logo",
+      "community": 0,
+      "norm_label": "logo()"
+    },
+    {
+      "label": "Logo.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/brand/Logo.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_brand_logo_d_ts",
+      "community": 19,
+      "norm_label": "logo.d.ts"
+    },
+    {
+      "label": "LogoProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/brand/Logo.d.ts",
+      "source_location": "L3",
+      "id": "brand_logo_d_logoprops",
+      "community": 19,
+      "norm_label": "logoprops"
+    },
+    {
+      "label": "DivisionRing.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_divisionring_d_ts",
+      "community": 27,
+      "norm_label": "divisionring.d.ts"
+    },
+    {
+      "label": "DivisionRingProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.d.ts",
+      "source_location": "L3",
+      "id": "data_display_divisionring_d_divisionringprops",
+      "community": 27,
+      "norm_label": "divisionringprops"
+    },
+    {
+      "label": "Avatar.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Avatar.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_avatar_jsx",
+      "community": 0,
+      "norm_label": "avatar.jsx"
+    },
+    {
+      "label": "Avatar()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Avatar.jsx",
+      "source_location": "L8",
+      "id": "data_display_avatar_avatar",
+      "community": 0,
+      "norm_label": "avatar()"
+    },
+    {
+      "label": "LiveIndicator.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_liveindicator_d_ts",
+      "community": 21,
+      "norm_label": "liveindicator.d.ts"
+    },
+    {
+      "label": "LiveIndicatorProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.d.ts",
+      "source_location": "L3",
+      "id": "data_display_liveindicator_d_liveindicatorprops",
+      "community": 21,
+      "norm_label": "liveindicatorprops"
+    },
+    {
+      "label": "PageControl.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/PageControl.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_pagecontrol_d_ts",
+      "community": 22,
+      "norm_label": "pagecontrol.d.ts"
+    },
+    {
+      "label": "PageControlProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/PageControl.d.ts",
+      "source_location": "L3",
+      "id": "data_display_pagecontrol_d_pagecontrolprops",
+      "community": 22,
+      "norm_label": "pagecontrolprops"
+    },
+    {
+      "label": "Badge.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Badge.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_badge_jsx",
+      "community": 0,
+      "norm_label": "badge.jsx"
+    },
+    {
+      "label": "Badge()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Badge.jsx",
+      "source_location": "L8",
+      "id": "data_display_badge_badge",
+      "community": 0,
+      "norm_label": "badge()"
+    },
+    {
+      "label": "LiveIndicator.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_liveindicator_jsx",
+      "community": 0,
+      "norm_label": "liveindicator.jsx"
+    },
+    {
+      "label": "LiveIndicator()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.jsx",
+      "source_location": "L7",
+      "id": "data_display_liveindicator_liveindicator",
+      "community": 0,
+      "norm_label": "liveindicator()"
+    },
+    {
+      "label": "DivisionRing.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_divisionring_jsx",
+      "community": 0,
+      "norm_label": "divisionring.jsx"
+    },
+    {
+      "label": "DivisionRing()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.jsx",
+      "source_location": "L9",
+      "id": "data_display_divisionring_divisionring",
+      "community": 0,
+      "norm_label": "divisionring()"
+    },
+    {
+      "label": "PageControl.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/PageControl.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_pagecontrol_jsx",
+      "community": 0,
+      "norm_label": "pagecontrol.jsx"
+    },
+    {
+      "label": "PageControl()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/PageControl.jsx",
+      "source_location": "L8",
+      "id": "data_display_pagecontrol_pagecontrol",
+      "community": 0,
+      "norm_label": "pagecontrol()"
+    },
+    {
+      "label": "Avatar.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Avatar.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_avatar_d_ts",
+      "community": 25,
+      "norm_label": "avatar.d.ts"
+    },
+    {
+      "label": "AvatarProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Avatar.d.ts",
+      "source_location": "L3",
+      "id": "data_display_avatar_d_avatarprops",
+      "community": 25,
+      "norm_label": "avatarprops"
+    },
+    {
+      "label": "Badge.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Badge.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_badge_d_ts",
+      "community": 20,
+      "norm_label": "badge.d.ts"
+    },
+    {
+      "label": "BadgeProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/Badge.d.ts",
+      "source_location": "L3",
+      "id": "data_display_badge_d_badgeprops",
+      "community": 20,
+      "norm_label": "badgeprops"
+    },
+    {
+      "label": "DateChip.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DateChip.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_datechip_d_ts",
+      "community": 26,
+      "norm_label": "datechip.d.ts"
+    },
+    {
+      "label": "DateChipProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DateChip.d.ts",
+      "source_location": "L3",
+      "id": "data_display_datechip_d_datechipprops",
+      "community": 26,
+      "norm_label": "datechipprops"
+    },
+    {
+      "label": "DateChip.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DateChip.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_data_display_datechip_jsx",
+      "community": 0,
+      "norm_label": "datechip.jsx"
+    },
+    {
+      "label": "DateChip()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/DateChip.jsx",
+      "source_location": "L8",
+      "id": "data_display_datechip_datechip",
+      "community": 0,
+      "norm_label": "datechip()"
+    },
+    {
+      "label": "Icon.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/icons/Icon.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_icons_icon_jsx",
+      "community": 0,
+      "norm_label": "icon.jsx"
+    },
+    {
+      "label": "PATHS",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/icons/Icon.jsx",
+      "source_location": "L11",
+      "id": "icons_icon_paths",
+      "community": 0,
+      "norm_label": "paths"
+    },
+    {
+      "label": "Icon()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/icons/Icon.jsx",
+      "source_location": "L30",
+      "id": "icons_icon_icon",
+      "community": 0,
+      "norm_label": "icon()"
+    },
+    {
+      "label": "Icon.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/icons/Icon.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_icons_icon_d_ts",
+      "community": 16,
+      "norm_label": "icon.d.ts"
+    },
+    {
+      "label": "IconName",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/icons/Icon.d.ts",
+      "source_location": "L3",
+      "id": "icons_icon_d_iconname",
+      "community": 16,
+      "norm_label": "iconname"
+    },
+    {
+      "label": "IconProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/icons/Icon.d.ts",
+      "source_location": "L8",
+      "id": "icons_icon_d_iconprops",
+      "community": 16,
+      "norm_label": "iconprops"
+    },
+    {
+      "label": "Card.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/Card.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_surfaces_card_jsx",
+      "community": 0,
+      "norm_label": "card.jsx"
+    },
+    {
+      "label": "Card()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/Card.jsx",
+      "source_location": "L8",
+      "id": "surfaces_card_card",
+      "community": 0,
+      "norm_label": "card()"
+    },
+    {
+      "label": "Card.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/Card.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_surfaces_card_d_ts",
+      "community": 31,
+      "norm_label": "card.d.ts"
+    },
+    {
+      "label": "CardProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/Card.d.ts",
+      "source_location": "L3",
+      "id": "surfaces_card_d_cardprops",
+      "community": 31,
+      "norm_label": "cardprops"
+    },
+    {
+      "label": "GlassCard.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_surfaces_glasscard_d_ts",
+      "community": 24,
+      "norm_label": "glasscard.d.ts"
+    },
+    {
+      "label": "GlassCardProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.d.ts",
+      "source_location": "L3",
+      "id": "surfaces_glasscard_d_glasscardprops",
+      "community": 24,
+      "norm_label": "glasscardprops"
+    },
+    {
+      "label": "GlassCard.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_surfaces_glasscard_jsx",
+      "community": 0,
+      "norm_label": "glasscard.jsx"
+    },
+    {
+      "label": "GlassCard()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.jsx",
+      "source_location": "L10",
+      "id": "surfaces_glasscard_glasscard",
+      "community": 0,
+      "norm_label": "glasscard()"
+    },
+    {
+      "label": "MatchCard.d.ts",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.d.ts",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_bracket_matchcard_d_ts",
+      "community": 13,
+      "norm_label": "matchcard.d.ts"
+    },
+    {
+      "label": "MatchTeam",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.d.ts",
+      "source_location": "L3",
+      "id": "bracket_matchcard_d_matchteam",
+      "community": 13,
+      "norm_label": "matchteam"
+    },
+    {
+      "label": "MatchCardProps",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.d.ts",
+      "source_location": "L13",
+      "id": "bracket_matchcard_d_matchcardprops",
+      "community": 13,
+      "norm_label": "matchcardprops"
+    },
+    {
+      "label": "MatchCard.jsx",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L1",
+      "id": "components_livebracket_ds_bracket_matchcard_jsx",
+      "community": 0,
+      "norm_label": "matchcard.jsx"
+    },
+    {
+      "label": "TeamRow()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L10",
+      "id": "bracket_matchcard_teamrow",
+      "community": 0,
+      "norm_label": "teamrow()"
+    },
+    {
+      "label": "MatchCard()",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L65",
+      "id": "bracket_matchcard_matchcard",
+      "community": 0,
+      "norm_label": "matchcard()"
+    },
+    {
+      "label": "README",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme",
+      "community": 1,
+      "norm_label": "readme"
+    },
+    {
+      "label": "CLAUDE.md Agent Instructions",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "claude_md",
+      "community": 1,
+      "norm_label": "claude.md agent instructions"
+    },
+    {
+      "label": "3-Layer Architecture (Directive / Orchestration / Execution)",
+      "file_type": "rationale",
+      "source_file": "CLAUDE.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "rationale": "Separates probabilistic LLM decision-making from deterministic script execution to reduce compounding errors. 90% accuracy per step = 59% success over 5 steps \u2014 pushing complexity into deterministic code fixes that.",
+      "id": "three_layer_architecture",
+      "community": 1,
+      "norm_label": "3-layer architecture (directive / orchestration / execution)"
+    },
+    {
+      "label": "Live Bracket Web Application",
+      "file_type": "concept",
+      "source_file": "CLAUDE.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "livebracket_app",
+      "community": 1,
+      "norm_label": "live bracket web application"
+    },
+    {
+      "label": "SearchField Prompt",
+      "file_type": "document",
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_searchfield_prompt",
+      "community": 1,
+      "norm_label": "searchfield prompt"
+    },
+    {
+      "label": "SearchField Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_searchfield_component",
+      "community": 1,
+      "norm_label": "searchfield component"
+    },
+    {
+      "label": "SegmentedControl Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_segmentedcontrol_component",
+      "community": 1,
+      "norm_label": "segmentedcontrol component"
+    },
+    {
+      "label": "Forms DS Card",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/forms/forms.card.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_forms_card",
+      "community": 1,
+      "norm_label": "forms ds card"
+    },
+    {
+      "label": "Button Prompt",
+      "file_type": "document",
+      "source_file": "components/livebracket-ds/buttons/Button.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_button_prompt",
+      "community": 1,
+      "norm_label": "button prompt"
+    },
+    {
+      "label": "Button Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/buttons/Button.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_button_component",
+      "community": 1,
+      "norm_label": "button component"
+    },
+    {
+      "label": "Buttons DS Card",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/buttons/buttons.card.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_buttons_card",
+      "community": 1,
+      "norm_label": "buttons ds card"
+    },
+    {
+      "label": "Logo Prompt",
+      "file_type": "document",
+      "source_file": "components/livebracket-ds/brand/Logo.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_logo_prompt",
+      "community": 1,
+      "norm_label": "logo prompt"
+    },
+    {
+      "label": "Logo Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/brand/Logo.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_logo_component",
+      "community": 1,
+      "norm_label": "logo component"
+    },
+    {
+      "label": "Brand DS Card",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/brand/brand.card.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_brand_card",
+      "community": 1,
+      "norm_label": "brand ds card"
+    },
+    {
+      "label": "Badge Prompt",
+      "file_type": "document",
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_badge_prompt",
+      "community": 1,
+      "norm_label": "badge prompt"
+    },
+    {
+      "label": "Badge Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_badge_component",
+      "community": 1,
+      "norm_label": "badge component"
+    },
+    {
+      "label": "LiveIndicator Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_liveindicator_component",
+      "community": 1,
+      "norm_label": "liveindicator component"
+    },
+    {
+      "label": "DateChip Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_datechip_component",
+      "community": 1,
+      "norm_label": "datechip component"
+    },
+    {
+      "label": "Avatar Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_avatar_component",
+      "community": 1,
+      "norm_label": "avatar component"
+    },
+    {
+      "label": "DivisionRing Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_divisionring_component",
+      "community": 1,
+      "norm_label": "divisionring component"
+    },
+    {
+      "label": "PageControl Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_pagecontrol_component",
+      "community": 1,
+      "norm_label": "pagecontrol component"
+    },
+    {
+      "label": "Data Display DS Card",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/data-display/data-display.card.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_datadisplay_card",
+      "community": 1,
+      "norm_label": "data display ds card"
+    },
+    {
+      "label": "Icon Prompt",
+      "file_type": "document",
+      "source_file": "components/livebracket-ds/icons/Icon.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_icon_prompt",
+      "community": 2,
+      "norm_label": "icon prompt"
+    },
+    {
+      "label": "Icon Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/icons/Icon.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_icon_component",
+      "community": 2,
+      "norm_label": "icon component"
+    },
+    {
+      "label": "Icons DS Card",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/icons/icons.card.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_icons_card",
+      "community": 2,
+      "norm_label": "icons ds card"
+    },
+    {
+      "label": "GlassCard Prompt",
+      "file_type": "document",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_glasscard_prompt",
+      "community": 1,
+      "norm_label": "glasscard prompt"
+    },
+    {
+      "label": "GlassCard Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_glasscard_component",
+      "community": 1,
+      "norm_label": "glasscard component"
+    },
+    {
+      "label": "Card Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_card_component",
+      "community": 1,
+      "norm_label": "card component"
+    },
+    {
+      "label": "Surfaces DS Card",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/surfaces/surfaces.card.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_surfaces_card",
+      "community": 1,
+      "norm_label": "surfaces ds card"
+    },
+    {
+      "label": "MatchCard Prompt",
+      "file_type": "document",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_matchcard_prompt",
+      "community": 1,
+      "norm_label": "matchcard prompt"
+    },
+    {
+      "label": "MatchCard Component",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_matchcard_component",
+      "community": 1,
+      "norm_label": "matchcard component"
+    },
+    {
+      "label": "Bracket DS Card",
+      "file_type": "code",
+      "source_file": "components/livebracket-ds/bracket/bracket.card.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "ds_bracket_card",
+      "community": 1,
+      "norm_label": "bracket ds card"
+    },
+    {
+      "label": "Live Bracket Design System",
+      "file_type": "concept",
+      "source_file": "CLAUDE.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "livebracket_ds",
+      "community": 1,
+      "norm_label": "live bracket design system"
+    },
+    {
+      "label": "Lucide React Icon Library",
+      "file_type": "concept",
+      "source_file": "components/livebracket-ds/icons/Icon.prompt.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "lucide_react",
+      "community": 2,
+      "norm_label": "lucide react icon library"
+    },
+    {
+      "label": "Live Bracket Logo (full canvas)",
+      "file_type": "image",
+      "source_file": "Logo LB.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "logo_lb",
+      "community": 7,
+      "norm_label": "live bracket logo (full canvas)"
+    },
+    {
+      "label": "File/Document Icon SVG",
+      "file_type": "image",
+      "source_file": "public/file.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "public_file",
+      "community": 9,
+      "norm_label": "file/document icon svg"
+    },
+    {
+      "label": "Vercel Logo SVG",
+      "file_type": "image",
+      "source_file": "public/vercel.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "public_vercel",
+      "community": 9,
+      "norm_label": "vercel logo svg"
+    },
+    {
+      "label": "Next.js Logo SVG",
+      "file_type": "image",
+      "source_file": "public/next.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "public_next",
+      "community": 9,
+      "norm_label": "next.js logo svg"
+    },
+    {
+      "label": "Globe/Web Icon SVG",
+      "file_type": "image",
+      "source_file": "public/globe.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "public_globe",
+      "community": 9,
+      "norm_label": "globe/web icon svg"
+    },
+    {
+      "label": "Window/Browser Icon SVG",
+      "file_type": "image",
+      "source_file": "public/window.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "public_window",
+      "community": 9,
+      "norm_label": "window/browser icon svg"
+    },
+    {
+      "label": "Beach Volleyball Social Activity Photo - players at net on beach",
+      "file_type": "image",
+      "source_file": "public/images/Activity-social.jpg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "images_activity_social",
+      "community": 7,
+      "norm_label": "beach volleyball social activity photo - players at net on beach"
+    },
+    {
+      "label": "Hero Image - Beach Volleyball players at net",
+      "file_type": "image",
+      "source_file": "public/images/Hero.jpg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "images_hero",
+      "community": 7,
+      "norm_label": "hero image - beach volleyball players at net"
+    },
+    {
+      "label": "Beach Volleyball League Activity Photo - players spiking at net",
+      "file_type": "image",
+      "source_file": "public/images/Activity-league.jpg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "images_activity_league",
+      "community": 7,
+      "norm_label": "beach volleyball league activity photo - players spiking at net"
+    },
+    {
+      "label": "Memories Beach Khao Lak Beach Volleyball Tournament 2024 Poster",
+      "file_type": "image",
+      "source_file": "public/images/memories_beach_poster.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "images_memories_beach_poster",
+      "community": 7,
+      "norm_label": "memories beach khao lak beach volleyball tournament 2024 poster"
+    },
+    {
+      "label": "Memories Beach Volleyball Tournament Apr 2025 Khao Lak Poster",
+      "file_type": "image",
+      "source_file": "public/images/livebracket/memories-beach-poster.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "images_livebracket_memories_beach_poster",
+      "community": 7,
+      "norm_label": "memories beach volleyball tournament apr 2025 khao lak poster"
+    },
+    {
+      "label": "Beach Volleyball Action Photo - players blocking at net on beach",
+      "file_type": "image",
+      "source_file": "public/images/livebracket/beach-volleyball.jpg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "images_livebracket_beach_volleyball",
+      "community": 7,
+      "norm_label": "beach volleyball action photo - players blocking at net on beach"
+    },
+    {
+      "label": "Live Bracket Logomark SVG - orange circle with white bracket shapes",
+      "file_type": "image",
+      "source_file": "public/images/livebracket/logomark.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "images_livebracket_logomark",
+      "community": 7,
+      "norm_label": "live bracket logomark svg - orange circle with white bracket shapes"
+    },
+    {
+      "label": "Live Bracket Brand Identity",
+      "file_type": "concept",
+      "source_file": null,
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_brand_identity",
+      "community": 7,
+      "norm_label": "live bracket brand identity"
+    },
+    {
+      "label": "Tournament Bracket Visual Concept",
+      "file_type": "concept",
+      "source_file": null,
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_tournament_bracket",
+      "community": 7,
+      "norm_label": "tournament bracket visual concept"
+    },
+    {
+      "label": "Beach Volleyball Tournament Context",
+      "file_type": "concept",
+      "source_file": null,
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_beach_volleyball_tournament",
+      "community": 7,
+      "norm_label": "beach volleyball tournament context"
+    },
+    {
+      "label": "Next.js Default Starter Assets",
+      "file_type": "concept",
+      "source_file": null,
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "concept_nextjs_default_assets",
+      "community": 9,
+      "norm_label": "next.js default starter assets"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "postcss.config.mjs",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "postcss_config_mjs",
+      "target": "livebracket_postcss_config_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "package_json",
+      "target": "livebracket_package_dependencies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "package_json",
+      "target": "livebracket_package_devdependencies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "package_json",
+      "target": "livebracket_package_name",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "package_json",
+      "target": "livebracket_package_private",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "package_json",
+      "target": "livebracket_package_scripts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "package_json",
+      "target": "livebracket_package_version",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_dev",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_lint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_start",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_framer_motion",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_next",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_react_dom",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "context": "import",
+      "source": "livebracket_package_dependencies_lucide_react",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_eslint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_eslint_config_next",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_tailwindcss",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_tailwindcss_postcss",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_types_node",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_types_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_types_react_dom",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_typescript",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "tsconfig_json",
+      "target": "livebracket_tsconfig_compileroptions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "tsconfig_json",
+      "target": "livebracket_tsconfig_exclude",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "tsconfig_json",
+      "target": "livebracket_tsconfig_include",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_allowjs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_esmoduleinterop",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_incremental",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_isolatedmodules",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_lib",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_module",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_moduleresolution",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_noemit",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_paths",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_plugins",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_resolvejsonmodule",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_skiplibcheck",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_strict",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_target",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "livebracket_tsconfig_compileroptions_paths",
+      "target": "livebracket_tsconfig_paths",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "eslint.config.mjs",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "eslint_config_mjs",
+      "target": "livebracket_eslint_config_eslintconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "next.config.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "next_config_ts",
+      "target": "livebracket_next_config_nextconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/layout.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "app_layout_tsx",
+      "target": "app_layout_metadata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/layout.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "app_layout_tsx",
+      "target": "app_layout_rootlayout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L278",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_carousel_matches",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_carouselmatch",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L399",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_filters",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L410",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_getavatartext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L415",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_getteamname",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L419",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_livebrackethome",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_progresscircle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_registrationinfo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L97",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_rollingdigit",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L124",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_rollingnumber",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_status",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L404",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_status_label",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_tournament",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L137",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "app_page_tournaments",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "components_livebracket_ds_index_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "data_display_datechip_datechip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "app_page_tsx",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L740",
+      "weight": 1.0,
+      "source": "app_page_livebrackethome",
+      "target": "app_page_getavatartext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L743",
+      "weight": 1.0,
+      "source": "app_page_livebrackethome",
+      "target": "app_page_getteamname",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_bracket",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_bracketmatch",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L165",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_bracketmatchcard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_matchplayer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L99",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_nav",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L68",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_pool_standings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_schedule",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L96",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tab",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L85",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_teams",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tournament",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L208",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tournamentdetail",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tournamentstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "app_tournament_id_page_tsx",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_divisions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_player",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_steps",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L312",
+      "weight": 1.0,
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_topbar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_tournamentregister",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_active_tournaments",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_organizer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L53",
+      "weight": 1.0,
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_organizerdashboard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_past_tournaments",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_stats",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "app_dashboard_page_tsx",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_court",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_createtournament",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_division",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_formats",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L316",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_reviewrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_steps",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L325",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_topbar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "app_dashboard_create_page_tsx",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "app_score_token_page_tsx",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_score_token_page_tsx",
+      "target": "token_page_match",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "app_score_token_page_tsx",
+      "target": "token_page_scorekeeperpage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "app_score_token_page_tsx",
+      "target": "token_page_setscore",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "app_profile_page_tsx",
+      "target": "lucide_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_history",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_player",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_playerprofile",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_starred",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_tab",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "bracket_matchcard_matchcard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "brand_logo_logo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "buttons_button_button",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "components_livebracket_ds_index_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_avatar_avatar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_badge_badge",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_datechip_datechip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_divisionring_divisionring",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_liveindicator_liveindicator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_pagecontrol_pagecontrol",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L117",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_backbtn",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L285",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_bracketscreen",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L237",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_detailscreen",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L175",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_listingscreen",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L135",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_loginscreen",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_photobackdrop",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L338",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_simulator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L96",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_topbar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_tournaments",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "forms_searchfield_searchfield",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "forms_segmentedcontrol_segmentedcontrol",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "icons_icon_icon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "app_design_system_simulator_tsx",
+      "target": "surfaces_glasscard_glasscard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "app_design_system_page_tsx",
+      "target": "design_system_page_designsystempage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/layout.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "app_login_layout_tsx",
+      "target": "login_layout_loginlayout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/layout.tsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "app_login_layout_tsx",
+      "target": "login_layout_metadata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "app_login_page_tsx",
+      "target": "login_page_arrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "app_login_page_tsx",
+      "target": "login_page_livebracketlogin",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "app_login_page_tsx",
+      "target": "login_page_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "claude_settings_local_json",
+      "target": "claude_settings_local_permissions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "claude_settings_local_permissions",
+      "target": "claude_settings_local_permissions_allow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "bracket_matchcard_matchcard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "brand_logo_logo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "buttons_button_button",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_bracket_matchcard_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_brand_logo_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_buttons_button_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_avatar_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_badge_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_datechip_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_divisionring_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_liveindicator_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_pagecontrol_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_forms_searchfield_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_forms_segmentedcontrol_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_icons_icon_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_surfaces_card_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_surfaces_glasscard_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_avatar_avatar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_badge_badge",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_datechip_datechip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_divisionring_divisionring",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_liveindicator_liveindicator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_pagecontrol_pagecontrol",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "forms_searchfield_searchfield",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "forms_segmentedcontrol_segmentedcontrol",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "icons_icon_icon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "surfaces_card_card",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_index_ts",
+      "target": "surfaces_glasscard_glasscard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_forms_searchfield_d_ts",
+      "target": "forms_searchfield_d_searchfieldprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_forms_segmentedcontrol_jsx",
+      "target": "forms_segmentedcontrol_segmentedcontrol",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_forms_searchfield_jsx",
+      "target": "components_livebracket_ds_icons_icon_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_forms_searchfield_jsx",
+      "target": "forms_searchfield_searchfield",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_forms_searchfield_jsx",
+      "target": "icons_icon_icon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.d.ts",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_forms_segmentedcontrol_d_ts",
+      "target": "forms_segmentedcontrol_d_segmentedcontrolprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_forms_segmentedcontrol_d_ts",
+      "target": "forms_segmentedcontrol_d_segmentoption",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/buttons/Button.jsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_buttons_button_jsx",
+      "target": "buttons_button_button",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/buttons/Button.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_buttons_button_d_ts",
+      "target": "buttons_button_d_buttonprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/brand/Logo.jsx",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_brand_logo_jsx",
+      "target": "brand_logo_logo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/brand/Logo.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_brand_logo_jsx",
+      "target": "brand_logo_mark",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/brand/Logo.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_brand_logo_d_ts",
+      "target": "brand_logo_d_logoprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_divisionring_d_ts",
+      "target": "data_display_divisionring_d_divisionringprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "components_livebracket_ds_data_display_avatar_jsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Avatar.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_avatar_jsx",
+      "target": "data_display_avatar_avatar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "data_display_avatar_avatar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_liveindicator_d_ts",
+      "target": "data_display_liveindicator_d_liveindicatorprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/PageControl.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_pagecontrol_d_ts",
+      "target": "data_display_pagecontrol_d_pagecontrolprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Badge.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_badge_jsx",
+      "target": "data_display_badge_badge",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.jsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_liveindicator_jsx",
+      "target": "data_display_liveindicator_liveindicator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_divisionring_jsx",
+      "target": "data_display_divisionring_divisionring",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/PageControl.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_pagecontrol_jsx",
+      "target": "data_display_pagecontrol_pagecontrol",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Avatar.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_avatar_d_ts",
+      "target": "data_display_avatar_d_avatarprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Badge.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_badge_d_ts",
+      "target": "data_display_badge_d_badgeprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DateChip.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_datechip_d_ts",
+      "target": "data_display_datechip_d_datechipprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DateChip.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_data_display_datechip_jsx",
+      "target": "data_display_datechip_datechip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.jsx",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_icons_icon_jsx",
+      "target": "icons_icon_icon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.jsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_icons_icon_jsx",
+      "target": "icons_icon_paths",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_icons_icon_d_ts",
+      "target": "icons_icon_d_iconname",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.d.ts",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_icons_icon_d_ts",
+      "target": "icons_icon_d_iconprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/Card.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_surfaces_card_jsx",
+      "target": "surfaces_card_card",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/Card.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_surfaces_card_d_ts",
+      "target": "surfaces_card_d_cardprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_surfaces_glasscard_d_ts",
+      "target": "surfaces_glasscard_d_glasscardprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.jsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_surfaces_glasscard_jsx",
+      "target": "surfaces_glasscard_glasscard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.d.ts",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_bracket_matchcard_d_ts",
+      "target": "bracket_matchcard_d_matchcardprops",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.d.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_bracket_matchcard_d_ts",
+      "target": "bracket_matchcard_d_matchteam",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "bracket_matchcard_matchcard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "bracket_matchcard_teamrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "readme",
+      "target": "livebracket_app"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CLAUDE.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "claude_md",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CLAUDE.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "claude_md",
+      "target": "three_layer_architecture"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CLAUDE.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "three_layer_architecture",
+      "target": "livebracket_app"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/forms/forms.card.html",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_forms_card",
+      "target": "ds_searchfield_prompt"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_searchfield_prompt",
+      "target": "ds_icon_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_searchfield_prompt",
+      "target": "ds_searchfield_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_searchfield_prompt",
+      "target": "ds_segmentedcontrol_component"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_searchfield_component",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/buttons/Button.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_button_prompt",
+      "target": "ds_button_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/buttons/buttons.card.html",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_buttons_card",
+      "target": "ds_button_prompt"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/buttons/Button.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_button_component",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/brand/brand.card.html",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_brand_card",
+      "target": "ds_logo_prompt"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/brand/Logo.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_logo_prompt",
+      "target": "ds_logo_component"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/brand/Logo.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_logo_component",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_prompt",
+      "target": "ds_avatar_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_prompt",
+      "target": "ds_badge_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_prompt",
+      "target": "ds_datechip_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_prompt",
+      "target": "ds_divisionring_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_prompt",
+      "target": "ds_liveindicator_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_prompt",
+      "target": "ds_pagecontrol_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/data-display/data-display.card.html",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_datadisplay_card",
+      "target": "ds_badge_prompt"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_component",
+      "target": "ds_liveindicator_component"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/data-display/Badge.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_badge_component",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_matchcard_component",
+      "target": "ds_avatar_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/icons/Icon.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_icon_prompt",
+      "target": "ds_icon_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/icons/Icon.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_icon_prompt",
+      "target": "lucide_react"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/icons/icons.card.html",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_icons_card",
+      "target": "ds_icon_prompt"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/icons/Icon.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_icon_component",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/icons/Icon.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_icon_component",
+      "target": "lucide_react"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_glasscard_prompt",
+      "target": "ds_card_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_glasscard_prompt",
+      "target": "ds_glasscard_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/surfaces/surfaces.card.html",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_surfaces_card",
+      "target": "ds_glasscard_prompt"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_glasscard_component",
+      "target": "ds_card_component"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_glasscard_component",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/bracket/bracket.card.html",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_bracket_card",
+      "target": "ds_matchcard_prompt"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_matchcard_prompt",
+      "target": "ds_matchcard_component"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "ds_matchcard_component",
+      "target": "livebracket_ds"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "public/images/livebracket/logomark.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_livebracket_logomark",
+      "target": "logo_lb"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "Logo LB.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "logo_lb",
+      "target": "concept_brand_identity"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "Logo LB.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "logo_lb",
+      "target": "concept_tournament_bracket"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "public/file.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "public_file",
+      "target": "concept_nextjs_default_assets"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "public/vercel.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "public_vercel",
+      "target": "concept_nextjs_default_assets"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "public/next.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "public_next",
+      "target": "concept_nextjs_default_assets"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "public/globe.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "public_globe",
+      "target": "concept_nextjs_default_assets"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "public/window.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "public_window",
+      "target": "concept_nextjs_default_assets"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "public/images/Activity-social.jpg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_activity_social",
+      "target": "concept_beach_volleyball_tournament"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "public/images/Hero.jpg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_hero",
+      "target": "images_activity_social"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "public/images/livebracket/beach-volleyball.jpg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_livebracket_beach_volleyball",
+      "target": "images_activity_social"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "public/images/Hero.jpg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_hero",
+      "target": "concept_beach_volleyball_tournament"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "public/images/Activity-league.jpg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_activity_league",
+      "target": "concept_beach_volleyball_tournament"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/images/memories_beach_poster.png",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_memories_beach_poster",
+      "target": "concept_beach_volleyball_tournament"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "public/images/memories_beach_poster.png",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_memories_beach_poster",
+      "target": "images_livebracket_memories_beach_poster"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/images/livebracket/memories-beach-poster.png",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_livebracket_memories_beach_poster",
+      "target": "concept_beach_volleyball_tournament"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "public/images/livebracket/beach-volleyball.jpg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_livebracket_beach_volleyball",
+      "target": "concept_beach_volleyball_tournament"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/images/livebracket/logomark.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_livebracket_logomark",
+      "target": "concept_brand_identity"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "public/images/livebracket/logomark.svg",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "images_livebracket_logomark",
+      "target": "concept_tournament_bracket"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": null,
+      "source_location": null,
+      "weight": 1.0,
+      "source": "concept_beach_volleyball_tournament",
+      "target": "concept_brand_identity"
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "he_ds_components_design_system",
+      "label": "All DS components form the Live Bracket Design System",
+      "nodes": [
+        "ds_button_component",
+        "ds_searchfield_component",
+        "ds_logo_component",
+        "ds_badge_component",
+        "ds_icon_component",
+        "ds_glasscard_component",
+        "ds_matchcard_component"
+      ],
+      "relation": "implement",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "CLAUDE.md"
+    },
+    {
+      "id": "he_matchcard_avatar_bracket",
+      "label": "MatchCard composes Avatar and is part of bracket UI",
+      "nodes": [
+        "ds_matchcard_component",
+        "ds_avatar_component",
+        "ds_bracket_card"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md"
+    },
+    {
+      "id": "he_forms_search_icon",
+      "label": "SearchField and SegmentedControl use Icon and form the Forms group",
+      "nodes": [
+        "ds_searchfield_component",
+        "ds_segmentedcontrol_component",
+        "ds_icon_component"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "components/livebracket-ds/forms/SearchField.prompt.md"
+    },
+    {
+      "id": "livebracket_logo_assets",
+      "label": "Live Bracket Logo Assets",
+      "nodes": [
+        "logo_lb",
+        "images_livebracket_logomark",
+        "concept_brand_identity",
+        "concept_tournament_bracket"
+      ],
+      "relation": "implement",
+      "confidence": "INFERRED",
+      "confidence_score": 0.9,
+      "source_file": "public/images/livebracket/logomark.svg"
+    },
+    {
+      "id": "beach_volleyball_media",
+      "label": "Beach Volleyball Tournament Media Assets",
+      "nodes": [
+        "images_activity_social",
+        "images_hero",
+        "images_activity_league",
+        "images_livebracket_beach_volleyball",
+        "images_memories_beach_poster",
+        "images_livebracket_memories_beach_poster",
+        "concept_beach_volleyball_tournament"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.9,
+      "source_file": "public/images/Activity-social.jpg"
+    },
+    {
+      "id": "nextjs_default_public_assets",
+      "label": "Next.js Default Public Folder Assets",
+      "nodes": [
+        "public_vercel",
+        "public_next",
+        "public_globe",
+        "public_window",
+        "public_file",
+        "concept_nextjs_default_assets"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "public/vercel.svg"
+    }
+  ],
+  "built_at_commit": "b662a03be9e3beda956ff7b8223eb4a45936e241"
+}

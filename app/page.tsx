@@ -45,6 +45,7 @@ interface Tournament {
   format: string;
   accent: string; // CSS background for the card banner
   winner?: string;
+  winners?: [string, string];
   divisions?: string[];
   image: string;
   timeLabel: string;
@@ -244,6 +245,7 @@ const TOURNAMENTS: Tournament[] = [
     format: 'Single elimination',
     accent: 'linear-gradient(135deg, #7A8294 0%, #3A414D 100%)',
     winner: 'Net Ninjas',
+    winners: ['James Carter', 'Marco Silva'],
     divisions: ['Men', 'Women'],
     image: '/images/activity-khao lak classic.jpg',
     timeLabel: '9:00 AM',
@@ -265,6 +267,7 @@ const TOURNAMENTS: Tournament[] = [
     format: 'Pools → knockout',
     accent: 'linear-gradient(135deg, #7A8294 0%, #14181E 100%)',
     winner: 'Beach Bums',
+    winners: ['Sofia Reyes', 'Lena Müller'],
     divisions: ['Mixed'],
     image: '/images/activity-training.jpg',
     timeLabel: '2:00 PM',
@@ -415,6 +418,93 @@ const getAvatarText = (players: { name: string }[]) => {
 const getTeamName = (players: { name: string }[]) => {
   return players.map(p => p.name).join(' / ');
 };
+
+function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]; styles: Record<string, string> }) {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (tournaments.length <= 1) return;
+    const timer = setInterval(() => {
+      setActive((i) => (i + 1) % tournaments.length);
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [tournaments.length]);
+
+  const t = tournaments[active];
+
+  return (
+    <div className={styles.completedSection}>
+      <h3 className={styles.completedTitle}>Recently Completed</h3>
+      <div className={styles.completedSlideshow}>
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={t.id}
+            className={styles.completedCard}
+            initial={{ clipPath: 'circle(8px at 50% 50%)', scale: 0.05, opacity: 1 }}
+            animate={{ clipPath: 'circle(150% at 50% 50%)', scale: 1, opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0 } }}
+            transition={{
+              clipPath: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
+              scale: { type: 'spring', stiffness: 120, damping: 26 },
+            }}
+            style={{ backdropFilter: 'blur(24px) saturate(200%)', WebkitBackdropFilter: 'blur(24px) saturate(200%)' }}
+          >
+            {/* Line 1: title left · date pill + location right */}
+            <div className={styles.completedMetaRow}>
+              <h4 className={styles.completedCardTitle}>{t.title}</h4>
+              <div className={styles.completedMetaRight}>
+                <span className={styles.completedDatePill}>{t.dateLabel}</span>
+                <span className={styles.completedLocation}>
+                  <MapPin size={12} strokeWidth={2} />
+                  {t.location}
+                </span>
+              </div>
+            </div>
+
+            {/* Body: champion center */}
+            <div className={styles.completedBody}>
+
+              {t.winners && (
+                <div className={styles.completedChampionBlock}>
+                  <div className={styles.completedTrophyIcon}>🏆</div>
+                  <div className={styles.completedChampionRow}>
+                    <span className={styles.completedPlayerName}>{t.winners[0]}</span>
+                    <div className={styles.completedChampionAvatars}>
+                      {t.winners.map((name, i) => (
+                        <div key={i} className={styles.completedAvatar}>
+                          {name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                      ))}
+                    </div>
+                    <span className={styles.completedPlayerName}>{t.winners[1]}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className={styles.completedFooter}>
+              <Link href={`#events`} className={styles.completedLink}>View Standing</Link>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        {tournaments.length > 1 && (
+          <div className={styles.completedDots}>
+            {tournaments.map((_, i) => (
+              <button
+                key={i}
+                className={`${styles.completedDot} ${i === active ? styles.completedDotActive : ''}`}
+                onClick={() => setActive(i)}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function LiveBracketHome() {
   const [filter, setFilter] = useState<'all' | Status>('all');
@@ -1041,80 +1131,11 @@ export default function LiveBracketHome() {
               </div>
             )}
 
-            {/* Recently Completed Tournament Section (Subtle style cards) */}
+            {/* Recently Completed Tournament Section (Slideshow) */}
             {filteredFinished.length > 0 && (
-              <div className={styles.completedSection}>
-                <h3 className={styles.completedTitle}>Recently Completed</h3>
-                
-                <div className={styles.completedGrid}>
-                  {filteredFinished.map((t) => (
-                    <div
-                      key={t.id}
-                      className={styles.completedCard}
-                      style={{
-                        backdropFilter: 'blur(24px) saturate(200%)',
-                        WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-                      }}
-                    >
-                      
-                      <div className={styles.completedMetaRow}>
-                        <span className={styles.completedBadge}>Finished</span>
-                        <span className={styles.completedDate}>{t.dateLabel}</span>
-                      </div>
-
-                      <h4 className={styles.completedCardTitle}>{t.title}</h4>
-
-                      {t.winner && (
-                      <div className={styles.completedWinnerRow}>
-                        <span>🏆</span>
-                        <div>
-                          Champions: <span className={styles.completedWinnerName}>{t.winner}</span>
-                        </div>
-                      </div>
-                    )}
-
-                      <div className={styles.completedFooter}>
-                        <Link href={`#events`} className={styles.completedLink}>
-                          View Final Standings
-                        </Link>
-                        <Link
-                          href={`#events`}
-                          className={styles.completedArrow}
-                          aria-label={`View final standings for ${t.title}`}
-                        >
-                          <ArrowRight size={20} strokeWidth={2.5} />
-                        </Link>
-                      </div>
-
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <CompletedSlideshow tournaments={filteredFinished.slice(0, 5)} styles={styles} />
             )}
 
-          </div>
-        </section>
-
-        {/* ── How it works ────────────────────────────────────────── */}
-        <section className={styles.how} id="how">
-          <div className={styles.container}>
-            <p className={styles.eyebrow}>How it works</p>
-            <h2 className={styles.sectionTitle}>
-              From empty draw to <em>final point</em> in three steps.
-            </h2>
-            <div className={styles.steps}>
-              {[
-                { n: '01', title: 'Build the draw', body: 'Organizers add teams and pick a format — the bracket seeds itself in seconds.' },
-                { n: '02', title: 'Share one link', body: 'Anyone can follow along. Players, friends, and the beach bar watch the same live page.' },
-                { n: '03', title: 'Score it live', body: 'Results are tapped in court-side. Winners advance and the bracket redraws automatically.' },
-              ].map((s) => (
-                <article key={s.n} className={styles.step}>
-                  <span className={styles.stepNum}>{s.n}</span>
-                  <h3>{s.title}</h3>
-                  <p>{s.body}</p>
-                </article>
-              ))}
-            </div>
           </div>
         </section>
 

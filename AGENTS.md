@@ -83,6 +83,12 @@ For questions about *where* code lives, *what depends on* something, or *how* fe
 
 ## Operating Principles
 
+**0. Query graphify before editing**
+Before making any code edits, run a graphify query to understand how the relevant code is connected. This prevents breaking dependencies you didn't know about. If `graphify-out/` doesn't exist or is stale, rebuild it first:
+```bash
+/Library/Frameworks/Python.framework/Versions/3.14/bin/graphify update . --no-cluster
+```
+
 **1. Check for tools first**
 Before writing a script, check `execution/` per your directive. Only create new scripts if none exist. For web work, check existing components in `components/` and pages in `app/` first.
 

@@ -1,0 +1,392 @@
+{
+  "/Users/torsmacair/livebracket/postcss.config.mjs": {
+    "mtime": 1782447987.103281,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "/Users/torsmacair/livebracket/package.json": {
+    "mtime": 1782448022.4617064,
+    "ast_hash": "c3a0a2f5fc4672830e6b7e629669a16d",
+    "semantic_hash": "c3a0a2f5fc4672830e6b7e629669a16d"
+  },
+  "/Users/torsmacair/livebracket/tsconfig.json": {
+    "mtime": 1782447987.1053174,
+    "ast_hash": "02fc19ad21338c2ab820a70136310db4",
+    "semantic_hash": "02fc19ad21338c2ab820a70136310db4"
+  },
+  "/Users/torsmacair/livebracket/eslint.config.mjs": {
+    "mtime": 1782448088.5762634,
+    "ast_hash": "67db99ccf9eaaa028758aecf6aea9c4e",
+    "semantic_hash": "67db99ccf9eaaa028758aecf6aea9c4e"
+  },
+  "/Users/torsmacair/livebracket/next.config.ts": {
+    "mtime": 1782447987.1033454,
+    "ast_hash": "9b77af189a21a7a64e4bd7a426f64176",
+    "semantic_hash": "9b77af189a21a7a64e4bd7a426f64176"
+  },
+  "/Users/torsmacair/livebracket/app/layout.tsx": {
+    "mtime": 1782448045.9601402,
+    "ast_hash": "312e3ade37e509bd831da4efc1d39222",
+    "semantic_hash": "312e3ade37e509bd831da4efc1d39222"
+  },
+  "/Users/torsmacair/livebracket/app/page.tsx": {
+    "mtime": 1782454668.1300087,
+    "ast_hash": "d6ad9eed0082a0d7acb9403881a742e0",
+    "semantic_hash": "d6ad9eed0082a0d7acb9403881a742e0"
+  },
+  "/Users/torsmacair/livebracket/app/tournament/[id]/page.tsx": {
+    "mtime": 1782450392.4881701,
+    "ast_hash": "4747885c8e3a911356885742d7c6ef78",
+    "semantic_hash": "4747885c8e3a911356885742d7c6ef78"
+  },
+  "/Users/torsmacair/livebracket/app/tournament/[id]/register/page.tsx": {
+    "mtime": 1782450392.4891322,
+    "ast_hash": "9b26b505a6219747e78969497d3fb416",
+    "semantic_hash": "9b26b505a6219747e78969497d3fb416"
+  },
+  "/Users/torsmacair/livebracket/app/dashboard/page.tsx": {
+    "mtime": 1782450392.4827156,
+    "ast_hash": "4ab479b4375e33a9b76401946f2a4055",
+    "semantic_hash": "4ab479b4375e33a9b76401946f2a4055"
+  },
+  "/Users/torsmacair/livebracket/app/dashboard/create/page.tsx": {
+    "mtime": 1782450392.4720113,
+    "ast_hash": "4cc37ee68c5314e666ad9693a8849e6f",
+    "semantic_hash": "4cc37ee68c5314e666ad9693a8849e6f"
+  },
+  "/Users/torsmacair/livebracket/app/score/[token]/page.tsx": {
+    "mtime": 1782450392.4864864,
+    "ast_hash": "4e4c15e907b1c35f7cf832401810de88",
+    "semantic_hash": "4e4c15e907b1c35f7cf832401810de88"
+  },
+  "/Users/torsmacair/livebracket/app/profile/page.tsx": {
+    "mtime": 1782450392.485768,
+    "ast_hash": "71fcf20a3b5678b16396e81294e25ed6",
+    "semantic_hash": "71fcf20a3b5678b16396e81294e25ed6"
+  },
+  "/Users/torsmacair/livebracket/app/design-system/Simulator.tsx": {
+    "mtime": 1782449471.756673,
+    "ast_hash": "2ea5b1ce51891a232e96cdf4b0c2611c",
+    "semantic_hash": "2ea5b1ce51891a232e96cdf4b0c2611c"
+  },
+  "/Users/torsmacair/livebracket/app/design-system/page.tsx": {
+    "mtime": 1782448031.7085707,
+    "ast_hash": "5da1127cea1d203ef5e53ca31c344c3a",
+    "semantic_hash": "5da1127cea1d203ef5e53ca31c344c3a"
+  },
+  "/Users/torsmacair/livebracket/app/login/layout.tsx": {
+    "mtime": 1782448031.6924741,
+    "ast_hash": "4fea3897dd283446357818edae109298",
+    "semantic_hash": "4fea3897dd283446357818edae109298"
+  },
+  "/Users/torsmacair/livebracket/app/login/page.tsx": {
+    "mtime": 1782450392.4843,
+    "ast_hash": "a4a723a21713571de7b363e2f50ed379",
+    "semantic_hash": "a4a723a21713571de7b363e2f50ed379"
+  },
+  "/Users/torsmacair/livebracket/.claude/settings.local.json": {
+    "mtime": 1782455049.1004553,
+    "ast_hash": "5259339f1362b41369b78c920e573fe5",
+    "semantic_hash": "5259339f1362b41369b78c920e573fe5"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/index.ts": {
+    "mtime": 1782448024.6161792,
+    "ast_hash": "11e0b028c57b8b19529b2e3a3d200802",
+    "semantic_hash": "11e0b028c57b8b19529b2e3a3d200802"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SearchField.d.ts": {
+    "mtime": 1782448024.5980077,
+    "ast_hash": "f003b4608d57c1a9632b2aca23cd7b50",
+    "semantic_hash": "f003b4608d57c1a9632b2aca23cd7b50"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SegmentedControl.jsx": {
+    "mtime": 1782448024.5994468,
+    "ast_hash": "6115fa5891cca049a6b306a6231538b8",
+    "semantic_hash": "6115fa5891cca049a6b306a6231538b8"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SearchField.jsx": {
+    "mtime": 1782448024.600368,
+    "ast_hash": "fa6bf22f6b2cc286934f9853555b4e8a",
+    "semantic_hash": "fa6bf22f6b2cc286934f9853555b4e8a"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SegmentedControl.d.ts": {
+    "mtime": 1782448024.600846,
+    "ast_hash": "aee7cd670b8102b16c796a292a5e76e5",
+    "semantic_hash": "aee7cd670b8102b16c796a292a5e76e5"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/buttons/Button.jsx": {
+    "mtime": 1782450067.9262128,
+    "ast_hash": "862c93bfc064127984881a1d8308724c",
+    "semantic_hash": "862c93bfc064127984881a1d8308724c"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/buttons/Button.d.ts": {
+    "mtime": 1782448024.6027582,
+    "ast_hash": "e4ae48bae6be646a4fd85b82bfea6536",
+    "semantic_hash": "e4ae48bae6be646a4fd85b82bfea6536"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/brand/Logo.jsx": {
+    "mtime": 1782450402.0474925,
+    "ast_hash": "49020b01893c625b3e213dd1f08f9288",
+    "semantic_hash": "49020b01893c625b3e213dd1f08f9288"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/brand/Logo.d.ts": {
+    "mtime": 1782448024.6055562,
+    "ast_hash": "3aa72b4d29d107ca03b0c7a3aaf6cfdd",
+    "semantic_hash": "3aa72b4d29d107ca03b0c7a3aaf6cfdd"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/DivisionRing.d.ts": {
+    "mtime": 1782448024.6071212,
+    "ast_hash": "db0a097e0d4515445f759910f1660681",
+    "semantic_hash": "db0a097e0d4515445f759910f1660681"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/Avatar.jsx": {
+    "mtime": 1782448024.607461,
+    "ast_hash": "e98721229b00ce5d5c53cf85188fa01b",
+    "semantic_hash": "e98721229b00ce5d5c53cf85188fa01b"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/LiveIndicator.d.ts": {
+    "mtime": 1782448024.6077914,
+    "ast_hash": "ba6ef892370f4b970682e529afebe99d",
+    "semantic_hash": "ba6ef892370f4b970682e529afebe99d"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/PageControl.d.ts": {
+    "mtime": 1782448024.6085923,
+    "ast_hash": "5d8c92fef9066b657b7fe47f4650365d",
+    "semantic_hash": "5d8c92fef9066b657b7fe47f4650365d"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/Badge.jsx": {
+    "mtime": 1782448024.6089334,
+    "ast_hash": "323fc9878782a78aa04a6aaba7aee644",
+    "semantic_hash": "323fc9878782a78aa04a6aaba7aee644"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/LiveIndicator.jsx": {
+    "mtime": 1782448024.6096036,
+    "ast_hash": "75ed4e2d583e1f106ee4004b704b1ffb",
+    "semantic_hash": "75ed4e2d583e1f106ee4004b704b1ffb"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/DivisionRing.jsx": {
+    "mtime": 1782448024.6099527,
+    "ast_hash": "ef0205619c135c1e68c729611fec90a6",
+    "semantic_hash": "ef0205619c135c1e68c729611fec90a6"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/PageControl.jsx": {
+    "mtime": 1782448024.6104066,
+    "ast_hash": "0b7afc94c00901b12dadc9a4327265a1",
+    "semantic_hash": "0b7afc94c00901b12dadc9a4327265a1"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/Avatar.d.ts": {
+    "mtime": 1782448024.6107547,
+    "ast_hash": "d4eb3c45d999fa9121fc5a1f791b00ea",
+    "semantic_hash": "d4eb3c45d999fa9121fc5a1f791b00ea"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/Badge.d.ts": {
+    "mtime": 1782448024.611139,
+    "ast_hash": "168d289bc80fae22d52333f8dc3e7a31",
+    "semantic_hash": "168d289bc80fae22d52333f8dc3e7a31"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/DateChip.d.ts": {
+    "mtime": 1782448024.6115518,
+    "ast_hash": "c6a94e4628858a73d5deb7b5c3a7064f",
+    "semantic_hash": "c6a94e4628858a73d5deb7b5c3a7064f"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/DateChip.jsx": {
+    "mtime": 1782448024.6119053,
+    "ast_hash": "097dadc46ee789f6e6f0ab62b14fec90",
+    "semantic_hash": "097dadc46ee789f6e6f0ab62b14fec90"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/icons/Icon.jsx": {
+    "mtime": 1782448024.6129155,
+    "ast_hash": "63e57bcac07ce3d3d57375286e45c855",
+    "semantic_hash": "63e57bcac07ce3d3d57375286e45c855"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/icons/Icon.d.ts": {
+    "mtime": 1782448024.6132329,
+    "ast_hash": "6e3a33d995e424a578396aba734a2af7",
+    "semantic_hash": "6e3a33d995e424a578396aba734a2af7"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/surfaces/Card.jsx": {
+    "mtime": 1782448024.6144712,
+    "ast_hash": "a4d27b4e4ed1c3ebdf577c9462b705d6",
+    "semantic_hash": "a4d27b4e4ed1c3ebdf577c9462b705d6"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/surfaces/Card.d.ts": {
+    "mtime": 1782448024.6147692,
+    "ast_hash": "1154353d11b40cf778753a2ff72641f9",
+    "semantic_hash": "1154353d11b40cf778753a2ff72641f9"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/surfaces/GlassCard.d.ts": {
+    "mtime": 1782448024.615061,
+    "ast_hash": "51adcaccdc4b31224801177b8eb70610",
+    "semantic_hash": "51adcaccdc4b31224801177b8eb70610"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/surfaces/GlassCard.jsx": {
+    "mtime": 1782448024.6156683,
+    "ast_hash": "d1c985971c9e96367b486e12a0fb0193",
+    "semantic_hash": "d1c985971c9e96367b486e12a0fb0193"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/bracket/MatchCard.d.ts": {
+    "mtime": 1782448024.6172335,
+    "ast_hash": "05b953ed1039edcf88cd7096438e862c",
+    "semantic_hash": "05b953ed1039edcf88cd7096438e862c"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/bracket/MatchCard.jsx": {
+    "mtime": 1782448024.6180942,
+    "ast_hash": "9126ce94d27b154dacf46fe0c9b8bac4",
+    "semantic_hash": "9126ce94d27b154dacf46fe0c9b8bac4"
+  },
+  "/Users/torsmacair/livebracket/README.md": {
+    "mtime": 1782455279.9004478,
+    "ast_hash": "2fe2be4fe37892455966851a16f9fc11",
+    "semantic_hash": "2fe2be4fe37892455966851a16f9fc11"
+  },
+  "/Users/torsmacair/livebracket/GEMINI.md": {
+    "mtime": 1782450196.256021,
+    "ast_hash": "4fa32861dab2398e19d45f456468437a",
+    "semantic_hash": "4fa32861dab2398e19d45f456468437a"
+  },
+  "/Users/torsmacair/livebracket/AGENTS.md": {
+    "mtime": 1782450190.048295,
+    "ast_hash": "4fa32861dab2398e19d45f456468437a",
+    "semantic_hash": "4fa32861dab2398e19d45f456468437a"
+  },
+  "/Users/torsmacair/livebracket/CLAUDE.md": {
+    "mtime": 1782455327.5789564,
+    "ast_hash": "71581c102ba3224fdc464b248829f34d",
+    "semantic_hash": "71581c102ba3224fdc464b248829f34d"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/forms/forms.card.html": {
+    "mtime": 1782448024.598555,
+    "ast_hash": "5461283abfb9bba5da07e353578f6146",
+    "semantic_hash": "5461283abfb9bba5da07e353578f6146"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SearchField.prompt.md": {
+    "mtime": 1782448024.599846,
+    "ast_hash": "2106d6618f44234698146a66176454f5",
+    "semantic_hash": "2106d6618f44234698146a66176454f5"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/buttons/buttons.card.html": {
+    "mtime": 1782448024.603246,
+    "ast_hash": "4931835972ed093e7e5fec7a3d12587a",
+    "semantic_hash": "4931835972ed093e7e5fec7a3d12587a"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/buttons/Button.prompt.md": {
+    "mtime": 1782448024.6038685,
+    "ast_hash": "00abfd0561a3853059e8185dfb106a3b",
+    "semantic_hash": "00abfd0561a3853059e8185dfb106a3b"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/brand/brand.card.html": {
+    "mtime": 1782448024.6058972,
+    "ast_hash": "4a57ea2234163b348e5cb1dd853cf9dd",
+    "semantic_hash": "4a57ea2234163b348e5cb1dd853cf9dd"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/brand/Logo.prompt.md": {
+    "mtime": 1782448024.6062517,
+    "ast_hash": "446eee60d59f99bfcc0cdd0f5e045484",
+    "semantic_hash": "446eee60d59f99bfcc0cdd0f5e045484"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/Badge.prompt.md": {
+    "mtime": 1782448024.6082587,
+    "ast_hash": "48b400775dfd692a770c9d5f4d794cee",
+    "semantic_hash": "48b400775dfd692a770c9d5f4d794cee"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/data-display/data-display.card.html": {
+    "mtime": 1782448024.609267,
+    "ast_hash": "57abde4e6176042eedbbfac2936e72e7",
+    "semantic_hash": "57abde4e6176042eedbbfac2936e72e7"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/icons/Icon.prompt.md": {
+    "mtime": 1782448024.6125915,
+    "ast_hash": "7fe8344d454e1d5e669683183a9900f7",
+    "semantic_hash": "7fe8344d454e1d5e669683183a9900f7"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/icons/icons.card.html": {
+    "mtime": 1782448024.6135635,
+    "ast_hash": "980e0c8a9e678943645cf86b6e4404b8",
+    "semantic_hash": "980e0c8a9e678943645cf86b6e4404b8"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/surfaces/GlassCard.prompt.md": {
+    "mtime": 1782448024.6141703,
+    "ast_hash": "d6de27130ae4ad1db43e08b549efe7c1",
+    "semantic_hash": "d6de27130ae4ad1db43e08b549efe7c1"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/surfaces/surfaces.card.html": {
+    "mtime": 1782448024.615359,
+    "ast_hash": "fb6b582303daa9d6a22ec0dec6a35318",
+    "semantic_hash": "fb6b582303daa9d6a22ec0dec6a35318"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/bracket/bracket.card.html": {
+    "mtime": 1782448024.6168087,
+    "ast_hash": "3e30f824f4f4e6e4cc143084619fb6b6",
+    "semantic_hash": "3e30f824f4f4e6e4cc143084619fb6b6"
+  },
+  "/Users/torsmacair/livebracket/components/livebracket-ds/bracket/MatchCard.prompt.md": {
+    "mtime": 1782448024.6184554,
+    "ast_hash": "85e0bd60548fb931d64d593c2812b6ec",
+    "semantic_hash": "85e0bd60548fb931d64d593c2812b6ec"
+  },
+  "/Users/torsmacair/livebracket/Logo LB.svg": {
+    "mtime": 1782403412.0,
+    "ast_hash": "a8ff338dea44704d4fa2a9a790ff5402",
+    "semantic_hash": "a8ff338dea44704d4fa2a9a790ff5402"
+  },
+  "/Users/torsmacair/livebracket/public/file.svg": {
+    "mtime": 1782447987.1033008,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "/Users/torsmacair/livebracket/public/vercel.svg": {
+    "mtime": 1782447987.104197,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "/Users/torsmacair/livebracket/public/next.svg": {
+    "mtime": 1782447987.1041894,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "/Users/torsmacair/livebracket/public/globe.svg": {
+    "mtime": 1782447987.1044915,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "/Users/torsmacair/livebracket/public/window.svg": {
+    "mtime": 1782447987.1042237,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": "a2760511c65806022ad20adf74370ff3"
+  },
+  "/Users/torsmacair/livebracket/public/images/Activity-social.jpg": {
+    "mtime": 1782448026.5812998,
+    "ast_hash": "9f5551645e3eefdcb2bf3719bbc0da30",
+    "semantic_hash": "9f5551645e3eefdcb2bf3719bbc0da30"
+  },
+  "/Users/torsmacair/livebracket/public/images/Hero.jpg": {
+    "mtime": 1782448026.5725868,
+    "ast_hash": "16b259c09240c2de1c0661864fd51524",
+    "semantic_hash": "16b259c09240c2de1c0661864fd51524"
+  },
+  "/Users/torsmacair/livebracket/public/images/Activity-league.jpg": {
+    "mtime": 1782448026.5775123,
+    "ast_hash": "e31e514dacd4da42f70678004c31bbff",
+    "semantic_hash": "e31e514dacd4da42f70678004c31bbff"
+  },
+  "/Users/torsmacair/livebracket/public/images/memories_beach_poster.png": {
+    "mtime": 1782448026.5678887,
+    "ast_hash": "bc6336c003e8695bcfa65dfbfdbb9a99",
+    "semantic_hash": "bc6336c003e8695bcfa65dfbfdbb9a99"
+  },
+  "/Users/torsmacair/livebracket/public/images/livebracket/memories-beach-poster.png": {
+    "mtime": 1782448026.561962,
+    "ast_hash": "6e569f8ad84cd0cb4cebb47ef0c79825",
+    "semantic_hash": "6e569f8ad84cd0cb4cebb47ef0c79825"
+  },
+  "/Users/torsmacair/livebracket/public/images/livebracket/beach-volleyball.jpg": {
+    "mtime": 1782448026.5640557,
+    "ast_hash": "9f5551645e3eefdcb2bf3719bbc0da30",
+    "semantic_hash": "9f5551645e3eefdcb2bf3719bbc0da30"
+  },
+  "/Users/torsmacair/livebracket/public/images/livebracket/logomark.svg": {
+    "mtime": 1782450404.796871,
+    "ast_hash": "c1af5997337fbc8e9718181a9d32233f",
+    "semantic_hash": "c1af5997337fbc8e9718181a9d32233f"
+  }
+}
