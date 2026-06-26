@@ -1,0 +1,38 @@
+<!-- @dsCard group="Components" viewport="700x260" name="Logo" subtitle="Mark · wordmark · lockup · on photo" -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--surface-app); font-family: var(--font-text); padding: 28px; }
+  .row { display: flex; align-items: center; gap: 36px; flex-wrap: wrap; margin-bottom: 20px; }
+  .photo { background: url("../../assets/beach-volleyball.jpg") center/cover; padding: 22px 28px; border-radius: var(--radius-xl); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { Logo } = window.LiveBracketDesignSystem_da39cc;
+function Demo() {
+  return (
+    <div>
+      <div className="row">
+        <Logo variant="mark" size={56} />
+        <Logo variant="lockup" size={40} />
+        <Logo variant="wordmark" size={40} />
+      </div>
+      <div className="row">
+        <div className="photo"><Logo variant="lockup" size={34} color="#fff" /></div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

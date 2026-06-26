@@ -1,0 +1,54 @@
+/* ============================================================
+   Live Bracket — Spacing, radius, shadow & motion tokens
+   8px base grid. Pill-first radii. Soft warm shadows + the
+   signature liquid-glass elevation.
+   ============================================================ */
+
+:root {
+  /* ----- Spacing scale (8px base) ----- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ----- Radius ----- */
+  --radius-sm: 8px;
+  --radius-md: 12px;   /* matrix tiles, small chips */
+  --radius-lg: 20px;   /* buttons block / highlight pills */
+  --radius-xl: 24px;   /* cards */
+  --radius-2xl: 34px;  /* liquid-glass cards, sheets */
+  --radius-3xl: 39px;  /* large media tiles */
+  --radius-pill: 999px;
+
+  /* ----- Borders ----- */
+  --border-width: 1px;
+  --border-width-thick: 1.5px;
+
+  /* ----- Shadows ----- */
+  /* warm ambient card lift */
+  --shadow-card: 0 8px 40px rgba(0, 0, 0, 0.12);
+  /* primary button glow (coral) */
+  --shadow-primary: 0 4px 12px rgba(242, 103, 73, 0.40);
+  /* deep floating glass elevation */
+  --shadow-glass: 0 30px 60px -30px rgba(20, 31, 46, 0.35);
+  --shadow-glass-deep: 0 30px 80px -30px rgba(8, 18, 35, 0.60);
+  /* subtle hairline inset for glass rims */
+  --glass-rim: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35); /* @kind shadow */
+
+  /* ----- Liquid glass blur ----- */
+  --glass-blur: blur(18px) saturate(150%); /* @kind other */
+  --glass-blur-light: blur(7px) saturate(140%); /* @kind other */
+
+  /* ----- Motion ----- */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --duration-fast: 120ms; /* @kind other */
+  --duration-base: 200ms; /* @kind other */
+  --duration-slow: 320ms; /* @kind other */
+}

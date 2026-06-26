@@ -1,0 +1,94 @@
+/* ============================================================
+   Live Bracket — Color tokens
+   Sunset-on-the-sand palette for the Khao Lak Volley (KLV)
+   live tournament platform.
+   ============================================================ */
+
+:root {
+  /* --- Primitives: Coral / Sunset Orange scale --- */
+  --coral-50:  #FFFBFA;
+  --coral-100: #FEDCD2;
+  --coral-200: #FCBEAC;
+  --coral-300: #F8A288;
+  --coral-400: #F28864;
+  --coral-500: #EB6F43; /* brand primary — Sunset Orange */
+  --coral-600: #E44F1C; /* primary hover / pressed */
+  --coral-700: #BA4019;
+  --coral-800: #8F3215;
+  --coral-900: #662411;
+  --coral-950: #3E160B;
+
+  /* Coral accent used for live dots / poster art */
+  --coral-accent: #F26749;
+
+  /* --- Primitives: Ink (cool near-black navy) --- */
+  --ink-900: #14181E; /* darkest — matrix backdrops, ink primary text */
+  --ink-800: #1E2733; /* dark panel fill */
+  --ink-700: #202733; /* matrix card fill */
+  --ink-600: #3A414D; /* ink secondary */
+  --ink-500: #7A8294; /* muted gray */
+
+  /* --- Primitives: Warm neutral / sand --- */
+  --sand-50:  #FFFFFF;
+  --sand-100: #F5F1EA; /* app background — warm sand cream */
+  --sand-200: #EFEAE0;
+  --sand-300: #E7E2D9; /* hairline borders / dividers */
+  --sand-400: #D9D4C9;
+
+  /* --- Primitives: cool gray (system surfaces) --- */
+  --gray-100: #F3F3F3;
+  --gray-200: #E3E3E3;
+  --gray-300: #D9D9D9;
+  --gray-400: #B3B3B3;
+  --gray-500: #757575;
+
+  /* --- Primitives: semantic hues --- */
+  --red-live: #F16767; /* live-now indicator */
+  --amber-300: #F7C175; /* highlight pill (See all division) */
+  --amber-100: #F5CEA1;
+  --blue-link: #1E6EF4;
+
+  /* --- Liquid-glass primitives --- */
+  --glass-fill: rgba(255, 255, 255, 0.18);
+  --glass-fill-strong: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --glass-fill-dark: rgba(20, 24, 30, 0.40);
+  --glass-border-dark: rgba(255, 255, 255, 0.12);
+
+  /* ==========================================================
+     Semantic aliases — reference these in components
+     ========================================================== */
+
+  /* Brand */
+  --color-primary: var(--coral-500);
+  --color-primary-hover: var(--coral-600);
+  --color-primary-soft: rgba(235, 111, 67, 0.20); /* secondary button fill */
+  --color-on-primary: #FFFFFF;
+
+  /* Surfaces */
+  --surface-app: var(--sand-100);
+  --surface-card: #FFFFFF;
+  --surface-raised: var(--gray-100);
+  --surface-ink: var(--ink-900);
+  --surface-glass: var(--glass-fill);
+
+  /* Text */
+  --text-primary: var(--ink-900);
+  --text-secondary: var(--ink-600);
+  --text-muted: var(--ink-500);
+  --text-on-ink: #FFFFFF;
+  --text-on-ink-muted: rgba(255, 255, 255, 0.72);
+  --text-link: var(--blue-link);
+
+  /* Lines & borders */
+  --border-hairline: var(--sand-300);
+  --border-strong: var(--ink-900);
+  --border-glass: var(--glass-border);
+
+  /* Status */
+  --status-live: var(--red-live);
+  --status-highlight: var(--amber-300);
+
+  /* Focus ring */
+  --focus-ring: rgba(235, 111, 67, 0.45);
+}

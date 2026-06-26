@@ -1,0 +1,53 @@
+/* ── Reset & Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Khao Lak Volley Standard Font Variables */
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Fraunces', serif;
+
+  /* Theme variables matching KLV */
+  --coral:       #F26749;
+  --blue:        #204ECF;
+  --periwinkle:  #83A5F2;
+  --blush:       #FCDED6;
+  --amber:       #EA9836;
+  --ink:         #1A1A1A;
+  --white:       #FFFFFF;
+  --glass-bg:    rgba(255, 255, 255, 0.18);
+  --glass-border:rgba(255, 255, 255, 0.35);
+
+  --orange:      #EE7A4C;
+  --orange-600:  #E0623A;
+  --orange-100:  #FCE9DE;
+  --ink-1:       #14181E;
+  --ink-2:       #3A414D;
+  --muted:       #7A8294;
+  --line:        #E7E2D9;
+  --bg-cream:    #F5F1EA;
+  --card-bg:     #FFFFFF;
+  --night:       #0E1722;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--ink-1);
+  background: var(--bg-cream, #F5F1EA);
+  overflow-x: hidden;
+}
+
+img { display: block; max-width: 100%; }
+a  { text-decoration: none; color: inherit; }
+
+/* Apply Live Bracket specific font mapping overrides globally to the app */
+body {
+  --font-heading: 'DM Sans', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-ui: 'DM Sans', sans-serif;
+  --font-serif: 'DM Sans', sans-serif;
+}

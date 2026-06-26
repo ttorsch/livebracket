@@ -1,0 +1,47 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Buttons" subtitle="Primary, secondary, general, arrow · sizes · states" -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--surface-app); font-family: var(--font-text); padding: 28px; }
+  .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .lbl { width: 84px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { Button } = window.LiveBracketDesignSystem_da39cc;
+function Demo() {
+  return (
+    <div>
+      <div className="row"><span className="lbl">Variants</span>
+        <Button variant="primary">Register Team</Button>
+        <Button variant="secondary">Divisions</Button>
+        <Button variant="general">Sign In</Button>
+        <Button variant="arrow" aria-label="Next" />
+      </div>
+      <div className="row"><span className="lbl">Small</span>
+        <Button variant="primary" size="small">Register</Button>
+        <Button variant="secondary" size="small">Divisions</Button>
+        <Button variant="general" size="small">Sign In</Button>
+        <Button variant="arrow" size="small" aria-label="Next" />
+      </div>
+      <div className="row"><span className="lbl">States</span>
+        <Button variant="primary" loading>Saving</Button>
+        <Button variant="primary" disabled>Disabled</Button>
+        <Button variant="secondary" loading>Loading</Button>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

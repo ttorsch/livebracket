@@ -1,0 +1,49 @@
+<!-- @dsCard group="Components" viewport="700x230" name="Data Display" subtitle="Badge · LiveIndicator · DateChip · Avatar · DivisionRing · PageControl" -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--surface-app); font-family: var(--font-text); padding: 28px; }
+  .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .lbl { width: 96px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { Badge, LiveIndicator, DateChip, Avatar, DivisionRing, PageControl } = window.LiveBracketDesignSystem_da39cc;
+function Demo() {
+  return (
+    <div>
+      <div className="row"><span className="lbl">Badges</span>
+        <Badge variant="live">Live</Badge>
+        <Badge variant="highlight">Featured</Badge>
+        <Badge variant="status">Upcoming</Badge>
+        <Badge variant="outline">Open</Badge>
+        <LiveIndicator label="Live Now" />
+      </div>
+      <div className="row"><span className="lbl">Date · Avatar</span>
+        <DateChip>Apr 3, 2026</DateChip>
+        <span style={{color:'var(--text-muted)'}}>to</span>
+        <DateChip>Apr 6, 2026</DateChip>
+        <Avatar name="Aroon K." />
+        <Avatar name="Lukas M." size={32} />
+      </div>
+      <div className="row"><span className="lbl">Rings · Dots</span>
+        <DivisionRing value="19/24" label="Men" />
+        <DivisionRing value="24/24" label="Women" filled />
+        <PageControl count={3} active={0} />
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

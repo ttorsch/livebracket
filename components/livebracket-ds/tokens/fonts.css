@@ -1,0 +1,13 @@
+/* ============================================================
+   Live Bracket — Webfonts
+   Space Grotesk · DM Sans · Inter — all loaded from Google Fonts.
+
+   NOTE ON SF PRO: The source product screens (tournament detail /
+   listing) use Apple's "SF Pro" for native chrome. SF Pro is not
+   redistributable, so it is intentionally NOT bundled here — the
+   stack falls back to system-ui / -apple-system, which renders as
+   real SF Pro on Apple devices. Brand display/text uses Space
+   Grotesk + DM Sans, which ARE bundled below.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap");

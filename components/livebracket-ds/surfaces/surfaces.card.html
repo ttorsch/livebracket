@@ -1,0 +1,44 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Glass & Card Surfaces" subtitle="Liquid-glass panel + opaque warm card" -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 28px; font-family: var(--font-text);
+    background: url("../../assets/beach-volleyball.jpg") center/cover no-repeat, var(--surface-app); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { GlassCard, Card, Badge } = window.LiveBracketDesignSystem_da39cc;
+function Demo() {
+  return (
+    <div className="grid">
+      <GlassCard tone="light" radius="2xl">
+        <Badge variant="live">Live</Badge>
+        <h3 className="lb-h3" style={{marginTop:12}}>Khao Lak Classic</h3>
+        <p className="lb-body" style={{marginTop:6}}>Open division · frosted light glass.</p>
+      </GlassCard>
+      <GlassCard tone="dark" radius="2xl" elevation="deep">
+        <Badge variant="highlight">Featured</Badge>
+        <h3 className="lb-h3" style={{marginTop:12, color:'#fff'}}>Night Finals</h3>
+        <p className="lb-body" style={{marginTop:6, color:'rgba(255,255,255,.8)'}}>Dark glass over photo.</p>
+      </GlassCard>
+      <Card radius="xl" interactive>
+        <h3 className="lb-h3">Memories Beach</h3>
+        <p className="lb-body" style={{marginTop:6}}>Opaque warm-white card with soft ambient shadow.</p>
+      </Card>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

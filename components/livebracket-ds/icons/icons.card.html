@@ -1,0 +1,38 @@
+<!-- @dsCard group="Components" viewport="700x200" name="Icons" subtitle="Lucide-derived line set (SF Symbols substitute)" -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--surface-app); font-family: var(--font-text); padding: 28px; color: var(--text-primary); }
+  .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 18px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .cn { font-size: 10px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { Icon } = window.LiveBracketDesignSystem_da39cc;
+const names = ["search","mic","location","star","starFilled","arrowRight","chevronRight","chevronDown","x","trophy","users","calendar","bell","plus","filter","play"];
+function Demo() {
+  return (
+    <div className="grid">
+      {names.map(n => (
+        <div className="cell" key={n}>
+          <Icon name={n} size={24} color="var(--text-primary)" />
+          <span className="cn">{n}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

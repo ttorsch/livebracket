@@ -1,0 +1,69 @@
+/* ============================================================
+   Live Bracket — Typography tokens
+   Display:  Space Grotesk  (titles, scores, headings)
+   Text:     DM Sans        (body, buttons, labels)
+   Wordmark: Inter          (LIVE BRACKET lockup, system UI)
+   ============================================================ */
+
+:root {
+  /* Families */
+  --font-display: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+  --font-text:    "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-ui:      "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono:    "Space Grotesk", ui-monospace, monospace; /* tabular scores */
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-bold:    700;
+
+  /* ----- Type scale (size / line-height) ----- */
+  /* Display H1 — Space Grotesk 48/58 */
+  --text-h1-size: 48px;
+  --text-h1-line: 58px;
+  --text-h1-weight: 700;
+  --text-h1-tracking: -0.02em;
+
+  /* Display H2 — Space Grotesk 28/36 */
+  --text-h2-size: 28px;
+  --text-h2-line: 36px;
+  --text-h2-weight: 700;
+  --text-h2-tracking: -0.01em;
+
+  /* Section title — Space Grotesk 20/26 */
+  --text-h3-size: 20px;
+  --text-h3-line: 26px;
+  --text-h3-weight: 700;
+
+  /* Body large — DM Sans 16/24 */
+  --text-body-lg-size: 16px;
+  --text-body-lg-line: 24px;
+
+  /* Body regular — DM Sans 14/20 */
+  --text-body-size: 14px;
+  --text-body-line: 20px;
+
+  /* Caption / label — DM Sans 12/16 */
+  --text-caption-size: 12px;
+  --text-caption-line: 16px;
+
+  /* Overline / micro — DM Sans 10/12, uppercase */
+  --text-micro-size: 10px;
+  --text-micro-line: 12px;
+  --text-micro-tracking: 0.06em;
+
+  /* Score display — Space Grotesk 36, tabular */
+  --text-score-size: 36px;
+  --text-score-line: 40px;
+}
+
+/* ----- Helper classes (used in specimen cards & kits) ----- */
+.lb-h1 { font-family: var(--font-display); font-size: var(--text-h1-size); line-height: var(--text-h1-line); font-weight: var(--text-h1-weight); letter-spacing: var(--text-h1-tracking); color: var(--text-primary); margin: 0; }
+.lb-h2 { font-family: var(--font-display); font-size: var(--text-h2-size); line-height: var(--text-h2-line); font-weight: var(--text-h2-weight); letter-spacing: var(--text-h2-tracking); color: var(--text-primary); margin: 0; }
+.lb-h3 { font-family: var(--font-display); font-size: var(--text-h3-size); line-height: var(--text-h3-line); font-weight: var(--text-h3-weight); color: var(--text-primary); margin: 0; }
+.lb-body-lg { font-family: var(--font-text); font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-line); color: var(--text-secondary); margin: 0; }
+.lb-body { font-family: var(--font-text); font-size: var(--text-body-size); line-height: var(--text-body-line); color: var(--text-secondary); margin: 0; }
+.lb-caption { font-family: var(--font-text); font-size: var(--text-caption-size); line-height: var(--text-caption-line); color: var(--text-muted); margin: 0; }
+.lb-micro { font-family: var(--font-text); font-size: var(--text-micro-size); line-height: var(--text-micro-line); letter-spacing: var(--text-micro-tracking); text-transform: uppercase; font-weight: var(--weight-bold); margin: 0; }
+.lb-score { font-family: var(--font-display); font-size: var(--text-score-size); line-height: var(--text-score-line); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; margin: 0; }
+.lb-wordmark { font-family: var(--font-ui); font-weight: var(--weight-regular); letter-spacing: 0.01em; }
