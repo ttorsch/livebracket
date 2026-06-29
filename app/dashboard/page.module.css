@@ -261,6 +261,20 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+.announcedPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(32, 78, 207, 0.1);
+  border: 1px solid rgba(32, 78, 207, 0.25);
+  color: var(--blue, #204ECF);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 .tournamentCardTitle {
   font-family: var(--font-heading);
   font-weight: 800;
@@ -341,6 +355,17 @@
   font-size: 11px;
   font-weight: 600;
   color: rgba(20, 24, 30, 0.6);
+}
+.divBadgeEmpty {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 59, 59, 0.05);
+  border: 1px dashed rgba(255, 59, 59, 0.2);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  color: #ff3b3b;
 }
 
 /* ── QR panel ─────────────────────────────────────────────────── */

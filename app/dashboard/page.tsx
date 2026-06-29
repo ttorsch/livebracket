@@ -23,7 +23,8 @@ const ACTIVE_TOURNAMENTS = [
     id: 'bang-niang-classic-2025',
     title: 'Bang Niang Beach Classic 2025',
     date: 'July 12–13, 2025',
-    status: 'live' as const,
+    phase: 3,
+    statusName: 'Phase 3: Live Registration (Open)',
     divisions: ["Men's Open", "Women's Open", 'Mixed'],
     teamsTotal: 24,
     teamsFilled: 19,
@@ -35,14 +36,41 @@ const ACTIVE_TOURNAMENTS = [
     id: 'khao-lak-open-2025',
     title: 'Khao Lak Open 2025',
     date: 'Aug 2–3, 2025',
-    status: 'upcoming' as const,
-    divisions: ["Men's Open", "Women's Open"],
+    phase: 1,
+    statusName: 'Phase 1: Shell (Upcoming)',
+    divisions: [],
     teamsTotal: 16,
-    teamsFilled: 9,
+    teamsFilled: 0,
     courts: 2,
     matchesTotal: 8,
     matchesDone: 0,
   },
+  {
+    id: 'phang-nga-challenger-2025',
+    title: 'Phang Nga Challenger 2025',
+    date: 'Sept 5, 2025',
+    phase: 2,
+    statusName: 'Phase 2: Rules Announced',
+    divisions: ["Men's Open"],
+    teamsTotal: 16,
+    teamsFilled: 4,
+    courts: 2,
+    matchesTotal: 8,
+    matchesDone: 0,
+  },
+  {
+    id: 'summer-volley-fest-2025',
+    title: 'Summer Volleyball Festival 2025',
+    date: 'Tomorrow morning',
+    phase: 4,
+    statusName: 'Phase 4: Logistics Seeding (Day Before)',
+    divisions: ["Men's Open", "Women's Open"],
+    teamsTotal: 16,
+    teamsFilled: 16,
+    courts: 4,
+    matchesTotal: 24,
+    matchesDone: 0,
+  }
 ];
 
 const PAST_TOURNAMENTS = [
@@ -153,11 +181,14 @@ export default function OrganizerDashboard() {
                 <div className={styles.tournamentCardTop}>
                   <div>
                     <div className={styles.tournamentBadgeRow}>
-                      {t.status === 'live' ? (
-                        <span className={styles.livePill}><span className={styles.liveDot} />Live</span>
-                      ) : (
-                        <span className={styles.upcomingPill}>Upcoming</span>
-                      )}
+                      <span className={
+                        t.phase === 3 ? styles.livePill :
+                        t.phase === 4 ? styles.livePill :
+                        t.phase === 2 ? styles.announcedPill :
+                        styles.upcomingPill
+                      }>
+                        {t.statusName}
+                      </span>
                     </div>
                     <h3 className={styles.tournamentCardTitle}>{t.title}</h3>
                     <p className={styles.tournamentCardDate}>{t.date}</p>
@@ -200,9 +231,13 @@ export default function OrganizerDashboard() {
                 </div>
 
                 <div className={styles.tournamentDivisions}>
-                  {t.divisions.map(d => (
-                    <span key={d} className={styles.divBadge}>{d}</span>
-                  ))}
+                  {t.divisions.length > 0 ? (
+                    t.divisions.map(d => (
+                      <span key={d} className={styles.divBadge}>{d}</span>
+                    ))
+                  ) : (
+                    <span className={styles.divBadgeEmpty}>No divisions added yet</span>
+                  )}
                 </div>
 
                 {qrOpen === t.id && (
@@ -234,9 +269,9 @@ export default function OrganizerDashboard() {
                   <Link href={`/tournament/${t.id}`} className={styles.viewLink}>
                     View tournament <ChevronRight size={14} />
                   </Link>
-                  <button className={styles.editLink}>
-                    <Settings size={14} /> Manage
-                  </button>
+                  <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.editLink}>
+                    <Settings size={14} /> Setup workspace
+                  </Link>
                 </div>
               </div>
             ))}

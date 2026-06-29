@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { MapPin, Calendar, Users, Trophy, Clock, ChevronRight } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -25,6 +25,12 @@ const TOURNAMENT = {
     { id: 'mixed', label: 'Mixed', teams: 8, filled: 5 },
   ],
   description: 'The annual Bang Niang Beach Classic draws the best beach volleyball teams from across Thailand and beyond. Fast-paced single elimination format with 3 top-quality sand courts.',
+  rules: 'Standard FIVB Beach Volleyball rules apply. Matches are best of 3 sets to 21 points (third set to 15 if needed). Warm-ups are strictly limited to 5 minutes.',
+  venueInfo: 'Memories Beach, Khao Lak. Food and drinks are available at the beach club. Free parking is available for players.',
+  vouchers: [
+    { id: 'v1', title: '20% off Pak Weep Hotel Rooms', description: 'Available for all visitors browsing the event page.', code: 'PAK20' },
+    { id: 'v2', title: 'Free Electrolyte Drink at Court Check-in', description: 'Exclusive voucher shown on player confirmation pass.', code: 'PLAYERFUEL' }
+  ],
 };
 
 interface MatchPlayer { name: string; flag: string }
@@ -93,7 +99,7 @@ const TEAMS = [
   { name: 'Wang / Chen', flags: '🇨🇳', seed: 8, status: 'active' },
 ];
 
-type Tab = 'bracket' | 'pool' | 'schedule' | 'teams';
+type Tab = 'bracket' | 'pool' | 'schedule' | 'teams' | 'rules' | 'vouchers';
 
 /* ── Nav (mirrors homepage) ───────────────────────────────────── */
 function Nav() {
@@ -207,10 +213,33 @@ function BracketMatchCard({ match }: { match: BracketMatch }) {
 /* ── Main page ────────────────────────────────────────────────── */
 export default function TournamentDetail() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  
+  // Read Phase query param to test dynamic flows: 1 = Shell, 2 = Announced, 3 = Open, 4 = Closed/Logistics
+  const phaseParam = searchParams.get('phase');
+  const phase = phaseParam ? parseInt(phaseParam) : 3; // Default to Live Registration
+
   const [activeDiv, setActiveDiv] = useState(TOURNAMENT.divisions[0].id);
   const [activeTab, setActiveTab] = useState<Tab>('bracket');
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [tabBarStuck, setTabBarStuck] = useState(false);
+
+  // Watchlist Star Button State
+  const [starred, setStarred] = useState(false);
+  const [watchlistCount, setWatchlistCount] = useState(14);
+
+  useEffect(() => {
+    const isStarred = localStorage.getItem(`watchlist_${params.id}`) === 'true';
+    setStarred(isStarred);
+    setWatchlistCount(isStarred ? 15 : 14);
+  }, [params.id]);
+
+  const toggleWatchlist = () => {
+    const nextState = !starred;
+    setStarred(nextState);
+    localStorage.setItem(`watchlist_${params.id}`, String(nextState));
+    setWatchlistCount(nextState ? 15 : 14);
+  };
 
   useEffect(() => {
     if (!tabBarRef.current) return;
@@ -244,14 +273,20 @@ export default function TournamentDetail() {
             </Link>
 
             <div className={styles.heroBadgeRow}>
-              {tournament.status === 'live' && (
+              {phase === 1 && (
+                <span className={styles.upcomingBadge}>Save the Date</span>
+              )}
+              {phase === 2 && (
+                <span className={styles.upcomingBadge}>Registration Opens Soon</span>
+              )}
+              {phase === 3 && (
                 <span className={styles.liveBadge}>
                   <span className={styles.liveDot} />
-                  Live now
+                  Registration Open
                 </span>
               )}
-              {tournament.status === 'upcoming' && (
-                <span className={styles.upcomingBadge}>Upcoming</span>
+              {phase === 4 && (
+                <span className={styles.finishedBadge}>Logistics Seeding</span>
               )}
               <span className={styles.formatBadge}>{tournament.format}</span>
             </div>
@@ -275,14 +310,37 @@ export default function TournamentDetail() {
             </div>
 
             <div className={styles.heroActions}>
-              <Link
-                href={`/tournament/${params.id}/register`}
-                className={styles.heroPrimary}
-              >
-                Register team
-                <ChevronRight size={16} />
-              </Link>
-              <button className={styles.heroShare}>Share event</button>
+              {phase === 1 && (
+                <button className={styles.heroDisabled} disabled>
+                  Registration Date Pending
+                </button>
+              )}
+              {phase === 2 && (
+                <button className={styles.heroDisabled} disabled>
+                  Registration Opens Soon
+                </button>
+              )}
+              {phase === 3 && (
+                <Link
+                  href={`/tournament/${params.id}/register`}
+                  className={styles.heroPrimary}
+                >
+                  Register team
+                  <ChevronRight size={16} />
+                </Link>
+              )}
+              {phase === 4 && (
+                <button className={styles.heroDisabled} disabled>
+                  Registration Closed
+                </button>
+              )}
+              
+              <button className={styles.heroShare} onClick={toggleWatchlist}>
+                {starred ? '★ Watching' : '☆ Watchlist'} ({watchlistCount})
+              </button>
+              <button className={styles.heroShare} onClick={() => alert('Link copied to clipboard!')}>
+                Share event
+              </button>
             </div>
           </div>
         </div>
@@ -310,7 +368,7 @@ export default function TournamentDetail() {
       <div ref={tabBarRef} className={`${styles.tabBar} ${tabBarStuck ? styles.tabBarStuck : ''}`}>
         <div className={styles.container}>
           <div className={styles.tabs}>
-            {(['bracket', 'pool', 'schedule', 'teams'] as Tab[]).map(tab => (
+            {(['bracket', 'pool', 'schedule', 'teams', 'rules', 'vouchers'] as Tab[]).map(tab => (
               <button
                 key={tab}
                 className={`${styles.tabBtn} ${activeTab === tab ? styles.tabBtnActive : ''}`}
@@ -412,6 +470,36 @@ export default function TournamentDetail() {
                     {team.status === 'eliminated' && (
                       <div className={styles.teamElimBadge}>Eliminated</div>
                     )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rules */}
+          {activeTab === 'rules' && (
+            <div className={styles.rulesSection}>
+              <h2 className={styles.rulesTitle}>Tournament Rules &amp; Regulations</h2>
+              <div className={styles.rulesContent}>
+                {tournament.rules}
+              </div>
+              <h2 className={styles.rulesTitle}>Venue Information</h2>
+              <div className={styles.rulesContent}>
+                {tournament.venueInfo}
+              </div>
+            </div>
+          )}
+
+          {/* Vouchers */}
+          {activeTab === 'vouchers' && (
+            <div className={styles.vouchersSection}>
+              <h2 className={styles.rulesTitle}>Sponsor Promotions &amp; Perks</h2>
+              <div className={styles.vouchersGrid}>
+                {tournament.vouchers.map(v => (
+                  <div key={v.id} className={styles.voucherItemCard}>
+                    <span className={styles.voucherTitle}>{v.title}</span>
+                    <p className={styles.voucherDesc}>{v.description}</p>
+                    <span className={styles.voucherCode}>PROMO CODE: {v.code}</span>
                   </div>
                 ))}
               </div>

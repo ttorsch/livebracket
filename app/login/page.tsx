@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../../lib/supabase';
 import styles from './page.module.css';
 
 type Role = 'player' | 'organizer';
@@ -15,14 +17,67 @@ function Arrow() {
 }
 
 export default function LiveBracketLogin() {
-  // Player / Organizer toggle on the login card (mirrors the Figma tabs).
-  const [role, setRole] = useState<Role>('player');
-  // Frontend-only form: no real auth, we just show an inline confirmation.
-  const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
+  const [role, setRole] = useState<Role>('organizer');
+  const [email, setEmail] = useState('organizer@livebracket.com');
+  const [password, setPassword] = useState('password123');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleRoleChange = (newRole: Role) => {
+    setRole(newRole);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    if (newRole === 'organizer') {
+      setEmail('organizer@livebracket.com');
+      setPassword('password123');
+    } else {
+      setEmail('player@livebracket.com');
+      setPassword('password123');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setLoading(true);
+
+    try {
+      if (mode === 'signin') {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+
+        if (role === 'organizer') {
+          router.push('/dashboard');
+        } else {
+          router.push('/');
+        }
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              role: role,
+            }
+          }
+        });
+        if (error) throw error;
+        setSuccessMsg('Account created successfully! You can now sign in.');
+        setMode('signin');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred during authentication.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,8 +122,6 @@ export default function LiveBracketLogin() {
 
         <div
           className={styles.glassPanel}
-          // backdrop-filter must be inline — Lightning CSS strips the standard
-          // property out of .module.css (keeps only -webkit-), killing the blur.
           style={{
             backdropFilter: 'blur(18px) saturate(150%)',
             WebkitBackdropFilter: 'blur(18px) saturate(150%)',
@@ -76,14 +129,14 @@ export default function LiveBracketLogin() {
         >
           {/* Left: login card */}
           <div className={styles.loginCard}>
-            <h2 className={styles.loginTitle}>Log in</h2>
+            <h2 className={styles.loginTitle}>{mode === 'signin' ? 'Log in' : 'Sign up'}</h2>
 
             <div className={styles.roleTabs} role="tablist" aria-label="Account type">
               <button
                 role="tab"
                 aria-selected={role === 'player'}
                 className={`${styles.roleTab} ${role === 'player' ? styles.roleTabActive : ''}`}
-                onClick={() => setRole('player')}
+                onClick={() => handleRoleChange('player')}
               >
                 Player
               </button>
@@ -91,7 +144,7 @@ export default function LiveBracketLogin() {
                 role="tab"
                 aria-selected={role === 'organizer'}
                 className={`${styles.roleTab} ${role === 'organizer' ? styles.roleTabActive : ''}`}
-                onClick={() => setRole('organizer')}
+                onClick={() => handleRoleChange('organizer')}
               >
                 Organizer
               </button>
@@ -102,35 +155,51 @@ export default function LiveBracketLogin() {
               />
             </div>
 
-            {submitted ? (
-              <div className={styles.formDone} role="status">
-                <span className={styles.formDoneIcon} aria-hidden="true">✓</span>
-                <p>
-                  You&apos;re in as a <strong>{role}</strong>. This is a preview — the dashboard isn&apos;t wired up yet.
-                </p>
-                <button type="button" className={styles.linkBtn} onClick={() => setSubmitted(false)}>
-                  Back to login
-                </button>
-              </div>
-            ) : (
-              <form className={styles.form} onSubmit={handleSubmit}>
-                <label className={styles.field}>
-                  <span>Email</span>
-                  <input type="email" placeholder="you@example.com" required />
-                </label>
-                <label className={styles.field}>
-                  <span>Password</span>
-                  <input type="password" placeholder="••••••••" required />
-                </label>
-                <button type="submit" className={styles.signIn}>
-                  Sign in as {role === 'player' ? 'player' : 'organizer'}
-                </button>
-                <button type="button" className={styles.forgot}>Forgot password?</button>
-              </form>
-            )}
+            {errorMsg && <div className={styles.alertError}>{errorMsg}</div>}
+            {successMsg && <div className={styles.alertSuccess}>{successMsg}</div>}
+
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <label className={styles.field}>
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                />
+              </label>
+              <label className={styles.field}>
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+              </label>
+              <button type="submit" className={styles.signIn} disabled={loading}>
+                {loading ? 'Processing...' : mode === 'signin' ? `Sign in as ${role}` : `Create ${role} account`}
+              </button>
+            </form>
 
             <p className={styles.signupNote}>
-              New here? <Link href="/" className={styles.signupLink}>Browse events</Link> — no account needed.
+              {mode === 'signin' ? (
+                <>
+                  New to Live Bracket?{' '}
+                  <button type="button" className={styles.modeToggleBtn} onClick={() => setMode('signup')}>
+                    Sign up now
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{' '}
+                  <button type="button" className={styles.modeToggleBtn} onClick={() => setMode('signin')}>
+                    Sign in here
+                  </button>
+                </>
+              )}
             </p>
           </div>
 

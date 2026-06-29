@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, Plus, Trash2, ArrowLeft } from 'lucide-react';
 import styles from './page.module.css';
 
-const STEPS = ['Info', 'Format', 'Divisions', 'Courts & Fees', 'Review'];
+const STEPS = ['Tournament Info', 'Additional Details'];
 const FORMATS = [
   { id: 'single', label: 'Single Elimination', desc: 'Classic knockout. One loss and you\'re out.' },
   { id: 'double', label: 'Double Elimination', desc: 'One loss sends you to the losers bracket. Lose twice and you\'re out.' },
@@ -21,34 +21,33 @@ export default function CreateTournament() {
   const router = useRouter();
   const [step, setStep] = useState(0);
 
-  // Step 0: Info
+  // Page 1: Info
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [isOneDay, setIsOneDay] = useState(false);
   const [description, setDescription] = useState('');
 
-  // Step 1: Format
-  const [format, setFormat] = useState('');
+  // Registration Schedule
+  const [regOpenDate, setRegOpenDate] = useState('');
+  const [regOpenTBA, setRegOpenTBA] = useState(true);
+  const [regCloseDate, setRegCloseDate] = useState('');
+  const [regCloseTBA, setRegCloseTBA] = useState(true);
 
-  // Step 2: Divisions
+  // Page 2: Advanced Details
+  const [format, setFormat] = useState('single');
   const [divisions, setDivisions] = useState<Division[]>([
     { name: "Men's Open", maxTeams: 8, minPlayers: 2 },
   ]);
-
-  // Step 3: Courts & fees
   const [courts, setCourts] = useState<Court[]>([{ name: 'Court 1' }]);
-  const [feePerTeam, setFeePerTeam] = useState('');
+  const [feePerTeam, setFeePerTeam] = useState('800');
   const [currency, setCurrency] = useState('THB');
   const [paymentWindow, setPaymentWindow] = useState('24');
 
-  // Step 4: Review + submit
   const [submitted, setSubmitted] = useState(false);
 
-  const canStep0 = !!title.trim() && !!location.trim() && !!startDate;
-  const canStep1 = !!format;
-  const canStep2 = divisions.length > 0 && divisions.every(d => d.name.trim());
-  const canStep3 = courts.length > 0 && !!feePerTeam;
+  const canAdvance = !!title.trim() && !!location.trim() && !!startDate;
 
   const addDivision = () => setDivisions(prev => [...prev, { name: '', maxTeams: 8, minPlayers: 2 }]);
   const removeDivision = (i: number) => setDivisions(prev => prev.filter((_, idx) => idx !== i));
@@ -59,8 +58,6 @@ export default function CreateTournament() {
   const removeCourt = (i: number) => setCourts(prev => prev.filter((_, idx) => idx !== i));
   const updateCourt = (i: number, val: string) =>
     setCourts(prev => prev.map((c, idx) => idx === i ? { name: val } : c));
-
-  const canAdvance = [canStep0, canStep1, canStep2, canStep3][step] ?? true;
 
   if (submitted) {
     return (
@@ -73,11 +70,15 @@ export default function CreateTournament() {
             <div className={styles.successIcon}><Check size={32} strokeWidth={3} /></div>
             <h2 className={styles.successTitle}>Tournament created!</h2>
             <p className={styles.successSub}>
-              <strong>{title}</strong> has been created. Share the registration link to start collecting teams.
+              <strong>{title || 'Bang Niang Beach Classic 2025'}</strong> has been created. Let&apos;s complete your setup!
             </p>
             <div className={styles.successActions}>
-              <Link href="/dashboard" className={styles.btnPrimary}>Go to dashboard</Link>
-              <Link href="/" className={styles.btnGhost}>Browse events</Link>
+              <Link href="/dashboard/tournament/bang-niang-classic-2025/setup" className={styles.btnPrimary}>
+                Go to Organizer Setup Workspace
+              </Link>
+              <Link href="/dashboard" className={styles.btnGhost}>
+                Go to Dashboard
+              </Link>
             </div>
           </div>
         </div>
@@ -112,45 +113,104 @@ export default function CreateTournament() {
             style={{ backdropFilter: 'blur(18px) saturate(150%)', WebkitBackdropFilter: 'blur(18px) saturate(150%)' }}
           >
 
-            {/* ── Step 0: Info ──────────────────────────────────── */}
+            {/* ── Page 1: Tournament Info ─────────────────────── */}
             {step === 0 && (
               <div>
                 <h2 className={styles.stepTitle}>Tournament info</h2>
-                <p className={styles.stepSub}>Give your event a name, location, and dates.</p>
+                <p className={styles.stepSub}>Enter basic tournament details to get started.</p>
                 <div className={styles.fieldGroup}>
                   <label className={styles.fieldLabel}>Tournament name *</label>
                   <input className={styles.input} type="text" placeholder="e.g. Bang Niang Beach Classic 2025" value={title} onChange={e => setTitle(e.target.value)} />
                 </div>
                 <div className={styles.fieldGroup}>
                   <label className={styles.fieldLabel}>Location *</label>
-                  <input className={styles.input} type="text" placeholder="e.g. Bang Niang Beach, Khao Lak" value={location} onChange={e => setLocation(e.target.value)} />
+                  <input className={styles.input} type="text" placeholder="e.g. Memories Beach, Khao Lak, Thailand" value={location} onChange={e => setLocation(e.target.value)} />
+                  <p className={styles.fieldHint}>Tip: Include venue, city, and country for best search results.</p>
                 </div>
+
+                <div className={styles.checkboxGroup}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={isOneDay}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsOneDay(checked);
+                        if (checked && startDate) setEndDate(startDate);
+                      }}
+                    />
+                    <span>This is a one-day tournament</span>
+                  </label>
+                </div>
+
                 <div className={styles.twoCol}>
                   <div className={styles.fieldGroup}>
                     <label className={styles.fieldLabel}>Start date *</label>
-                    <input className={styles.input} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    <input
+                      className={styles.input}
+                      type="date"
+                      value={startDate}
+                      onChange={e => {
+                        setStartDate(e.target.value);
+                        if (isOneDay) setEndDate(e.target.value);
+                      }}
+                    />
                   </div>
                   <div className={styles.fieldGroup}>
                     <label className={styles.fieldLabel}>End date</label>
-                    <input className={styles.input} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    <input
+                      className={styles.input}
+                      type="date"
+                      disabled={isOneDay}
+                      value={isOneDay ? startDate : endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                    />
                   </div>
                 </div>
+
                 <div className={styles.fieldGroup}>
                   <label className={styles.fieldLabel}>Description</label>
                   <textarea className={styles.textarea} rows={3} placeholder="Optional — tell players what to expect..." value={description} onChange={e => setDescription(e.target.value)} />
                 </div>
+
+                <div className={styles.stepFooter} style={{ marginTop: 32 }}>
+                  <button type="button" className={styles.btnGhost} onClick={() => router.push('/dashboard')}>
+                    Save as draft
+                  </button>
+                  <div className={styles.actionGroup}>
+                    <button
+                      type="button"
+                      className={styles.btnOutline}
+                      disabled={!canAdvance}
+                      onClick={() => canAdvance && setStep(1)}
+                    >
+                      Add details
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.btnPrimary}
+                      disabled={!canAdvance}
+                      onClick={() => canAdvance && setSubmitted(true)}
+                    >
+                      Publish
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* ── Step 1: Format ────────────────────────────────── */}
+            {/* ── Page 2: Advanced Details ─────────────────────── */}
             {step === 1 && (
               <div>
-                <h2 className={styles.stepTitle}>Tournament format</h2>
-                <p className={styles.stepSub}>Choose how matches are structured.</p>
+                <h2 className={styles.stepTitle}>Additional details</h2>
+                <p className={styles.stepSub}>Configure divisions, format, and courts (Optional).</p>
+
+                <h3 className={styles.subSection}>Tournament format</h3>
                 <div className={styles.formatGrid}>
                   {FORMATS.map(f => (
                     <button
                       key={f.id}
+                      type="button"
                       className={`${styles.formatCard} ${format === f.id ? styles.formatCardActive : ''}`}
                       onClick={() => setFormat(f.id)}
                     >
@@ -160,14 +220,8 @@ export default function CreateTournament() {
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
 
-            {/* ── Step 2: Divisions ─────────────────────────────── */}
-            {step === 2 && (
-              <div>
-                <h2 className={styles.stepTitle}>Divisions</h2>
-                <p className={styles.stepSub}>Add the divisions you want to run. Each can have different team limits.</p>
+                <h3 className={styles.subSection} style={{ marginTop: 28 }}>Divisions</h3>
                 <div className={styles.divisionList}>
                   {divisions.map((div, i) => (
                     <div key={i} className={styles.divRow}>
@@ -195,26 +249,18 @@ export default function CreateTournament() {
                         </div>
                       </div>
                       {divisions.length > 1 && (
-                        <button className={styles.removeBtn} onClick={() => removeDivision(i)}>
+                        <button type="button" className={styles.removeBtn} onClick={() => removeDivision(i)}>
                           <Trash2 size={16} />
                         </button>
                       )}
                     </div>
                   ))}
                 </div>
-                <button className={styles.addBtn} onClick={addDivision}>
+                <button type="button" className={styles.addBtn} onClick={addDivision}>
                   <Plus size={16} /> Add division
                 </button>
-              </div>
-            )}
 
-            {/* ── Step 3: Courts & Fees ─────────────────────────── */}
-            {step === 3 && (
-              <div>
-                <h2 className={styles.stepTitle}>Courts &amp; fees</h2>
-                <p className={styles.stepSub}>Set up your playing courts and the registration fee per team.</p>
-
-                <h3 className={styles.subSection}>Courts</h3>
+                <h3 className={styles.subSection} style={{ marginTop: 28 }}>Courts</h3>
                 <div className={styles.divisionList}>
                   {courts.map((c, i) => (
                     <div key={i} className={styles.divRow}>
@@ -229,22 +275,22 @@ export default function CreateTournament() {
                         />
                       </div>
                       {courts.length > 1 && (
-                        <button className={styles.removeBtn} onClick={() => removeCourt(i)}>
+                        <button type="button" className={styles.removeBtn} onClick={() => removeCourt(i)}>
                           <Trash2 size={16} />
                         </button>
                       )}
                     </div>
                   ))}
                 </div>
-                <button className={styles.addBtn} onClick={addCourt}>
+                <button type="button" className={styles.addBtn} onClick={addCourt}>
                   <Plus size={16} /> Add court
                 </button>
 
                 <h3 className={styles.subSection} style={{ marginTop: 28 }}>Registration fee</h3>
                 <div className={styles.twoCol}>
                   <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel}>Fee per team *</label>
-                    <input className={styles.input} type="number" min={0} placeholder="e.g. 800" value={feePerTeam} onChange={e => setFeePerTeam(e.target.value)} />
+                    <label className={styles.fieldLabel}>Fee per team</label>
+                    <input className={styles.input} type="number" min={0} value={feePerTeam} onChange={e => setFeePerTeam(e.target.value)} />
                   </div>
                   <div className={styles.fieldGroup}>
                     <label className={styles.fieldLabel}>Currency</label>
@@ -258,66 +304,26 @@ export default function CreateTournament() {
                 <div className={styles.fieldGroup}>
                   <label className={styles.fieldLabel}>Payment window (hours)</label>
                   <input className={styles.input} type="number" min={1} max={72} value={paymentWindow} onChange={e => setPaymentWindow(e.target.value)} />
-                  <p className={styles.fieldHint}>Teams have this many hours to complete payment after registering. Unpaid spots are released automatically.</p>
+                </div>
+
+                <div className={styles.stepFooter} style={{ marginTop: 32 }}>
+                  <button type="button" className={styles.btnGhost} onClick={() => setStep(0)}>
+                    <ArrowLeft size={16} /> Back to info
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btnPrimary}
+                    onClick={() => setSubmitted(true)}
+                  >
+                    Publish tournament
+                  </button>
                 </div>
               </div>
             )}
-
-            {/* ── Step 4: Review ────────────────────────────────── */}
-            {step === 4 && (
-              <div>
-                <h2 className={styles.stepTitle}>Review &amp; publish</h2>
-                <p className={styles.stepSub}>Check everything before publishing your tournament.</p>
-                <div className={styles.reviewBlock}>
-                  <ReviewRow label="Name" value={title} />
-                  <ReviewRow label="Location" value={location} />
-                  <ReviewRow label="Dates" value={`${startDate}${endDate ? ` → ${endDate}` : ''}`} />
-                  <ReviewRow label="Format" value={FORMATS.find(f => f.id === format)?.label ?? ''} />
-                  <ReviewRow label="Divisions" value={divisions.map(d => d.name).join(', ')} />
-                  <ReviewRow label="Courts" value={courts.map(c => c.name).join(', ')} />
-                  <ReviewRow label="Fee per team" value={`${feePerTeam} ${currency}`} />
-                  <ReviewRow label="Payment window" value={`${paymentWindow} hours`} last />
-                </div>
-              </div>
-            )}
-
-            {/* ── Nav buttons ───────────────────────────────────── */}
-            <div className={styles.stepFooter}>
-              {step > 0 ? (
-                <button className={styles.btnGhost} onClick={() => setStep(s => s - 1)}>Back</button>
-              ) : (
-                <Link href="/dashboard" className={styles.btnGhost}>Cancel</Link>
-              )}
-              {step < STEPS.length - 1 ? (
-                <button
-                  className={styles.btnPrimary}
-                  disabled={!canAdvance}
-                  onClick={() => canAdvance && setStep(s => s + 1)}
-                >
-                  Continue <ChevronRight size={16} />
-                </button>
-              ) : (
-                <button
-                  className={styles.btnPrimary}
-                  onClick={() => setSubmitted(true)}
-                >
-                  Publish tournament
-                </button>
-              )}
-            </div>
 
           </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-function ReviewRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
-  return (
-    <div className={`${styles.reviewRow} ${last ? styles.reviewRowLast : ''}`}>
-      <span className={styles.reviewLabel}>{label}</span>
-      <span className={styles.reviewValue}>{value}</span>
     </div>
   );
 }
