@@ -56,22 +56,94 @@ interface Team {
   status: 'confirmed' | 'unpaid' | 'waitlist';
 }
 
+// ── Per-division registration schema types ───────────────────────
+type RegFieldType = 'text' | 'phone' | 'email' | 'paragraph' | 'select';
+type PresetKey = 'apparel' | 'skill' | 'hometown';
+
+interface RegField {
+  id: string;
+  label: string;
+  type: RegFieldType;
+  options?: string[];
+  required: boolean;
+  core?: boolean;       // part of the non-deletable Base Form block
+  preset?: PresetKey;   // appended by a Quick-Add toggle chip
+}
+
+type OnSandFormat = '2v2' | '3v3' | '4v4' | '6v6';
+type CompFormat = 'pool' | 'single' | 'double' | 'hybrid';
+
+interface ScoringRules {
+  setsBestOf: number;        // best of 1 / 3 / 5
+  pointsPerSet: number;      // Sets 1 & 2 target
+  winBy2: boolean;           // must win by two
+  hardCap: number;           // hard cap ceiling (0 = none)
+  decidingSetPoints: number; // deciding (final) set target
+}
+
 interface SetupDivision {
   id: string;
   name: string;
-  caps: number;
-  allowMulti: boolean;
-  regFee: number;
-  noOfPlayers: number;
-  compFormat: string;
+  // A. Basics & dynamic capacity
+  divisionTeamCap: number;          // flips public button to "Waitlist Full"
+  formatTypeOnSand: OnSandFormat;   // dictates the scoring engine
+  maxRosterSize: number;            // defaults to format, allows alternates
+  // B. Staggered timing & fees
+  registrationFee: number;          // flat per-team-slot, can be 0
+  registrationOpenDate: string;     // datetime-local string, staggered windows
+  // C. Rules & formats
+  competitionFormat: CompFormat;
+  scoringRules: ScoringRules;
   rules: string;
-  // Advanced options:
+  // Per-division (isolated) registration schema
+  regFields: RegField[];
+  // Advanced options (recommended)
+  allowMulti: boolean;
   genderEligibility: string;
   prizePool: string;
   netHeight: string;
   minTeams: number;
   waitlistCap: number;
 }
+
+// Players on the sand per format → also the minimum legal roster size.
+const FORMAT_PLAYERS: Record<OnSandFormat, number> = { '2v2': 2, '3v3': 3, '4v4': 4, '6v6': 6 };
+
+// The Base Form block: four mandatory core inputs, injected into every new
+// division and non-deletable.
+const makeBaseFields = (): RegField[] => [
+  { id: 'base-team', label: 'Team Name', type: 'text', required: true, core: true },
+  { id: 'base-captain', label: 'Captain Name', type: 'text', required: true, core: true },
+  { id: 'base-phone', label: 'Phone', type: 'phone', required: true, core: true },
+  { id: 'base-email', label: 'Email', type: 'email', required: true, core: true },
+];
+
+// Quick-Add presets: one-click toggle chips that append standard fields.
+const PRESETS: { key: PresetKey; label: string; build: () => RegField }[] = [
+  {
+    key: 'apparel',
+    label: 'Apparel Size',
+    build: () => ({ id: 'preset-apparel', label: 'Apparel Size', type: 'select', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: false, preset: 'apparel' }),
+  },
+  {
+    key: 'skill',
+    label: 'Skill Level',
+    build: () => ({ id: 'preset-skill', label: 'Skill Level', type: 'select', options: ['Novice', 'Intermediate', 'Advanced', 'Open'], required: false, preset: 'skill' }),
+  },
+  {
+    key: 'hometown',
+    label: 'Home Town / Club',
+    build: () => ({ id: 'preset-hometown', label: 'Home Town / Club', type: 'text', required: false, preset: 'hometown' }),
+  },
+];
+
+const defaultScoringRules = (): ScoringRules => ({
+  setsBestOf: 3,
+  pointsPerSet: 21,
+  winBy2: true,
+  hardCap: 0,
+  decidingSetPoints: 15,
+});
 
 export default function OrganizerSetup() {
   const params = useParams();
@@ -86,12 +158,16 @@ export default function OrganizerSetup() {
     {
       id: 'd1',
       name: "Men's Open",
-      caps: 8,
-      allowMulti: true,
-      regFee: 800,
-      noOfPlayers: 2,
-      compFormat: 'hybrid',
+      divisionTeamCap: 8,
+      formatTypeOnSand: '2v2',
+      maxRosterSize: 2,
+      registrationFee: 800,
+      registrationOpenDate: '',
+      competitionFormat: 'hybrid',
+      scoringRules: defaultScoringRules(),
       rules: 'Standard FIVB Beach Volleyball rules apply.',
+      regFields: makeBaseFields(),
+      allowMulti: true,
       genderEligibility: 'Men',
       prizePool: '10,000 THB Prize Pool + Gold Medal',
       netHeight: '2.43m',
@@ -100,16 +176,27 @@ export default function OrganizerSetup() {
     }
   ]);
 
-  // Modal Form Inputs
+  // Modal Form Inputs — A. Basics & dynamic capacity
   const [divName, setDivName] = useState("Women's Open");
   const [divCap, setDivCap] = useState(8);
-  const [allowMulti, setAllowMulti] = useState(true);
+  const [formatType, setFormatType] = useState<OnSandFormat>('2v2');
+  const [maxRoster, setMaxRoster] = useState(2);
+  // B. Staggered timing & fees
   const [regFee, setRegFee] = useState(800);
-  const [noOfPlayers, setNoOfPlayers] = useState(2);
-  const [compFormat, setCompFormat] = useState('hybrid');
+  const [regOpenDate, setRegOpenDate] = useState('');
+  // C. Rules & formats
+  const [compFormat, setCompFormat] = useState<CompFormat>('hybrid');
+  const [scoring, setScoring] = useState<ScoringRules>(defaultScoringRules());
   const [divRules, setDivRules] = useState('Standard FIVB Beach Volleyball rules apply.');
 
+  // Per-division registration schema (isolated to this division)
+  const [regFields, setRegFields] = useState<RegField[]>(makeBaseFields());
+
+  // Validation
+  const [formError, setFormError] = useState<string | null>(null);
+
   // Recommended/Missing Fields Inputs (Advanced Options)
+  const [allowMulti, setAllowMulti] = useState(true);
   const [genderEligibility, setGenderEligibility] = useState('Women');
   const [prizePool, setPrizePool] = useState('');
   const [netHeight, setNetHeight] = useState('2.24m');
@@ -167,11 +254,16 @@ export default function OrganizerSetup() {
   const handleOpenCreateModal = () => {
     setDivName(`Women's Open`);
     setDivCap(8);
-    setAllowMulti(true);
+    setFormatType('2v2');
+    setMaxRoster(FORMAT_PLAYERS['2v2']);
     setRegFee(800);
-    setNoOfPlayers(2);
+    setRegOpenDate('');
     setCompFormat('hybrid');
+    setScoring(defaultScoringRules());
     setDivRules('Standard FIVB Beach Volleyball rules apply.');
+    setRegFields(makeBaseFields());
+    setFormError(null);
+    setAllowMulti(true);
     setGenderEligibility('Women');
     setPrizePool('');
     setNetHeight('2.24m');
@@ -181,18 +273,71 @@ export default function OrganizerSetup() {
     setShowModal(true);
   };
 
+  // When the on-sand format changes, default Max Roster up to the new minimum
+  // (only raising it — a manually entered larger roster is preserved).
+  const handleFormatChange = (next: OnSandFormat) => {
+    setFormatType(next);
+    setMaxRoster(prev => (prev < FORMAT_PLAYERS[next] ? FORMAT_PLAYERS[next] : prev));
+    setFormError(null);
+  };
+
+  // ── Per-division registration schema builders ──────────────────
+  const isPresetActive = (key: PresetKey) => regFields.some(f => f.preset === key);
+
+  const togglePreset = (key: PresetKey) => {
+    if (isPresetActive(key)) {
+      setRegFields(regFields.filter(f => f.preset !== key));
+    } else {
+      const preset = PRESETS.find(p => p.key === key);
+      if (preset) setRegFields([...regFields, preset.build()]);
+    }
+  };
+
+  const addCustomQuestion = () => {
+    setRegFields([
+      ...regFields,
+      { id: 'q_' + Date.now(), label: '', type: 'text', required: false },
+    ]);
+  };
+
+  const updateRegField = (id: string, patch: Partial<RegField>) => {
+    setRegFields(regFields.map(f => (f.id === id ? { ...f, ...patch } : f)));
+  };
+
+  const removeRegField = (id: string) => {
+    setRegFields(regFields.filter(f => f.id !== id));
+  };
+
   // Helper Actions: Phase 1 (Create Division Modal Submission)
   const saveDivisionModal = () => {
-    if (!divName.trim()) return;
+    if (!divName.trim()) {
+      setFormError('Division name is required.');
+      return;
+    }
+    // Structural constraint: roster must seat at least the on-sand format.
+    if (maxRoster < FORMAT_PLAYERS[formatType]) {
+      setFormError(`Max Roster Size must be at least ${FORMAT_PLAYERS[formatType]} to field a ${formatType} team.`);
+      return;
+    }
+    // Custom questions must be labelled before they can be saved.
+    if (regFields.some(f => !f.core && !f.label.trim())) {
+      setFormError('Every custom registration question needs a label.');
+      return;
+    }
+
     const newDiv: SetupDivision = {
       id: 'd_' + Date.now(),
       name: divName,
-      caps: divCap,
-      allowMulti,
-      regFee,
-      noOfPlayers,
-      compFormat,
+      divisionTeamCap: divCap,
+      formatTypeOnSand: formatType,
+      maxRosterSize: maxRoster,
+      registrationFee: regFee,
+      registrationOpenDate: regOpenDate,
+      competitionFormat: compFormat,
+      scoringRules: scoring,
       rules: divRules,
+      regFields,
+      allowMulti,
       genderEligibility,
       prizePool,
       netHeight,
@@ -442,7 +587,7 @@ export default function OrganizerSetup() {
                               <div>
                                 <span className={styles.divPill} style={{ marginRight: 8 }}>{d.name}</span>
                                 <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                                  ({d.noOfPlayers}v{d.noOfPlayers} • Cap: {d.caps} teams • Fee: {d.regFee} THB)
+                                  ({d.formatTypeOnSand} • Roster {d.maxRosterSize} • Cap: {d.divisionTeamCap} teams • Fee: {d.registrationFee === 0 ? 'Free' : `${d.registrationFee} THB`})
                                 </span>
                               </div>
                               <button className={styles.btnRemove} onClick={() => removeDivision(d.id)}>
@@ -495,7 +640,7 @@ export default function OrganizerSetup() {
                             <select
                               className={styles.select}
                               value={newQuestionType}
-                              onChange={e => setNewQuestionType(e.target.value as any)}
+                              onChange={e => setNewQuestionType(e.target.value as 'text' | 'select' | 'checkbox')}
                             >
                               <option value="text">Short Text</option>
                               <option value="select">Dropdown Choice</option>
@@ -805,20 +950,27 @@ export default function OrganizerSetup() {
               <button className={styles.modalCloseBtn} onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
+              {formError && (
+                <div className={styles.modalFormError}>{formError}</div>
+              )}
+
+              {/* ── A. Basics & Dynamic Capacity ─────────────────── */}
+              <p className={styles.modalSectionTitle}>Basics &amp; Capacity</p>
+
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>Division Name *</label>
                 <input
                   type="text"
                   className={styles.input}
-                  placeholder="e.g. Women's Open, Mixed Doubles"
+                  placeholder="e.g. Women's Open, Mixed 4s"
                   value={divName}
-                  onChange={e => setDivName(e.target.value)}
+                  onChange={e => { setDivName(e.target.value); setFormError(null); }}
                 />
               </div>
 
               <div className={styles.twoCol} style={{ marginTop: 12 }}>
                 <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Caps (Max Teams) *</label>
+                  <label className={styles.fieldLabel}>Team Cap (Max Teams) *</label>
                   <input
                     type="number"
                     className={styles.input}
@@ -826,20 +978,42 @@ export default function OrganizerSetup() {
                     value={divCap}
                     onChange={e => setDivCap(parseInt(e.target.value) || 8)}
                   />
+                  <span className={styles.fieldHint}>Flips the public button to &quot;Waitlist Full&quot;.</span>
                 </div>
                 <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>No. of Players per Team *</label>
-                  <input
-                    type="number"
-                    className={styles.input}
-                    min={1}
-                    value={noOfPlayers}
-                    onChange={e => setNoOfPlayers(parseInt(e.target.value) || 2)}
-                  />
+                  <label className={styles.fieldLabel}>Format On-Sand *</label>
+                  <select
+                    className={styles.select}
+                    value={formatType}
+                    onChange={e => handleFormatChange(e.target.value as OnSandFormat)}
+                  >
+                    <option value="2v2">2 v 2</option>
+                    <option value="3v3">3 v 3</option>
+                    <option value="4v4">4 v 4</option>
+                    <option value="6v6">6 v 6</option>
+                  </select>
+                  <span className={styles.fieldHint}>Dictates the match scoring engine.</span>
                 </div>
               </div>
 
-              <div className={styles.twoCol} style={{ marginTop: 12 }}>
+              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
+                <label className={styles.fieldLabel}>Max Roster Size *</label>
+                <input
+                  type="number"
+                  className={styles.input}
+                  min={FORMAT_PLAYERS[formatType]}
+                  value={maxRoster}
+                  onChange={e => { setMaxRoster(parseInt(e.target.value) || 0); setFormError(null); }}
+                />
+                <span className={styles.fieldHint}>
+                  Minimum {FORMAT_PLAYERS[formatType]} for {formatType}. Raise it to allow substitutes / alternates.
+                </span>
+              </div>
+
+              {/* ── B. Staggered Timing & Fees ───────────────────── */}
+              <p className={styles.modalSectionTitle}>Timing &amp; Fees</p>
+
+              <div className={styles.twoCol}>
                 <div className={styles.fieldGroup}>
                   <label className={styles.fieldLabel}>Registration Fee (THB) *</label>
                   <input
@@ -849,34 +1023,108 @@ export default function OrganizerSetup() {
                     value={regFee}
                     onChange={e => setRegFee(parseInt(e.target.value) || 0)}
                   />
+                  <span className={styles.fieldHint}>Flat per team slot. Enter 0 for a free division.</span>
                 </div>
                 <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Allow Multi-Division Play *</label>
-                  <select
-                    className={styles.select}
-                    value={allowMulti ? 'yes' : 'no'}
-                    onChange={e => setAllowMulti(e.target.value === 'yes')}
-                  >
-                    <option value="yes">Yes (Allow players to cross-register)</option>
-                    <option value="no">No (Strict single-division lock)</option>
-                  </select>
+                  <label className={styles.fieldLabel}>Registration Opens</label>
+                  <input
+                    type="datetime-local"
+                    className={styles.input}
+                    value={regOpenDate}
+                    onChange={e => setRegOpenDate(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>Staggered window for this division only.</span>
+                </div>
+              </div>
+
+              {/* ── C. Rules & Formats ───────────────────────────── */}
+              <p className={styles.modalSectionTitle}>Rules &amp; Formats</p>
+
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel}>Competition Format *</label>
+                <div className={styles.selectorGroup}>
+                  {([
+                    { value: 'pool', label: 'Pool Play Only' },
+                    { value: 'single', label: 'Single Elimination' },
+                    { value: 'double', label: 'Double Elimination' },
+                    { value: 'hybrid', label: 'Hybrid' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`${styles.selectorBtn} ${compFormat === opt.value ? styles.selectorBtnActive : ''}`}
+                      onClick={() => setCompFormat(opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
-                <label className={styles.fieldLabel}>Competition Format (Optional)</label>
-                <select
-                  className={styles.select}
-                  value={compFormat}
-                  onChange={e => setCompFormat(e.target.value)}
-                >
-                  <option value="">-- Choose format later --</option>
-                  <option value="single">Single Elimination</option>
-                  <option value="double">Double Elimination</option>
-                  <option value="pool-single">Pool Play + Single Elimination</option>
-                  <option value="pool-double">Pool Play + Double Elimination</option>
-                  <option value="pool-only">Pool Play only</option>
-                </select>
+                <label className={styles.fieldLabel}>Scoring Rules</label>
+                <div className={styles.scoringMatrix}>
+                  <div className={styles.scoringRow}>
+                    <span className={styles.scoringRowLabel}>Match</span>
+                    <label className={styles.scoringCell}>
+                      <span>Best of</span>
+                      <select
+                        className={styles.scoringInput}
+                        value={scoring.setsBestOf}
+                        onChange={e => setScoring({ ...scoring, setsBestOf: parseInt(e.target.value) })}
+                      >
+                        <option value={1}>1</option>
+                        <option value={3}>3</option>
+                        <option value={5}>5</option>
+                      </select>
+                    </label>
+                    <label className={styles.scoringCell}>
+                      <input
+                        type="checkbox"
+                        checked={scoring.winBy2}
+                        onChange={e => setScoring({ ...scoring, winBy2: e.target.checked })}
+                      />
+                      <span>Win by 2</span>
+                    </label>
+                  </div>
+                  <div className={styles.scoringRow}>
+                    <span className={styles.scoringRowLabel}>Sets 1 &amp; 2</span>
+                    <label className={styles.scoringCell}>
+                      <span>to</span>
+                      <input
+                        type="number"
+                        className={styles.scoringInput}
+                        min={1}
+                        value={scoring.pointsPerSet}
+                        onChange={e => setScoring({ ...scoring, pointsPerSet: parseInt(e.target.value) || 0 })}
+                      />
+                    </label>
+                    <label className={styles.scoringCell}>
+                      <span>Hard cap</span>
+                      <input
+                        type="number"
+                        className={styles.scoringInput}
+                        min={0}
+                        placeholder="none"
+                        value={scoring.hardCap || ''}
+                        onChange={e => setScoring({ ...scoring, hardCap: parseInt(e.target.value) || 0 })}
+                      />
+                    </label>
+                  </div>
+                  <div className={styles.scoringRow}>
+                    <span className={styles.scoringRowLabel}>Deciding set</span>
+                    <label className={styles.scoringCell}>
+                      <span>to</span>
+                      <input
+                        type="number"
+                        className={styles.scoringInput}
+                        min={1}
+                        value={scoring.decidingSetPoints}
+                        onChange={e => setScoring({ ...scoring, decidingSetPoints: parseInt(e.target.value) || 0 })}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
@@ -889,6 +1137,108 @@ export default function OrganizerSetup() {
                   onChange={e => setDivRules(e.target.value)}
                 />
               </div>
+
+              {/* ── Per-division Registration Questions ──────────── */}
+              <p className={styles.modalSectionTitle}>Registration Questions</p>
+              <p className={styles.fieldHint} style={{ marginTop: -4 }}>
+                This form is bound to this division only.
+              </p>
+
+              {/* Non-deletable Base Form block */}
+              <div className={styles.baseBlock}>
+                <div className={styles.baseBlockHeader}>
+                  <Lock size={13} /> Base Form (always collected)
+                </div>
+                <div className={styles.baseBlockGrid}>
+                  {regFields.filter(f => f.core).map(f => (
+                    <div key={f.id} className={styles.coreField}>
+                      <span>{f.label}</span>
+                      <span className={styles.coreFieldTag}>Required</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick-Add preset chips */}
+              <div className={styles.chipRow}>
+                {PRESETS.map(p => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    className={`${styles.chip} ${isPresetActive(p.key) ? styles.chipActive : ''}`}
+                    onClick={() => togglePreset(p.key)}
+                  >
+                    {isPresetActive(p.key) ? <Check size={13} /> : <Plus size={13} />} {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Appended fields (presets + custom questions) */}
+              {regFields.filter(f => !f.core).length > 0 && (
+                <div className={styles.appendedFields}>
+                  {regFields.filter(f => !f.core).map(f =>
+                    f.preset ? (
+                      <div key={f.id} className={styles.presetRow}>
+                        <span className={styles.presetRowLabel}>{f.label}</span>
+                        <span className={styles.questionType}>
+                          {f.type === 'select' ? `${f.options?.length ?? 0}-option dropdown` : 'short text'}
+                        </span>
+                        <button className={styles.btnRemove} onClick={() => removeRegField(f.id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div key={f.id} className={styles.customRow}>
+                        <div className={styles.customRowTop}>
+                          <input
+                            type="text"
+                            className={styles.input}
+                            placeholder="Field label (e.g. Team walk-out song?)"
+                            value={f.label}
+                            onChange={e => updateRegField(f.id, { label: e.target.value })}
+                          />
+                          <button className={styles.btnRemove} onClick={() => removeRegField(f.id)}>
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                        <div className={styles.customRowBottom}>
+                          <select
+                            className={styles.select}
+                            value={f.type}
+                            onChange={e => updateRegField(f.id, { type: e.target.value as RegFieldType })}
+                          >
+                            <option value="text">Short Text</option>
+                            <option value="paragraph">Paragraph</option>
+                            <option value="select">Multiple Choice Dropdown</option>
+                          </select>
+                          <label className={styles.checkboxInline}>
+                            <input
+                              type="checkbox"
+                              checked={f.required}
+                              onChange={e => updateRegField(f.id, { required: e.target.checked })}
+                            />
+                            Required
+                          </label>
+                        </div>
+                        {f.type === 'select' && (
+                          <input
+                            type="text"
+                            className={styles.input}
+                            style={{ marginTop: 8 }}
+                            placeholder="Options, comma-separated (e.g. Yes, No, Maybe)"
+                            value={(f.options ?? []).join(', ')}
+                            onChange={e => updateRegField(f.id, { options: e.target.value.split(',').map(o => o.trim()).filter(Boolean) })}
+                          />
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+
+              <button type="button" className={styles.btnAdd} onClick={addCustomQuestion} style={{ marginTop: 12, width: '100%' }}>
+                <Plus size={16} /> Add Custom Question
+              </button>
 
               {/* Collapsible Advanced / Missing Options */}
               <div className={styles.advancedCollapsible}>
@@ -971,6 +1321,18 @@ export default function OrganizerSetup() {
                         value={prizePool}
                         onChange={e => setPrizePool(e.target.value)}
                       />
+                    </div>
+
+                    <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
+                      <label className={styles.fieldLabel}>6. Allow Multi-Division Play</label>
+                      <select
+                        className={styles.select}
+                        value={allowMulti ? 'yes' : 'no'}
+                        onChange={e => setAllowMulti(e.target.value === 'yes')}
+                      >
+                        <option value="yes">Yes (Allow players to cross-register)</option>
+                        <option value="no">No (Strict single-division lock)</option>
+                      </select>
                     </div>
                   </div>
                 )}

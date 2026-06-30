@@ -1056,3 +1056,261 @@
   border: 1px dashed rgba(20, 31, 46, 0.08);
   border-radius: 10px;
 }
+
+/* ── Create Division Modal — extended form ────────────────────── */
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--ink-2, #3A414D);
+  border: 1.5px solid rgba(20, 31, 46, 0.14);
+  border-radius: 10px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btnGhost:hover {
+  background: rgba(20, 31, 46, 0.04);
+  border-color: rgba(20, 31, 46, 0.22);
+}
+
+.modalFormError {
+  background: #FDF2F2;
+  border: 1px solid #FDE8E8;
+  color: #E02424;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.modalSectionTitle {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--orange, #EE7A4C);
+  margin: 22px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(238, 122, 76, 0.18);
+}
+.modalSectionTitle:first-child {
+  margin-top: 0;
+}
+
+.fieldHint {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 11.5px;
+  color: var(--ink-2, #7A8294);
+  line-height: 1.4;
+}
+
+/* Competition format selector group */
+.selectorGroup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.selectorBtn {
+  padding: 11px 12px;
+  border: 1.5px solid rgba(20, 31, 46, 0.1);
+  background: #fff;
+  border-radius: 10px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2, #3A414D);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.selectorBtn:hover {
+  border-color: rgba(238, 122, 76, 0.4);
+}
+.selectorBtnActive {
+  background: var(--orange, #EE7A4C);
+  border-color: var(--orange, #EE7A4C);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(238, 122, 76, 0.2);
+}
+
+/* Scoring rules matrix */
+.scoringMatrix {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(20, 31, 46, 0.03);
+  border: 1px solid rgba(20, 31, 46, 0.06);
+  border-radius: 12px;
+  padding: 14px;
+}
+.scoringRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.scoringRowLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ink-1, #14181E);
+  width: 88px;
+  flex-shrink: 0;
+}
+.scoringCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2, #3A414D);
+}
+.scoringCell input[type='checkbox'] {
+  accent-color: var(--orange, #EE7A4C);
+  width: 15px;
+  height: 15px;
+}
+.scoringInput {
+  width: 64px;
+  background: #fff;
+  border: 1.5px solid rgba(20, 31, 46, 0.12);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  color: var(--ink-1, #14181E);
+  outline: none;
+}
+.scoringInput:focus {
+  border-color: var(--orange, #EE7A4C);
+  box-shadow: 0 0 0 3px rgba(238, 122, 76, 0.15);
+}
+
+/* Per-division registration: base block */
+.baseBlock {
+  background: rgba(20, 31, 46, 0.03);
+  border: 1px solid rgba(20, 31, 46, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+}
+.baseBlockHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ink-2, #7A8294);
+  margin-bottom: 10px;
+}
+.baseBlockGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.coreField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid rgba(20, 31, 46, 0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+}
+.coreFieldTag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--orange, #EE7A4C);
+  background: rgba(238, 122, 76, 0.1);
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+/* Quick-Add preset chips */
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px dashed rgba(238, 122, 76, 0.5);
+  background: transparent;
+  color: var(--orange, #EE7A4C);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover {
+  background: rgba(238, 122, 76, 0.06);
+}
+.chipActive {
+  background: var(--orange, #EE7A4C);
+  border-style: solid;
+  border-color: var(--orange, #EE7A4C);
+  color: #fff;
+}
+
+/* Appended fields (presets + custom questions) */
+.appendedFields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.presetRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(238, 122, 76, 0.06);
+  border: 1px solid rgba(238, 122, 76, 0.18);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.presetRowLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+  flex: 1;
+}
+.customRow {
+  background: #fff;
+  border: 1px solid rgba(20, 31, 46, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+}
+.customRowTop {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.customRowBottom {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+.customRowBottom .select {
+  flex: 1;
+}
