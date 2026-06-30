@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
 import styles from './page.module.css';
 
 type Role = 'player' | 'organizer';
@@ -46,38 +45,17 @@ export default function LiveBracketLogin() {
     setSuccessMsg(null);
     setLoading(true);
 
-    try {
-      if (mode === 'signin') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
+    // Demo auth: no backend wired up. Simulate the request, then route by role.
+    await new Promise(resolve => setTimeout(resolve, 400));
 
-        if (role === 'organizer') {
-          router.push('/dashboard');
-        } else {
-          router.push('/');
-        }
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              role: role,
-            }
-          }
-        });
-        if (error) throw error;
-        setSuccessMsg('Account created successfully! You can now sign in.');
-        setMode('signin');
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An error occurred during authentication.');
-    } finally {
-      setLoading(false);
+    if (mode === 'signin') {
+      router.push(role === 'organizer' ? '/dashboard' : '/');
+    } else {
+      setSuccessMsg('Account created successfully! You can now sign in.');
+      setMode('signin');
     }
+
+    setLoading(false);
   };
 
   return (
