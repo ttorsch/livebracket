@@ -1166,6 +1166,42 @@
   box-shadow: 0 4px 10px rgba(238, 122, 76, 0.2);
 }
 
+/* Tournament rounds builder */
+.roundsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.roundCard {
+  background: rgba(20, 31, 46, 0.03);
+  border: 1px solid rgba(20, 31, 46, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+}
+.roundCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.roundName {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-1, #14181E);
+}
+.roundPrompt {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--orange, #EE7A4C);
+  flex: 1;
+}
+.roundCardHeader .btnRemove {
+  margin-left: auto;
+}
+
 /* Scoring rules matrix */
 .scoringMatrix {
   display: flex;

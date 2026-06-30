@@ -71,7 +71,24 @@ interface RegField {
 }
 
 type OnSandFormat = '2v2' | '3v3' | '4v4' | '6v6';
-type CompFormat = 'pool' | 'single' | 'double' | 'hybrid';
+type RoundFormat = 'pool' | 'round-robin' | 'single' | 'double';
+
+interface TournamentRound {
+  id: string;
+  format: RoundFormat | null; // null until the organizer picks one
+}
+
+const ROUND_FORMATS: { value: RoundFormat; label: string }[] = [
+  { value: 'pool', label: 'Pool Play' },
+  { value: 'round-robin', label: 'Round Robin' },
+  { value: 'single', label: 'Single Elimination' },
+  { value: 'double', label: 'Double Elimination' },
+];
+
+const roundLabel = (i: number) => {
+  const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'];
+  return ordinals[i] ? `${ordinals[i]} Round` : `Round ${i + 1}`;
+};
 
 interface ScoringRules {
   setsBestOf: number;        // best of 1 / 3 / 5
@@ -92,7 +109,7 @@ interface SetupDivision {
   registrationFee: number;          // flat per-team-slot, can be 0
   registrationOpenDate: string;     // datetime-local string, staggered windows
   // C. Rules & formats
-  competitionFormat: CompFormat;
+  rounds: TournamentRound[];        // ordered tournament rounds, each with a format
   scoringRules: ScoringRules;
   rules: string;
   // Per-division (isolated) registration schema
@@ -163,7 +180,10 @@ export default function OrganizerSetup() {
       maxRosterSize: 2,
       registrationFee: 800,
       registrationOpenDate: '',
-      competitionFormat: 'hybrid',
+      rounds: [
+        { id: 'r1', format: 'pool' },
+        { id: 'r2', format: 'single' },
+      ],
       scoringRules: defaultScoringRules(),
       rules: 'Standard FIVB Beach Volleyball rules apply.',
       regFields: makeBaseFields(),
@@ -185,7 +205,7 @@ export default function OrganizerSetup() {
   const [regFee, setRegFee] = useState(800);
   const [regOpenDate, setRegOpenDate] = useState('');
   // C. Rules & formats
-  const [compFormat, setCompFormat] = useState<CompFormat>('hybrid');
+  const [rounds, setRounds] = useState<TournamentRound[]>([{ id: 'r_1', format: null }]);
   const [scoring, setScoring] = useState<ScoringRules>(defaultScoringRules());
   const [divRules, setDivRules] = useState('Standard FIVB Beach Volleyball rules apply.');
 
@@ -258,7 +278,7 @@ export default function OrganizerSetup() {
     setMaxRoster(FORMAT_PLAYERS['2v2']);
     setRegFee(800);
     setRegOpenDate('');
-    setCompFormat('hybrid');
+    setRounds([{ id: 'r_' + Date.now(), format: null }]);
     setScoring(defaultScoringRules());
     setDivRules('Standard FIVB Beach Volleyball rules apply.');
     setRegFields(makeBaseFields());
@@ -285,6 +305,22 @@ export default function OrganizerSetup() {
     setFormatType(next);
     setMaxRoster(prev => (prev < FORMAT_PLAYERS[next] ? FORMAT_PLAYERS[next] : prev));
     setFormError(null);
+  };
+
+  // ── Tournament rounds builder ──────────────────────────────────
+  const addRound = () => {
+    setRounds([...rounds, { id: 'r_' + Date.now(), format: null }]);
+    setFormError(null);
+  };
+
+  const setRoundFormat = (id: string, format: RoundFormat) => {
+    setRounds(rounds.map(r => (r.id === id ? { ...r, format } : r)));
+    setFormError(null);
+  };
+
+  const removeRound = (id: string) => {
+    if (rounds.length <= 1) return; // keep at least the first round
+    setRounds(rounds.filter(r => r.id !== id));
   };
 
   // ── Per-division registration schema builders ──────────────────
@@ -325,6 +361,11 @@ export default function OrganizerSetup() {
       setFormError(`Max Roster Size must be at least ${FORMAT_PLAYERS[formatType]} to field a ${formatType} team.`);
       return;
     }
+    // Every round needs a format chosen before saving.
+    if (rounds.some(r => r.format === null)) {
+      setFormError('Choose a format for every round.');
+      return;
+    }
     // Custom questions must be labelled before they can be saved.
     if (regFields.some(f => !f.core && !f.label.trim())) {
       setFormError('Every custom registration question needs a label.');
@@ -339,7 +380,7 @@ export default function OrganizerSetup() {
       maxRosterSize: maxRoster,
       registrationFee: regFee,
       registrationOpenDate: regOpenDate,
-      competitionFormat: compFormat,
+      rounds,
       scoringRules: scoring,
       rules: divRules,
       regFields,
@@ -593,7 +634,7 @@ export default function OrganizerSetup() {
                               <div>
                                 <span className={styles.divPill} style={{ marginRight: 8 }}>{d.name}</span>
                                 <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                                  ({d.formatTypeOnSand} • Roster {d.maxRosterSize} • Cap: {d.divisionTeamCap} teams • Fee: {d.registrationFee === 0 ? 'Free' : `${d.registrationFee} THB`})
+                                  ({d.formatTypeOnSand} • Roster {d.maxRosterSize} • Cap: {d.divisionTeamCap} teams • Fee: {d.registrationFee === 0 ? 'Free' : `${d.registrationFee} THB`} • {d.rounds.length} round{d.rounds.length > 1 ? 's' : ''})
                                 </span>
                               </div>
                               <button className={styles.btnRemove} onClick={() => removeDivision(d.id)}>
@@ -1061,23 +1102,46 @@ export default function OrganizerSetup() {
 
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>Competition Format *</label>
-                <div className={styles.selectorGroup}>
-                  {([
-                    { value: 'pool', label: 'Pool Play Only' },
-                    { value: 'single', label: 'Single Elimination' },
-                    { value: 'double', label: 'Double Elimination' },
-                    { value: 'hybrid', label: 'Hybrid' },
-                  ] as const).map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={`${styles.selectorBtn} ${compFormat === opt.value ? styles.selectorBtnActive : ''}`}
-                      onClick={() => setCompFormat(opt.value)}
-                    >
-                      {opt.label}
-                    </button>
+                <p className={styles.fieldHint} style={{ marginTop: -2 }}>
+                  Build the tournament one round at a time. Click a round to choose its format.
+                </p>
+                <div className={styles.roundsList}>
+                  {rounds.map((round, i) => (
+                    <div key={round.id} className={styles.roundCard}>
+                      <div className={styles.roundCardHeader}>
+                        <span className={styles.roundName}>{roundLabel(i)}</span>
+                        {round.format === null && (
+                          <span className={styles.roundPrompt}>click to choose format</span>
+                        )}
+                        {rounds.length > 1 && (
+                          <button
+                            type="button"
+                            className={styles.btnRemove}
+                            onClick={() => removeRound(round.id)}
+                            aria-label={`Remove ${roundLabel(i)}`}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                      <div className={styles.selectorGroup}>
+                        {ROUND_FORMATS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={`${styles.selectorBtn} ${round.format === opt.value ? styles.selectorBtnActive : ''}`}
+                            onClick={() => setRoundFormat(round.id, opt.value)}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
+                <button type="button" className={styles.btnAdd} onClick={addRound} style={{ marginTop: 10, width: '100%' }}>
+                  <Plus size={16} /> Add Round
+                </button>
               </div>
 
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
