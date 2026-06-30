@@ -273,6 +273,12 @@ export default function OrganizerSetup() {
     setShowModal(true);
   };
 
+  // Format a Date into the value a datetime-local input expects (local time).
+  const toLocalDatetimeValue = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   // When the on-sand format changes, default Max Roster up to the new minimum
   // (only raising it — a manually entered larger roster is preserved).
   const handleFormatChange = (next: OnSandFormat) => {
@@ -1026,14 +1032,27 @@ export default function OrganizerSetup() {
                   <span className={styles.fieldHint}>Flat per team slot. Enter 0 for a free division.</span>
                 </div>
                 <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Registration Opens</label>
+                  <div className={styles.labelRow}>
+                    <label className={styles.fieldLabel}>Registration Opens</label>
+                    <button
+                      type="button"
+                      className={styles.openNowBtn}
+                      onClick={() => setRegOpenDate(toLocalDatetimeValue(new Date()))}
+                    >
+                      Open now
+                    </button>
+                  </div>
                   <input
                     type="datetime-local"
                     className={styles.input}
                     value={regOpenDate}
                     onChange={e => setRegOpenDate(e.target.value)}
                   />
-                  <span className={styles.fieldHint}>Staggered window for this division only.</span>
+                  <span className={styles.fieldHint}>
+                    {regOpenDate && new Date(regOpenDate) <= new Date()
+                      ? 'Registration is open immediately.'
+                      : 'Staggered window for this division only.'}
+                  </span>
                 </div>
               </div>
 
