@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, QrCode, BarChart2, Users, Trophy, ChevronRight, ArrowRight, Settings } from 'lucide-react';
+import { Plus, QrCode, BarChart2, Users, Trophy, ChevronRight, ArrowRight, Settings, Calendar, MapPin } from 'lucide-react';
 import styles from './page.module.css';
+import CreateTournamentModal from './CreateTournamentModal';
 
 /* ── Sample data ─────────────────────────────────────────────── */
 const ORGANIZER = {
@@ -23,53 +24,46 @@ const ACTIVE_TOURNAMENTS = [
     id: 'bang-niang-classic-2025',
     title: 'Bang Niang Beach Classic 2025',
     date: 'July 12–13, 2025',
+    location: 'Bang Niang Beach, Khao Lak',
     phase: 3,
     statusName: 'Phase 3: Live Registration (Open)',
-    divisions: ["Men's Open", "Women's Open", 'Mixed'],
-    teamsTotal: 24,
-    teamsFilled: 19,
-    courts: 3,
-    matchesTotal: 16,
-    matchesDone: 4,
+    divisions: [
+      { name: "Men's Open", cap: 8, filled: 7 },
+      { name: "Women's Open", cap: 8, filled: 6 },
+      { name: 'Mixed', cap: 8, filled: 6 },
+    ],
   },
   {
     id: 'khao-lak-open-2025',
     title: 'Khao Lak Open 2025',
     date: 'Aug 2–3, 2025',
+    location: 'Memories Beach, Khao Lak',
     phase: 1,
     statusName: 'Phase 1: Shell (Upcoming)',
     divisions: [],
-    teamsTotal: 16,
-    teamsFilled: 0,
-    courts: 2,
-    matchesTotal: 8,
-    matchesDone: 0,
   },
   {
     id: 'phang-nga-challenger-2025',
     title: 'Phang Nga Challenger 2025',
     date: 'Sept 5, 2025',
+    location: 'Nang Thong Beach, Phang Nga',
     phase: 2,
     statusName: 'Phase 2: Rules Announced',
-    divisions: ["Men's Open"],
-    teamsTotal: 16,
-    teamsFilled: 4,
-    courts: 2,
-    matchesTotal: 8,
-    matchesDone: 0,
+    divisions: [
+      { name: "Men's Open", cap: 16, filled: 4 },
+    ],
   },
   {
     id: 'summer-volley-fest-2025',
     title: 'Summer Volleyball Festival 2025',
     date: 'Tomorrow morning',
+    location: 'Khuk Khak Beach, Khao Lak',
     phase: 4,
     statusName: 'Phase 4: Logistics Seeding (Day Before)',
-    divisions: ["Men's Open", "Women's Open"],
-    teamsTotal: 16,
-    teamsFilled: 16,
-    courts: 4,
-    matchesTotal: 24,
-    matchesDone: 0,
+    divisions: [
+      { name: "Men's Open", cap: 8, filled: 8 },
+      { name: "Women's Open", cap: 8, filled: 8 },
+    ],
   }
 ];
 
@@ -78,9 +72,35 @@ const PAST_TOURNAMENTS = [
   { id: 'new-year-open-2025', title: 'New Year Open 2025', date: 'Jan 5, 2025', teams: 12, winner: 'Tanaka / Yamamoto 🇯🇵' },
 ];
 
+/* Map tournament phase → filter status */
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'live', label: 'Live' },
+  { key: 'coming-up', label: 'Coming Up' },
+  { key: 'announced', label: 'Announced' },
+  { key: 'draft', label: 'Draft' },
+] as const;
+
+type StatusKey = (typeof STATUS_FILTERS)[number]['key'];
+
+function phaseToStatus(phase: number): Exclude<StatusKey, 'all'> {
+  switch (phase) {
+    case 3: return 'live';
+    case 4: return 'coming-up';
+    case 2: return 'announced';
+    default: return 'draft';
+  }
+}
+
 export default function OrganizerDashboard() {
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusKey>('all');
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const visibleTournaments = ACTIVE_TOURNAMENTS.filter(
+    t => statusFilter === 'all' || phaseToStatus(t.phase) === statusFilter
+  );
 
   const copyLink = (id: string, url: string) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -107,35 +127,23 @@ export default function OrganizerDashboard() {
   <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
 </svg>
           </span>
-          <span>Live Bracket</span>
+          <span className={styles.brandName}>Live Bracket</span>
         </Link>
 
         <nav className={styles.sideNav}>
           <Link href="/dashboard" className={`${styles.sideLink} ${styles.sideLinkActive}`}>
-            <BarChart2 size={18} />
-            Dashboard
-          </Link>
-          <Link href="/dashboard/create" className={styles.sideLink}>
-            <Plus size={18} />
-            New tournament
-          </Link>
-          <Link href="/" className={styles.sideLink}>
-            <Trophy size={18} />
-            Browse events
-          </Link>
-          <Link href="/profile" className={styles.sideLink}>
-            <Users size={18} />
-            Profile
+            <span className={styles.sideIcon}><Trophy size={18} /></span>
+            <span>My Tournament</span>
           </Link>
         </nav>
 
-        <div className={styles.sideProfile}>
+        <Link href="/profile" className={styles.sideProfile}>
           <span className={styles.sideAvatar}>{ORGANIZER.avatar}</span>
           <div>
             <p className={styles.sideProfileName}>{ORGANIZER.name}</p>
             <p className={styles.sideProfileClub}>{ORGANIZER.club}</p>
           </div>
-        </div>
+        </Link>
       </aside>
 
       {/* ── Main area ─────────────────────────────────────────── */}
@@ -146,10 +154,10 @@ export default function OrganizerDashboard() {
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
             <h1 className={styles.headerTitle}>Welcome back, {ORGANIZER.name.split(' ')[0]}</h1>
           </div>
-          <Link href="/dashboard/create" className={styles.newTournamentBtn}>
+          <button type="button" className={styles.newTournamentBtn} onClick={() => setCreateOpen(true)}>
             <Plus size={18} />
             New tournament
-          </Link>
+          </button>
         </div>
 
         {/* Stats row */}
@@ -173,8 +181,30 @@ export default function OrganizerDashboard() {
             <h2 className={styles.sectionTitle}>Active tournaments</h2>
           </div>
 
+          <div className={styles.filterTabs}>
+            {STATUS_FILTERS.map(f => {
+              const count = f.key === 'all'
+                ? ACTIVE_TOURNAMENTS.length
+                : ACTIVE_TOURNAMENTS.filter(t => phaseToStatus(t.phase) === f.key).length;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`${styles.filterTab} ${statusFilter === f.key ? styles.filterTabActive : ''}`}
+                  onClick={() => setStatusFilter(f.key)}
+                >
+                  {f.label}
+                  <span className={styles.filterCount}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className={styles.tournamentList}>
-            {ACTIVE_TOURNAMENTS.map(t => (
+            {visibleTournaments.length === 0 && (
+              <p className={styles.filterEmpty}>No tournaments in this category.</p>
+            )}
+            {visibleTournaments.map(t => (
               <div key={t.id} className={styles.tournamentCard}
                 style={{ backdropFilter: 'blur(16px) saturate(180%)', WebkitBackdropFilter: 'blur(16px) saturate(180%)' }}
               >
@@ -191,7 +221,14 @@ export default function OrganizerDashboard() {
                       </span>
                     </div>
                     <h3 className={styles.tournamentCardTitle}>{t.title}</h3>
-                    <p className={styles.tournamentCardDate}>{t.date}</p>
+                    <div className={styles.tournamentMeta}>
+                      <span className={styles.tournamentMetaItem}>
+                        <Calendar size={14} /> {t.date}
+                      </span>
+                      <span className={styles.tournamentMetaItem}>
+                        <MapPin size={14} /> {t.location}
+                      </span>
+                    </div>
                   </div>
                   <div className={styles.tournamentCardActions}>
                     <button
@@ -207,34 +244,32 @@ export default function OrganizerDashboard() {
                   </div>
                 </div>
 
-                <div className={styles.tournamentProgress}>
-                  <div className={styles.progressRow}>
-                    <span className={styles.progressLabel}>Teams</span>
-                    <span className={styles.progressValue}>{t.teamsFilled}/{t.teamsTotal}</span>
+                <div className={styles.divAvail}>
+                  <div className={styles.divAvailHeader}>
+                    <span className={styles.divAvailHeading}>Divisions</span>
+                    <span className={styles.divAvailHint}>spots filled</span>
                   </div>
-                  <div className={styles.progressBarWrap}>
-                    <div
-                      className={styles.progressBarFill}
-                      style={{ width: `${(t.teamsFilled / t.teamsTotal) * 100}%` }}
-                    />
-                  </div>
-                  <div className={styles.progressRow} style={{ marginTop: 10 }}>
-                    <span className={styles.progressLabel}>Matches</span>
-                    <span className={styles.progressValue}>{t.matchesDone}/{t.matchesTotal}</span>
-                  </div>
-                  <div className={styles.progressBarWrap}>
-                    <div
-                      className={styles.progressBarFill}
-                      style={{ width: `${(t.matchesDone / t.matchesTotal) * 100}%`, background: 'rgba(238, 122, 76, 0.5)' }}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.tournamentDivisions}>
                   {t.divisions.length > 0 ? (
-                    t.divisions.map(d => (
-                      <span key={d} className={styles.divBadge}>{d}</span>
-                    ))
+                    t.divisions.map(d => {
+                      const pct = d.cap > 0 ? Math.min(100, (d.filled / d.cap) * 100) : 0;
+                      const full = d.filled >= d.cap;
+                      return (
+                        <div key={d.name} className={styles.divAvailRow}>
+                          <div className={styles.divAvailTop}>
+                            <span className={styles.divAvailName}>{d.name}</span>
+                            <span className={`${styles.divAvailCount} ${full ? styles.divAvailCountFull : ''}`}>
+                              {full ? 'Full' : `${d.cap - d.filled} left`} · {d.filled}/{d.cap}
+                            </span>
+                          </div>
+                          <div className={styles.divAvailBarWrap}>
+                            <div
+                              className={`${styles.divAvailBarFill} ${full ? styles.divAvailBarFull : ''}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
                   ) : (
                     <span className={styles.divBadgeEmpty}>No divisions added yet</span>
                   )}
@@ -266,38 +301,17 @@ export default function OrganizerDashboard() {
                 )}
 
                 <div className={styles.tournamentCardFooter}>
-                  <Link href={`/tournament/${t.id}`} className={styles.viewLink}>
-                    View tournament <ChevronRight size={14} />
-                  </Link>
-                  <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.editLink}>
-                    <Settings size={14} /> Setup workspace
+                  <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.setupWorkspaceBtn}>
+                    <Settings size={16} /> Setup workspace
                   </Link>
                 </div>
               </div>
             ))}
           </div>
         </section>
-
-        {/* Past tournaments */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Recent results</h2>
-          <div className={styles.pastList}>
-            {PAST_TOURNAMENTS.map(t => (
-              <Link key={t.id} href={`/tournament/${t.id}`} className={styles.pastCard}>
-                <div>
-                  <p className={styles.pastTitle}>{t.title}</p>
-                  <p className={styles.pastDate}>{t.date} · {t.teams} teams</p>
-                </div>
-                <div className={styles.pastWinner}>
-                  <span className={styles.trophyIcon}>🏆</span>
-                  {t.winner}
-                </div>
-                <ChevronRight size={16} className={styles.pastArrow} />
-              </Link>
-            ))}
-          </div>
-        </section>
       </main>
+
+      <CreateTournamentModal open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
   );
 }

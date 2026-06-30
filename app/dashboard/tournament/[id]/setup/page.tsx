@@ -25,7 +25,8 @@ import {
   Clock,
   Layers,
   Award,
-  ChevronDown
+  ChevronDown,
+  ImagePlus
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -58,7 +59,7 @@ interface Team {
 
 // ── Per-division registration schema types ───────────────────────
 type RegFieldType = 'text' | 'phone' | 'email' | 'paragraph' | 'select';
-type PresetKey = 'apparel' | 'skill' | 'hometown';
+type PresetKey = 'apparel' | 'skill' | 'hometown' | 'nationality';
 
 interface RegField {
   id: string;
@@ -121,6 +122,9 @@ interface SetupDivision {
   netHeight: string;
   minTeams: number;
   waitlistCap: number;
+  // Post-registration response (shown after a player successfully registers)
+  confirmationMessage: string;
+  confirmationImage: string; // data URL or '' — e.g. WhatsApp QR / flyer
 }
 
 // Players on the sand per format → also the minimum legal roster size.
@@ -129,10 +133,9 @@ const FORMAT_PLAYERS: Record<OnSandFormat, number> = { '2v2': 2, '3v3': 3, '4v4'
 // The Base Form block: four mandatory core inputs, injected into every new
 // division and non-deletable.
 const makeBaseFields = (): RegField[] => [
-  { id: 'base-team', label: 'Team Name', type: 'text', required: true, core: true },
-  { id: 'base-captain', label: 'Captain Name', type: 'text', required: true, core: true },
-  { id: 'base-phone', label: 'Phone', type: 'phone', required: true, core: true },
-  { id: 'base-email', label: 'Email', type: 'email', required: true, core: true },
+  { id: 'base-player', label: "Player's Name", type: 'text', required: true, core: true },
+  { id: 'base-phone', label: "Player's Phone Number", type: 'phone', required: true, core: true },
+  { id: 'base-email', label: 'Captain Email', type: 'email', required: true, core: true },
 ];
 
 // Quick-Add presets: one-click toggle chips that append standard fields.
@@ -152,6 +155,11 @@ const PRESETS: { key: PresetKey; label: string; build: () => RegField }[] = [
     label: 'Home Town / Club',
     build: () => ({ id: 'preset-hometown', label: 'Home Town / Club', type: 'text', required: false, preset: 'hometown' }),
   },
+  {
+    key: 'nationality',
+    label: 'Nationality',
+    build: () => ({ id: 'preset-nationality', label: 'Nationality', type: 'text', required: false, preset: 'nationality' }),
+  },
 ];
 
 const defaultScoringRules = (): ScoringRules => ({
@@ -162,6 +170,21 @@ const defaultScoringRules = (): ScoringRules => ({
   decidingSetPoints: 15,
 });
 
+// Create Division modal is split into three navigable steps.
+const MODAL_STEPS = ['Basics & Fee', 'Format & Rules', 'Registration'];
+
+// Format the tournament date range collected on the create form (YYYY-MM-DD).
+const formatDateRange = (start?: string, end?: string): string => {
+  if (!start) return '';
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  const s = new Date(`${start}T00:00`).toLocaleDateString(undefined, opts);
+  if (end && end !== start) {
+    const e = new Date(`${end}T00:00`).toLocaleDateString(undefined, opts);
+    return `${s} – ${e}`;
+  }
+  return s;
+};
+
 export default function OrganizerSetup() {
   const params = useParams();
   const router = useRouter();
@@ -169,8 +192,18 @@ export default function OrganizerSetup() {
   // Active Map Phase: 1 = Initial Shell, 2 = Rules Announced, 3 = Live Reg, 4 = Logistics (Day Before)
   const [activePhase, setActivePhase] = useState<1 | 2 | 3 | 4>(1);
 
+  // Info carried over from the create form (when arriving on a freshly created draft).
+  const [tournamentInfo, setTournamentInfo] = useState<{
+    title: string;
+    location?: string;
+    startDate?: string;
+    endDate?: string;
+    regOpenDate?: string;
+  } | null>(null);
+
   // Phase 1 States: Division Modal & List
   const [showModal, setShowModal] = useState(false);
+  const [modalStep, setModalStep] = useState(0); // 0 = Basics & Fee, 1 = Format & Rules, 2 = Registration
   const [divisions, setDivisions] = useState<SetupDivision[]>([
     {
       id: 'd1',
@@ -192,9 +225,16 @@ export default function OrganizerSetup() {
       prizePool: '10,000 THB Prize Pool + Gold Medal',
       netHeight: '2.43m',
       minTeams: 4,
-      waitlistCap: 5
+      waitlistCap: 5,
+      confirmationMessage: "You're in! 🏐 Join our WhatsApp group for schedule updates and announcements.",
+      confirmationImage: ''
     }
   ]);
+
+  // Which division is currently selected in the top toggle, and which (if any)
+  // the modal is editing (null = creating a new division).
+  const [activeDivisionId, setActiveDivisionId] = useState<string | null>('d1');
+  const [editingDivisionId, setEditingDivisionId] = useState<string | null>(null);
 
   // Modal Form Inputs — A. Basics & dynamic capacity
   const [divName, setDivName] = useState("Women's Open");
@@ -204,6 +244,7 @@ export default function OrganizerSetup() {
   // B. Staggered timing & fees
   const [regFee, setRegFee] = useState(800);
   const [regOpenDate, setRegOpenDate] = useState('');
+  const [isOpenImmediately, setIsOpenImmediately] = useState(true);
   // C. Rules & formats
   const [rounds, setRounds] = useState<TournamentRound[]>([{ id: 'r_1', format: null }]);
   const [scoring, setScoring] = useState<ScoringRules>(defaultScoringRules());
@@ -211,6 +252,10 @@ export default function OrganizerSetup() {
 
   // Per-division registration schema (isolated to this division)
   const [regFields, setRegFields] = useState<RegField[]>(makeBaseFields());
+
+  // Post-registration response (confirmation message + optional photo)
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [confirmationImage, setConfirmationImage] = useState('');
 
   // Validation
   const [formError, setFormError] = useState<string | null>(null);
@@ -272,16 +317,20 @@ export default function OrganizerSetup() {
 
   // Modal open reset
   const handleOpenCreateModal = () => {
+    setEditingDivisionId(null);
     setDivName(`Women's Open`);
     setDivCap(8);
     setFormatType('2v2');
     setMaxRoster(FORMAT_PLAYERS['2v2']);
     setRegFee(800);
     setRegOpenDate('');
+    setIsOpenImmediately(true);
     setRounds([{ id: 'r_' + Date.now(), format: null }]);
     setScoring(defaultScoringRules());
     setDivRules('Standard FIVB Beach Volleyball rules apply.');
     setRegFields(makeBaseFields());
+    setConfirmationMessage('');
+    setConfirmationImage('');
     setFormError(null);
     setAllowMulti(true);
     setGenderEligibility('Women');
@@ -290,8 +339,111 @@ export default function OrganizerSetup() {
     setMinTeams(4);
     setWaitlistCap(5);
     setShowAdvanced(false);
+    setModalStep(0);
     setShowModal(true);
   };
+
+  // Open the modal pre-filled with an existing division to edit it.
+  const handleEditDivision = (id: string) => {
+    const d = divisions.find(x => x.id === id);
+    if (!d) return;
+    setEditingDivisionId(id);
+    setDivName(d.name);
+    setDivCap(d.divisionTeamCap);
+    setFormatType(d.formatTypeOnSand);
+    setMaxRoster(d.maxRosterSize);
+    setRegFee(d.registrationFee);
+    setRegOpenDate(d.registrationOpenDate);
+    setIsOpenImmediately(!d.registrationOpenDate);
+    setRounds(d.rounds.length ? d.rounds : [{ id: 'r_' + Date.now(), format: null }]);
+    setScoring(d.scoringRules);
+    setDivRules(d.rules);
+    setRegFields(d.regFields);
+    setConfirmationMessage(d.confirmationMessage);
+    setConfirmationImage(d.confirmationImage);
+    setAllowMulti(d.allowMulti);
+    setGenderEligibility(d.genderEligibility);
+    setPrizePool(d.prizePool);
+    setNetHeight(d.netHeight);
+    setMinTeams(d.minTeams);
+    setWaitlistCap(d.waitlistCap);
+    setFormError(null);
+    setShowAdvanced(false);
+    setModalStep(0);
+    setShowModal(true);
+  };
+
+  // Per-step validation for the Create Division wizard.
+  const validateModalStep = (s: number): string | null => {
+    if (s === 0) {
+      if (!divName.trim()) return 'Division name is required.';
+      if (maxRoster < FORMAT_PLAYERS[formatType]) {
+        return `Max Roster Size must be at least ${FORMAT_PLAYERS[formatType]} to field a ${formatType} team.`;
+      }
+    }
+    if (s === 1) {
+      if (rounds.some(r => r.format === null)) return 'Choose a format for every round.';
+    }
+    if (s === 2) {
+      if (regFields.some(f => !f.core && !f.label.trim())) return 'Every custom registration question needs a label.';
+    }
+    return null;
+  };
+
+  // Navigate to a step. Going forward validates every step in between.
+  const goToModalStep = (target: number) => {
+    if (target > modalStep) {
+      for (let i = modalStep; i < target; i++) {
+        const err = validateModalStep(i);
+        if (err) { setFormError(err); setModalStep(i); return; }
+      }
+    }
+    setFormError(null);
+    setModalStep(target);
+  };
+
+  const handleModalNext = () => goToModalStep(modalStep + 1);
+  const handleModalBack = () => { setFormError(null); setModalStep(Math.max(0, modalStep - 1)); };
+
+  // Read an uploaded confirmation photo as a data URL (no backend — stored inline).
+  const handleConfirmationImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setConfirmationImage(typeof reader.result === 'string' ? reader.result : '');
+    reader.readAsDataURL(file);
+  };
+
+  // On arrival from the create form: load the carried draft info and, for a brand-new
+  // tournament (?new=1), start with an empty division list and auto-open the Create
+  // Division modal. The tournament stays at Phase 1 (Draft) — nothing is published.
+  useEffect(() => {
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!id) return;
+
+    let draft: { title: string; location?: string; startDate?: string; endDate?: string; regOpenDate?: string } | null = null;
+    try {
+      const raw = sessionStorage.getItem(`lb:draft:${id}`);
+      if (raw) draft = JSON.parse(raw);
+    } catch {
+      draft = null;
+    }
+    if (draft) {
+      setTournamentInfo(draft);
+      setDivisions([]);
+      setActiveDivisionId(null);
+    }
+
+    const isNew = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('new');
+    if (isNew) {
+      handleOpenCreateModal();
+      if (draft?.regOpenDate) {
+        setRegOpenDate(draft.regOpenDate);
+        setIsOpenImmediately(false);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Format a Date into the value a datetime-local input expects (local time).
   const toLocalDatetimeValue = (d: Date) => {
@@ -372,8 +524,7 @@ export default function OrganizerSetup() {
       return;
     }
 
-    const newDiv: SetupDivision = {
-      id: 'd_' + Date.now(),
+    const data = {
       name: divName,
       divisionTeamCap: divCap,
       formatTypeOnSand: formatType,
@@ -389,15 +540,30 @@ export default function OrganizerSetup() {
       prizePool,
       netHeight,
       minTeams,
-      waitlistCap
+      waitlistCap,
+      confirmationMessage,
+      confirmationImage
     };
-    setDivisions([...divisions, newDiv]);
+
+    if (editingDivisionId) {
+      // Update the existing division in place.
+      setDivisions(divisions.map(d => d.id === editingDivisionId ? { ...d, ...data } : d));
+      setActiveDivisionId(editingDivisionId);
+    } else {
+      // Append a brand-new division and select it.
+      const newId = 'd_' + Date.now();
+      setDivisions([...divisions, { id: newId, ...data }]);
+      setActiveDivisionId(newId);
+    }
     setShowModal(false);
-    setActivePhase(2); // Auto progress to Phase 2 as per flowchart
   };
 
   const removeDivision = (id: string) => {
-    setDivisions(divisions.filter(d => d.id !== id));
+    const next = divisions.filter(d => d.id !== id);
+    setDivisions(next);
+    if (activeDivisionId === id) {
+      setActiveDivisionId(next[0]?.id ?? null);
+    }
   };
 
   // Helper Actions: Phase 2
@@ -548,6 +714,12 @@ export default function OrganizerSetup() {
     }, 1500);
   };
 
+  // The division shown in the per-division setup panel (falls back to the first).
+  const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
+  const metaLine = [tournamentInfo?.location, formatDateRange(tournamentInfo?.startDate, tournamentInfo?.endDate)]
+    .filter(Boolean)
+    .join('  •  ');
+
   return (
     <div className={styles.page}>
       <header className={styles.topBar}>
@@ -568,27 +740,11 @@ export default function OrganizerSetup() {
       <main className={styles.main}>
         <div className={styles.container}>
           <div className={styles.headerArea}>
-            <h1 className={styles.title}>Pre-Tournament Workspace</h1>
-            <p className={styles.subtitle}>Track setup tasks, registrations, and brackets according to the Operational Map.</p>
-          </div>
-
-          {/* Operational Map Timeline */}
-          <div className={styles.timelineRow}>
-            {([
-              { num: 1, label: 'Shell (Upcoming)' },
-              { num: 2, label: 'Announcements (Rules)' },
-              { num: 3, label: 'Live Registration' },
-              { num: 4, label: 'Logistics (Day Before)' }
-            ] as const).map(p => (
-              <button
-                key={p.num}
-                className={`${styles.phaseTab} ${activePhase === p.num ? styles.phaseTabActive : ''}`}
-                onClick={() => setActivePhase(p.num)}
-              >
-                <span className={styles.phaseTabNum}>{p.num}</span>
-                <span>{p.label}</span>
-              </button>
-            ))}
+            <h1 className={styles.title}>Tournament Setup</h1>
+            {tournamentInfo?.title && (
+              <p className={styles.tournamentName}>{tournamentInfo.title}</p>
+            )}
+            {metaLine && <p className={styles.subtitle}>{metaLine}</p>}
           </div>
 
           {saved && (
@@ -597,394 +753,124 @@ export default function OrganizerSetup() {
             </div>
           )}
 
-          <div className={styles.grid}>
-            {/* Left Config Panel */}
-            <div className={styles.leftCol}>
-              
-              {/* PHASE 1 */}
-              {activePhase === 1 && (
+          {divisions.length === 0 ? (
+            <div className={styles.emptyDivisions}>
+              <button type="button" className={styles.bigAddDivision} onClick={handleOpenCreateModal}>
+                <Plus size={34} />
+                <span>Add Division</span>
+              </button>
+              <p className={styles.emptyDivisionsHint}>
+                Create your first division to start configuring formats, rules, and registration.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Division toggle (section control) */}
+              <div className={styles.divisionToggle}>
+                {divisions.map(d => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`${styles.divToggleBtn} ${activeDivision?.id === d.id ? styles.divToggleBtnActive : ''}`}
+                    onClick={() => setActiveDivisionId(d.id)}
+                  >
+                    {d.name}
+                  </button>
+                ))}
+                <button type="button" className={styles.divToggleAdd} onClick={handleOpenCreateModal}>
+                  <Plus size={16} /> Add Division
+                </button>
+              </div>
+
+              {/* Per-division setup */}
+              {activeDivision && (
                 <section className={styles.card}>
                   <div className={styles.cardHeader}>
                     <Layers className={styles.iconHeader} size={22} />
-                    <div>
-                      <h2 className={styles.cardTitle}>Phase 1: The Initial Shell</h2>
-                      <p className={styles.cardSubtitle}>Start your event draft. Create divisions to announce public rules.</p>
+                    <div style={{ flex: 1 }}>
+                      <h2 className={styles.cardTitle}>{activeDivision.name}</h2>
+                      <p className={styles.cardSubtitle}>
+                        {activeDivision.genderEligibility} • {activeDivision.formatTypeOnSand} • {activeDivision.rounds.length} round{activeDivision.rounds.length > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className={styles.divActions}>
+                      <button type="button" className={styles.btnGhost} onClick={() => handleEditDivision(activeDivision.id)}>
+                        <Settings size={15} /> Edit
+                      </button>
+                      <button type="button" className={styles.btnRemove} onClick={() => removeDivision(activeDivision.id)} aria-label="Delete division">
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
 
                   <div className={styles.sectionBody}>
-                    <div className={styles.infoAlert}>
-                      <Info size={16} />
-                      <span>Registration form is default: collects Name, Phone, Email, Team name. Public page shows &quot;Save the Date&quot;.</span>
+                    <div className={styles.summaryGrid}>
+                      <div className={styles.summaryItem}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
+                      <div className={styles.summaryItem}><span>On-Sand Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
+                      <div className={styles.summaryItem}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
+                      <div className={styles.summaryItem}><span>Registration Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
+                      <div className={styles.summaryItem}><span>Registration Opens</span><strong>{activeDivision.registrationOpenDate ? new Date(activeDivision.registrationOpenDate).toLocaleString() : 'Immediately'}</strong></div>
+                      <div className={styles.summaryItem}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
+                    </div>
+
+                    <hr className={styles.divider} />
+
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel}>Competition Format</label>
+                      <div className={styles.summaryChips}>
+                        {activeDivision.rounds.map((r, i) => (
+                          <span key={r.id} className={styles.summaryChip}>
+                            {roundLabel(i)}: {ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—'}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel}>Create Division to Announce Rules</label>
-                      <button type="button" className={styles.btnActionPrimary} onClick={handleOpenCreateModal} style={{ width: 'fit-content' }}>
-                        <Plus size={16} /> Create Division
-                      </button>
+                      <label className={styles.fieldLabel}>Scoring</label>
+                      <p className={styles.summaryText}>
+                        Best of {activeDivision.scoringRules.setsBestOf} • Sets to {activeDivision.scoringRules.pointsPerSet}{activeDivision.scoringRules.winBy2 ? ' (win by 2)' : ''}{activeDivision.scoringRules.hardCap ? `, hard cap ${activeDivision.scoringRules.hardCap}` : ''} • Deciding set to {activeDivision.scoringRules.decidingSetPoints}
+                      </p>
                     </div>
 
-                    {divisions.length > 0 && (
-                      <div className={styles.divisionsList}>
-                        <h4 style={{ marginBottom: 12 }}>Added Divisions:</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          {divisions.map(d => (
-                            <div key={d.id} className={styles.divisionSetupRow}>
-                              <div>
-                                <span className={styles.divPill} style={{ marginRight: 8 }}>{d.name}</span>
-                                <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                                  ({d.formatTypeOnSand} • Roster {d.maxRosterSize} • Cap: {d.divisionTeamCap} teams • Fee: {d.registrationFee === 0 ? 'Free' : `${d.registrationFee} THB`} • {d.rounds.length} round{d.rounds.length > 1 ? 's' : ''})
-                                </span>
-                              </div>
-                              <button className={styles.btnRemove} onClick={() => removeDivision(d.id)}>
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
+                    {activeDivision.rules && (
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>Rules</label>
+                        <p className={styles.summaryText}>{activeDivision.rules}</p>
                       </div>
                     )}
-                  </div>
-                </section>
-              )}
 
-              {/* PHASE 2 */}
-              {activePhase === 2 && (
-                <section className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <BookOpen className={styles.iconHeader} size={22} />
-                    <div>
-                      <h2 className={styles.cardTitle}>Phase 2: Rules &amp; Seeding Prep</h2>
-                      <p className={styles.cardSubtitle}>Announce standard tournament rules. Customize player form questions before opening registration.</p>
-                    </div>
-                  </div>
+                    <hr className={styles.divider} />
 
-                  <div className={styles.sectionBody}>
                     <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel}>Custom Registration Form Builder</label>
-                      <div className={styles.questionsList}>
-                        {questions.map((q) => (
-                          <div key={q.id} className={styles.questionItem}>
-                            <span>{q.label} <code style={{ fontSize: 11 }}>({q.type})</code></span>
-                            <button className={styles.btnRemove} onClick={() => removeQuestion(q.id)} disabled={questionsLocked}>
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
+                      <label className={styles.fieldLabel}>Registration Form</label>
+                      <div className={styles.summaryChips}>
+                        {activeDivision.regFields.map(f => (
+                          <span key={f.id} className={`${styles.summaryChip} ${f.core ? styles.summaryChipCore : ''}`}>
+                            {f.label}{f.required ? ' *' : ''}
+                          </span>
                         ))}
                       </div>
+                    </div>
 
-                      {!questionsLocked && (
-                        <>
-                          <div className={styles.builderRow} style={{ marginTop: 10 }}>
-                            <input
-                              type="text"
-                              className={styles.input}
-                              placeholder="Question text"
-                              value={newQuestionLabel}
-                              onChange={e => setNewQuestionLabel(e.target.value)}
-                            />
-                            <select
-                              className={styles.select}
-                              value={newQuestionType}
-                              onChange={e => setNewQuestionType(e.target.value as 'text' | 'select' | 'checkbox')}
-                            >
-                              <option value="text">Short Text</option>
-                              <option value="select">Dropdown Choice</option>
-                            </select>
+                    {(activeDivision.confirmationMessage || activeDivision.confirmationImage) && (
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>Registration Response</label>
+                        {activeDivision.confirmationMessage && (
+                          <p className={styles.summaryText}>{activeDivision.confirmationMessage}</p>
+                        )}
+                        {activeDivision.confirmationImage && (
+                          <div className={styles.confirmImagePreview} style={{ marginTop: 8 }}>
+                            <img src={activeDivision.confirmationImage} alt="Registration response attachment" />
                           </div>
-                          <button type="button" className={styles.btnAdd} onClick={addQuestion} style={{ marginTop: 10 }}>
-                            <Plus size={16} /> Add field
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <hr className={styles.divider} />
-
-                    <div className={styles.guardrailBox}>
-                      <p className={styles.guardLabel}>🛡️ Setup Guardrail</p>
-                      <p className={styles.guardText}>Lock form fields to launch player registration.</p>
-                      <button
-                        type="button"
-                        className={styles.btnActionPrimary}
-                        onClick={lockQuestions}
-                        disabled={questionsLocked}
-                      >
-                        {questionsLocked ? 'Questions Locked ✓' : 'Lock Questions & Announce'}
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* PHASE 3 */}
-              {activePhase === 3 && (
-                <section className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <ListPlus className={styles.iconHeader} size={22} />
-                    <div>
-                      <h2 className={styles.cardTitle}>Phase 3: Live Registration</h2>
-                      <p className={styles.cardSubtitle}>Simulate team entries. Verify payment clocks and unique phone restrictions.</p>
-                    </div>
-                  </div>
-
-                  <div className={styles.sectionBody}>
-                    <div className={styles.regHeaderArea}>
-                      <h3>Simulate Team Registration</h3>
-                      <button type="button" className={styles.btnExpiryClear} onClick={clearExpiredAndPromote}>
-                        ⏳ Clean Unpaid &amp; Promote Waitlist (24h Expiry)
-                      </button>
-                    </div>
-
-                    {regError && <div className={styles.simRegError}>{regError}</div>}
-
-                    <form onSubmit={simulateRegistration} className={styles.simRegForm}>
-                      <div className={styles.twoCol}>
-                        <input
-                          type="text"
-                          className={styles.input}
-                          placeholder="Team Name (e.g. Miller/Smith)"
-                          required
-                          value={regTeamName}
-                          onChange={e => setRegTeamName(e.target.value)}
-                        />
-                        <input
-                          type="tel"
-                          className={styles.input}
-                          placeholder="Phone Number (Unique)"
-                          required
-                          value={regPhone}
-                          onChange={e => setRegPhone(e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.builderRow} style={{ marginTop: 10 }}>
-                        <input
-                          type="email"
-                          className={styles.input}
-                          placeholder="Email Address"
-                          required
-                          value={regEmail}
-                          onChange={e => setRegEmail(e.target.value)}
-                        />
-                        <button type="submit" className={styles.btnActionPrimary}>
-                          Submit Registration
-                        </button>
-                      </div>
-                    </form>
-
-                    <h4 className={styles.tableHeading}>Registered Teams ({teams.length}/6 seats filled)</h4>
-                    <div className={styles.teamsListSim}>
-                      {teams.map(t => (
-                        <div key={t.id} className={styles.teamSimRow}>
-                          <div>
-                            <span className={styles.teamSimName}>{t.name}</span>
-                            <span className={styles.teamSimPhone}>📞 {t.phone}</span>
-                            <span className={`${styles.statusLabelSim} ${t.paymentCleared ? styles.paidSim : styles.unpaidSim}`}>
-                              {t.paymentCleared ? 'Confirmed' : 'Unpaid (24h clock)'}
-                            </span>
-                          </div>
-                          {!t.paymentCleared && (
-                            <button type="button" className={styles.btnPaySim} onClick={() => markPaid(t.id)}>
-                              Confirm Payment
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {waitlist.length > 0 && (
-                      <>
-                        <h4 className={styles.tableHeading}>Waitlisted Teams</h4>
-                        <div className={styles.teamsListSim}>
-                          {waitlist.map(w => (
-                            <div key={w.id} className={styles.teamSimRow}>
-                              <div>
-                                <span className={styles.teamSimName}>{w.name}</span>
-                                <span className={styles.teamSimPhone}>📞 {w.phone}</span>
-                                <span className={styles.waitlistLabelSim}>Waitlist</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-                    <hr className={styles.divider} />
-                    <button
-                      type="button"
-                      className={styles.btnActionPrimary}
-                      onClick={() => setActivePhase(4)}
-                      style={{ alignSelf: 'flex-end' }}
-                    >
-                      Advance to Logistics (Day Before) <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </section>
-              )}
-
-              {/* PHASE 4 */}
-              {activePhase === 4 && (
-                <section className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <Settings className={styles.iconHeader} size={22} />
-                    <div>
-                      <h2 className={styles.cardTitle}>Phase 4: Logistics Seeding (The Day Before)</h2>
-                      <p className={styles.cardSubtitle}>Setup courts, drag manual rankings, and run serpentine serpentine/snake pool allocation math.</p>
-                    </div>
-                  </div>
-
-                  <div className={styles.sectionBody}>
-                    <h3 className={styles.subSectionTitle}>1. Resource Setup (Courts)</h3>
-                    <div className={styles.courtsWrap}>
-                      <div className={styles.courtsGrid}>
-                        {courts.map(c => (
-                          <div key={c} className={styles.courtTag}>
-                            <span>{c}</span>
-                            <button type="button" onClick={() => removeCourt(c)}>×</button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className={styles.builderRow} style={{ marginTop: 10 }}>
-                        <input
-                          type="text"
-                          className={styles.input}
-                          placeholder="Court Name (e.g. Court 3)"
-                          value={newCourtName}
-                          onChange={e => setNewCourtName(e.target.value)}
-                        />
-                        <button type="button" className={styles.btnActionPrimary} onClick={addCourt}>
-                          Add Court
-                        </button>
-                      </div>
-                    </div>
-
-                    <hr className={styles.divider} />
-
-                    <h3 className={styles.subSectionTitle}>2. Strict Seeding Order (Move to rank)</h3>
-                    <p className={styles.subSectionDesc}>Rank teams manually prior to generating brackets.</p>
-                    <div className={styles.seedingList}>
-                      {teams.map((t, idx) => (
-                        <div key={t.id} className={styles.seedItem}>
-                          <span className={styles.seedNumber}>#{idx + 1}</span>
-                          <span className={styles.seedName}>{t.name}</span>
-                          <div className={styles.seedArrows}>
-                            <button type="button" onClick={() => moveSeed(idx, 'up')} disabled={idx === 0}><ArrowUp size={14} /></button>
-                            <button type="button" onClick={() => moveSeed(idx, 'down')} disabled={idx === teams.length - 1}><ArrowDown size={14} /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      className={styles.btnGenerateSchedule}
-                      onClick={() => runSerpentineSerpents(teams)}
-                    >
-                      🏐 GENERATE SCHEDULE &amp; BRACKETS (Snake Pool Distribution)
-                    </button>
-
-                    {scheduleGenerated && (
-                      <div className={styles.simPoolsGrid}>
-                        <div className={styles.simPool}>
-                          <h4>Pool A (Seeds: 1, 4, 5)</h4>
-                          {poolA.map((t, idx) => (
-                            <div key={t.id} className={styles.poolRowItem}>
-                              <span>{t.name} <code style={{ fontSize: 11 }}>(Seed #{t.seed})</code></span>
-                              <button type="button" onClick={() => swapPoolTeams(t.id, 'B')}>Move to B</button>
-                            </div>
-                          ))}
-                        </div>
-                        <div className={styles.simPool}>
-                          <h4>Pool B (Seeds: 2, 3, 6)</h4>
-                          {poolB.map((t, idx) => (
-                            <div key={t.id} className={styles.poolRowItem}>
-                              <span>{t.name} <code style={{ fontSize: 11 }}>(Seed #{t.seed})</code></span>
-                              <button type="button" onClick={() => swapPoolTeams(t.id, 'A')}>Move to A</button>
-                            </div>
-                          ))}
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
                 </section>
               )}
-
-            </div>
-
-            {/* Right Live Simulator Window */}
-            <div className={styles.rightCol}>
-              <div className={styles.previewSticky}>
-                <div className={styles.previewTitleRow}>
-                  <Sparkles size={16} />
-                  <span>PUBLIC PLAYER PAGE PREVIEW</span>
-                </div>
-
-                <div className={styles.mobileSimScreen}>
-                  <div className={styles.simHeader}>
-                    <div className={styles.simLogo}>🏐 Live Bracket</div>
-                  </div>
-
-                  <div className={styles.simContent}>
-                    <div className={styles.simStatusRow}>
-                      <span className={styles.simRegPill}>
-                        {activePhase === 1 ? 'Save the Date' :
-                         activePhase === 2 ? 'Registration Date Pending' :
-                         activePhase === 3 ? (teams.length >= 6 ? 'Registration Full' : 'Registration: Open Now') :
-                         'Registration: Closed'}
-                      </span>
-                    </div>
-
-                    <h3 className={styles.simTitle}>Bang Niang Beach Classic 2025</h3>
-                    <p className={styles.simVenue}>📍 Memories Beach, Khao Lak</p>
-
-                    <div className={styles.simSection}>
-                      <h4 className={styles.simSecTitle}>Player Registration Action Button</h4>
-                      {activePhase === 1 && (
-                        <button className={styles.simCtaDisabled} disabled>
-                          Registration Date Pending (Watchlist Enabled ⭐)
-                        </button>
-                      )}
-                      {activePhase === 2 && (
-                        <button className={styles.simCtaDisabled} disabled>
-                          Registration Opens Soon (Watchlist Enabled ⭐)
-                        </button>
-                      )}
-                      {activePhase === 3 && (
-                        teams.length >= 6 ? (
-                          <button className={styles.simCtaWaitlist}>
-                            Join Waitlist (Navy outline style)
-                          </button>
-                        ) : (
-                          <button className={styles.simCtaActive}>
-                            Register Team → (Active Orange style)
-                          </button>
-                        )
-                      )}
-                      {activePhase === 4 && (
-                        <button className={styles.simCtaClosed} disabled>
-                          Registration Closed (Dead Gray style)
-                        </button>
-                      )}
-                    </div>
-
-
-
-                    {scheduleGenerated && (
-                      <div className={styles.simSection}>
-                        <h4 className={styles.simSecTitle}>Pool Group Serpentine Seeds</h4>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-                          <strong>Pool A:</strong> {poolA.map(t => `${t.name} (Seed #${t.seed})`).join(', ')} <br />
-                          <strong>Pool B:</strong> {poolB.map(t => `${t.name} (Seed #${t.seed})`).join(', ')}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
+            </>
+          )}
         </div>
       </main>
 
@@ -993,14 +879,39 @@ export default function OrganizerSetup() {
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
-              <h3>Create New Division</h3>
+              <h3>{editingDivisionId ? 'Edit Division' : 'Create New Division'}</h3>
               <button className={styles.modalCloseBtn} onClick={() => setShowModal(false)}>×</button>
             </div>
+
+            {/* ── Step navigation line ─────────────────────────── */}
+            <div className={styles.modalSteps}>
+              {MODAL_STEPS.map((label, i) => (
+                <div key={label} className={styles.modalStepRow}>
+                  <button
+                    type="button"
+                    className={`${styles.modalStepItem} ${i === modalStep ? styles.modalStepActive : ''} ${i < modalStep ? styles.modalStepDone : ''}`}
+                    onClick={() => goToModalStep(i)}
+                  >
+                    <span className={styles.modalStepDot}>
+                      {i < modalStep ? <Check size={13} strokeWidth={3} /> : i + 1}
+                    </span>
+                    <span className={styles.modalStepLabel}>{label}</span>
+                  </button>
+                  {i < MODAL_STEPS.length - 1 && (
+                    <span className={`${styles.modalStepLine} ${i < modalStep ? styles.modalStepLineDone : ''}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+
             <div className={styles.modalBody}>
               {formError && (
                 <div className={styles.modalFormError}>{formError}</div>
               )}
 
+              {/* ══ Step 1: Basics & Fee ═════════════════════════ */}
+              {modalStep === 0 && (
+              <>
               {/* ── A. Basics & Dynamic Capacity ─────────────────── */}
               <p className={styles.modalSectionTitle}>Basics &amp; Capacity</p>
 
@@ -1057,46 +968,26 @@ export default function OrganizerSetup() {
                 </span>
               </div>
 
-              {/* ── B. Staggered Timing & Fees ───────────────────── */}
-              <p className={styles.modalSectionTitle}>Timing &amp; Fees</p>
+              {/* ── B. Fees ──────────────────────────────────────── */}
+              <p className={styles.modalSectionTitle}>Fees</p>
 
-              <div className={styles.twoCol}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Registration Fee (THB) *</label>
-                  <input
-                    type="number"
-                    className={styles.input}
-                    min={0}
-                    value={regFee}
-                    onChange={e => setRegFee(parseInt(e.target.value) || 0)}
-                  />
-                  <span className={styles.fieldHint}>Flat per team slot. Enter 0 for a free division.</span>
-                </div>
-                <div className={styles.fieldGroup}>
-                  <div className={styles.labelRow}>
-                    <label className={styles.fieldLabel}>Registration Opens</label>
-                    <button
-                      type="button"
-                      className={styles.openNowBtn}
-                      onClick={() => setRegOpenDate(toLocalDatetimeValue(new Date()))}
-                    >
-                      Open now
-                    </button>
-                  </div>
-                  <input
-                    type="datetime-local"
-                    className={styles.input}
-                    value={regOpenDate}
-                    onChange={e => setRegOpenDate(e.target.value)}
-                  />
-                  <span className={styles.fieldHint}>
-                    {regOpenDate && new Date(regOpenDate) <= new Date()
-                      ? 'Registration is open immediately.'
-                      : 'Staggered window for this division only.'}
-                  </span>
-                </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel}>Registration Fee (THB) *</label>
+                <input
+                  type="number"
+                  className={styles.input}
+                  min={0}
+                  value={regFee}
+                  onChange={e => setRegFee(parseInt(e.target.value) || 0)}
+                />
+                <span className={styles.fieldHint}>Flat per team slot. Enter 0 for a free division.</span>
               </div>
+              </>
+              )}
 
+              {/* ══ Step 2: Format & Rules ═══════════════════════ */}
+              {modalStep === 1 && (
+              <>
               {/* ── C. Rules & Formats ───────────────────────────── */}
               <p className={styles.modalSectionTitle}>Rules &amp; Formats</p>
 
@@ -1220,9 +1111,60 @@ export default function OrganizerSetup() {
                   onChange={e => setDivRules(e.target.value)}
                 />
               </div>
+              </>
+              )}
 
-              {/* ── Per-division Registration Questions ──────────── */}
-              <p className={styles.modalSectionTitle}>Registration Questions</p>
+              {/* ══ Step 3: Registration ═════════════════════════ */}
+              {modalStep === 2 && (
+              <>
+              {/* ── Registration Open Date ───────────────────────── */}
+              <p className={styles.modalSectionTitle}>Registration Opens</p>
+              <div className={styles.fieldGroup}>
+                <label className={styles.switchRow} style={{ marginTop: 0 }}>
+                  <span className={styles.switchText}>Open registration immediately</span>
+                  <span className={styles.switch}>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={isOpenImmediately}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsOpenImmediately(checked);
+                        if (checked) {
+                          setRegOpenDate('');
+                        } else {
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          tomorrow.setHours(9, 0, 0, 0);
+                          setRegOpenDate(toLocalDatetimeValue(tomorrow));
+                        }
+                      }}
+                    />
+                    <span className={styles.switchTrack}>
+                      <span className={styles.switchThumb} />
+                    </span>
+                  </span>
+                </label>
+
+                {!isOpenImmediately && (
+                  <div style={{ marginTop: 10 }}>
+                    <input
+                      type="datetime-local"
+                      className={styles.input}
+                      value={regOpenDate}
+                      onChange={e => setRegOpenDate(e.target.value)}
+                    />
+                  </div>
+                )}
+                <span className={styles.fieldHint} style={{ marginTop: 6 }}>
+                  {isOpenImmediately
+                    ? 'Registration is open immediately.'
+                    : 'Staggered window for this division only.'}
+                </span>
+              </div>
+
+              {/* ── Per-division Registration Form ───────────────── */}
+              <p className={styles.modalSectionTitle}>Registration Form</p>
               <p className={styles.fieldHint} style={{ marginTop: -4 }}>
                 This form is bound to this division only.
               </p>
@@ -1323,6 +1265,42 @@ export default function OrganizerSetup() {
                 <Plus size={16} /> Add Custom Question
               </button>
 
+              {/* ── Post-registration Response ───────────────────── */}
+              <p className={styles.modalSectionTitle}>Registration Response</p>
+              <p className={styles.fieldHint} style={{ marginTop: -4 }}>
+                Shown to players right after they successfully register — e.g. a WhatsApp group invite,
+                a Facebook page link, or a QR code to join for announcements.
+              </p>
+              <div className={styles.fieldGroup}>
+                <textarea
+                  className={styles.textarea}
+                  rows={3}
+                  placeholder="e.g. You're in! 🏐 Join our WhatsApp group for schedule updates: https://chat.whatsapp.com/..."
+                  value={confirmationMessage}
+                  onChange={e => setConfirmationMessage(e.target.value)}
+                />
+              </div>
+              <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
+                {confirmationImage ? (
+                  <div className={styles.confirmImagePreview}>
+                    <img src={confirmationImage} alt="Registration response attachment" />
+                    <button
+                      type="button"
+                      className={styles.confirmImageRemove}
+                      onClick={() => setConfirmationImage('')}
+                      aria-label="Remove photo"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className={styles.btnAdd} style={{ width: '100%', cursor: 'pointer' }}>
+                    <ImagePlus size={16} /> Add Photo (WhatsApp QR, flyer, etc.)
+                    <input type="file" accept="image/*" hidden onChange={handleConfirmationImage} />
+                  </label>
+                )}
+              </div>
+
               {/* Collapsible Advanced / Missing Options */}
               <div className={styles.advancedCollapsible}>
                 <button
@@ -1420,10 +1398,24 @@ export default function OrganizerSetup() {
                   </div>
                 )}
               </div>
+              </>
+              )}
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.btnGhost} onClick={() => setShowModal(false)}>Cancel</button>
-              <button className={styles.btnActionPrimary} onClick={saveDivisionModal}>Create Division</button>
+              {modalStep === 0 ? (
+                <button className={styles.btnGhost} onClick={() => setShowModal(false)}>Cancel</button>
+              ) : (
+                <button className={styles.btnGhost} onClick={handleModalBack}>
+                  <ArrowLeft size={15} /> Back
+                </button>
+              )}
+              {modalStep < MODAL_STEPS.length - 1 ? (
+                <button className={styles.btnActionPrimary} onClick={handleModalNext}>
+                  Next <ChevronRight size={16} />
+                </button>
+              ) : (
+                <button className={styles.btnActionPrimary} onClick={saveDivisionModal}>{editingDivisionId ? 'Save Division' : 'Create Division'}</button>
+              )}
             </div>
           </div>
         </div>

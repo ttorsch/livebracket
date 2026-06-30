@@ -3,44 +3,51 @@
    ════════════════════════════════════════════════════════════════ */
 
 .page {
+  --page-bg: #F5F1EA;
   display: flex;
   min-height: 100vh;
-  background:
-    radial-gradient(50% 45% at 10% 8%, rgba(238, 122, 76, 0.07), transparent 70%),
-    radial-gradient(40% 35% at 90% 92%, rgba(238, 122, 76, 0.05), transparent 70%),
-    #F5F1EA;
+  background: var(--page-bg);
   color: var(--ink-1, #14181E);
 }
 
-/* ── Sidebar ──────────────────────────────────────────────────── */
+/* ── Sidebar (green glass) ────────────────────────────────────── */
 .sidebar {
-  width: 240px;
-  min-height: 100vh;
-  background: var(--ink-1, #14181E);
+  --side-bleed: var(--page-bg, #F5F1EA); /* same color as the page bg so the active tab connects to content */
+  width: 248px;
+  background: linear-gradient(180deg, #EE7A4C 0%, #F4A07A 38%, #FAD8C6 70%, #FFFFFF 100%);
   display: flex;
   flex-direction: column;
   padding: 0;
   flex-shrink: 0;
   position: sticky;
-  top: 0;
-  height: 100vh;
+  top: 16px;
+  margin: 16px;
+  height: calc(100vh - 32px);
+  border-radius: 28px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: visible;
 }
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  text-decoration: none;
+  padding: 22px 18px 16px;
+}
+.brandName {
   font-family: var(--font-heading);
   font-weight: 800;
   font-size: 18px;
-  color: #fff;
-  text-decoration: none;
-  padding: 24px 20px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--ink-1, #14181E);
 }
 .brandMark {
   display: grid;
   place-items: center;
-  width: 28px; height: 28px;
+  width: 40px; height: 40px;
+  padding: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(20, 31, 46, 0.06), 0 4px 10px rgba(20, 31, 46, 0.1);
   flex-shrink: 0;
 }
 .brandMark svg { width: 100%; height: 100%; }
@@ -48,54 +55,114 @@
 .sideNav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 12px 10px;
+  gap: 6px;
+  padding: 14px 0 14px 14px; /* no right padding so the active tab can reach the edge */
   flex: 1;
 }
 .sideLink {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-right: 14px;
   border-radius: 12px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(20, 24, 30, 0.72);
   text-decoration: none;
-  transition: background 0.12s, color 0.12s;
+  transition: background 0.14s, color 0.14s;
 }
-.sideLink:hover { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.85); }
-.sideLinkActive { background: rgba(238, 122, 76, 0.12); color: var(--orange, #EE7A4C); }
-.sideLinkActive:hover { background: rgba(238, 122, 76, 0.16); color: var(--orange, #EE7A4C); }
+.sideLink:hover { background: rgba(20, 31, 46, 0.06); color: var(--ink-1, #14181E); }
+
+/* Active item bleeds to the right edge and curves into the content area */
+.sideLinkActive,
+.sideLinkActive:hover {
+  position: relative;
+  margin-right: 0;
+  background: var(--side-bleed);
+  color: var(--ink-1, #14181E);
+  font-weight: 700;
+  border-radius: 14px 0 0 14px;
+}
+.sideIcon { display: inline-flex; flex-shrink: 0; }
+.sideLinkActive::before,
+.sideLinkActive::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--side-bleed);
+}
+.sideLinkActive::before {
+  top: -14px;
+  -webkit-mask: radial-gradient(circle 14px at 0 0, transparent 98%, #000);
+          mask: radial-gradient(circle 14px at 0 0, transparent 98%, #000);
+}
+.sideLinkActive::after {
+  bottom: -14px;
+  -webkit-mask: radial-gradient(circle 14px at 0 100%, transparent 98%, #000);
+          mask: radial-gradient(circle 14px at 0 100%, transparent 98%, #000);
+}
+
+/* New tournament — distinct button treatment */
+.newTournamentNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-right: 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(20, 31, 46, 0.06);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--orange, #EE7A4C);
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(238, 122, 76, 0.22);
+  transition: background 0.14s, transform 0.1s, box-shadow 0.14s;
+}
+.newTournamentNav:hover {
+  background: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(238, 122, 76, 0.3);
+}
 
 .sideProfile {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  text-align: center;
   gap: 10px;
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 0 14px 16px;
+  padding: 18px 14px;
+  border-radius: 14px;
+  background: transparent;
+  text-decoration: none;
 }
+.sideProfile:hover { background: transparent; }
 .sideAvatar {
-  width: 36px;
-  height: 36px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(238, 122, 76, 0.16);
   display: grid;
   place-items: center;
-  font-size: 18px;
+  font-size: 34px;
   flex-shrink: 0;
 }
 .sideProfileName {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ink-1, #14181E);
 }
 .sideProfileClub {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  font-size: 11.5px;
+  color: rgba(20, 24, 30, 0.5);
   margin-top: 1px;
 }
 
@@ -134,6 +201,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 22px;
+  border: none;
   border-radius: 999px;
   background: var(--orange, #EE7A4C);
   color: #fff;
@@ -143,6 +211,7 @@
   box-shadow: 0 6px 18px rgba(238, 122, 76, 0.35);
   white-space: nowrap;
   flex-shrink: 0;
+  cursor: pointer;
   transition: background 0.15s, transform 0.15s;
 }
 .newTournamentBtn:hover { background: var(--orange-600, #E0623A); transform: translateY(-1px); }
@@ -199,6 +268,60 @@
   font-weight: 800;
   font-size: 20px;
   color: var(--ink-1, #14181E);
+}
+
+/* ── Filter tabs ──────────────────────────────────────────────── */
+.filterTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.filterTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 31, 46, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+  color: rgba(20, 24, 30, 0.6);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.filterTab:hover {
+  border-color: rgba(238, 122, 76, 0.4);
+  color: var(--ink-1, #14181E);
+}
+.filterTabActive {
+  background: var(--orange, #EE7A4C);
+  border-color: var(--orange, #EE7A4C);
+  color: #fff;
+}
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(20, 31, 46, 0.1);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+.filterTabActive .filterCount {
+  background: rgba(255, 255, 255, 0.28);
+}
+.filterEmpty {
+  padding: 24px 0;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 14px;
+  color: rgba(20, 24, 30, 0.5);
 }
 
 /* ── Tournament cards ─────────────────────────────────────────── */
@@ -286,6 +409,106 @@
   font-family: var(--font-body, 'DM Sans', sans-serif);
   font-size: 13px;
   color: rgba(20, 24, 30, 0.45);
+}
+.tournamentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 6px;
+}
+.tournamentMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13px;
+  color: rgba(20, 24, 30, 0.55);
+}
+.tournamentMetaItem svg { color: rgba(20, 24, 30, 0.4); flex-shrink: 0; }
+
+/* ── Divisions availability chart ─────────────────────────────── */
+.divAvail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+.divAvailHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.divAvailHeading {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(20, 24, 30, 0.5);
+}
+.divAvailHint {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 11.5px;
+  color: rgba(20, 24, 30, 0.4);
+}
+.divAvailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.divAvailTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.divAvailName {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-1, #14181E);
+}
+.divAvailCount {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(20, 24, 30, 0.5);
+  white-space: nowrap;
+}
+.divAvailCountFull { color: var(--orange, #EE7A4C); }
+.divAvailBarWrap {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(20, 31, 46, 0.08);
+  overflow: hidden;
+}
+.divAvailBarFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--orange, #EE7A4C);
+  transition: width 0.3s ease;
+}
+.divAvailBarFull { background: #C9472A; }
+
+.setupWorkspaceBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 18px;
+  border-radius: 12px;
+  background: var(--ink-1, #14181E);
+  color: #fff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: background 0.15s, transform 0.1s;
+}
+.setupWorkspaceBtn:hover {
+  background: #000;
+  transform: translateY(-1px);
 }
 .tournamentCardActions {
   display: flex;
@@ -535,17 +758,24 @@
 @media (max-width: 960px) {
   .page { flex-direction: column; }
   .sidebar {
-    width: 100%;
+    width: auto;
     min-height: auto;
     height: auto;
     position: static;
+    margin: 12px;
+    border-radius: 20px;
     flex-direction: row;
     flex-wrap: wrap;
+    align-items: center;
     padding: 12px 16px;
     gap: 8px;
   }
   .brand { padding: 0; border: none; }
   .sideNav { flex-direction: row; padding: 0; flex: none; }
+  .sideLink { margin-right: 0; }
+  .sideLinkActive, .sideLinkActive:hover { border-radius: 12px; }
+  .sideLinkActive::before, .sideLinkActive::after { display: none; }
+  .newTournamentNav { margin-right: 0; }
   .sideProfile { display: none; }
   .main { padding: 24px 20px 60px; }
   .statsRow { grid-template-columns: repeat(3, 1fr); }
