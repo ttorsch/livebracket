@@ -30,6 +30,7 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isOneDay, setIsOneDay] = useState(false);
+  const [courts, setCourts] = useState('2');
   const [description, setDescription] = useState('');
 
   // Registration Schedule
@@ -49,6 +50,7 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     setStartDate('');
     setEndDate('');
     setIsOneDay(false);
+    setCourts('2');
     setDescription('');
     setRegOpenDate('');
     setRegOpenTBA(true);
@@ -80,6 +82,7 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     startDate,
     endDate,
     isOneDay,
+    courts: parseInt(courts) || 0,
     description,
     regOpenDate,
     regOpenTBA,
@@ -198,6 +201,20 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
                   onChange={e => setEndDate(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>Courts available *</label>
+              <input
+                className={styles.input}
+                type="number"
+                min={1}
+                value={courts}
+                onChange={e => setCourts(e.target.value)}
+              />
+              <p className={styles.fieldHint}>
+                Total courts you can run for this tournament — shared and rotated across all divisions.
+              </p>
             </div>
 
             <div className={styles.fieldGroup}>
