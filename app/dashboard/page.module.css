@@ -410,6 +410,17 @@
   font-size: 13px;
   color: rgba(20, 24, 30, 0.45);
 }
+.tournamentCardEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(20, 24, 30, 0.55);
+}
+.tournamentCardEyebrow svg { color: rgba(20, 24, 30, 0.4); flex-shrink: 0; }
 .tournamentMeta {
   display: flex;
   flex-wrap: wrap;
@@ -490,12 +501,58 @@
 }
 .divAvailBarFull { background: #C9472A; }
 
+/* ── Divisions availability — donut rings ─────────────────────── */
+.divCircleGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+.divCircleItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 76px;
+  text-align: center;
+}
+.divCircle { display: block; }
+.divCircleTrack {
+  stroke: rgba(20, 31, 46, 0.1);
+  stroke-width: 5;
+}
+.divCircleFill {
+  stroke: var(--orange, #EE7A4C);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s ease;
+}
+.divCircleFillFull { stroke: #C9472A; }
+.divCircleText {
+  fill: var(--ink-1, #14181E);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+}
+.divCircleName {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-1, #14181E);
+  line-height: 1.2;
+}
+.divCircleStatus {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(20, 24, 30, 0.5);
+}
+
 .setupWorkspaceBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
+  flex: 1;
   padding: 11px 18px;
   border-radius: 12px;
   background: var(--ink-1, #14181E);
@@ -509,6 +566,45 @@
 .setupWorkspaceBtn:hover {
   background: #000;
   transform: translateY(-1px);
+}
+.seeResultBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  padding: 11px 18px;
+  border-radius: 12px;
+  background: rgba(20, 31, 46, 0.05);
+  border: 1px solid rgba(20, 31, 46, 0.1);
+  color: var(--ink-1, #14181E);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: background 0.15s, transform 0.1s;
+}
+.seeResultBtn:hover {
+  background: rgba(20, 31, 46, 0.09);
+  transform: translateY(-1px);
+}
+
+/* Live-now section dot */
+.liveNowDot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #FF3B3B;
+  margin-right: 8px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.5);
+  animation: liveNowPulse 1.6s ease-out infinite;
+}
+@keyframes liveNowPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(255, 59, 59, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 59, 59, 0); }
 }
 .tournamentCardActions {
   display: flex;
