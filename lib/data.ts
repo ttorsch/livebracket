@@ -16,6 +16,39 @@ export interface DashboardTournament {
   divisions: DashboardDivision[];
 }
 
+export interface TournamentBasicInfo {
+  slug: string;
+  title: string;
+  location: string;
+  startDate: string;
+  endDate: string | null;
+  isOneDay: boolean;
+  phase: number;
+  description: string | null;
+}
+
+export async function getTournamentBasicInfo(slug: string): Promise<TournamentBasicInfo | null> {
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('slug, title, location, start_date, end_date, is_one_day, phase, description')
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to load tournament: ${error.message}`);
+  if (!data) return null;
+
+  return {
+    slug: data.slug,
+    title: data.title,
+    location: data.location,
+    startDate: data.start_date,
+    endDate: data.end_date,
+    isOneDay: data.is_one_day,
+    phase: data.phase,
+    description: data.description,
+  };
+}
+
 function formatDateRange(startDate: string, endDate: string | null, isOneDay: boolean): string {
   const start = new Date(`${startDate}T00:00:00`);
   const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

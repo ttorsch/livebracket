@@ -26,9 +26,11 @@ import {
   Layers,
   Award,
   ChevronDown,
-  ImagePlus
+  ImagePlus,
+  X
 } from 'lucide-react';
 import styles from './page.module.css';
+import { getTournamentBasicInfo, type TournamentBasicInfo } from '../../../../../lib/data';
 
 interface Question {
   id: string;
@@ -200,6 +202,19 @@ export default function OrganizerSetup() {
     endDate?: string;
     regOpenDate?: string;
   } | null>(null);
+
+  // Real tournament basic info from the database (title, location, dates, description).
+  // Present once the tournament has actually been published (has a DB row).
+  const [basicInfo, setBasicInfo] = useState<TournamentBasicInfo | null>(null);
+  const [showBasicInfoEdit, setShowBasicInfoEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editIsOneDay, setEditIsOneDay] = useState(false);
+  const [editDescription, setEditDescription] = useState('');
+  const [basicInfoSaving, setBasicInfoSaving] = useState(false);
+  const [basicInfoError, setBasicInfoError] = useState('');
 
   // Phase 1 States: Division Modal & List
   const [showModal, setShowModal] = useState(false);
@@ -442,8 +457,87 @@ export default function OrganizerSetup() {
         setIsOpenImmediately(false);
       }
     }
+
+    getTournamentBasicInfo(id).then(info => {
+      if (info) setBasicInfo(info);
+    }).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const openBasicInfoEdit = () => {
+    if (basicInfo) {
+      setEditTitle(basicInfo.title);
+      setEditLocation(basicInfo.location);
+      setEditStartDate(basicInfo.startDate);
+      setEditEndDate(basicInfo.endDate ?? basicInfo.startDate);
+      setEditIsOneDay(basicInfo.isOneDay);
+      setEditDescription(basicInfo.description ?? '');
+    } else {
+      setEditTitle(tournamentInfo?.title ?? '');
+      setEditLocation(tournamentInfo?.location ?? '');
+      setEditStartDate(tournamentInfo?.startDate ?? '');
+      setEditEndDate(tournamentInfo?.endDate ?? tournamentInfo?.startDate ?? '');
+      setEditIsOneDay(false);
+      setEditDescription('');
+    }
+    setBasicInfoError('');
+    setShowBasicInfoEdit(true);
+  };
+
+  const saveBasicInfo = async () => {
+    if (!editTitle.trim() || !editLocation.trim() || !editStartDate) {
+      setBasicInfoError('Title, location, and start date are required.');
+      return;
+    }
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!id) return;
+
+    if (!basicInfo) {
+      // Not yet published — nothing to PATCH, just update the local draft view.
+      setTournamentInfo({
+        title: editTitle,
+        location: editLocation,
+        startDate: editStartDate,
+        endDate: editIsOneDay ? editStartDate : editEndDate,
+      });
+      setShowBasicInfoEdit(false);
+      return;
+    }
+
+    setBasicInfoSaving(true);
+    setBasicInfoError('');
+    try {
+      const res = await fetch(`/api/tournaments/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          location: editLocation,
+          startDate: editStartDate,
+          endDate: editEndDate,
+          isOneDay: editIsOneDay,
+          description: editDescription,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed to save changes');
+      setBasicInfo({
+        slug: body.slug,
+        title: body.title,
+        location: body.location,
+        startDate: body.start_date,
+        endDate: body.end_date,
+        isOneDay: body.is_one_day,
+        phase: body.phase,
+        description: body.description,
+      });
+      setShowBasicInfoEdit(false);
+    } catch (err) {
+      setBasicInfoError(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setBasicInfoSaving(false);
+    }
+  };
 
   // Format a Date into the value a datetime-local input expects (local time).
   const toLocalDatetimeValue = (d: Date) => {
@@ -716,7 +810,14 @@ export default function OrganizerSetup() {
 
   // The division shown in the per-division setup panel (falls back to the first).
   const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
-  const metaLine = [tournamentInfo?.location, formatDateRange(tournamentInfo?.startDate, tournamentInfo?.endDate)]
+
+  // Basic info card prefers the real DB row; falls back to the unsaved draft.
+  const displayTitle = basicInfo?.title ?? tournamentInfo?.title ?? '';
+  const displayLocation = basicInfo?.location ?? tournamentInfo?.location;
+  const displayStart = basicInfo?.startDate ?? tournamentInfo?.startDate;
+  const displayEnd = basicInfo?.endDate ?? tournamentInfo?.endDate;
+  const displayDescription = basicInfo?.description ?? '';
+  const metaLine = [displayLocation, formatDateRange(displayStart, displayEnd ?? undefined)]
     .filter(Boolean)
     .join('  •  ');
 
@@ -741,11 +842,28 @@ export default function OrganizerSetup() {
         <div className={styles.container}>
           <div className={styles.headerArea}>
             <h1 className={styles.title}>Tournament Setup</h1>
-            {tournamentInfo?.title && (
-              <p className={styles.tournamentName}>{tournamentInfo.title}</p>
-            )}
-            {metaLine && <p className={styles.subtitle}>{metaLine}</p>}
           </div>
+
+          {/* ── Basic Info ───────────────────────────────────────── */}
+          <section className={styles.card} style={{ marginBottom: 24 }}>
+            <div className={styles.cardHeader}>
+              <Info className={styles.iconHeader} size={22} />
+              <div style={{ flex: 1 }}>
+                <h2 className={styles.cardTitle}>{displayTitle || 'Untitled tournament'}</h2>
+                {metaLine && <p className={styles.cardSubtitle}>{metaLine}</p>}
+              </div>
+              <div className={styles.divActions}>
+                <button type="button" className={styles.btnGhost} onClick={openBasicInfoEdit}>
+                  <Settings size={15} /> Edit
+                </button>
+              </div>
+            </div>
+            {displayDescription && (
+              <div className={styles.sectionBody}>
+                <p className={styles.summaryText}>{displayDescription}</p>
+              </div>
+            )}
+          </section>
 
           {saved && (
             <div className={styles.saveToast}>
@@ -1416,6 +1534,89 @@ export default function OrganizerSetup() {
               ) : (
                 <button className={styles.btnActionPrimary} onClick={saveDivisionModal}>{editingDivisionId ? 'Save Division' : 'Create Division'}</button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT BASIC INFO MODAL ─────────────────────────────────── */}
+      {showBasicInfoEdit && (
+        <div className={styles.modalOverlay} onClick={() => setShowBasicInfoEdit(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Edit Basic Info</h3>
+              <button className={styles.modalCloseBtn} onClick={() => setShowBasicInfoEdit(false)}><X size={18} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              {basicInfoError && <div className={styles.modalFormError}>{basicInfoError}</div>}
+
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel}>Tournament Name *</label>
+                <input className={styles.input} type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+              </div>
+
+              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
+                <label className={styles.fieldLabel}>Location *</label>
+                <input className={styles.input} type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} />
+              </div>
+
+              <div className={styles.twoCol} style={{ marginTop: 12 }}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Start date *</label>
+                  <input
+                    className={styles.input}
+                    type="date"
+                    value={editStartDate}
+                    onChange={e => {
+                      setEditStartDate(e.target.value);
+                      if (editIsOneDay) setEditEndDate(e.target.value);
+                    }}
+                  />
+                  <label className={styles.switchRow}>
+                    <span className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={editIsOneDay}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setEditIsOneDay(checked);
+                          if (checked && editStartDate) setEditEndDate(editStartDate);
+                        }}
+                      />
+                      <span className={styles.switchTrack}><span className={styles.switchThumb} /></span>
+                    </span>
+                    <span className={styles.switchText}>One-Day Tournament</span>
+                  </label>
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>End date</label>
+                  <input
+                    className={styles.input}
+                    type="date"
+                    disabled={editIsOneDay}
+                    value={editIsOneDay ? editStartDate : editEndDate}
+                    onChange={e => setEditEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
+                <label className={styles.fieldLabel}>Description</label>
+                <textarea
+                  className={styles.textarea}
+                  rows={3}
+                  placeholder="Optional — tell players what to expect..."
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.btnGhost} onClick={() => setShowBasicInfoEdit(false)}>Cancel</button>
+              <button className={styles.btnActionPrimary} onClick={saveBasicInfo} disabled={basicInfoSaving}>
+                {basicInfoSaving ? 'Saving…' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
