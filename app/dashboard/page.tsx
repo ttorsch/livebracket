@@ -7,12 +7,11 @@ import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
 import { getDashboardTournaments, todayLocal, type DashboardTournament } from '../../lib/data';
 
-/* ── Sample data ─────────────────────────────────────────────── */
-const ORGANIZER = {
-  name: 'Thana Sirichai',
-  club: 'Khao Lak Volley Club',
-  avatar: '🏐',
-};
+interface Organizer {
+  name: string;
+  club: string | null;
+  avatar_url: string | null;
+}
 
 const TODAY = todayLocal();
 
@@ -48,6 +47,7 @@ function matchesFilter(t: CardTournament, key: StatusKey): boolean {
 
 export default function OrganizerDashboard() {
   const [tournaments, setTournaments] = useState<DashboardTournament[]>([]);
+  const [organizer, setOrganizer] = useState<Organizer | null>(null);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey>('all');
@@ -55,6 +55,7 @@ export default function OrganizerDashboard() {
 
   useEffect(() => {
     getDashboardTournaments().then(setTournaments).catch(console.error);
+    fetch('/api/organizer').then(r => r.json()).then(setOrganizer).catch(console.error);
   }, []);
 
   const visibleTournaments = tournaments.filter(t => matchesFilter(t, statusFilter));
@@ -96,10 +97,14 @@ export default function OrganizerDashboard() {
         </nav>
 
         <Link href="/profile" className={styles.sideProfile}>
-          <span className={styles.sideAvatar}>{ORGANIZER.avatar}</span>
+          <span className={styles.sideAvatar}>
+            {organizer?.avatar_url ? (
+              <img src={organizer.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+            ) : '🏐'}
+          </span>
           <div>
-            <p className={styles.sideProfileName}>{ORGANIZER.name}</p>
-            <p className={styles.sideProfileClub}>{ORGANIZER.club}</p>
+            <p className={styles.sideProfileName}>{organizer?.name ?? '—'}</p>
+            <p className={styles.sideProfileClub}>{organizer?.club ?? ''}</p>
           </div>
         </Link>
       </aside>
@@ -110,7 +115,7 @@ export default function OrganizerDashboard() {
         <div className={styles.header}>
           <div>
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
-            <h1 className={styles.headerTitle}>Welcome back, {ORGANIZER.name.split(' ')[0]}</h1>
+            <h1 className={styles.headerTitle}>Welcome back{organizer ? `, ${organizer.name.split(' ')[0]}` : ''}</h1>
           </div>
           <button type="button" className={styles.newTournamentBtn} onClick={() => setCreateOpen(true)}>
             <Plus size={18} />
