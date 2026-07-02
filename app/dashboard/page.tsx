@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, QrCode, BarChart2, Users, Trophy, ChevronRight, ArrowRight, Settings, Calendar, MapPin } from 'lucide-react';
+import { Plus, QrCode, Trophy, ArrowRight, Settings, Calendar, MapPin } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
+import { getDashboardTournaments, todayLocal, type DashboardTournament } from '../../lib/data';
 
 /* ── Sample data ─────────────────────────────────────────────── */
 const ORGANIZER = {
@@ -13,74 +14,7 @@ const ORGANIZER = {
   avatar: '🏐',
 };
 
-const STATS = [
-  { label: 'Tournaments run', value: 12, icon: Trophy },
-  { label: 'Teams registered', value: 148, icon: Users },
-  { label: 'Matches scored', value: 320, icon: BarChart2 },
-];
-
-// Today as a local YYYY-MM-DD string, used to surface live (starting-today) tournaments.
-const TODAY = (() => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-})();
-
-const ACTIVE_TOURNAMENTS = [
-  {
-    id: 'bang-niang-classic-2025',
-    title: 'Bang Niang Beach Classic 2025',
-    date: 'July 12–13, 2025',
-    startDate: '2026-07-12',
-    location: 'Bang Niang Beach, Khao Lak',
-    phase: 3,
-    statusName: 'Phase 3: Live Registration (Open)',
-    divisions: [
-      { name: "Men's Open", cap: 8, filled: 7 },
-      { name: "Women's Open", cap: 8, filled: 6 },
-      { name: 'Mixed', cap: 8, filled: 6 },
-    ],
-  },
-  {
-    id: 'khao-lak-open-2025',
-    title: 'Khao Lak Open 2025',
-    date: 'Aug 2–3, 2025',
-    startDate: '2026-08-02',
-    location: 'Memories Beach, Khao Lak',
-    phase: 1,
-    statusName: 'Phase 1: Shell (Upcoming)',
-    divisions: [],
-  },
-  {
-    id: 'phang-nga-challenger-2025',
-    title: 'Phang Nga Challenger 2025',
-    date: 'Sept 5, 2025',
-    startDate: '2026-09-05',
-    location: 'Nang Thong Beach, Phang Nga',
-    phase: 2,
-    statusName: 'Phase 2: Rules Announced',
-    divisions: [
-      { name: "Men's Open", cap: 16, filled: 4 },
-    ],
-  },
-  {
-    id: 'summer-volley-fest-2025',
-    title: 'Summer Volleyball Festival 2025',
-    date: 'Today',
-    startDate: TODAY,
-    location: 'Khuk Khak Beach, Khao Lak',
-    phase: 4,
-    statusName: 'Phase 4: Logistics Seeding (Day Before)',
-    divisions: [
-      { name: "Men's Open", cap: 8, filled: 8 },
-      { name: "Women's Open", cap: 8, filled: 8 },
-    ],
-  }
-];
-
-const PAST_TOURNAMENTS = [
-  { id: 'spring-classic-2025', title: 'Spring Classic 2025', date: 'Apr 19, 2025', teams: 20, winner: 'Santos / Lima 🇧🇷' },
-  { id: 'new-year-open-2025', title: 'New Year Open 2025', date: 'Jan 5, 2025', teams: 12, winner: 'Tanaka / Yamamoto 🇯🇵' },
-];
+const TODAY = todayLocal();
 
 /* Map tournament phase → filter status */
 const STATUS_FILTERS = [
@@ -102,7 +36,7 @@ function phaseToStatus(phase: number): 'coming-up' | 'announced' | 'draft' {
   }
 }
 
-type CardTournament = (typeof ACTIVE_TOURNAMENTS)[number];
+type CardTournament = DashboardTournament;
 
 // Registration is open while live (phase 3); closed the day before (phase 4).
 function matchesFilter(t: CardTournament, key: StatusKey): boolean {
@@ -113,13 +47,18 @@ function matchesFilter(t: CardTournament, key: StatusKey): boolean {
 }
 
 export default function OrganizerDashboard() {
+  const [tournaments, setTournaments] = useState<DashboardTournament[]>([]);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey>('all');
   const [createOpen, setCreateOpen] = useState(false);
 
-  const visibleTournaments = ACTIVE_TOURNAMENTS.filter(t => matchesFilter(t, statusFilter));
-  const liveTournaments = ACTIVE_TOURNAMENTS.filter(t => t.startDate === TODAY);
+  useEffect(() => {
+    getDashboardTournaments().then(setTournaments).catch(console.error);
+  }, []);
+
+  const visibleTournaments = tournaments.filter(t => matchesFilter(t, statusFilter));
+  const liveTournaments = tournaments.filter(t => t.startDate === TODAY);
 
   const copyLink = (id: string, url: string) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -183,7 +122,7 @@ export default function OrganizerDashboard() {
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>
-              <span className={styles.liveNowDot} /> Live now
+              It&apos;s the Game Day
             </h2>
           </div>
           {liveTournaments.length > 0 ? (
@@ -212,7 +151,7 @@ export default function OrganizerDashboard() {
 
           <div className={styles.filterTabs}>
             {STATUS_FILTERS.map(f => {
-              const count = ACTIVE_TOURNAMENTS.filter(t => matchesFilter(t, f.key)).length;
+              const count = tournaments.filter(t => matchesFilter(t, f.key)).length;
               return (
                 <button
                   key={f.key}

@@ -5,99 +5,9 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { MapPin, Calendar, Users, Trophy, Clock, ChevronRight } from 'lucide-react';
 import styles from './page.module.css';
+import { getTournamentDetail, type TournamentDetail, type DetailMatch } from '../../../lib/data';
 
-type TournamentStatus = 'live' | 'upcoming' | 'finished';
-
-/* ── Sample data ─────────────────────────────────────────────── */
-const TOURNAMENT = {
-  id: 'bang-niang-classic-2025',
-  title: 'Bang Niang Beach Classic 2025',
-  subtitle: 'Open Championship',
-  location: 'Bang Niang Beach, Khao Lak',
-  date: 'July 12–13, 2025',
-  image: '/images/Hero.jpg',
-  status: 'live' as TournamentStatus,
-  format: 'Single Elimination',
-  courts: 3,
-  divisions: [
-    { id: 'open-m', label: "Men's Open", teams: 8, filled: 8 },
-    { id: 'open-w', label: "Women's Open", teams: 8, filled: 6 },
-    { id: 'mixed', label: 'Mixed', teams: 8, filled: 5 },
-  ],
-  description: 'The annual Bang Niang Beach Classic draws the best beach volleyball teams from across Thailand and beyond. Fast-paced single elimination format with 3 top-quality sand courts.',
-  rules: 'Standard FIVB Beach Volleyball rules apply. Matches are best of 3 sets to 21 points (third set to 15 if needed). Warm-ups are strictly limited to 5 minutes.',
-  venueInfo: 'Memories Beach, Khao Lak. Food and drinks are available at the beach club. Free parking is available for players.',
-  vouchers: [
-    { id: 'v1', title: '20% off Pak Weep Hotel Rooms', description: 'Available for all visitors browsing the event page.', code: 'PAK20' },
-    { id: 'v2', title: 'Free Electrolyte Drink at Court Check-in', description: 'Exclusive voucher shown on player confirmation pass.', code: 'PLAYERFUEL' }
-  ],
-};
-
-interface MatchPlayer { name: string; flag: string }
-interface BracketMatch {
-  id: string;
-  court: string;
-  time: string;
-  teamA: MatchPlayer[];
-  teamB: MatchPlayer[];
-  scoreA?: number[];
-  scoreB?: number[];
-  winner?: 'A' | 'B';
-  status: 'live' | 'upcoming' | 'done';
-}
-
-const BRACKET: { round: string; matches: BracketMatch[] }[] = [
-  {
-    round: 'QF',
-    matches: [
-      { id: 'qf1', court: 'Court 1', time: '09:00', teamA: [{ name: 'Santos', flag: '🇧🇷' }, { name: 'Lima', flag: '🇧🇷' }], teamB: [{ name: 'Müller', flag: '🇩🇪' }, { name: 'Schmidt', flag: '🇩🇪' }], scoreA: [21, 18], scoreB: [18, 21], status: 'done', winner: undefined },
-      { id: 'qf2', court: 'Court 2', time: '09:00', teamA: [{ name: 'Kramer', flag: '🇳🇱' }, { name: 'de Vries', flag: '🇳🇱' }], teamB: [{ name: 'Charoenwong', flag: '🇹🇭' }, { name: 'Rattanawong', flag: '🇹🇭' }], scoreA: [21], scoreB: [19], status: 'live', winner: undefined },
-      { id: 'qf3', court: 'Court 3', time: '09:30', teamA: [{ name: 'Tanaka', flag: '🇯🇵' }, { name: 'Yamamoto', flag: '🇯🇵' }], teamB: [{ name: 'Park', flag: '🇰🇷' }, { name: 'Kim', flag: '🇰🇷' }], scoreA: [], scoreB: [], status: 'upcoming', winner: undefined },
-      { id: 'qf4', court: 'Court 1', time: '09:30', teamA: [{ name: 'Patel', flag: '🇮🇳' }, { name: 'Gupta', flag: '🇮🇳' }], teamB: [{ name: 'Wang', flag: '🇨🇳' }, { name: 'Chen', flag: '🇨🇳' }], scoreA: [], scoreB: [], status: 'upcoming', winner: undefined },
-    ],
-  },
-  {
-    round: 'SF',
-    matches: [
-      { id: 'sf1', court: 'Court 1', time: '12:00', teamA: [{ name: 'Santos', flag: '🇧🇷' }, { name: 'Lima', flag: '🇧🇷' }], teamB: [{ name: 'TBD', flag: '🏐' }, { name: 'TBD', flag: '' }], scoreA: [], scoreB: [], status: 'upcoming', winner: undefined },
-      { id: 'sf2', court: 'Court 2', time: '12:00', teamA: [{ name: 'TBD', flag: '🏐' }, { name: 'TBD', flag: '' }], teamB: [{ name: 'TBD', flag: '🏐' }, { name: 'TBD', flag: '' }], scoreA: [], scoreB: [], status: 'upcoming', winner: undefined },
-    ],
-  },
-  {
-    round: 'Final',
-    matches: [
-      { id: 'f1', court: 'Main Court', time: '15:00', teamA: [{ name: 'TBD', flag: '🏐' }, { name: 'TBD', flag: '' }], teamB: [{ name: 'TBD', flag: '🏐' }, { name: 'TBD', flag: '' }], scoreA: [], scoreB: [], status: 'upcoming', winner: undefined },
-    ],
-  },
-];
-
-const POOL_STANDINGS = [
-  { pos: 1, teamA: { name: 'Santos', flag: '🇧🇷' }, teamB: { name: 'Lima', flag: '🇧🇷' }, w: 3, l: 0, pts: 9 },
-  { pos: 2, teamA: { name: 'Kramer', flag: '🇳🇱' }, teamB: { name: 'de Vries', flag: '🇳🇱' }, w: 2, l: 1, pts: 6 },
-  { pos: 3, teamA: { name: 'Charoenwong', flag: '🇹🇭' }, teamB: { name: 'Rattanawong', flag: '🇹🇭' }, w: 1, l: 2, pts: 3 },
-  { pos: 4, teamA: { name: 'Müller', flag: '🇩🇪' }, teamB: { name: 'Schmidt', flag: '🇩🇪' }, w: 0, l: 3, pts: 0 },
-];
-
-const SCHEDULE = [
-  { time: '09:00', court: 'Court 1', match: 'QF — Santos/Lima vs Müller/Schmidt', status: 'done' as const },
-  { time: '09:00', court: 'Court 2', match: 'QF — Kramer/de Vries vs Charoenwong/Rattanawong', status: 'live' as const },
-  { time: '09:30', court: 'Court 3', match: 'QF — Tanaka/Yamamoto vs Park/Kim', status: 'upcoming' as const },
-  { time: '09:30', court: 'Court 1', match: 'QF — Patel/Gupta vs Wang/Chen', status: 'upcoming' as const },
-  { time: '12:00', court: 'Court 1', match: 'SF — Winner QF1 vs Winner QF2', status: 'upcoming' as const },
-  { time: '12:00', court: 'Court 2', match: 'SF — Winner QF3 vs Winner QF4', status: 'upcoming' as const },
-  { time: '15:00', court: 'Main Court', match: 'Final — Winner SF1 vs Winner SF2', status: 'upcoming' as const },
-];
-
-const TEAMS = [
-  { name: 'Santos / Lima', flags: '🇧🇷', seed: 1, status: 'active' },
-  { name: 'Kramer / de Vries', flags: '🇳🇱', seed: 2, status: 'active' },
-  { name: 'Charoenwong / Rattanawong', flags: '🇹🇭', seed: 3, status: 'active' },
-  { name: 'Müller / Schmidt', flags: '🇩🇪', seed: 4, status: 'eliminated' },
-  { name: 'Tanaka / Yamamoto', flags: '🇯🇵', seed: 5, status: 'active' },
-  { name: 'Park / Kim', flags: '🇰🇷', seed: 6, status: 'active' },
-  { name: 'Patel / Gupta', flags: '🇮🇳', seed: 7, status: 'active' },
-  { name: 'Wang / Chen', flags: '🇨🇳', seed: 8, status: 'active' },
-];
+type BracketMatch = DetailMatch;
 
 type Tab = 'bracket' | 'pool' | 'schedule' | 'teams' | 'rules' | 'vouchers';
 
@@ -214,15 +124,24 @@ function BracketMatchCard({ match }: { match: BracketMatch }) {
 export default function TournamentDetail() {
   const params = useParams();
   const searchParams = useSearchParams();
-  
-  // Read Phase query param to test dynamic flows: 1 = Shell, 2 = Announced, 3 = Open, 4 = Closed/Logistics
-  const phaseParam = searchParams.get('phase');
-  const phase = phaseParam ? parseInt(phaseParam) : 3; // Default to Live Registration
+  const slug = String(params.id);
 
-  const [activeDiv, setActiveDiv] = useState(TOURNAMENT.divisions[0].id);
+  const [tournament, setTournament] = useState<TournamentDetail | null>(null);
+  const [activeDiv, setActiveDiv] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('bracket');
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [tabBarStuck, setTabBarStuck] = useState(false);
+
+  useEffect(() => {
+    getTournamentDetail(slug).then((data) => {
+      setTournament(data);
+      if (data && data.divisions.length > 0) setActiveDiv(data.divisions[0].id);
+    }).catch(console.error);
+  }, [slug]);
+
+  // Read Phase query param to test dynamic flows: 1 = Shell, 2 = Announced, 3 = Open, 4 = Closed/Logistics
+  const phaseParam = searchParams.get('phase');
+  const phase = phaseParam ? parseInt(phaseParam) : (tournament?.phase ?? 3);
 
   // Watchlist Star Button State
   const [starred, setStarred] = useState(false);
@@ -251,7 +170,29 @@ export default function TournamentDetail() {
     return () => observer.disconnect();
   }, []);
 
-  const tournament = TOURNAMENT;
+  if (!tournament) {
+    return (
+      <div className={styles.page}>
+        <Nav />
+        <div className={styles.container} style={{ padding: '160px 0', textAlign: 'center' }}>
+          Loading tournament…
+        </div>
+      </div>
+    );
+  }
+
+  const activeDivision = tournament.divisions.find((d) => d.id === activeDiv) ?? null;
+  const courtCount = new Set(
+    tournament.divisions.flatMap((d) => d.bracket.flatMap((r) => r.matches.map((m) => m.court))).filter(Boolean)
+  ).size;
+  const scheduleItems = (activeDivision?.bracket ?? []).flatMap((r) =>
+    r.matches.map((m) => ({
+      time: m.time,
+      court: m.court,
+      match: `${r.round} — ${m.teamA.map((p) => p.name).join('/')} vs ${m.teamB.map((p) => p.name).join('/')}`,
+      status: m.status,
+    }))
+  );
 
   return (
     <div className={styles.page}>
@@ -260,7 +201,7 @@ export default function TournamentDetail() {
       {/* ── Hero ──────────────────────────────────────────────── */}
       <section className={styles.hero}>
         <div className={styles.heroBg}>
-          <img src={tournament.image} alt="" className={styles.heroImg} />
+          <img src="/images/Hero.jpg" alt="" className={styles.heroImg} />
           <div className={styles.heroScrim} />
         </div>
         <div className={styles.heroContent}>
@@ -288,11 +229,10 @@ export default function TournamentDetail() {
               {phase === 4 && (
                 <span className={styles.finishedBadge}>Logistics Seeding</span>
               )}
-              <span className={styles.formatBadge}>{tournament.format}</span>
+              <span className={styles.formatBadge}>Single Elimination</span>
             </div>
 
             <h1 className={styles.heroTitle}>{tournament.title}</h1>
-            <p className={styles.heroSubtitle}>{tournament.subtitle}</p>
 
             <div className={styles.heroMeta}>
               <span className={styles.heroMetaItem}>
@@ -303,10 +243,12 @@ export default function TournamentDetail() {
                 <Calendar size={15} />
                 {tournament.date}
               </span>
-              <span className={styles.heroMetaItem}>
-                <Users size={15} />
-                {tournament.courts} courts
-              </span>
+              {courtCount > 0 && (
+                <span className={styles.heroMetaItem}>
+                  <Users size={15} />
+                  {courtCount} courts
+                </span>
+              )}
             </div>
 
             <div className={styles.heroActions}>
@@ -388,73 +330,58 @@ export default function TournamentDetail() {
           {/* Bracket */}
           {activeTab === 'bracket' && (
             <div className={styles.bracketSection}>
-              <div className={styles.bracketScroll}>
-                <div className={styles.bracketGrid}>
-                  {BRACKET.map((round) => (
-                    <div key={round.round} className={styles.bracketRound}>
-                      <div className={styles.bracketRoundLabel}>{round.round}</div>
-                      <div className={styles.bracketRoundMatches}>
-                        {round.matches.map((match) => (
-                          <BracketMatchCard key={match.id} match={match} />
-                        ))}
+              {activeDivision && activeDivision.bracket.length > 0 ? (
+                <div className={styles.bracketScroll}>
+                  <div className={styles.bracketGrid}>
+                    {activeDivision.bracket.map((round) => (
+                      <div key={round.round} className={styles.bracketRound}>
+                        <div className={styles.bracketRoundLabel}>{round.round}</div>
+                        <div className={styles.bracketRoundMatches}>
+                          {round.matches.map((match) => (
+                            <BracketMatchCard key={match.id} match={match} />
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className={styles.poolNote}>No bracket scheduled yet for this division.</p>
+              )}
             </div>
           )}
 
           {/* Pool standings */}
           {activeTab === 'pool' && (
             <div className={styles.poolSection}>
-              <h2 className={styles.poolTitle}>Pool A — Standings</h2>
-              <div className={styles.standingsTable}>
-                <div className={styles.standingsHeader}>
-                  <span>#</span>
-                  <span>Team</span>
-                  <span>W</span>
-                  <span>L</span>
-                  <span>Pts</span>
-                </div>
-                {POOL_STANDINGS.map(row => (
-                  <div key={row.pos} className={`${styles.standingsRow} ${row.pos <= 2 ? styles.standingsRowQualify : ''}`}>
-                    <span className={styles.standingsPos}>{row.pos}</span>
-                    <span className={styles.standingsTeam}>
-                      <span>{row.teamA.flag}{row.teamA.name}</span>
-                      <span className={styles.standingsSep}>/</span>
-                      <span>{row.teamB.flag}{row.teamB.name}</span>
-                    </span>
-                    <span className={styles.standingsStat}>{row.w}</span>
-                    <span className={styles.standingsStat}>{row.l}</span>
-                    <span className={`${styles.standingsStat} ${styles.standingsPts}`}>{row.pts}</span>
-                  </div>
-                ))}
-              </div>
-              <p className={styles.poolNote}>Top 2 teams advance to elimination bracket</p>
+              <p className={styles.poolNote}>This division doesn&apos;t use pool play.</p>
             </div>
           )}
 
           {/* Schedule */}
           {activeTab === 'schedule' && (
             <div className={styles.scheduleSection}>
-              <div className={styles.scheduleList}>
-                {SCHEDULE.map((item, i) => (
-                  <div key={i} className={`${styles.scheduleItem} ${item.status === 'live' ? styles.scheduleItemLive : ''} ${item.status === 'done' ? styles.scheduleItemDone : ''}`}>
-                    <div className={styles.scheduleTime}>
-                      <Clock size={13} />
-                      {item.time}
+              {scheduleItems.length > 0 ? (
+                <div className={styles.scheduleList}>
+                  {scheduleItems.map((item, i) => (
+                    <div key={i} className={`${styles.scheduleItem} ${item.status === 'live' ? styles.scheduleItemLive : ''} ${item.status === 'done' ? styles.scheduleItemDone : ''}`}>
+                      <div className={styles.scheduleTime}>
+                        <Clock size={13} />
+                        {item.time}
+                      </div>
+                      <div className={styles.scheduleCourt}>{item.court}</div>
+                      <div className={styles.scheduleMatch}>{item.match}</div>
+                      <div className={styles.scheduleStatus}>
+                        {item.status === 'live' && <span className={styles.scheduleStatusLive}><span className={styles.liveDot} />Live</span>}
+                        {item.status === 'done' && <span className={styles.scheduleStatusDone}>✓ Done</span>}
+                        {item.status === 'upcoming' && <span className={styles.scheduleStatusUpcoming}>Upcoming</span>}
+                      </div>
                     </div>
-                    <div className={styles.scheduleCourt}>{item.court}</div>
-                    <div className={styles.scheduleMatch}>{item.match}</div>
-                    <div className={styles.scheduleStatus}>
-                      {item.status === 'live' && <span className={styles.scheduleStatusLive}><span className={styles.liveDot} />Live</span>}
-                      {item.status === 'done' && <span className={styles.scheduleStatusDone}>✓ Done</span>}
-                      {item.status === 'upcoming' && <span className={styles.scheduleStatusUpcoming}>Upcoming</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.poolNote}>No matches scheduled yet for this division.</p>
+              )}
             </div>
           )}
 
@@ -462,13 +389,12 @@ export default function TournamentDetail() {
           {activeTab === 'teams' && (
             <div className={styles.teamsSection}>
               <div className={styles.teamsGrid}>
-                {TEAMS.map((team) => (
-                  <div key={team.seed} className={`${styles.teamCard} ${team.status === 'eliminated' ? styles.teamCardEliminated : ''}`}>
+                {(activeDivision?.teamsList ?? []).map((team) => (
+                  <div key={team.seed} className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardEliminated : ''}`}>
                     <div className={styles.teamSeed}>#{team.seed}</div>
-                    <div className={styles.teamFlag}>{team.flags}</div>
                     <div className={styles.teamName}>{team.name}</div>
-                    {team.status === 'eliminated' && (
-                      <div className={styles.teamElimBadge}>Eliminated</div>
+                    {team.status === 'waitlist' && (
+                      <div className={styles.teamElimBadge}>Waitlist</div>
                     )}
                   </div>
                 ))}
@@ -479,13 +405,13 @@ export default function TournamentDetail() {
           {/* Rules */}
           {activeTab === 'rules' && (
             <div className={styles.rulesSection}>
-              <h2 className={styles.rulesTitle}>Tournament Rules &amp; Regulations</h2>
+              <h2 className={styles.rulesTitle}>About this tournament</h2>
               <div className={styles.rulesContent}>
-                {tournament.rules}
+                {tournament.description || 'No description provided yet.'}
               </div>
               <h2 className={styles.rulesTitle}>Venue Information</h2>
               <div className={styles.rulesContent}>
-                {tournament.venueInfo}
+                {tournament.location}
               </div>
             </div>
           )}

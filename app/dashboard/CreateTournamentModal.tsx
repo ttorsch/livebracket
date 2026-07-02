@@ -5,16 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, X } from 'lucide-react';
 import styles from './create/page.module.css';
-
-/* Build a URL-safe slug from the tournament title. */
-function slugify(value: string): string {
-  const base = value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return base || `tournament-${Date.now()}`;
-}
+import { slugify } from '../../lib/slug';
 
 interface Props {
   open: boolean;
@@ -30,7 +21,6 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isOneDay, setIsOneDay] = useState(false);
-  const [courts, setCourts] = useState('2');
   const [description, setDescription] = useState('');
 
   // Registration Schedule
@@ -41,6 +31,8 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
 
   const [submitted, setSubmitted] = useState(false);
   const [publishedSlug, setPublishedSlug] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState('');
 
   const canAdvance = !!title.trim() && !!location.trim() && !!startDate;
 
@@ -50,7 +42,6 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     setStartDate('');
     setEndDate('');
     setIsOneDay(false);
-    setCourts('2');
     setDescription('');
     setRegOpenDate('');
     setRegOpenTBA(true);
@@ -58,6 +49,8 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     setRegCloseTBA(true);
     setSubmitted(false);
     setPublishedSlug('');
+    setPublishing(false);
+    setPublishError('');
   };
 
   const handleClose = () => {
@@ -82,7 +75,6 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     startDate,
     endDate,
     isOneDay,
-    courts: parseInt(courts) || 0,
     description,
     regOpenDate,
     regOpenTBA,
@@ -104,18 +96,25 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
   };
 
   // Publish straight away with a "Details coming soon" status (no setup needed).
-  const publishNow = () => {
-    if (!canAdvance) return;
-    const slug = slugify(title);
-    const record = buildRecord({ published: true, status: 'coming-soon' });
+  const publishNow = async () => {
+    if (!canAdvance || publishing) return;
+    setPublishing(true);
+    setPublishError('');
     try {
-      sessionStorage.setItem(`lb:draft:${slug}`, JSON.stringify(record));
-      sessionStorage.setItem(`lb:published:${slug}`, JSON.stringify(record));
-    } catch {
-      /* sessionStorage unavailable — still show confirmation */
+      const res = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, location, startDate, endDate, isOneDay, description }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed to publish tournament');
+      setPublishedSlug(body.slug);
+      setSubmitted(true);
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : 'Failed to publish tournament');
+    } finally {
+      setPublishing(false);
     }
-    setPublishedSlug(slug);
-    setSubmitted(true);
   };
 
   if (!open) return null;
@@ -204,23 +203,11 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel}>Courts available *</label>
-              <input
-                className={styles.input}
-                type="number"
-                min={1}
-                value={courts}
-                onChange={e => setCourts(e.target.value)}
-              />
-              <p className={styles.fieldHint}>
-                Total courts you can run for this tournament — shared and rotated across all divisions.
-              </p>
-            </div>
-
-            <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel}>Description</label>
               <textarea className={styles.textarea} rows={3} placeholder="Optional — tell players what to expect..." value={description} onChange={e => setDescription(e.target.value)} />
             </div>
+
+            {publishError && <p className={styles.fieldHint} style={{ color: '#e5484d' }}>{publishError}</p>}
 
             <div className={styles.stepFooter} style={{ marginTop: 32 }}>
               <button type="button" className={styles.btnGhost} onClick={handleClose}>
@@ -238,10 +225,10 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
                 <button
                   type="button"
                   className={styles.btnPrimary}
-                  disabled={!canAdvance}
+                  disabled={!canAdvance || publishing}
                   onClick={publishNow}
                 >
-                  Publish
+                  {publishing ? 'Publishing…' : 'Publish'}
                 </button>
               </div>
             </div>
