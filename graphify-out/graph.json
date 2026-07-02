@@ -637,6 +637,34 @@
       "source_location": "L312"
     },
     {
+      "id": "app_dashboard_createtournamentmodal_tsx",
+      "label": "CreateTournamentModal.tsx",
+      "file_type": "code",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "dashboard_createtournamentmodal_slugify",
+      "label": "slugify()",
+      "file_type": "code",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L10"
+    },
+    {
+      "id": "dashboard_createtournamentmodal_props",
+      "label": "Props",
+      "file_type": "code",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L19"
+    },
+    {
+      "id": "dashboard_createtournamentmodal_createtournamentmodal",
+      "label": "CreateTournamentModal()",
+      "file_type": "code",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L24"
+    },
+    {
       "id": "app_dashboard_page_tsx",
       "label": "page.tsx",
       "file_type": "code",
@@ -648,56 +676,84 @@
       "label": "ORGANIZER",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L9"
+      "source_location": "L10"
     },
     {
       "id": "dashboard_page_stats",
       "label": "STATS",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L15"
+      "source_location": "L16"
+    },
+    {
+      "id": "dashboard_page_today",
+      "label": "TODAY",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L23"
     },
     {
       "id": "dashboard_page_active_tournaments",
       "label": "ACTIVE_TOURNAMENTS",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L21"
+      "source_location": "L28"
     },
     {
       "id": "dashboard_page_past_tournaments",
       "label": "PAST_TOURNAMENTS",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L76"
+      "source_location": "L80"
     },
     {
       "id": "dashboard_page_status_filters",
       "label": "STATUS_FILTERS",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L82"
+      "source_location": "L86"
     },
     {
       "id": "dashboard_page_statuskey",
       "label": "StatusKey",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L90"
+      "source_location": "L94"
     },
     {
       "id": "dashboard_page_phasetostatus",
       "label": "phaseToStatus()",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L92"
+      "source_location": "L96"
+    },
+    {
+      "id": "dashboard_page_cardtournament",
+      "label": "CardTournament",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L105"
+    },
+    {
+      "id": "dashboard_page_matchesfilter",
+      "label": "matchesFilter()",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L108"
     },
     {
       "id": "dashboard_page_organizerdashboard",
       "label": "OrganizerDashboard()",
       "file_type": "code",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L101"
+      "source_location": "L115"
+    },
+    {
+      "id": "dashboard_page_tournamentcard",
+      "label": "TournamentCard()",
+      "file_type": "code",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L253"
     },
     {
       "id": "app_dashboard_tournament_id_setup_page_tsx",
@@ -711,126 +767,140 @@
       "label": "Question",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L32"
+      "source_location": "L33"
     },
     {
       "id": "setup_page_voucher",
       "label": "Voucher",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L40"
+      "source_location": "L41"
     },
     {
       "id": "setup_page_team",
       "label": "Team",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L48"
+      "source_location": "L49"
     },
     {
       "id": "setup_page_regfieldtype",
       "label": "RegFieldType",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L60"
+      "source_location": "L61"
     },
     {
       "id": "setup_page_presetkey",
       "label": "PresetKey",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L61"
+      "source_location": "L62"
     },
     {
       "id": "setup_page_regfield",
       "label": "RegField",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L63"
+      "source_location": "L64"
     },
     {
       "id": "setup_page_onsandformat",
       "label": "OnSandFormat",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L73"
+      "source_location": "L74"
     },
     {
       "id": "setup_page_roundformat",
       "label": "RoundFormat",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L74"
+      "source_location": "L75"
     },
     {
       "id": "setup_page_tournamentround",
       "label": "TournamentRound",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L76"
+      "source_location": "L77"
     },
     {
       "id": "setup_page_round_formats",
       "label": "ROUND_FORMATS",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L81"
+      "source_location": "L82"
     },
     {
       "id": "setup_page_roundlabel",
       "label": "roundLabel()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L88"
+      "source_location": "L89"
     },
     {
       "id": "setup_page_scoringrules",
       "label": "ScoringRules",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L93"
+      "source_location": "L94"
     },
     {
       "id": "setup_page_setupdivision",
       "label": "SetupDivision",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L101"
+      "source_location": "L102"
     },
     {
       "id": "setup_page_format_players",
       "label": "FORMAT_PLAYERS",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L127"
+      "source_location": "L131"
     },
     {
       "id": "setup_page_makebasefields",
       "label": "makeBaseFields()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L131"
+      "source_location": "L135"
     },
     {
       "id": "setup_page_presets",
       "label": "PRESETS",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L139"
+      "source_location": "L142"
     },
     {
       "id": "setup_page_defaultscoringrules",
       "label": "defaultScoringRules()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L157"
+      "source_location": "L165"
+    },
+    {
+      "id": "setup_page_modal_steps",
+      "label": "MODAL_STEPS",
+      "file_type": "code",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L174"
+    },
+    {
+      "id": "setup_page_formatdaterange",
+      "label": "formatDateRange()",
+      "file_type": "code",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L177"
     },
     {
       "id": "setup_page_organizersetup",
       "label": "OrganizerSetup()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L165"
+      "source_location": "L188"
     },
     {
       "id": "app_dashboard_create_page_tsx",
@@ -840,25 +910,11 @@
       "source_location": "L1"
     },
     {
-      "id": "create_page_slugify",
-      "label": "slugify()",
+      "id": "create_page_createredirect",
+      "label": "CreateRedirect()",
       "file_type": "code",
       "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L9"
-    },
-    {
-      "id": "create_page_createtournament",
-      "label": "CreateTournament()",
-      "file_type": "code",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L18"
-    },
-    {
-      "id": "create_page_topbar",
-      "label": "TopBar()",
-      "file_type": "code",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L152"
+      "source_location": "L5"
     },
     {
       "id": "app_score_token_page_tsx",
@@ -1082,6 +1138,27 @@
       "label": "allow",
       "file_type": "code",
       "source_file": ".claude/settings.local.json",
+      "source_location": "L3"
+    },
+    {
+      "id": "claude_launch_json",
+      "label": "launch.json",
+      "file_type": "code",
+      "source_file": ".claude/launch.json",
+      "source_location": "L1"
+    },
+    {
+      "id": "claude_launch_version",
+      "label": "version",
+      "file_type": "code",
+      "source_file": ".claude/launch.json",
+      "source_location": "L2"
+    },
+    {
+      "id": "claude_launch_configurations",
+      "label": "configurations",
+      "file_type": "code",
+      "source_file": ".claude/launch.json",
       "source_location": "L3"
     },
     {
@@ -1972,6 +2049,27 @@
       "file_type": "document",
       "source_file": "components/livebracket-ds/bracket/MatchCard.prompt.md",
       "source_location": "L1"
+    },
+    {
+      "id": "create_page_slugify",
+      "label": "slugify()",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L9"
+    },
+    {
+      "id": "create_page_createtournament",
+      "label": "CreateTournament()",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L18"
+    },
+    {
+      "id": "create_page_topbar",
+      "label": "TopBar()",
+      "file_type": "code",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L152"
     },
     {
       "id": "create_page_steps",
@@ -3979,6 +4077,83 @@
       "weight": 1.0
     },
     {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "link",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "navigation",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "users_torsmacair_livebracket_app_dashboard_create_page_module_css",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "dashboard_createtournamentmodal_slugify",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "dashboard_createtournamentmodal_props",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_createtournamentmodal_tsx",
+      "target": "dashboard_createtournamentmodal_createtournamentmodal",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/CreateTournamentModal.tsx",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
       "source": "app_dashboard_page_tsx",
       "target": "react",
       "relation": "imports_from",
@@ -4020,11 +4195,21 @@
     },
     {
       "source": "app_dashboard_page_tsx",
+      "target": "app_dashboard_createtournamentmodal_tsx",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
       "target": "dashboard_page_organizer",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L9",
+      "source_location": "L10",
       "weight": 1.0
     },
     {
@@ -4033,7 +4218,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L15",
+      "source_location": "L16",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_today",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L23",
       "weight": 1.0
     },
     {
@@ -4042,7 +4236,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L21",
+      "source_location": "L28",
       "weight": 1.0
     },
     {
@@ -4051,7 +4245,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L76",
+      "source_location": "L80",
       "weight": 1.0
     },
     {
@@ -4060,7 +4254,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L82",
+      "source_location": "L86",
       "weight": 1.0
     },
     {
@@ -4069,7 +4263,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L90",
+      "source_location": "L94",
       "weight": 1.0
     },
     {
@@ -4078,7 +4272,25 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L92",
+      "source_location": "L96",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_cardtournament",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L105",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_matchesfilter",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L108",
       "weight": 1.0
     },
     {
@@ -4087,7 +4299,26 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/page.tsx",
-      "source_location": "L101",
+      "source_location": "L115",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_tournamentcard",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L253",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_page_matchesfilter",
+      "target": "dashboard_page_phasetostatus",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L112",
       "weight": 1.0
     },
     {
@@ -4137,7 +4368,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L30",
+      "source_location": "L31",
       "weight": 1.0
     },
     {
@@ -4146,7 +4377,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L32",
+      "source_location": "L33",
       "weight": 1.0
     },
     {
@@ -4155,7 +4386,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L40",
+      "source_location": "L41",
       "weight": 1.0
     },
     {
@@ -4164,7 +4395,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L48",
+      "source_location": "L49",
       "weight": 1.0
     },
     {
@@ -4173,7 +4404,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L60",
+      "source_location": "L61",
       "weight": 1.0
     },
     {
@@ -4182,7 +4413,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0
     },
     {
@@ -4191,7 +4422,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L63",
+      "source_location": "L64",
       "weight": 1.0
     },
     {
@@ -4200,7 +4431,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L73",
+      "source_location": "L74",
       "weight": 1.0
     },
     {
@@ -4209,7 +4440,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L74",
+      "source_location": "L75",
       "weight": 1.0
     },
     {
@@ -4218,7 +4449,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L76",
+      "source_location": "L77",
       "weight": 1.0
     },
     {
@@ -4227,7 +4458,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L81",
+      "source_location": "L82",
       "weight": 1.0
     },
     {
@@ -4236,7 +4467,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L88",
+      "source_location": "L89",
       "weight": 1.0
     },
     {
@@ -4245,7 +4476,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L93",
+      "source_location": "L94",
       "weight": 1.0
     },
     {
@@ -4254,7 +4485,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L101",
+      "source_location": "L102",
       "weight": 1.0
     },
     {
@@ -4263,7 +4494,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L127",
+      "source_location": "L131",
       "weight": 1.0
     },
     {
@@ -4272,7 +4503,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L131",
+      "source_location": "L135",
       "weight": 1.0
     },
     {
@@ -4281,7 +4512,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L139",
+      "source_location": "L142",
       "weight": 1.0
     },
     {
@@ -4290,7 +4521,25 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L157",
+      "source_location": "L165",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_modal_steps",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L174",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_formatdaterange",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L177",
       "weight": 1.0
     },
     {
@@ -4299,7 +4548,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L165",
+      "source_location": "L188",
       "weight": 1.0
     },
     {
@@ -4309,7 +4558,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L196",
+      "source_location": "L220",
       "weight": 1.0
     },
     {
@@ -4319,27 +4568,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L198",
+      "source_location": "L222",
       "weight": 1.0
     },
     {
-      "source": "app_dashboard_create_page_tsx",
-      "target": "react",
-      "relation": "imports_from",
-      "context": "import",
+      "source": "setup_page_organizersetup",
+      "target": "setup_page_formatdaterange",
+      "relation": "calls",
+      "context": "call",
       "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L3",
-      "weight": 1.0
-    },
-    {
-      "source": "app_dashboard_create_page_tsx",
-      "target": "link",
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L4",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L719",
       "weight": 1.0
     },
     {
@@ -4349,44 +4588,16 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_createredirect",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
       "source_location": "L5",
-      "weight": 1.0
-    },
-    {
-      "source": "app_dashboard_create_page_tsx",
-      "target": "users_torsmacair_livebracket_app_dashboard_create_page_module_css",
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L6",
-      "weight": 1.0
-    },
-    {
-      "source": "app_dashboard_create_page_tsx",
-      "target": "create_page_slugify",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L9",
-      "weight": 1.0
-    },
-    {
-      "source": "app_dashboard_create_page_tsx",
-      "target": "create_page_createtournament",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L18",
-      "weight": 1.0
-    },
-    {
-      "source": "app_dashboard_create_page_tsx",
-      "target": "create_page_topbar",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "app/dashboard/create/page.tsx",
-      "source_location": "L152",
       "weight": 1.0
     },
     {
@@ -4923,6 +5134,24 @@
       "source_location": "L3",
       "weight": 1.0,
       "context": "import"
+    },
+    {
+      "source": "claude_launch_json",
+      "target": "claude_launch_version",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/launch.json",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "claude_launch_json",
+      "target": "claude_launch_configurations",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/launch.json",
+      "source_location": "L3",
+      "weight": 1.0
     },
     {
       "source": "components_livebracket_ds_index_ts",
@@ -5790,6 +6019,2709 @@
       "confidence": "EXTRACTED",
       "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
       "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "components_livebracket_ds_data_display_avatar_jsx",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "data_display_avatar_avatar",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "bracket_matchcard_teamrow",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_bracket_matchcard_jsx",
+      "target": "bracket_matchcard_matchcard",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.jsx",
+      "source_location": "L65",
+      "weight": 1.0
+    },
+    {
+      "source": "tmp_vercel_config_config_json",
+      "target": "vercel_config_config_note",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/config.json",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "tmp_vercel_config_config_json",
+      "target": "vercel_config_config_docs",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/config.json",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "tmp_vercel_config_config_json",
+      "target": "vercel_config_config_telemetry",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/config.json",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "vercel_config_config_telemetry",
+      "target": "vercel_config_config_telemetry_enabled",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/config.json",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "tmp_vercel_config_telemetry_session_json",
+      "target": "vercel_config_telemetry_session_id",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/telemetry-session.json",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "tmp_vercel_config_telemetry_session_json",
+      "target": "vercel_config_telemetry_session_createdat",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/telemetry-session.json",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "tmp_vercel_config_telemetry_session_json",
+      "target": "vercel_config_telemetry_session_lastseenat",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/telemetry-session.json",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "tmp_vercel_config_telemetry_device_json",
+      "target": "vercel_config_telemetry_device_id",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".tmp/vercel-config/telemetry-device.json",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "readme_md",
+      "target": "livebracket_readme_getting_started",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "readme_md",
+      "target": "livebracket_readme_learn_more",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L23",
+      "weight": 1.0
+    },
+    {
+      "source": "readme_md",
+      "target": "livebracket_readme_deploy_on_vercel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
+      "source_location": "L32",
+      "weight": 1.0
+    },
+    {
+      "source": "gemini_md",
+      "target": "livebracket_gemini_agent_instructions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_agent_instructions",
+      "target": "livebracket_gemini_project_overview",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_project_overview",
+      "target": "livebracket_gemini_web_stack",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_project_overview",
+      "target": "livebracket_gemini_key_routes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L26",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_agent_instructions",
+      "target": "livebracket_gemini_the_3_layer_architecture_for_the_agent_system",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L41",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_agent_instructions",
+      "target": "livebracket_gemini_available_tools_integrations",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L63",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_available_tools_integrations",
+      "target": "livebracket_gemini_mcp_servers_configured",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L65",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_available_tools_integrations",
+      "target": "livebracket_gemini_skills_auto_trigger_by_description",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L70",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_available_tools_integrations",
+      "target": "livebracket_gemini_graphify_usage_codebase_questions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L76",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_agent_instructions",
+      "target": "livebracket_gemini_operating_principles",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L84",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_agent_instructions",
+      "target": "livebracket_gemini_self_annealing_loop",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L110",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_agent_instructions",
+      "target": "livebracket_gemini_file_organization",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L121",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_gemini_agent_instructions",
+      "target": "livebracket_gemini_summary",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "GEMINI.md",
+      "source_location": "L141",
+      "weight": 1.0
+    },
+    {
+      "source": "agents_md",
+      "target": "livebracket_agents_agent_instructions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_agent_instructions",
+      "target": "livebracket_agents_project_overview",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_project_overview",
+      "target": "livebracket_agents_web_stack",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_project_overview",
+      "target": "livebracket_agents_key_routes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L26",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_agent_instructions",
+      "target": "livebracket_agents_the_3_layer_architecture_for_the_agent_system",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L41",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_agent_instructions",
+      "target": "livebracket_agents_available_tools_integrations",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L63",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_available_tools_integrations",
+      "target": "livebracket_agents_mcp_servers_configured",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L65",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_available_tools_integrations",
+      "target": "livebracket_agents_skills_auto_trigger_by_description",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L70",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_available_tools_integrations",
+      "target": "livebracket_agents_graphify_usage_codebase_questions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L76",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_agent_instructions",
+      "target": "livebracket_agents_operating_principles",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L84",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_agent_instructions",
+      "target": "livebracket_agents_self_annealing_loop",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L110",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_agent_instructions",
+      "target": "livebracket_agents_file_organization",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L121",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_agents_agent_instructions",
+      "target": "livebracket_agents_summary",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L141",
+      "weight": 1.0
+    },
+    {
+      "source": "claude_md",
+      "target": "livebracket_claude_agent_instructions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_agent_instructions",
+      "target": "livebracket_claude_project_overview",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_project_overview",
+      "target": "livebracket_claude_web_stack",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_project_overview",
+      "target": "livebracket_claude_key_routes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L26",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_agent_instructions",
+      "target": "livebracket_claude_the_3_layer_architecture_for_the_agent_system",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L41",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_agent_instructions",
+      "target": "livebracket_claude_available_tools_integrations",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L63",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_available_tools_integrations",
+      "target": "livebracket_claude_mcp_servers_configured",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L65",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_available_tools_integrations",
+      "target": "livebracket_claude_skills_auto_trigger_by_description",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L70",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_available_tools_integrations",
+      "target": "livebracket_claude_graphify_usage_codebase_questions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L76",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_agent_instructions",
+      "target": "livebracket_claude_operating_principles",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L84",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_agent_instructions",
+      "target": "livebracket_claude_self_annealing_loop",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L110",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_agent_instructions",
+      "target": "livebracket_claude_file_organization",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L121",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_claude_agent_instructions",
+      "target": "livebracket_claude_summary",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L141",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_bracket_matchcard_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_brand_logo_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_buttons_button_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_avatar_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_badge_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_datechip_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_divisionring_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_liveindicator_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_pagecontrol_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_forms_searchfield_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_forms_segmentedcontrol_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_icons_icon_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_surfaces_card_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_surfaces_glasscard_jsx",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "data_display_datechip_datechip",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "surfaces_glasscard_glasscard",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "buttons_button_button",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "brand_logo_logo",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_avatar_avatar",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_badge_badge",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_datechip_datechip",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_divisionring_divisionring",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_liveindicator_liveindicator",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "data_display_pagecontrol_pagecontrol",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "forms_searchfield_searchfield",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "forms_segmentedcontrol_segmentedcontrol",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "icons_icon_icon",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "bracket_matchcard_matchcard",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "postcss_config_mjs",
+      "target": "livebracket_postcss_config_config",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "postcss.config.mjs",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "mcp_json",
+      "target": "livebracket_mcp_mcp_server_vercel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": ".mcp.json",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "package_json",
+      "target": "livebracket_package_name",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "package_json",
+      "target": "livebracket_package_version",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "package_json",
+      "target": "livebracket_package_private",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "package_json",
+      "target": "livebracket_package_scripts",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_dev",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_build",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_start",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_scripts",
+      "target": "livebracket_package_scripts_lint",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "package_json",
+      "target": "livebracket_package_dependencies",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_framer_motion",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_lucide_react",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_dependencies_lucide_react",
+      "target": "lucide_react",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "context": "import"
+    },
+    {
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_next",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_react",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_dependencies",
+      "target": "livebracket_package_dependencies_react_dom",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L16",
+      "weight": 1.0
+    },
+    {
+      "source": "package_json",
+      "target": "livebracket_package_devdependencies",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_tailwindcss_postcss",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_types_node",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_types_react",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L21",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_types_react_dom",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L22",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_eslint",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L23",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_eslint_config_next",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_tailwindcss",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L25",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_package_devdependencies",
+      "target": "livebracket_package_devdependencies_typescript",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L26",
+      "weight": 1.0
+    },
+    {
+      "source": "tsconfig_json",
+      "target": "livebracket_tsconfig_compileroptions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_target",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_lib",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_allowjs",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_skiplibcheck",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_strict",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_noemit",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_esmoduleinterop",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_module",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_moduleresolution",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_resolvejsonmodule",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_isolatedmodules",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_jsx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_incremental",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_plugins",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L16",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions",
+      "target": "livebracket_tsconfig_compileroptions_paths",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L21",
+      "weight": 1.0
+    },
+    {
+      "source": "livebracket_tsconfig_compileroptions_paths",
+      "target": "livebracket_tsconfig_paths",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L22",
+      "weight": 1.0
+    },
+    {
+      "source": "tsconfig_json",
+      "target": "livebracket_tsconfig_include",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L25",
+      "weight": 1.0
+    },
+    {
+      "source": "tsconfig_json",
+      "target": "livebracket_tsconfig_exclude",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tsconfig.json",
+      "source_location": "L33",
+      "weight": 1.0
+    },
+    {
+      "source": "eslint_config_mjs",
+      "target": "livebracket_eslint_config_eslintconfig",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "eslint.config.mjs",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "next_config_ts",
+      "target": "livebracket_next_config_nextconfig",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "next.config.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "app_layout_metadata",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/layout.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "app_layout_rootlayout",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/layout.tsx",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_livebracket_ds_index_ts",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_status",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_carouselmatch",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_registrationinfo",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L31",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_tournament",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L37",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_progresscircle",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L57",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_rollingdigit",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L98",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_rollingnumber",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L125",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_tournaments",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L138",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_carousel_matches",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L281",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_filters",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L402",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_status_label",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L407",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_getavatartext",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L413",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_getteamname",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L418",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_completedslideshow",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L422",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_page_livebrackethome",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L509",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_livebrackethome",
+      "target": "app_page_getavatartext",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L830",
+      "weight": 1.0
+    },
+    {
+      "source": "app_page_livebrackethome",
+      "target": "app_page_getteamname",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/page.tsx",
+      "source_location": "L833",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tournamentstatus",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tournament",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_matchplayer",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L36",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_bracketmatch",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L37",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_bracket",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L49",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_pool_standings",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L74",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_schedule",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L81",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_teams",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L91",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tab",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L102",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_nav",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L105",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_bracketmatchcard",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L171",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_page_tsx",
+      "target": "id_page_tournamentdetail",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/page.tsx",
+      "source_location": "L214",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_divisions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_steps",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L16",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_player",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_tournamentregister",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "app_tournament_id_register_page_tsx",
+      "target": "register_page_topbar",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/tournament/[id]/register/page.tsx",
+      "source_location": "L312",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_organizer",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_stats",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_active_tournaments",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L21",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_past_tournaments",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L76",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_status_filters",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L82",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_statuskey",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L90",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_phasetostatus",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L92",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_page_tsx",
+      "target": "dashboard_page_organizerdashboard",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/page.tsx",
+      "source_location": "L101",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_question",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L32",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_voucher",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L40",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_team",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L48",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_regfieldtype",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L60",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_presetkey",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L61",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_regfield",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L63",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_onsandformat",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L73",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_roundformat",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L74",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_tournamentround",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L76",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_round_formats",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L81",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_roundlabel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L88",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_scoringrules",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L93",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_setupdivision",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L101",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_format_players",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L127",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_makebasefields",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L131",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_presets",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L139",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_defaultscoringrules",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L157",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_setup_page_tsx",
+      "target": "setup_page_organizersetup",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L165",
+      "weight": 1.0
+    },
+    {
+      "source": "setup_page_organizersetup",
+      "target": "setup_page_defaultscoringrules",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L196",
+      "weight": 1.0
+    },
+    {
+      "source": "setup_page_organizersetup",
+      "target": "setup_page_makebasefields",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
+      "source_location": "L198",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_slugify",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_createtournament",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_create_page_tsx",
+      "target": "create_page_topbar",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/create/page.tsx",
+      "source_location": "L152",
+      "weight": 1.0
+    },
+    {
+      "source": "app_score_token_page_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "app_score_token_page_tsx",
+      "target": "token_page_match",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "app_score_token_page_tsx",
+      "target": "token_page_setscore",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L21",
+      "weight": 1.0
+    },
+    {
+      "source": "app_score_token_page_tsx",
+      "target": "token_page_scorekeeperpage",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/score/[token]/page.tsx",
+      "source_location": "L23",
+      "weight": 1.0
+    },
+    {
+      "source": "app_profile_page_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_player",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_starred",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_history",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L29",
+      "weight": 1.0
+    },
+    {
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_tab",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L37",
+      "weight": 1.0
+    },
+    {
+      "source": "app_profile_page_tsx",
+      "target": "profile_page_playerprofile",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/profile/page.tsx",
+      "source_location": "L39",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "components_livebracket_ds_index_ts",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_tournaments",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L21",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_photobackdrop",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L82",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_topbar",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L96",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_backbtn",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L117",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_loginscreen",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L135",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_listingscreen",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L175",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_detailscreen",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L237",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_bracketscreen",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L285",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_simulator_tsx",
+      "target": "design_system_simulator_simulator",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/Simulator.tsx",
+      "source_location": "L338",
+      "weight": 1.0
+    },
+    {
+      "source": "app_design_system_page_tsx",
+      "target": "design_system_page_designsystempage",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/design-system/page.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "app_login_layout_tsx",
+      "target": "login_layout_metadata",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/layout.tsx",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "app_login_layout_tsx",
+      "target": "login_layout_loginlayout",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/layout.tsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "app_login_page_tsx",
+      "target": "login_page_role",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "app_login_page_tsx",
+      "target": "login_page_arrow",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "app_login_page_tsx",
+      "target": "login_page_livebracketlogin",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/login/page.tsx",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "claude_settings_local_json",
+      "target": "claude_settings_local_permissions",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "claude_settings_local_permissions",
+      "target": "claude_settings_local_permissions_allow",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/settings.local.json",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_bracket_matchcard_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "bracket_matchcard_matchcard",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_brand_logo_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "brand_logo_logo",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_buttons_button_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "buttons_button_button",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_avatar_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_avatar_avatar",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_badge_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_badge_badge",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_datechip_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_datechip_datechip",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_divisionring_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_divisionring_divisionring",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_liveindicator_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_liveindicator_liveindicator",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_data_display_pagecontrol_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "data_display_pagecontrol_pagecontrol",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_forms_searchfield_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "forms_searchfield_searchfield",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_forms_segmentedcontrol_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "forms_segmentedcontrol_segmentedcontrol",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_icons_icon_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "icons_icon_icon",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_surfaces_card_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "surfaces_card_card",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "components_livebracket_ds_surfaces_glasscard_jsx",
+      "relation": "imports_from",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_index_ts",
+      "target": "surfaces_glasscard_glasscard",
+      "relation": "re_exports",
+      "context": "re-export",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/index.ts",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_forms_searchfield_d_ts",
+      "target": "forms_searchfield_d_searchfieldprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_forms_segmentedcontrol_jsx",
+      "target": "forms_segmentedcontrol_segmentedcontrol",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.jsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_forms_searchfield_jsx",
+      "target": "components_livebracket_ds_icons_icon_jsx",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_forms_searchfield_jsx",
+      "target": "icons_icon_icon",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_forms_searchfield_jsx",
+      "target": "forms_searchfield_searchfield",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SearchField.jsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_forms_segmentedcontrol_d_ts",
+      "target": "forms_segmentedcontrol_d_segmentoption",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_forms_segmentedcontrol_d_ts",
+      "target": "forms_segmentedcontrol_d_segmentedcontrolprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/forms/SegmentedControl.d.ts",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_buttons_button_jsx",
+      "target": "buttons_button_button",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/buttons/Button.jsx",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_buttons_button_d_ts",
+      "target": "buttons_button_d_buttonprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/buttons/Button.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_brand_logo_jsx",
+      "target": "brand_logo_mark",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/brand/Logo.jsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_brand_logo_jsx",
+      "target": "brand_logo_logo",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/brand/Logo.jsx",
+      "source_location": "L26",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_brand_logo_d_ts",
+      "target": "brand_logo_d_logoprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/brand/Logo.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_divisionring_d_ts",
+      "target": "data_display_divisionring_d_divisionringprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_avatar_jsx",
+      "target": "data_display_avatar_avatar",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Avatar.jsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_liveindicator_d_ts",
+      "target": "data_display_liveindicator_d_liveindicatorprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_pagecontrol_d_ts",
+      "target": "data_display_pagecontrol_d_pagecontrolprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/PageControl.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_badge_jsx",
+      "target": "data_display_badge_badge",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Badge.jsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_liveindicator_jsx",
+      "target": "data_display_liveindicator_liveindicator",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/LiveIndicator.jsx",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_divisionring_jsx",
+      "target": "data_display_divisionring_divisionring",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DivisionRing.jsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_pagecontrol_jsx",
+      "target": "data_display_pagecontrol_pagecontrol",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/PageControl.jsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_avatar_d_ts",
+      "target": "data_display_avatar_d_avatarprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Avatar.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_badge_d_ts",
+      "target": "data_display_badge_d_badgeprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/Badge.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_datechip_d_ts",
+      "target": "data_display_datechip_d_datechipprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DateChip.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_data_display_datechip_jsx",
+      "target": "data_display_datechip_datechip",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/data-display/DateChip.jsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_icons_icon_jsx",
+      "target": "icons_icon_paths",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.jsx",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_icons_icon_jsx",
+      "target": "icons_icon_icon",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.jsx",
+      "source_location": "L30",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_icons_icon_d_ts",
+      "target": "icons_icon_d_iconname",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_icons_icon_d_ts",
+      "target": "icons_icon_d_iconprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/icons/Icon.d.ts",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_surfaces_card_jsx",
+      "target": "surfaces_card_card",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/Card.jsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_surfaces_card_d_ts",
+      "target": "surfaces_card_d_cardprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/Card.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_surfaces_glasscard_d_ts",
+      "target": "surfaces_glasscard_d_glasscardprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_surfaces_glasscard_jsx",
+      "target": "surfaces_glasscard_glasscard",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/surfaces/GlassCard.jsx",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_bracket_matchcard_d_ts",
+      "target": "bracket_matchcard_d_matchteam",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.d.ts",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "components_livebracket_ds_bracket_matchcard_d_ts",
+      "target": "bracket_matchcard_d_matchcardprops",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "components/livebracket-ds/bracket/MatchCard.d.ts",
+      "source_location": "L13",
       "weight": 1.0
     },
     {

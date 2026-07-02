@@ -45,13 +45,13 @@
     "semantic_hash": "9b26b505a6219747e78969497d3fb416"
   },
   "/Users/torsmacair/livebracket/app/dashboard/page.tsx": {
-    "mtime": 1782812789.9766302,
-    "ast_hash": "d8da436737c8dc01c7ea2748774c350f",
+    "mtime": 1782869090.9379625,
+    "ast_hash": "69d3a68ab884e665f45fb08fff9309b1",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/create/page.tsx": {
-    "mtime": 1782813528.665207,
-    "ast_hash": "4deadf0a50f1ef27299465dacc9348e4",
+    "mtime": 1782835701.7877324,
+    "ast_hash": "18d8673655b086a4ed39be8fc6b70797",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/score/[token]/page.tsx": {
@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/setup/page.tsx": {
-    "mtime": 1782813833.807899,
-    "ast_hash": "0b0f8c2ecc2d76e01506d0e3e04c8546",
+    "mtime": 1782831881.4993052,
+    "ast_hash": "55e0b58be0eaf3eb11455f0ce8a67204",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/.tmp/vercel-config/config.json": {
@@ -415,13 +415,38 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/icon.svg": {
-    "mtime": 1782812582.909813,
-    "ast_hash": "a8ff338dea44704d4fa2a9a790ff5402",
+    "mtime": 1782827836.1396525,
+    "ast_hash": "91f90f90f8ad27cfcaf24247d681c41e",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/.tmp/diff_create.txt": {
     "mtime": 1782813669.0976124,
     "ast_hash": "94fc7a9eb29202a367dce3cbd727a213",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/dashboard/CreateTournamentModal.tsx": {
+    "mtime": 1782888539.3855007,
+    "ast_hash": "7d75d2b174a4e1c5649b5500116c8508",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/.claude/launch.json": {
+    "mtime": 1782832668.7157433,
+    "ast_hash": "ef0e75dd34a6587255365d0ed42c6895",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/Group 13.svg": {
+    "mtime": 1782827749.5502572,
+    "ast_hash": "91f90f90f8ad27cfcaf24247d681c41e",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/icon.svg": {
+    "mtime": 1782812582.909813,
+    "ast_hash": "a8ff338dea44704d4fa2a9a790ff5402",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/public/IMG_7225.jpg": {
+    "mtime": 1740283681.0,
+    "ast_hash": "5779d8bc58666a3e2504595a7e383b77",
     "semantic_hash": ""
   }
 }
