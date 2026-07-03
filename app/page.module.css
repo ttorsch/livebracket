@@ -347,6 +347,7 @@
   justify-content: center;
   align-items: flex-start;
   width: 100%;
+  min-width: 0;
 }
 
 .heroTextCol {
@@ -606,6 +607,7 @@
 .pulseCard {
   width: 100%;
   max-width: 520px;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.16); /* glassmorphism value from login */
   border-radius: 36px;
   padding: 40px 36px;
@@ -1855,6 +1857,16 @@
   .completedGrid { grid-template-columns: 1fr; }
   .ctaCard { padding: 40px 20px; }
   .pulseCard { padding: 20px; }
+
+  /* Give the score row more breathing room so long team/pair names wrap
+     onto multiple lines instead of stretching the card off-center. */
+  .teamLeftGroup { gap: 10px; }
+  .teamAvatar { width: 36px; height: 36px; font-size: 13px; }
+  .teamNameText { font-size: 15px; }
+  .teamRightGroup { gap: 12px; }
+  .setHistoryRow { gap: 10px; }
+  .historyPointsValue { font-size: 15px; }
+  .orangePoints, .orangePoints span { font-size: 36px !important; }
 }
 
 /* Spinner for loading state */
@@ -1932,13 +1944,17 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  height: 56px;
+  min-height: 56px;
+  min-width: 0;
 }
 
 .teamLeftGroup {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .teamAvatar {
@@ -1954,12 +1970,16 @@
   font-weight: 700;
   color: #7A8294;
   border: 1px solid rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
 }
 
 .teamNameText {
   font-family: var(--font-heading);
   font-size: 19px;
   line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .leadingTeam .teamNameText {
@@ -1976,6 +1996,7 @@
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-shrink: 0;
 }
 
 .setHistoryRow {
