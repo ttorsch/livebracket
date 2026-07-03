@@ -1857,16 +1857,6 @@
   .completedGrid { grid-template-columns: 1fr; }
   .ctaCard { padding: 40px 20px; }
   .pulseCard { padding: 20px; }
-
-  /* Give the score row more breathing room so long team/pair names wrap
-     onto multiple lines instead of stretching the card off-center. */
-  .teamLeftGroup { gap: 10px; }
-  .teamAvatar { width: 36px; height: 36px; font-size: 13px; }
-  .teamNameText { font-size: 15px; }
-  .teamRightGroup { gap: 12px; }
-  .setHistoryRow { gap: 10px; }
-  .historyPointsValue { font-size: 15px; }
-  .orangePoints, .orangePoints span { font-size: 36px !important; }
 }
 
 /* Spinner for loading state */
@@ -1974,10 +1964,19 @@
 }
 
 .teamNameText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   font-family: var(--font-heading);
   font-size: 19px;
   line-height: 1.2;
   min-width: 0;
+  text-align: left;
+}
+
+.teamNameLine {
+  min-width: 0;
+  max-width: 100%;
   overflow-wrap: break-word;
   word-break: break-word;
 }
@@ -2042,6 +2041,19 @@
   background-color: rgba(20, 24, 30, 0.06);
   width: 100%;
   margin: 2px 0;
+}
+
+/* Give the score row more breathing room so long team/pair names wrap
+   onto multiple lines instead of stretching the card off-center. */
+@media (max-width: 640px) {
+  .carouselMatchCard { padding: 14px 14px; }
+  .teamLeftGroup { gap: 10px; }
+  .teamAvatar { display: none; }
+  .teamNameText { font-size: 15px; }
+  .teamRightGroup { gap: 12px; }
+  .setHistoryRow { gap: 10px; }
+  .historyPointsValue { font-size: 15px; }
+  .orangePoints, .orangePoints span { font-size: 36px !important; }
 }
 
 .nearbyCardContent {

@@ -415,10 +415,6 @@ const getAvatarText = (players: { name: string }[]) => {
   return `${players[0].name.charAt(0).toUpperCase()}/`;
 };
 
-const getTeamName = (players: { name: string }[]) => {
-  return players.map(p => p.name).join(' / ');
-};
-
 function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]; styles: Record<string, string> }) {
   const [active, setActive] = useState(0);
 
@@ -829,9 +825,11 @@ export default function LiveBracketHome() {
                           <div className={styles.teamAvatar}>
                             {getAvatarText(activeMatch.teamAPlayers)}
                           </div>
-                          <span className={styles.teamNameText}>
-                            {getTeamName(activeMatch.teamAPlayers)}
-                          </span>
+                          <div className={styles.teamNameText}>
+                            {activeMatch.teamAPlayers.map((player, pIdx) => (
+                              <span key={pIdx} className={styles.teamNameLine}>{player.name}</span>
+                            ))}
+                          </div>
                         </div>
                         <div className={styles.teamRightGroup}>
                           <div className={styles.setHistoryRow}>
@@ -857,9 +855,11 @@ export default function LiveBracketHome() {
                           <div className={styles.teamAvatar}>
                             {getAvatarText(activeMatch.teamBPlayers)}
                           </div>
-                          <span className={styles.teamNameText}>
-                            {getTeamName(activeMatch.teamBPlayers)}
-                          </span>
+                          <div className={styles.teamNameText}>
+                            {activeMatch.teamBPlayers.map((player, pIdx) => (
+                              <span key={pIdx} className={styles.teamNameLine}>{player.name}</span>
+                            ))}
+                          </div>
                         </div>
                         <div className={styles.teamRightGroup}>
                           <div className={styles.setHistoryRow}>
