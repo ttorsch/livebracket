@@ -2004,16 +2004,8 @@
   font-family: 'Space Grotesk', sans-serif;
   font-size: 19px;
   font-variant-numeric: tabular-nums;
-}
-
-.leadingTeam .historyPointsValue {
   color: var(--ink-1, #14181E);
-  font-weight: 700;
-}
-
-.trailingTeam .historyPointsValue {
-  color: var(--ink-1, #14181E);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .livePoints,
