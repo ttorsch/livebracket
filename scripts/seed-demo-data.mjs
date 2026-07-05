@@ -100,7 +100,8 @@ function addPlayers(teamId, count = 2) {
     players.push({
       id: nextId('player'),
       team_id: teamId,
-      name: `${FIRST[(counters.player + i) % FIRST.length]} ${SECOND[(counters.player + i * 3) % SECOND.length]}`,
+      first_name: FIRST[(counters.player + i) % FIRST.length],
+      last_name: SECOND[(counters.player + i * 3) % SECOND.length],
       phone: `08${String(10000000 + counters.player).slice(0, 8)}`,
       email: null,
       shirt_size: ['S', 'M', 'L', 'XL'][counters.player % 4],

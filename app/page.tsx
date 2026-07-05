@@ -21,8 +21,8 @@ interface CarouselMatch {
   division: string;
   round: string;
   court: string;
-  teamAPlayers: { name: string; flag: string }[];
-  teamBPlayers: { name: string; flag: string }[];
+  teamAPlayers: { firstName: string; lastName: string; flag: string }[];
+  teamBPlayers: { firstName: string; lastName: string; flag: string }[];
   currentPointsA: number;
   currentPointsB: number;
   sets: { a: number; b: number }[];
@@ -286,12 +286,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Quarterfinals",
     court: "Court 1",
     teamAPlayers: [
-      { name: "Aroon", flag: "🇹🇭" },
-      { name: "Niran", flag: "🇹🇭" }
+      { firstName: "Aroon", lastName: "Suwannarat", flag: "🇹🇭" },
+      { firstName: "Niran", lastName: "Boonmee", flag: "🇹🇭" }
     ],
     teamBPlayers: [
-      { name: "Lukas", flag: "🇩🇪" },
-      { name: "Felix", flag: "🇩🇪" }
+      { firstName: "Lukas", lastName: "Weber", flag: "🇩🇪" },
+      { firstName: "Felix", lastName: "Schmidt", flag: "🇩🇪" }
     ],
     currentPointsA: 2,
     currentPointsB: 1,
@@ -306,12 +306,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Semifinals",
     court: "Court 2",
     teamAPlayers: [
-      { name: "Marie", flag: "🇩🇪" },
-      { name: "Klara", flag: "🇩🇪" }
+      { firstName: "Marie", lastName: "Fischer", flag: "🇩🇪" },
+      { firstName: "Klara", lastName: "Hoffmann", flag: "🇩🇪" }
     ],
     teamBPlayers: [
-      { name: "Larissa", flag: "🇧🇷" },
-      { name: "Talita", flag: "🇧🇷" }
+      { firstName: "Larissa", lastName: "Souza", flag: "🇧🇷" },
+      { firstName: "Talita", lastName: "Ferreira", flag: "🇧🇷" }
     ],
     currentPointsA: 15,
     currentPointsB: 12,
@@ -325,12 +325,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Final",
     court: "Court 1",
     teamAPlayers: [
-      { name: "Sarah", flag: "🇨🇦" },
-      { name: "Melissa", flag: "🇨🇦" }
+      { firstName: "Sarah", lastName: "Tremblay", flag: "🇨🇦" },
+      { firstName: "Melissa", lastName: "Roy", flag: "🇨🇦" }
     ],
     teamBPlayers: [
-      { name: "Alix", flag: "🇫🇷" },
-      { name: "Clémentine", flag: "🇫🇷" }
+      { firstName: "Alix", lastName: "Moreau", flag: "🇫🇷" },
+      { firstName: "Clémentine", lastName: "Girard", flag: "🇫🇷" }
     ],
     currentPointsA: 9,
     currentPointsB: 7,
@@ -345,12 +345,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Semifinals",
     court: "Court 3",
     teamAPlayers: [
-      { name: "Pablo", flag: "🇪🇸" },
-      { name: "Adrian", flag: "🇪🇸" }
+      { firstName: "Pablo", lastName: "Garcia", flag: "🇪🇸" },
+      { firstName: "Adrian", lastName: "Martinez", flag: "🇪🇸" }
     ],
     teamBPlayers: [
-      { name: "Marco", flag: "🇮🇹" },
-      { name: "Paolo", flag: "🇮🇹" }
+      { firstName: "Marco", lastName: "Rossi", flag: "🇮🇹" },
+      { firstName: "Paolo", lastName: "Bianchi", flag: "🇮🇹" }
     ],
     currentPointsA: 4,
     currentPointsB: 6,
@@ -364,12 +364,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Quarterfinals",
     court: "Court 4",
     teamAPlayers: [
-      { name: "Miki", flag: "🇯🇵" },
-      { name: "Megumi", flag: "🇯🇵" }
+      { firstName: "Miki", lastName: "Tanaka", flag: "🇯🇵" },
+      { firstName: "Megumi", lastName: "Sato", flag: "🇯🇵" }
     ],
     teamBPlayers: [
-      { name: "Sophie", flag: "🇦🇺" },
-      { name: "Emma", flag: "🇦🇺" }
+      { firstName: "Sophie", lastName: "Walker", flag: "🇦🇺" },
+      { firstName: "Emma", lastName: "Mitchell", flag: "🇦🇺" }
     ],
     currentPointsA: 18,
     currentPointsB: 20,
@@ -384,12 +384,12 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
     round: "Semifinals",
     court: "Court 2",
     teamAPlayers: [
-      { name: "Emma", flag: "🇬🇧" },
-      { name: "Liam", flag: "🇬🇧" }
+      { firstName: "Emma", lastName: "Taylor", flag: "🇬🇧" },
+      { firstName: "Liam", lastName: "Wilson", flag: "🇬🇧" }
     ],
     teamBPlayers: [
-      { name: "Chloé", flag: "🇨🇭" },
-      { name: "Noah", flag: "🇨🇭" }
+      { firstName: "Chloé", lastName: "Rochat", flag: "🇨🇭" },
+      { firstName: "Noah", lastName: "Baumann", flag: "🇨🇭" }
     ],
     currentPointsA: 20,
     currentPointsB: 19,
@@ -826,13 +826,13 @@ export default function LiveBracketHome() {
                           <div className={styles.teamAvatarStack}>
                             {activeMatch.teamAPlayers.map((player, pIdx) => (
                               <div key={pIdx} className={styles.teamAvatarItem}>
-                                {getPlayerInitial(player.name)}
+                                {getPlayerInitial(player.lastName)}
                               </div>
                             ))}
                           </div>
                           <div className={styles.teamNameText}>
                             {activeMatch.teamAPlayers.map((player, pIdx) => (
-                              <span key={pIdx} className={styles.teamNameLine}>{player.name}</span>
+                              <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
                             ))}
                           </div>
                         </div>
@@ -860,13 +860,13 @@ export default function LiveBracketHome() {
                           <div className={styles.teamAvatarStack}>
                             {activeMatch.teamBPlayers.map((player, pIdx) => (
                               <div key={pIdx} className={styles.teamAvatarItem}>
-                                {getPlayerInitial(player.name)}
+                                {getPlayerInitial(player.lastName)}
                               </div>
                             ))}
                           </div>
                           <div className={styles.teamNameText}>
                             {activeMatch.teamBPlayers.map((player, pIdx) => (
-                              <span key={pIdx} className={styles.teamNameLine}>{player.name}</span>
+                              <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
                             ))}
                           </div>
                         </div>

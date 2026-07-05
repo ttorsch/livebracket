@@ -15,7 +15,7 @@ const DIVISIONS = [
 
 const STEPS = ['Division', 'Roster', 'Review'];
 
-interface Player { name: string; phone: string; email: string; shirt: string }
+interface Player { firstName: string; lastName: string; phone: string; email: string; shirt: string }
 
 export default function TournamentRegister() {
   const params = useParams();
@@ -23,8 +23,8 @@ export default function TournamentRegister() {
   const [divisionId, setDivisionId] = useState('');
   const [teamName, setTeamName] = useState('');
   const [players, setPlayers] = useState<Player[]>([
-    { name: '', phone: '', email: '', shirt: 'M' },
-    { name: '', phone: '', email: '', shirt: 'M' },
+    { firstName: '', lastName: '', phone: '', email: '', shirt: 'M' },
+    { firstName: '', lastName: '', phone: '', email: '', shirt: 'M' },
   ]);
   const [pdpa, setPdpa] = useState(false);
   const [rules, setRules] = useState(false);
@@ -32,7 +32,7 @@ export default function TournamentRegister() {
 
   const selectedDiv = DIVISIONS.find(d => d.id === divisionId);
   const canStep1 = !!divisionId && selectedDiv && selectedDiv.filled < selectedDiv.total;
-  const canStep2 = !!teamName.trim() && players.every(p => p.name.trim() && p.phone.trim());
+  const canStep2 = !!teamName.trim() && players.every(p => p.firstName.trim() && p.lastName.trim() && p.phone.trim());
   const canStep3 = pdpa && rules;
 
   const updatePlayer = (i: number, field: keyof Player, value: string) => {
@@ -171,13 +171,23 @@ export default function TournamentRegister() {
                     <div className={styles.playerBlockHeader}>Player {i + 1}</div>
                     <div className={styles.playerFields}>
                       <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Full name *</label>
+                        <label className={styles.fieldLabel}>First name *</label>
                         <input
                           className={styles.input}
                           type="text"
-                          placeholder="First Last"
-                          value={player.name}
-                          onChange={e => updatePlayer(i, 'name', e.target.value)}
+                          placeholder="First name"
+                          value={player.firstName}
+                          onChange={e => updatePlayer(i, 'firstName', e.target.value)}
+                        />
+                      </div>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>Surname *</label>
+                        <input
+                          className={styles.input}
+                          type="text"
+                          placeholder="Surname"
+                          value={player.lastName}
+                          onChange={e => updatePlayer(i, 'lastName', e.target.value)}
                         />
                       </div>
                       <div className={styles.fieldGroup}>
@@ -246,11 +256,11 @@ export default function TournamentRegister() {
                   </div>
                   <div className={styles.reviewRow}>
                     <span className={styles.reviewLabel}>Player 1</span>
-                    <span className={styles.reviewValue}>{players[0].name}</span>
+                    <span className={styles.reviewValue}>{players[0].firstName} {players[0].lastName}</span>
                   </div>
                   <div className={styles.reviewRow}>
                     <span className={styles.reviewLabel}>Player 2</span>
-                    <span className={styles.reviewValue}>{players[1].name}</span>
+                    <span className={styles.reviewValue}>{players[1].firstName} {players[1].lastName}</span>
                   </div>
                   <div className={`${styles.reviewRow} ${styles.reviewRowFee}`}>
                     <span className={styles.reviewLabel}>Registration fee</span>
