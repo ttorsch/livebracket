@@ -1981,14 +1981,10 @@
   word-break: break-word;
 }
 
-.leadingTeam .teamNameText {
-  color: var(--ink-1, #14181E);
-  font-weight: 700;
-}
-
+.leadingTeam .teamNameText,
 .trailingTeam .teamNameText {
   color: var(--ink-1, #14181E);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .teamRightGroup {
@@ -2020,20 +2016,20 @@
   font-weight: 500;
 }
 
-.orangePoints,
-.orangePoints span {
-  color: var(--coral, #F26749) !important;
-  font-size: 48px !important;
-  font-weight: 800 !important;
-  text-shadow: none !important;
-}
-
-.darkPoints,
-.darkPoints span {
+.livePoints,
+.livePoints span {
   color: var(--ink-1, #14181E) !important;
   font-size: 48px !important;
   font-weight: 800 !important;
   text-shadow: none !important;
+  transition: color 0.45s ease 0.3s;
+}
+
+/* Applied to whichever side's score just rolled — starts black (see
+   .livePoints above) and eases to orange once the digit roll settles. */
+.livePointsActive,
+.livePointsActive span {
+  color: var(--coral, #F26749) !important;
 }
 
 .newMatchDivider {
@@ -2053,7 +2049,7 @@
   .teamRightGroup { gap: 12px; }
   .setHistoryRow { gap: 10px; }
   .historyPointsValue { font-size: 15px; }
-  .orangePoints, .orangePoints span { font-size: 36px !important; }
+  .livePoints, .livePoints span { font-size: 36px !important; }
 }
 
 .nearbyCardContent {

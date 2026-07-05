@@ -26,6 +26,7 @@ interface CarouselMatch {
   currentPointsA: number;
   currentPointsB: number;
   sets: { a: number; b: number }[];
+  lastScorer?: 'A' | 'B';
 }
 
 interface RegistrationInfo {
@@ -559,7 +560,8 @@ export default function LiveBracketHome() {
             return {
               ...match,
               currentPointsA: nextA,
-              currentPointsB: nextB
+              currentPointsB: nextB,
+              lastScorer: isTeamA ? 'A' : 'B'
             };
           }
           return match;
@@ -839,9 +841,9 @@ export default function LiveBracketHome() {
                               </span>
                             ))}
                           </div>
-                          <RollingNumber 
-                            value={activeMatch.currentPointsA} 
-                            className={activeMatch.currentPointsA >= activeMatch.currentPointsB ? styles.orangePoints : styles.darkPoints} 
+                          <RollingNumber
+                            value={activeMatch.currentPointsA}
+                            className={activeMatch.lastScorer === 'A' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
                           />
                         </div>
                       </div>
@@ -869,9 +871,9 @@ export default function LiveBracketHome() {
                               </span>
                             ))}
                           </div>
-                          <RollingNumber 
-                            value={activeMatch.currentPointsB} 
-                            className={activeMatch.currentPointsB > activeMatch.currentPointsA ? styles.orangePoints : styles.darkPoints} 
+                          <RollingNumber
+                            value={activeMatch.currentPointsB}
+                            className={activeMatch.lastScorer === 'B' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
                           />
                         </div>
                       </div>
