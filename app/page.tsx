@@ -411,9 +411,8 @@ const STATUS_LABEL: Record<Status, string> = {
   finished: 'Finished' 
 };
 
-const getAvatarText = (players: { name: string }[]) => {
-  if (!players || players.length === 0) return '?/';
-  return `${players[0].name.charAt(0).toUpperCase()}/`;
+const getPlayerInitial = (name: string) => {
+  return name ? name.charAt(0).toUpperCase() : '?';
 };
 
 function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]; styles: Record<string, string> }) {
@@ -824,8 +823,12 @@ export default function LiveBracketHome() {
                       {/* Team A Row */}
                       <div className={`${styles.newTeamRow} ${activeMatch.currentPointsA >= activeMatch.currentPointsB ? styles.leadingTeam : styles.trailingTeam}`}>
                         <div className={styles.teamLeftGroup}>
-                          <div className={styles.teamAvatar}>
-                            {getAvatarText(activeMatch.teamAPlayers)}
+                          <div className={styles.teamAvatarStack}>
+                            {activeMatch.teamAPlayers.map((player, pIdx) => (
+                              <div key={pIdx} className={styles.teamAvatarItem}>
+                                {getPlayerInitial(player.name)}
+                              </div>
+                            ))}
                           </div>
                           <div className={styles.teamNameText}>
                             {activeMatch.teamAPlayers.map((player, pIdx) => (
@@ -854,8 +857,12 @@ export default function LiveBracketHome() {
                       {/* Team B Row */}
                       <div className={`${styles.newTeamRow} ${activeMatch.currentPointsB > activeMatch.currentPointsA ? styles.leadingTeam : styles.trailingTeam}`}>
                         <div className={styles.teamLeftGroup}>
-                          <div className={styles.teamAvatar}>
-                            {getAvatarText(activeMatch.teamBPlayers)}
+                          <div className={styles.teamAvatarStack}>
+                            {activeMatch.teamBPlayers.map((player, pIdx) => (
+                              <div key={pIdx} className={styles.teamAvatarItem}>
+                                {getPlayerInitial(player.name)}
+                              </div>
+                            ))}
                           </div>
                           <div className={styles.teamNameText}>
                             {activeMatch.teamBPlayers.map((player, pIdx) => (

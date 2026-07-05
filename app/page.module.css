@@ -1947,7 +1947,14 @@
   overflow: hidden;
 }
 
-.teamAvatar {
+.teamAvatarStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.teamAvatarItem {
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -1959,8 +1966,15 @@
   font-size: 15px;
   font-weight: 700;
   color: #7A8294;
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  border: 2px solid #fff;
   flex-shrink: 0;
+}
+
+/* Second (and any further) player avatar overlaps the one above it,
+   shifted slightly right — matches the reference stacked-avatar layout. */
+.teamAvatarItem:not(:first-child) {
+  margin-top: -14px;
+  margin-left: 10px;
 }
 
 .teamNameText {
@@ -2035,8 +2049,9 @@
    onto multiple lines instead of stretching the card off-center. */
 @media (max-width: 640px) {
   .carouselMatchCard { padding: 14px 14px; }
-  .teamLeftGroup { gap: 10px; }
-  .teamAvatar { display: none; }
+  .teamLeftGroup { gap: 8px; }
+  .teamAvatarItem { width: 26px; height: 26px; font-size: 11px; border-width: 1.5px; }
+  .teamAvatarItem:not(:first-child) { margin-top: -8px; margin-left: 6px; }
   .teamNameText { font-size: 15px; }
   .teamRightGroup { gap: 12px; }
   .setHistoryRow { gap: 10px; }
