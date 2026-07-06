@@ -8,7 +8,7 @@ const DEMO_ORGANIZER_ID = '00000000-0000-0000-0001-000000000001';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { title, location, startDate, endDate, isOneDay, description } = body;
+  const { title, location, startDate, endDate, isOneDay, description, imageUrl } = body;
 
   if (!title || !location || !startDate) {
     return NextResponse.json({ error: 'title, location, and startDate are required' }, { status: 400 });
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         is_one_day: !!isOneDay,
         phase: 1,
         description: description || null,
+        image_url: imageUrl || null,
       })
       .select('slug')
       .single();

@@ -13,6 +13,7 @@ export interface DashboardTournament {
   startDate: string;
   location: string;
   phase: number;
+  imageUrl: string | null;
   divisions: DashboardDivision[];
 }
 
@@ -79,13 +80,14 @@ interface TournamentRow {
   end_date: string | null;
   is_one_day: boolean;
   phase: number;
+  image_url: string | null;
   divisions: DivisionRow[];
 }
 
 export async function getDashboardTournaments(): Promise<DashboardTournament[]> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('slug, title, location, start_date, end_date, is_one_day, phase, divisions(name, division_team_cap, teams(status))')
+    .select('slug, title, location, start_date, end_date, is_one_day, phase, image_url, divisions(name, division_team_cap, teams(status))')
     .order('start_date', { ascending: true });
 
   if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
@@ -97,6 +99,7 @@ export async function getDashboardTournaments(): Promise<DashboardTournament[]> 
     startDate: t.start_date,
     location: t.location,
     phase: t.phase,
+    imageUrl: t.image_url,
     divisions: t.divisions.map((d) => ({
       name: d.name,
       cap: d.division_team_cap,
