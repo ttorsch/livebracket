@@ -1155,10 +1155,9 @@ export default function OrganizerSetup() {
                     value={divCap}
                     onChange={e => setDivCap(parseInt(e.target.value) || 8)}
                   />
-                  <span className={styles.fieldHint}>Flips the public button to &quot;Waitlist Full&quot;.</span>
                 </div>
                 <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Format On-Sand *</label>
+                  <label className={styles.fieldLabel}>Format *</label>
                   <select
                     className={styles.select}
                     value={formatType}
@@ -1169,7 +1168,6 @@ export default function OrganizerSetup() {
                     <option value="4v4">4 v 4</option>
                     <option value="6v6">6 v 6</option>
                   </select>
-                  <span className={styles.fieldHint}>Dictates the match scoring engine.</span>
                 </div>
               </div>
 
