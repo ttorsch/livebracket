@@ -79,6 +79,7 @@ type RoundFormat = 'pool' | 'round-robin' | 'single' | 'double';
 interface TournamentRound {
   id: string;
   format: RoundFormat | null; // null until the organizer picks one
+  scoring: ScoringRules;      // each round can have its own scoring (e.g. pool play to 21, single elim best of 3)
 }
 
 const ROUND_FORMATS: { value: RoundFormat; label: string }[] = [
@@ -112,8 +113,7 @@ interface SetupDivision {
   registrationFee: number;          // flat per-team-slot, can be 0
   registrationOpenDate: string;     // datetime-local string, staggered windows
   // C. Rules & formats
-  rounds: TournamentRound[];        // ordered tournament rounds, each with a format
-  scoringRules: ScoringRules;
+  rounds: TournamentRound[];        // ordered tournament rounds, each with its own format + scoring
   rules: string;
   // Per-division (isolated) registration schema
   regFields: RegField[];
@@ -186,8 +186,13 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
     maxRosterSize: typeof settings.maxRosterSize === 'number' ? settings.maxRosterSize : FORMAT_PLAYERS[formatTypeOnSand] ?? 2,
     registrationFee: row.registrationFee,
     registrationOpenDate: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
-    rounds: row.rounds.map((r) => ({ id: r.id, format: r.format as RoundFormat })),
-    scoringRules: (row.scoringRules as unknown as ScoringRules) ?? defaultScoringRules(),
+    rounds: row.rounds.map((r) => ({
+      id: r.id,
+      format: r.format as RoundFormat,
+      scoring: (r.scoringRules as unknown as ScoringRules) && Object.keys(r.scoringRules).length
+        ? (r.scoringRules as unknown as ScoringRules)
+        : defaultScoringRules(),
+    })),
     rules: typeof settings.rules === 'string' ? settings.rules : 'Standard FIVB Beach Volleyball rules apply.',
     regFields: (row.regFields as RegField[]) ?? makeBaseFields(),
     allowMulti: typeof settings.allowMulti === 'boolean' ? settings.allowMulti : true,
@@ -262,7 +267,7 @@ export default function OrganizerSetup() {
   const [editingDivisionId, setEditingDivisionId] = useState<string | null>(null);
 
   // Modal Form Inputs — A. Basics & dynamic capacity
-  const [divName, setDivName] = useState("Women's Open");
+  const [divName, setDivName] = useState('');
   const [divCap, setDivCap] = useState(8);
   const [formatType, setFormatType] = useState<OnSandFormat>('2v2');
   const [maxRoster, setMaxRoster] = useState(2);
@@ -270,9 +275,10 @@ export default function OrganizerSetup() {
   const [regFee, setRegFee] = useState(800);
   const [regOpenDate, setRegOpenDate] = useState('');
   const [isOpenImmediately, setIsOpenImmediately] = useState(true);
-  // C. Rules & formats
-  const [rounds, setRounds] = useState<TournamentRound[]>([{ id: 'r_1', format: null }]);
-  const [scoring, setScoring] = useState<ScoringRules>(defaultScoringRules());
+  // C. Rules & formats — each round carries its own scoring rules (a pool
+  // play round might go to 21 points while the elimination round after it
+  // is best of 3), so scoring lives on TournamentRound, not the division.
+  const [rounds, setRounds] = useState<TournamentRound[]>([{ id: 'r_1', format: null, scoring: defaultScoringRules() }]);
   const [divRules, setDivRules] = useState('Standard FIVB Beach Volleyball rules apply.');
 
   // Per-division registration schema (isolated to this division)
@@ -343,15 +349,14 @@ export default function OrganizerSetup() {
   // Modal open reset
   const handleOpenCreateModal = () => {
     setEditingDivisionId(null);
-    setDivName(`Women's Open`);
+    setDivName('');
     setDivCap(8);
     setFormatType('2v2');
     setMaxRoster(FORMAT_PLAYERS['2v2']);
     setRegFee(800);
     setRegOpenDate('');
     setIsOpenImmediately(true);
-    setRounds([{ id: 'r_' + Date.now(), format: null }]);
-    setScoring(defaultScoringRules());
+    setRounds([{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules() }]);
     setDivRules('Standard FIVB Beach Volleyball rules apply.');
     setRegFields(makeBaseFields());
     setConfirmationMessage('');
@@ -380,8 +385,7 @@ export default function OrganizerSetup() {
     setRegFee(d.registrationFee);
     setRegOpenDate(d.registrationOpenDate);
     setIsOpenImmediately(!d.registrationOpenDate);
-    setRounds(d.rounds.length ? d.rounds : [{ id: 'r_' + Date.now(), format: null }]);
-    setScoring(d.scoringRules);
+    setRounds(d.rounds.length ? d.rounds : [{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules() }]);
     setDivRules(d.rules);
     setRegFields(d.regFields);
     setConfirmationMessage(d.confirmationMessage);
@@ -578,13 +582,17 @@ export default function OrganizerSetup() {
 
   // ── Tournament rounds builder ──────────────────────────────────
   const addRound = () => {
-    setRounds([...rounds, { id: 'r_' + Date.now(), format: null }]);
+    setRounds([...rounds, { id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules() }]);
     setFormError(null);
   };
 
   const setRoundFormat = (id: string, format: RoundFormat) => {
     setRounds(rounds.map(r => (r.id === id ? { ...r, format } : r)));
     setFormError(null);
+  };
+
+  const setRoundScoring = (id: string, patch: Partial<ScoringRules>) => {
+    setRounds(rounds.map(r => (r.id === id ? { ...r, scoring: { ...r.scoring, ...patch } } : r)));
   };
 
   const removeRound = (id: string) => {
@@ -649,7 +657,6 @@ export default function OrganizerSetup() {
       registrationFee: regFee,
       registrationOpenDate: regOpenDate,
       rounds,
-      scoringRules: scoring,
       rules: divRules,
       regFields,
       allowMulti,
@@ -700,10 +707,15 @@ export default function OrganizerSetup() {
         formatTypeOnSand: body.format_type_on_sand,
         registrationFee: body.registration_fee,
         divisionTeamCap: body.division_team_cap,
-        scoringRules: body.scoring_rules,
         regFields: body.reg_fields,
         settings: body.settings,
-        rounds: body.rounds,
+        rounds: (body.rounds ?? []).map((r: { id: string; sequence: number; format: string; name: string; scoring_rules: Record<string, unknown> }) => ({
+          id: r.id,
+          sequence: r.sequence,
+          format: r.format,
+          name: r.name,
+          scoringRules: r.scoring_rules,
+        })),
       });
 
       if (editingDivisionId) {
@@ -1033,9 +1045,11 @@ export default function OrganizerSetup() {
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.fieldLabel}>Scoring</label>
-                      <p className={styles.summaryText}>
-                        Best of {activeDivision.scoringRules.setsBestOf} • Sets to {activeDivision.scoringRules.pointsPerSet}{activeDivision.scoringRules.winBy2 ? ' (win by 2)' : ''}{activeDivision.scoringRules.hardCap ? `, hard cap ${activeDivision.scoringRules.hardCap}` : ''} • Deciding set to {activeDivision.scoringRules.decidingSetPoints}
-                      </p>
+                      {activeDivision.rounds.map((r, i) => (
+                        <p key={r.id} className={styles.summaryText}>
+                          <strong>{roundLabel(i)}:</strong> Best of {r.scoring.setsBestOf} • Sets to {r.scoring.pointsPerSet}{r.scoring.winBy2 ? ' (win by 2)' : ''}{r.scoring.hardCap ? `, hard cap ${r.scoring.hardCap}` : ''} • Deciding set to {r.scoring.decidingSetPoints}
+                        </p>
+                      ))}
                     </div>
 
                     {activeDivision.rules && (
@@ -1199,7 +1213,8 @@ export default function OrganizerSetup() {
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>Competition Format *</label>
                 <p className={styles.fieldHint} style={{ marginTop: -2 }}>
-                  Build the tournament one round at a time. Click a round to choose its format.
+                  Build the tournament one round at a time. Each round has its own format and
+                  scoring — e.g. pool play to 21 points, then a best-of-3 elimination bracket.
                 </p>
                 <div className={styles.roundsList}>
                   {rounds.map((round, i) => (
@@ -1232,78 +1247,77 @@ export default function OrganizerSetup() {
                           </button>
                         ))}
                       </div>
+
+                      {round.format !== null && (
+                        <div className={styles.scoringMatrix} style={{ marginTop: 12 }}>
+                          <div className={styles.scoringRow}>
+                            <span className={styles.scoringRowLabel}>Match</span>
+                            <label className={styles.scoringCell}>
+                              <span>Best of</span>
+                              <select
+                                className={styles.scoringInput}
+                                value={round.scoring.setsBestOf}
+                                onChange={e => setRoundScoring(round.id, { setsBestOf: parseInt(e.target.value) })}
+                              >
+                                <option value={1}>1</option>
+                                <option value={3}>3</option>
+                                <option value={5}>5</option>
+                              </select>
+                            </label>
+                            <label className={styles.scoringCell}>
+                              <input
+                                type="checkbox"
+                                checked={round.scoring.winBy2}
+                                onChange={e => setRoundScoring(round.id, { winBy2: e.target.checked })}
+                              />
+                              <span>Win by 2</span>
+                            </label>
+                          </div>
+                          <div className={styles.scoringRow}>
+                            <span className={styles.scoringRowLabel}>Sets 1 &amp; 2</span>
+                            <label className={styles.scoringCell}>
+                              <span>to</span>
+                              <input
+                                type="number"
+                                className={styles.scoringInput}
+                                min={1}
+                                value={round.scoring.pointsPerSet}
+                                onChange={e => setRoundScoring(round.id, { pointsPerSet: parseInt(e.target.value) || 0 })}
+                              />
+                            </label>
+                            <label className={styles.scoringCell}>
+                              <span>Hard cap</span>
+                              <input
+                                type="number"
+                                className={styles.scoringInput}
+                                min={0}
+                                placeholder="none"
+                                value={round.scoring.hardCap || ''}
+                                onChange={e => setRoundScoring(round.id, { hardCap: parseInt(e.target.value) || 0 })}
+                              />
+                            </label>
+                          </div>
+                          <div className={styles.scoringRow}>
+                            <span className={styles.scoringRowLabel}>Deciding set</span>
+                            <label className={styles.scoringCell}>
+                              <span>to</span>
+                              <input
+                                type="number"
+                                className={styles.scoringInput}
+                                min={1}
+                                value={round.scoring.decidingSetPoints}
+                                onChange={e => setRoundScoring(round.id, { decidingSetPoints: parseInt(e.target.value) || 0 })}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
                 <button type="button" className={styles.btnAdd} onClick={addRound} style={{ marginTop: 10, width: '100%' }}>
                   <Plus size={16} /> Add Round
                 </button>
-              </div>
-
-              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
-                <label className={styles.fieldLabel}>Scoring Rules</label>
-                <div className={styles.scoringMatrix}>
-                  <div className={styles.scoringRow}>
-                    <span className={styles.scoringRowLabel}>Match</span>
-                    <label className={styles.scoringCell}>
-                      <span>Best of</span>
-                      <select
-                        className={styles.scoringInput}
-                        value={scoring.setsBestOf}
-                        onChange={e => setScoring({ ...scoring, setsBestOf: parseInt(e.target.value) })}
-                      >
-                        <option value={1}>1</option>
-                        <option value={3}>3</option>
-                        <option value={5}>5</option>
-                      </select>
-                    </label>
-                    <label className={styles.scoringCell}>
-                      <input
-                        type="checkbox"
-                        checked={scoring.winBy2}
-                        onChange={e => setScoring({ ...scoring, winBy2: e.target.checked })}
-                      />
-                      <span>Win by 2</span>
-                    </label>
-                  </div>
-                  <div className={styles.scoringRow}>
-                    <span className={styles.scoringRowLabel}>Sets 1 &amp; 2</span>
-                    <label className={styles.scoringCell}>
-                      <span>to</span>
-                      <input
-                        type="number"
-                        className={styles.scoringInput}
-                        min={1}
-                        value={scoring.pointsPerSet}
-                        onChange={e => setScoring({ ...scoring, pointsPerSet: parseInt(e.target.value) || 0 })}
-                      />
-                    </label>
-                    <label className={styles.scoringCell}>
-                      <span>Hard cap</span>
-                      <input
-                        type="number"
-                        className={styles.scoringInput}
-                        min={0}
-                        placeholder="none"
-                        value={scoring.hardCap || ''}
-                        onChange={e => setScoring({ ...scoring, hardCap: parseInt(e.target.value) || 0 })}
-                      />
-                    </label>
-                  </div>
-                  <div className={styles.scoringRow}>
-                    <span className={styles.scoringRowLabel}>Deciding set</span>
-                    <label className={styles.scoringCell}>
-                      <span>to</span>
-                      <input
-                        type="number"
-                        className={styles.scoringInput}
-                        min={1}
-                        value={scoring.decidingSetPoints}
-                        onChange={e => setScoring({ ...scoring, decidingSetPoints: parseInt(e.target.value) || 0 })}
-                      />
-                    </label>
-                  </div>
-                </div>
               </div>
 
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>

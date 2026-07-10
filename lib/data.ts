@@ -58,6 +58,7 @@ export interface SetupRoundRow {
   sequence: number;
   format: string;
   name: string;
+  scoringRules: Record<string, unknown>;
 }
 
 export interface SetupDivisionRow {
@@ -66,7 +67,6 @@ export interface SetupDivisionRow {
   formatTypeOnSand: string;
   registrationFee: number;
   divisionTeamCap: number;
-  scoringRules: Record<string, unknown>;
   regFields: unknown[];
   settings: Record<string, unknown>;
   rounds: SetupRoundRow[];
@@ -78,16 +78,15 @@ interface SetupDivisionQueryRow {
   format_type_on_sand: string;
   registration_fee: number;
   division_team_cap: number;
-  scoring_rules: Record<string, unknown>;
   reg_fields: unknown[];
   settings: Record<string, unknown>;
-  rounds: { id: string; sequence: number; format: string; name: string }[];
+  rounds: { id: string; sequence: number; format: string; name: string; scoring_rules: Record<string, unknown> }[];
 }
 
 export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[]> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('divisions(id, name, format_type_on_sand, registration_fee, division_team_cap, scoring_rules, reg_fields, settings, rounds(id, sequence, format, name))')
+    .select('divisions(id, name, format_type_on_sand, registration_fee, division_team_cap, reg_fields, settings, rounds(id, sequence, format, name, scoring_rules))')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -101,10 +100,11 @@ export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[
     formatTypeOnSand: d.format_type_on_sand,
     registrationFee: d.registration_fee,
     divisionTeamCap: d.division_team_cap,
-    scoringRules: d.scoring_rules ?? {},
     regFields: d.reg_fields ?? [],
     settings: d.settings ?? {},
-    rounds: [...(d.rounds ?? [])].sort((a, b) => a.sequence - b.sequence),
+    rounds: [...(d.rounds ?? [])]
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((r) => ({ ...r, scoringRules: r.scoring_rules ?? {} })),
   }));
 }
 

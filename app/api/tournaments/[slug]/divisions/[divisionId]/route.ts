@@ -8,8 +8,9 @@ interface DivisionBody {
   maxRosterSize: number;
   registrationFee: number;
   registrationOpenDate: string;
-  rounds: { format: string }[];
-  scoringRules: Record<string, unknown>;
+  // Each round carries its own scoring rules (e.g. pool play to 21, the
+  // elimination round after it best of 3) instead of one blob per division.
+  rounds: { format: string; scoring: Record<string, unknown> }[];
   rules: string;
   regFields: unknown[];
   allowMulti: boolean;
@@ -75,12 +76,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       format_type_on_sand: body.formatTypeOnSand,
       registration_fee: body.registrationFee,
       division_team_cap: body.divisionTeamCap,
-      scoring_rules: body.scoringRules,
       reg_fields: body.regFields,
       settings: toSettings(body),
     })
     .eq('id', divisionId)
-    .select('id, name, format_type_on_sand, registration_fee, division_team_cap, scoring_rules, reg_fields, settings')
+    .select('id, name, format_type_on_sand, registration_fee, division_team_cap, reg_fields, settings')
     .single();
   if (dError) return NextResponse.json({ error: dError.message }, { status: 500 });
 
@@ -93,9 +93,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     sequence: i + 1,
     format: r.format,
     name: roundLabel(i),
+    scoring_rules: r.scoring,
   }));
   const { data: rounds, error: rError } = roundRows.length
-    ? await supabaseAdmin.from('rounds').insert(roundRows).select('id, sequence, format, name')
+    ? await supabaseAdmin.from('rounds').insert(roundRows).select('id, sequence, format, name, scoring_rules')
     : { data: [], error: null };
   if (rError) return NextResponse.json({ error: rError.message }, { status: 500 });
 
