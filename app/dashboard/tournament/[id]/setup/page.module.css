@@ -979,8 +979,8 @@
   box-shadow: 0 30px 60px -15px rgba(20, 31, 46, 0.35);
   display: flex;
   flex-direction: column;
-  margin: 24px 0;
-  max-height: calc(100vh - 88px);
+  margin: 12px 0;
+  max-height: calc(100vh - 64px);
   overflow: hidden;
   animation: modalEnter 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
