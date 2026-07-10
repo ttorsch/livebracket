@@ -40,6 +40,7 @@ interface Tournament {
   title: string;
   location: string;
   dateLabel: string;
+  endDateLabel?: string;
   chip: { m: string; d: string };
   status: Status;
   teams: number;
@@ -181,7 +182,8 @@ const TOURNAMENTS: Tournament[] = [
     id: 'monsoon-cup',
     title: 'Monsoon Cup',
     location: 'Khuk Khak Beach',
-    dateLabel: 'Jul 5–6',
+    dateLabel: 'Jul 5',
+    endDateLabel: 'Jul 6',
     chip: { m: 'Jul', d: '05' },
     status: 'upcoming',
     teams: 24,
@@ -219,7 +221,8 @@ const TOURNAMENTS: Tournament[] = [
     id: 'andaman-open',
     title: 'Andaman Open',
     location: 'Nang Thong Beach',
-    dateLabel: 'Jul 19–20',
+    dateLabel: 'Jul 19',
+    endDateLabel: 'Jul 20',
     chip: { m: 'Jul', d: '19' },
     status: 'upcoming',
     teams: 32,
@@ -1093,7 +1096,8 @@ export default function LiveBracketHome() {
 
                         <div className={styles.cardPillsRow}>
                           <span className={styles.cardPillBadge}>{t.dateLabel}</span>
-                          <span className={styles.cardPillBadge}>{t.timeLabel}</span>
+                          <span className={styles.cardPillTo}>to</span>
+                          <span className={styles.cardPillBadge}>{t.endDateLabel || t.dateLabel}</span>
                         </div>
 
                         <div className={styles.organizerRow}>
