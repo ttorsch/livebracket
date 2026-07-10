@@ -49,6 +49,64 @@ export async function getTournamentBasicInfo(slug: string): Promise<TournamentBa
   };
 }
 
+// ── Organizer setup page: division CRUD ─────────────────────────────
+// Loosely typed on purpose — scoring_rules/reg_fields/settings are jsonb
+// blobs whose exact shape is owned by the setup page, not this data layer.
+export interface SetupRoundRow {
+  id: string;
+  sequence: number;
+  format: string;
+  name: string;
+}
+
+export interface SetupDivisionRow {
+  id: string;
+  name: string;
+  formatTypeOnSand: string;
+  registrationFee: number;
+  divisionTeamCap: number;
+  scoringRules: Record<string, unknown>;
+  regFields: unknown[];
+  settings: Record<string, unknown>;
+  rounds: SetupRoundRow[];
+}
+
+interface SetupDivisionQueryRow {
+  id: string;
+  name: string;
+  format_type_on_sand: string;
+  registration_fee: number;
+  division_team_cap: number;
+  scoring_rules: Record<string, unknown>;
+  reg_fields: unknown[];
+  settings: Record<string, unknown>;
+  rounds: { id: string; sequence: number; format: string; name: string }[];
+}
+
+export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[]> {
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('divisions(id, name, format_type_on_sand, registration_fee, division_team_cap, scoring_rules, reg_fields, settings, rounds(id, sequence, format, name))')
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to load divisions: ${error.message}`);
+  if (!data) return [];
+
+  const divisions = (data as unknown as { divisions: SetupDivisionQueryRow[] }).divisions ?? [];
+  return divisions.map((d) => ({
+    id: d.id,
+    name: d.name,
+    formatTypeOnSand: d.format_type_on_sand,
+    registrationFee: d.registration_fee,
+    divisionTeamCap: d.division_team_cap,
+    scoringRules: d.scoring_rules ?? {},
+    regFields: d.reg_fields ?? [],
+    settings: d.settings ?? {},
+    rounds: [...(d.rounds ?? [])].sort((a, b) => a.sequence - b.sequence),
+  }));
+}
+
 function formatDateRange(startDate: string, endDate: string | null, isOneDay: boolean): string {
   const start = new Date(`${startDate}T00:00:00`);
   const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

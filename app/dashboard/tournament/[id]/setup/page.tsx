@@ -30,7 +30,7 @@ import {
   X
 } from 'lucide-react';
 import styles from './page.module.css';
-import { getTournamentBasicInfo, type TournamentBasicInfo } from '../../../../../lib/data';
+import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow } from '../../../../../lib/data';
 
 interface Question {
   id: string;
@@ -172,6 +172,35 @@ const defaultScoringRules = (): ScoringRules => ({
   decidingSetPoints: 15,
 });
 
+// Map a division row loaded from the database (lib/data.ts) into the shape
+// this page works with, filling in defaults for any settings jsonb keys
+// that predate a given field (or were never set by the organizer).
+const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
+  const settings = row.settings ?? {};
+  const formatTypeOnSand = row.formatTypeOnSand as OnSandFormat;
+  return {
+    id: row.id,
+    name: row.name,
+    divisionTeamCap: row.divisionTeamCap,
+    formatTypeOnSand,
+    maxRosterSize: typeof settings.maxRosterSize === 'number' ? settings.maxRosterSize : FORMAT_PLAYERS[formatTypeOnSand] ?? 2,
+    registrationFee: row.registrationFee,
+    registrationOpenDate: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
+    rounds: row.rounds.map((r) => ({ id: r.id, format: r.format as RoundFormat })),
+    scoringRules: (row.scoringRules as unknown as ScoringRules) ?? defaultScoringRules(),
+    rules: typeof settings.rules === 'string' ? settings.rules : 'Standard FIVB Beach Volleyball rules apply.',
+    regFields: (row.regFields as RegField[]) ?? makeBaseFields(),
+    allowMulti: typeof settings.allowMulti === 'boolean' ? settings.allowMulti : true,
+    genderEligibility: typeof settings.genderEligibility === 'string' ? settings.genderEligibility : 'Open',
+    prizePool: typeof settings.prizePool === 'string' ? settings.prizePool : '',
+    netHeight: typeof settings.netHeight === 'string' ? settings.netHeight : '2.24m',
+    minTeams: typeof settings.minTeams === 'number' ? settings.minTeams : 4,
+    waitlistCap: typeof settings.waitlistCap === 'number' ? settings.waitlistCap : 5,
+    confirmationMessage: typeof settings.confirmationMessage === 'string' ? settings.confirmationMessage : '',
+    confirmationImage: typeof settings.confirmationImage === 'string' ? settings.confirmationImage : '',
+  };
+};
+
 // Create Division modal is split into three navigable steps.
 const MODAL_STEPS = ['Basics & Fee', 'Format & Rules', 'Registration'];
 
@@ -219,36 +248,17 @@ export default function OrganizerSetup() {
   // Phase 1 States: Division Modal & List
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(0); // 0 = Basics & Fee, 1 = Format & Rules, 2 = Registration
-  const [divisions, setDivisions] = useState<SetupDivision[]>([
-    {
-      id: 'd1',
-      name: "Men's Open",
-      divisionTeamCap: 8,
-      formatTypeOnSand: '2v2',
-      maxRosterSize: 2,
-      registrationFee: 800,
-      registrationOpenDate: '',
-      rounds: [
-        { id: 'r1', format: 'pool' },
-        { id: 'r2', format: 'single' },
-      ],
-      scoringRules: defaultScoringRules(),
-      rules: 'Standard FIVB Beach Volleyball rules apply.',
-      regFields: makeBaseFields(),
-      allowMulti: true,
-      genderEligibility: 'Men',
-      prizePool: '10,000 THB Prize Pool + Gold Medal',
-      netHeight: '2.43m',
-      minTeams: 4,
-      waitlistCap: 5,
-      confirmationMessage: "You're in! 🏐 Join our WhatsApp group for schedule updates and announcements.",
-      confirmationImage: ''
-    }
-  ]);
+  // Populated from the database once the tournament (and its divisions, if
+  // any) load — see the mount effect below. Starts empty rather than seeded
+  // with sample data, so a freshly published tournament with no divisions
+  // shows none, instead of a leftover mock division.
+  const [divisions, setDivisions] = useState<SetupDivision[]>([]);
+  const [divisionsLoading, setDivisionsLoading] = useState(true);
+  const [divisionSaving, setDivisionSaving] = useState(false);
 
   // Which division is currently selected in the top toggle, and which (if any)
   // the modal is editing (null = creating a new division).
-  const [activeDivisionId, setActiveDivisionId] = useState<string | null>('d1');
+  const [activeDivisionId, setActiveDivisionId] = useState<string | null>(null);
   const [editingDivisionId, setEditingDivisionId] = useState<string | null>(null);
 
   // Modal Form Inputs — A. Basics & dynamic capacity
@@ -461,6 +471,19 @@ export default function OrganizerSetup() {
     getTournamentBasicInfo(id).then(info => {
       if (info) setBasicInfo(info);
     }).catch(console.error);
+
+    // Real divisions for this tournament, if it's been published — an
+    // unpublished draft (no DB row yet) simply resolves to an empty list,
+    // which is also the correct state for a published tournament that
+    // hasn't had any divisions added yet.
+    getSetupDivisions(id)
+      .then(rows => {
+        const mapped = rows.map(mapDbDivision);
+        setDivisions(mapped);
+        setActiveDivisionId(prev => prev ?? mapped[0]?.id ?? null);
+      })
+      .catch(console.error)
+      .finally(() => setDivisionsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -597,7 +620,7 @@ export default function OrganizerSetup() {
   };
 
   // Helper Actions: Phase 1 (Create Division Modal Submission)
-  const saveDivisionModal = () => {
+  const saveDivisionModal = async () => {
     if (!divName.trim()) {
       setFormError('Division name is required.');
       return;
@@ -639,21 +662,81 @@ export default function OrganizerSetup() {
       confirmationImage
     };
 
-    if (editingDivisionId) {
-      // Update the existing division in place.
-      setDivisions(divisions.map(d => d.id === editingDivisionId ? { ...d, ...data } : d));
-      setActiveDivisionId(editingDivisionId);
-    } else {
-      // Append a brand-new division and select it.
-      const newId = 'd_' + Date.now();
-      setDivisions([...divisions, { id: newId, ...data }]);
-      setActiveDivisionId(newId);
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
+
+    // Not yet published (no DB row to attach a division to) — keep the
+    // previous local-only behavior; it'll be lost on refresh either way
+    // until the tournament itself is published.
+    if (!basicInfo || !id) {
+      if (editingDivisionId) {
+        setDivisions(divisions.map(d => d.id === editingDivisionId ? { ...d, ...data } : d));
+        setActiveDivisionId(editingDivisionId);
+      } else {
+        const newId = 'd_' + Date.now();
+        setDivisions([...divisions, { id: newId, ...data }]);
+        setActiveDivisionId(newId);
+      }
+      setShowModal(false);
+      return;
     }
-    setShowModal(false);
+
+    setDivisionSaving(true);
+    setFormError(null);
+    try {
+      const res = await fetch(
+        editingDivisionId ? `/api/tournaments/${id}/divisions/${editingDivisionId}` : `/api/tournaments/${id}/divisions`,
+        {
+          method: editingDivisionId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }
+      );
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed to save division');
+
+      const saved = mapDbDivision({
+        id: body.id,
+        name: body.name,
+        formatTypeOnSand: body.format_type_on_sand,
+        registrationFee: body.registration_fee,
+        divisionTeamCap: body.division_team_cap,
+        scoringRules: body.scoring_rules,
+        regFields: body.reg_fields,
+        settings: body.settings,
+        rounds: body.rounds,
+      });
+
+      if (editingDivisionId) {
+        setDivisions(divisions.map(d => d.id === editingDivisionId ? saved : d));
+      } else {
+        setDivisions([...divisions, saved]);
+      }
+      setActiveDivisionId(saved.id);
+      setShowModal(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save division');
+    } finally {
+      setDivisionSaving(false);
+    }
   };
 
-  const removeDivision = (id: string) => {
+  const removeDivision = async (id: string) => {
+    const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
     const next = divisions.filter(d => d.id !== id);
+
+    if (basicInfo && tournamentId) {
+      try {
+        const res = await fetch(`/api/tournaments/${tournamentId}/divisions/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || 'Failed to delete division');
+        }
+      } catch (err) {
+        console.error(err);
+        return;
+      }
+    }
+
     setDivisions(next);
     if (activeDivisionId === id) {
       setActiveDivisionId(next[0]?.id ?? null);
@@ -871,7 +954,11 @@ export default function OrganizerSetup() {
             </div>
           )}
 
-          {divisions.length === 0 ? (
+          {divisionsLoading ? (
+            <div className={styles.emptyDivisions}>
+              <p className={styles.emptyDivisionsHint}>Loading divisions…</p>
+            </div>
+          ) : divisions.length === 0 ? (
             <div className={styles.emptyDivisions}>
               <button type="button" className={styles.bigAddDivision} onClick={handleOpenCreateModal}>
                 <Plus size={34} />
@@ -1532,7 +1619,9 @@ export default function OrganizerSetup() {
                   Next <ChevronRight size={16} />
                 </button>
               ) : (
-                <button className={styles.btnActionPrimary} onClick={saveDivisionModal}>{editingDivisionId ? 'Save Division' : 'Create Division'}</button>
+                <button className={styles.btnActionPrimary} onClick={saveDivisionModal} disabled={divisionSaving}>
+                  {divisionSaving ? 'Saving…' : editingDivisionId ? 'Save Division' : 'Create Division'}
+                </button>
               )}
             </div>
           </div>
