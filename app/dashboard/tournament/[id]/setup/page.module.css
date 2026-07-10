@@ -987,6 +987,14 @@
   from { transform: scale(0.96) translateY(8px); opacity: 0; }
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
+
+@media (max-width: 640px) {
+  .modalContent {
+    margin: 24px 0;
+    max-height: calc(100vh - 88px);
+  }
+}
+
 .modalHeader {
   padding: 20px 24px;
   border-bottom: 1.5px solid rgba(20, 31, 46, 0.08);
