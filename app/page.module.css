@@ -1001,24 +1001,6 @@
   position: relative;
   display: flex;
   align-items: center;
-  flex: 3;
-  padding: 14px 24px;
-  border-radius: 999px;
-  background: rgba(14, 23, 34, 0.12);
-  border: none;
-  color: #14181E;
-  transition: background 0.15s, box-shadow 0.15s;
-}
-
-.search:focus-within {
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(20, 24, 30, 0.08);
-}
-
-.locationSearch {
-  position: relative;
-  display: flex;
-  align-items: center;
   flex: 1;
   padding: 14px 24px;
   border-radius: 999px;
@@ -1028,7 +1010,7 @@
   transition: background 0.15s, box-shadow 0.15s;
 }
 
-.locationSearch:focus-within {
+.search:focus-within {
   background: #ffffff;
   box-shadow: 0 4px 12px rgba(20, 24, 30, 0.08);
 }
@@ -1050,8 +1032,7 @@
   color: #14181E;
 }
 
-.search input,
-.locationSearch input {
+.search input {
   flex: 1;
   border: none;
   outline: none;
@@ -1060,8 +1041,7 @@
   font-size: 16px;
   color: #14181E;
 }
-.search input::placeholder,
-.locationSearch input::placeholder {
+.search input::placeholder {
   color: rgba(20, 24, 30, 0.45);
 }
 
@@ -1848,7 +1828,7 @@
   .events { padding: 60px 0; }
   .controls { flex-direction: column; align-items: stretch; }
   .searchRow { flex-direction: column; gap: 12px; }
-  .search, .locationSearch { max-width: none; flex: none; width: 100%; }
+  .search { max-width: none; flex: none; width: 100%; }
   .card {
     grid-template-columns: 1fr;
   }

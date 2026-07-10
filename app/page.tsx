@@ -508,7 +508,6 @@ function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]
 export default function LiveBracketHome() {
   const [filter, setFilter] = useState<'all' | Status>('all');
   const [query, setQuery] = useState('');
-  const [locationQuery, setLocationQuery] = useState('');
 
   // Morphing Navigation States
   const [scrolled, setScrolled] = useState(false);
@@ -621,29 +620,25 @@ export default function LiveBracketHome() {
   // Filter lists based on Search input and Filter tabs.
   const filteredActiveUpcoming = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const l = locationQuery.trim().toLowerCase();
     return TOURNAMENTS.filter((t) => {
       if (t.status === 'finished') return false;
       if (filter === 'live' && t.status !== 'live') return false;
       if (filter === 'upcoming' && t.status !== 'upcoming') return false;
       if (filter === 'finished') return false;
       if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
-      if (l && !t.location.toLowerCase().includes(l)) return false;
       return true;
     });
-  }, [filter, query, locationQuery]);
+  }, [filter, query]);
 
   const filteredFinished = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const l = locationQuery.trim().toLowerCase();
     return TOURNAMENTS.filter((t) => {
       if (t.status !== 'finished') return false;
       if (filter === 'live' || filter === 'upcoming') return false;
       if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
-      if (l && !t.location.toLowerCase().includes(l)) return false;
       return true;
     });
-  }, [filter, query, locationQuery]);
+  }, [filter, query]);
 
   const hasAnyResults = filteredActiveUpcoming.length > 0 || filteredFinished.length > 0;
 
@@ -1026,16 +1021,6 @@ export default function LiveBracketHome() {
                   />
                   <Mic size={18} className={styles.searchIconRight} />
                 </div>
-                <div className={styles.locationSearch}>
-                  <MapPin size={18} className={styles.searchIconLeft} />
-                  <input
-                    type="search"
-                    placeholder="Location"
-                    value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    aria-label="Search location"
-                  />
-                </div>
               </div>
               <div className={styles.chips} role="tablist" aria-label="Filter by status">
                 {FILTERS.map((f) => (
@@ -1061,7 +1046,7 @@ export default function LiveBracketHome() {
                 <p>No tournaments match that search query or filter.</p>
                 <button
                   className={styles.linkBtn}
-                  onClick={() => { setQuery(''); setLocationQuery(''); setFilter('all'); }}
+                  onClick={() => { setQuery(''); setFilter('all'); }}
                 >
                   Clear filters
                 </button>
