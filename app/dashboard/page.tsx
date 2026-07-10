@@ -211,6 +211,15 @@ function TournamentCard({
     <div className={styles.tournamentCard}
       style={{ backdropFilter: 'blur(16px) saturate(180%)', WebkitBackdropFilter: 'blur(16px) saturate(180%)' }}
     >
+      <div className={styles.tournamentCardImage}>
+        {t.imageUrl ? (
+          <img src={t.imageUrl} alt={`${t.title} cover`} />
+        ) : (
+          <Trophy size={36} strokeWidth={1.5} />
+        )}
+      </div>
+
+      <div className={styles.tournamentCardBody}>
       <div className={styles.tournamentCardTop}>
         <div>
           <p className={styles.tournamentCardEyebrow}>
@@ -315,6 +324,7 @@ function TournamentCard({
         <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.setupWorkspaceBtn}>
           <Settings size={16} /> Setup Tournament
         </Link>
+      </div>
       </div>
     </div>
   );
