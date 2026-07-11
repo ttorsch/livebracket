@@ -157,7 +157,7 @@
   color: var(--muted, #7A8294);
   transition: color 0.2s;
 }
-.roleTabActive { color: var(--lb-navy); }
+.roleTabActive { color: var(--role-accent, var(--lb-navy)); }
 .roleThumb {
   position: absolute;
   z-index: 1;
@@ -198,16 +198,17 @@
   padding: 15px 16px;
   border: none;
   border-radius: 12px;
-  background: var(--lb-navy);
+  background: var(--role-accent, var(--lb-navy));
   color: #fff;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 700;
   font-size: 16px;
   cursor: pointer;
-  transition: background 0.15s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 0.25s, filter 0.15s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   outline: none;
 }
-.signIn:hover { background: #1a2a3d; }
+.signIn:hover { filter: brightness(0.9); }
+.signIn:disabled { opacity: 0.7; cursor: default; }
 .signIn:active {
   transform: scale(0.92);
   transition: transform 0.05s linear;
@@ -227,6 +228,50 @@
   color: var(--blue, #204ECF);
 }
 .forgot:hover { text-decoration: underline; }
+
+/* ── SSO ──────────────────────────────────────────────────────── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8294);
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line, #E7E2D9);
+}
+.ssoRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.ssoBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line, #E7E2D9);
+  background: #fff;
+  cursor: pointer;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-1, #14181E);
+  transition: background 0.15s, border-color 0.15s;
+}
+.ssoBtn:hover { background: #F7F8FA; border-color: #D5DAE3; }
+.ssoBtn:disabled { opacity: 0.6; cursor: default; }
 
 .signupNote {
   margin-top: 20px;
@@ -411,6 +456,111 @@
   0%   { box-shadow: 0 0 0 0 rgba(242, 103, 73, 0.55); }
   70%  { box-shadow: 0 0 0 8px rgba(242, 103, 73, 0); }
   100% { box-shadow: 0 0 0 0 rgba(242, 103, 73, 0); }
+}
+
+/* ── Sign-up modal ────────────────────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 14, 24, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: lbFadeIn 0.18s ease-out;
+}
+.modal {
+  width: min(460px, 100%);
+  max-height: calc(100svh - 40px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 20px;
+  padding: 26px 26px 24px;
+  box-shadow: 0 30px 80px -30px rgba(8, 18, 35, 0.7);
+  animation: lbSlideUp 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes lbFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lbSlideUp {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modalHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.modalTitle {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--lb-navy);
+  text-transform: capitalize;
+}
+.modalSub {
+  margin-top: 4px;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13.5px;
+  color: var(--muted, #7A8294);
+}
+.modalClose {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: #EEF1F6;
+  color: var(--ink-2, #3A414D);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.modalClose:hover { background: #E2E7EF; }
+
+.req { color: var(--coral, #F26749); font-style: normal; }
+
+.otpRow { display: flex; gap: 10px; }
+.otpRow input { flex: 1; min-width: 0; }
+.sendCodeBtn {
+  flex-shrink: 0;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--role-accent, var(--lb-navy));
+  background: #fff;
+  cursor: pointer;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--role-accent, var(--lb-navy));
+  transition: background 0.15s;
+}
+.sendCodeBtn:hover { background: rgba(20, 24, 30, 0.04); }
+.otpInput {
+  letter-spacing: 8px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 17px;
+}
+.otpHint {
+  margin-top: 2px;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 12px;
+  color: var(--muted, #7A8294);
+}
+.verifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 13px;
+  color: #1FB856;
 }
 
 /* ── Responsive ───────────────────────────────────────────────── */
