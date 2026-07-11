@@ -747,8 +747,8 @@ export default function LiveBracketHome() {
               <div 
                 className={styles.pulseCard}
                 style={{
-                  backdropFilter: 'blur(5px) saturate(150%)',
-                  WebkitBackdropFilter: 'blur(5px) saturate(150%)'
+                  backdropFilter: 'blur(5px)',
+                  WebkitBackdropFilter: 'blur(5px)'
                 }}
               >
                 
@@ -799,8 +799,8 @@ export default function LiveBracketHome() {
                       boxShadow: { type: 'spring', stiffness: 400, damping: 25 }
                     }}
                     style={{
-                      backdropFilter: 'blur(12px) saturate(160%)',
-                      WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
                       background: 'rgba(255, 255, 255, 0.88)',
                       border: '1px solid rgba(255, 255, 255, 0.4)'
                     }}
@@ -937,8 +937,8 @@ export default function LiveBracketHome() {
                 <div 
                   className={styles.nearbyCard}
                   style={{
-                    backdropFilter: 'blur(5px) saturate(150%)',
-                    WebkitBackdropFilter: 'blur(5px) saturate(150%)'
+                    backdropFilter: 'blur(5px)',
+                    WebkitBackdropFilter: 'blur(5px)'
                   }}
                 >
                   <div className={styles.nearbyCardHeader}>
@@ -1075,8 +1075,8 @@ export default function LiveBracketHome() {
                         className={styles.cardGlassLayer}
                         aria-hidden="true"
                         style={{
-                          backdropFilter: 'blur(20px) saturate(180%)',
-                          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                          backdropFilter: 'blur(15px) saturate(180%)',
+                          WebkitBackdropFilter: 'blur(15px) saturate(180%)',
                         }}
                       />
                       <div className={styles.cardMainInfo}>
