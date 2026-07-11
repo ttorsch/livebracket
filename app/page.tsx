@@ -1071,27 +1071,26 @@ export default function LiveBracketHome() {
                     </div>
                     
                     <div className={`${styles.cardDetailsCol} ${!t.registrations ? styles.cardDetailsNoReg : ''}`}>
+                      <span
+                        className={styles.cardGlassLayer}
+                        aria-hidden="true"
+                        style={{
+                          backdropFilter: 'blur(20px) saturate(180%)',
+                          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                        }}
+                      />
                       <div className={styles.cardMainInfo}>
+                        <h3 className={styles.cardTitle}>{t.title}</h3>
+
                         <div className={styles.cardLocationRow}>
                           <MapPin size={13} className={styles.cardLocIcon} />
                           <span className={styles.cardLocationText}>{t.location}</span>
                         </div>
 
-                        <h3 className={styles.cardTitle}>{t.title}</h3>
-
                         <div className={styles.cardPillsRow}>
                           <span className={styles.cardPillBadge}>{t.dateLabel}</span>
                           <span className={styles.cardPillTo}>to</span>
                           <span className={styles.cardPillBadge}>{t.endDateLabel || t.dateLabel}</span>
-                        </div>
-
-                        <div className={styles.organizerRow}>
-                          <div className={styles.organizerAvatar}>
-                            {t.organizerInitials || 'LB'}
-                          </div>
-                          <span className={styles.organizerName}>
-                            {t.organizerName || 'Live Bracket'}
-                          </span>
                         </div>
                       </div>
 
@@ -1120,9 +1119,15 @@ export default function LiveBracketHome() {
                           )}
                         </div>
                       )}
-                    </div>
-                    <div className={styles.cardArrow}>
-                      <ArrowRight size={20} strokeWidth={2.5} />
+
+                      <div className={styles.organizerRow}>
+                        <div className={styles.organizerAvatar}>
+                          {t.organizerInitials || 'LB'}
+                        </div>
+                        <span className={styles.organizerName}>
+                          {t.organizerName || 'Live Bracket'}
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 ))}

@@ -1115,16 +1115,16 @@
 
 /* Card List - Active & Upcoming */
 .grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   width: 100%;
 }
 
 .card {
   position: relative;
-  display: grid;
-  grid-template-columns: 200px 1fr;
+  display: block;
+  aspect-ratio: 9 / 16;
   border-radius: 32px;
   overflow: hidden;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.42));
@@ -1141,9 +1141,8 @@
 }
 
 .cardImageCol {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
 }
 
@@ -1158,17 +1157,43 @@
 }
 
 .cardDetailsCol {
-  padding: 24px 80px 24px 24px;
-  position: relative;
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 36px;
-  align-items: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 20px;
+  padding: 22px 24px 24px;
   text-align: left;
 }
 
+/* Keep panel content above the glass layer */
+.cardDetailsCol > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Glass with a soft top edge: tint and backdrop blur fade in over the
+   layer's top 20% instead of starting at a hard line. The layer extends
+   20% of the panel height above the panel (50% of the card), so the
+   glass covers 60% of the card while the text stays put. */
+.cardGlassLayer {
+  position: absolute;
+  top: -20%;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.5) 20%, rgba(255, 255, 255, 0.68) 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 20%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 20%);
+}
+
 .cardDetailsNoReg {
-  grid-template-columns: 1fr;
+  justify-content: flex-end;
 }
 
 .cardMainInfo {
@@ -1176,63 +1201,14 @@
   flex-direction: column;
 }
 
-.cardArrow {
-  position: absolute;
-  right: 28px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--orange, #EE7A4C);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  border: 1px solid transparent;
-  outline: none;
-  transition: background-color 0.25s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s;
-}
-
-.cardArrow svg {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.card:hover .cardArrow {
-  background: var(--orange-600, #E0623A);
-}
-.cardArrow:focus-visible,
-.cardArrow:focus {
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4);
-}
-.cardArrow:active {
-  transform: translateY(-50%) scale(0.92);
-  transition: transform 0.05s linear;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-.cardArrow[disabled],
-.cardArrow.disabled {
-  background: #E5E7EB;
-  color: #1F2937;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.card:hover .cardArrow svg {
-  transform: translateX(3px);
-}
-
 .cardLocationRow {
   display: flex;
   align-items: center;
   gap: 6px;
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 13px;
+  font-size: 14.5px;
   color: rgba(20, 24, 30, 0.6);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .cardLocIcon {
@@ -1247,22 +1223,22 @@
 .cardTitle {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  font-size: 24px;
+  font-size: 30px;
   color: var(--ink-1, #14181E);
-  margin-bottom: 20px;
-  line-height: 1.2;
+  margin-bottom: 8px;
+  line-height: 1.15;
 }
 
 .organizerRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: auto;
 }
 
 .organizerAvatar {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--orange, #EE7A4C);
   color: #ffffff;
@@ -1279,7 +1255,7 @@
 
 .organizerName {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--ink-2, #3A414D);
 }
@@ -1292,7 +1268,7 @@
 
 .cardPillBadge {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   padding: 5px 12px;
   border-radius: 999px;
@@ -1303,7 +1279,7 @@
 
 .cardPillTo {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--ink-3, #7A8294);
 }
@@ -1312,7 +1288,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  width: 70%;
+  width: 100%;
 }
 
 .divisionItem {
@@ -1327,7 +1303,7 @@
   justify-content: space-between;
   align-items: baseline;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 .divisionName {
@@ -1336,7 +1312,7 @@
 }
 
 .divisionSeats {
-  font-size: 12px;
+  font-size: 13.5px;
   color: rgba(20, 24, 30, 0.6);
 }
 .divisionSeats strong {
@@ -1746,14 +1722,7 @@
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .navRow { padding: 16px 20px; z-index: 2; }
-  .cardDetailsCol {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  .cardDivisionsSection {
-    width: 100%;
-    margin-left: 0;
-  }
+  .grid { grid-template-columns: 1fr; }
   .links { display: none; }
   .pillContact { display: none; }
   .menuBtn { display: grid; }
@@ -1829,17 +1798,8 @@
   .controls { flex-direction: column; align-items: stretch; }
   .searchRow { flex-direction: column; gap: 12px; }
   .search { max-width: none; flex: none; width: 100%; }
-  .card {
-    grid-template-columns: 1fr;
-  }
-  .cardImageCol {
-    aspect-ratio: 16 / 10;
-  }
   .cardDetailsCol {
     padding: 20px;
-  }
-  .cardArrow {
-    display: none;
   }
   .cardDivisionsGrid {
     flex-wrap: wrap;
