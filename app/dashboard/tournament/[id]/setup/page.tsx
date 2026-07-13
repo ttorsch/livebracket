@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { 
   Check, 
   ChevronRight, 
@@ -17,7 +17,6 @@ import {
   Sparkles, 
   Gift, 
   ListPlus,
-  Save,
   ArrowLeft,
   ArrowUp,
   ArrowDown,
@@ -223,7 +222,6 @@ const formatDateRange = (start?: string, end?: string): string => {
 
 export default function OrganizerSetup() {
   const params = useParams();
-  const router = useRouter();
 
   // Active Map Phase: 1 = Initial Shell, 2 = Rules Announced, 3 = Live Reg, 4 = Logistics (Day Before)
   const [activePhase, setActivePhase] = useState<1 | 2 | 3 | 4>(1);
@@ -344,7 +342,6 @@ export default function OrganizerSetup() {
 
   const [rules, setRules] = useState('Standard FIVB Beach Volleyball rules apply. Matches are best of 3 sets to 21 points (third set to 15 if needed). Warm-ups are strictly limited to 5 minutes.');
   const [venueInfo, setVenueInfo] = useState('Memories Beach, Khao Lak. Food and drinks are available at the beach club. Free parking is available for players.');
-  const [saved, setSaved] = useState(false);
 
   // Modal open reset
   const handleOpenCreateModal = () => {
@@ -895,14 +892,6 @@ export default function OrganizerSetup() {
     setCourts(courts.filter(c => c !== court));
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      router.push('/dashboard');
-    }, 1500);
-  };
-
   // The division shown in the per-division setup panel (falls back to the first).
   const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
 
@@ -921,14 +910,9 @@ export default function OrganizerSetup() {
       <header className={styles.topBar}>
         <div className={styles.container}>
           <div className={styles.topBarInner}>
-            <Link href="/dashboard" className={styles.backLink}>
-              <ArrowLeft size={16} /> Back to Dashboard
+            <Link href="/dashboard" className={styles.backLink} aria-label="Back to Dashboard">
+              <ArrowLeft size={18} />
             </Link>
-            <div className={styles.topBarActions}>
-              <button className={styles.btnSave} onClick={handleSave}>
-                <Save size={16} /> Save Setup
-              </button>
-            </div>
           </div>
         </div>
       </header>
@@ -959,12 +943,6 @@ export default function OrganizerSetup() {
               </div>
             )}
           </section>
-
-          {saved && (
-            <div className={styles.saveToast}>
-              <Check size={18} /> Settings successfully saved! Redirecting...
-            </div>
-          )}
 
           {divisionsLoading ? (
             <div className={styles.emptyDivisions}>
