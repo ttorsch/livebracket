@@ -331,35 +331,63 @@
   gap: 16px;
 }
 .tournamentCard {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.78);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.42));
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 24px;
   padding: 24px;
   box-shadow: 0 10px 30px -10px rgba(20, 31, 46, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   display: flex;
   gap: 20px;
 }
+/* Full-bleed image background (matches homepage tournament cards) */
+.tournamentCardBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(238, 122, 76, 0.18), rgba(238, 122, 76, 0.05));
+}
+.tournamentCardBg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Transparent spacer: keeps the left column as a clear window onto the bg */
 .tournamentCardImage {
+  position: relative;
+  z-index: 1;
   flex: 0 0 148px;
   align-self: stretch;
   border-radius: 16px;
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(238, 122, 76, 0.18), rgba(238, 122, 76, 0.05));
   display: flex;
   align-items: center;
   justify-content: center;
   color: rgba(238, 122, 76, 0.55);
   min-height: 148px;
 }
-.tournamentCardImage img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
 .tournamentCardBody {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-width: 0;
+  border-radius: 16px;
+  padding: 20px;
+}
+.tournamentCardBody > *:not(.tournamentCardGlass) {
+  position: relative;
+  z-index: 1;
+}
+/* Glass pane under the body content (matches homepage cardGlassLayer) */
+.tournamentCardGlass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.5));
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 @media (max-width: 640px) {
   .tournamentCard { flex-direction: column; }
