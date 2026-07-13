@@ -728,6 +728,10 @@ export default function LiveBracketHome() {
               <Link href="/login" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
                 Sign In
               </Link>
+              {/* TEMP: quick access to the organizer dashboard for testing — remove later */}
+              <Link href="/dashboard" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
+                Dashboard
+              </Link>
             </div>
           </>
         )}
