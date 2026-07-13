@@ -127,7 +127,7 @@ export default function OrganizerDashboard() {
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>
-              Going on tournament
+              Live Now
             </h2>
           </div>
           {liveTournaments.length > 0 ? (
