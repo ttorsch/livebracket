@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, QrCode, Trophy, ArrowRight, Settings, Calendar, MapPin } from 'lucide-react';
+import { Plus, QrCode, Trophy, ArrowRight, Settings, Calendar, MapPin, History, Bell } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
 import { getDashboardTournaments, todayLocal, type DashboardTournament } from '../../lib/data';
@@ -14,6 +14,34 @@ interface Organizer {
 }
 
 const TODAY = todayLocal();
+
+const MOCK_HISTORY: CardTournament[] = [
+  {
+    id: 'hist_1',
+    title: 'Winter Beach Volley Open',
+    date: 'Dec 15 - Dec 16, 2025',
+    location: 'Copacabana Beach',
+    phase: 4,
+    startDate: '2025-12-15',
+    divisions: [
+      { name: 'Men 2v2', cap: 16, filled: 16 },
+      { name: 'Women 2v2', cap: 16, filled: 16 }
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=600'
+  },
+  {
+    id: 'hist_2',
+    title: 'Autumn Spike Festival',
+    date: 'Oct 01 - Oct 02, 2025',
+    location: 'Bondi Beach',
+    phase: 4,
+    startDate: '2025-10-01',
+    divisions: [
+      { name: 'Mixed 4v4', cap: 8, filled: 8 }
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1544216717-3bbf52512659?q=80&w=600'
+  }
+];
 
 /* Map tournament phase → filter status */
 const STATUS_FILTERS = [
@@ -46,6 +74,7 @@ function matchesFilter(t: CardTournament, key: StatusKey): boolean {
 }
 
 export default function OrganizerDashboard() {
+  const [activeTab, setActiveTab] = useState<'tournament' | 'history' | 'notifications'>('tournament');
   const [tournaments, setTournaments] = useState<DashboardTournament[]>([]);
   const [organizer, setOrganizer] = useState<Organizer | null>(null);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
@@ -75,7 +104,7 @@ export default function OrganizerDashboard() {
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark}>
             <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
+  <circle cx="639.5" cy="416.5" r="343.5" fill="#204ECF" />
   <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
   <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
   <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
@@ -90,9 +119,17 @@ export default function OrganizerDashboard() {
         </Link>
 
         <nav className={styles.sideNav}>
-          <Link href="/dashboard" className={`${styles.sideLink} ${styles.sideLinkActive}`}>
+          <Link href="#" onClick={(e) => { e.preventDefault(); setActiveTab('tournament'); }} className={`${styles.sideLink} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}>
             <span className={styles.sideIcon}><Trophy size={18} /></span>
             <span>My Tournament</span>
+          </Link>
+          <Link href="#" onClick={(e) => { e.preventDefault(); setActiveTab('history'); }} className={`${styles.sideLink} ${activeTab === 'history' ? styles.sideLinkActive : ''}`}>
+            <span className={styles.sideIcon}><History size={18} /></span>
+            <span>History</span>
+          </Link>
+          <Link href="#" onClick={(e) => { e.preventDefault(); setActiveTab('notifications'); }} className={`${styles.sideLink} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}>
+            <span className={styles.sideIcon}><Bell size={18} /></span>
+            <span>Notifications</span>
           </Link>
         </nav>
 
@@ -123,68 +160,101 @@ export default function OrganizerDashboard() {
           </button>
         </div>
 
-        {/* Live now — tournaments starting today (hidden when none) */}
-        {liveTournaments.length > 0 && (
+        {activeTab === 'tournament' && (
+          <>
+            {/* Live now — tournaments starting today (hidden when none) */}
+            {liveTournaments.length > 0 && (
+              <section className={styles.section}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    Live Now
+                  </h2>
+                </div>
+                <div className={styles.tournamentList}>
+                  {liveTournaments.map(t => (
+                    <TournamentCard
+                      key={t.id}
+                      t={t}
+                      qrOpen={qrOpen}
+                      setQrOpen={setQrOpen}
+                      copiedId={copiedId}
+                      copyLink={copyLink}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Active tournaments */}
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>Tournaments</h2>
+              </div>
+
+              <div className={styles.filterTabs}>
+                {STATUS_FILTERS.map(f => {
+                  const count = tournaments.filter(t => matchesFilter(t, f.key)).length;
+                  return (
+                    <button
+                      key={f.key}
+                      type="button"
+                      className={`${styles.filterTab} ${statusFilter === f.key ? styles.filterTabActive : ''}`}
+                      onClick={() => setStatusFilter(f.key)}
+                    >
+                      {f.label}
+                      <span className={styles.filterCount}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className={styles.tournamentList}>
+                {visibleTournaments.length === 0 && (
+                  <p className={styles.filterEmpty}>No tournaments in this category.</p>
+                )}
+                {visibleTournaments.map(t => (
+                  <TournamentCard
+                    key={t.id}
+                    t={t}
+                    qrOpen={qrOpen}
+                    setQrOpen={setQrOpen}
+                    copiedId={copiedId}
+                    copyLink={copyLink}
+                  />
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === 'history' && (
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>
-                Live Now
-              </h2>
+              <h2 className={styles.sectionTitle}>Past Tournaments</h2>
             </div>
             <div className={styles.tournamentList}>
-              {liveTournaments.map(t => (
+              {MOCK_HISTORY.map(t => (
                 <TournamentCard
                   key={t.id}
                   t={t}
-                  qrOpen={qrOpen}
-                  setQrOpen={setQrOpen}
-                  copiedId={copiedId}
-                  copyLink={copyLink}
+                  qrOpen={null}
+                  setQrOpen={() => {}}
+                  copiedId={null}
+                  copyLink={() => {}}
                 />
               ))}
             </div>
           </section>
         )}
 
-        {/* Active tournaments */}
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Tournaments</h2>
-          </div>
-
-          <div className={styles.filterTabs}>
-            {STATUS_FILTERS.map(f => {
-              const count = tournaments.filter(t => matchesFilter(t, f.key)).length;
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  className={`${styles.filterTab} ${statusFilter === f.key ? styles.filterTabActive : ''}`}
-                  onClick={() => setStatusFilter(f.key)}
-                >
-                  {f.label}
-                  <span className={styles.filterCount}>{count}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className={styles.tournamentList}>
-            {visibleTournaments.length === 0 && (
-              <p className={styles.filterEmpty}>No tournaments in this category.</p>
-            )}
-            {visibleTournaments.map(t => (
-              <TournamentCard
-                key={t.id}
-                t={t}
-                qrOpen={qrOpen}
-                setQrOpen={setQrOpen}
-                copiedId={copiedId}
-                copyLink={copyLink}
-              />
-            ))}
-          </div>
-        </section>
+        {activeTab === 'notifications' && (
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Notifications</h2>
+            </div>
+            <p className={styles.filterEmpty}>No new notifications.</p>
+          </section>
+        )}
       </main>
 
       <CreateTournamentModal open={createOpen} onClose={() => setCreateOpen(false)} />

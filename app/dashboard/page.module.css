@@ -13,8 +13,8 @@
 /* ── Sidebar (green glass) ────────────────────────────────────── */
 .sidebar {
   --side-bleed: var(--page-bg, #F5F1EA); /* same color as the page bg so the active tab connects to content */
-  width: 248px;
-  background: linear-gradient(180deg, #EE7A4C 0%, #F4A07A 38%, #FAD8C6 70%, #FFFFFF 100%);
+  width: 76px;
+  background: linear-gradient(180deg, #204ECF 0%, #83A5F2 40%, #D0DBF9 70%, #FFFFFF 100%);
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -26,19 +26,32 @@
   border-radius: 28px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   overflow: visible;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 50;
+}
+.sidebar:hover {
+  width: 248px;
 }
 .brand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
   padding: 22px 18px 16px;
+  overflow: hidden;
 }
 .brandName {
   font-family: var(--font-heading);
   font-weight: 800;
   font-size: 18px;
   color: var(--ink-1, #14181E);
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+.sidebar:hover .brandName {
+  opacity: 1;
+  transition-delay: 0.1s;
 }
 .brandMark {
   display: grid;
@@ -72,8 +85,19 @@
   color: rgba(20, 24, 30, 0.72);
   text-decoration: none;
   transition: background 0.14s, color 0.14s;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .sideLink:hover { background: rgba(20, 31, 46, 0.06); color: var(--ink-1, #14181E); }
+
+.sideLink span:not(.sideIcon) {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.sidebar:hover .sideLink span:not(.sideIcon) {
+  opacity: 1;
+  transition-delay: 0.1s;
+}
 
 /* Active item bleeds to the right edge and curves into the content area */
 .sideLinkActive,
@@ -119,15 +143,15 @@
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14.5px;
   font-weight: 700;
-  color: var(--orange, #EE7A4C);
+  color: var(--blue, #204ECF);
   text-decoration: none;
-  box-shadow: 0 6px 16px rgba(238, 122, 76, 0.22);
+  box-shadow: 0 6px 16px rgba(32, 78, 207, 0.22);
   transition: background 0.14s, transform 0.1s, box-shadow 0.14s;
 }
 .newTournamentNav:hover {
   background: #fff;
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(238, 122, 76, 0.3);
+  box-shadow: 0 10px 22px rgba(32, 78, 207, 0.3);
 }
 
 .sideProfile {
@@ -141,17 +165,33 @@
   border-radius: 14px;
   background: transparent;
   text-decoration: none;
+  overflow: hidden;
 }
 .sideProfile:hover { background: transparent; }
 .sideAvatar {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: rgba(238, 122, 76, 0.16);
+  background: rgba(32, 78, 207, 0.16);
   display: grid;
   place-items: center;
   font-size: 34px;
   flex-shrink: 0;
+  transition: width 0.3s, height 0.3s, font-size 0.3s;
+}
+.sidebar:not(:hover) .sideAvatar {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+}
+.sideProfile div {
+  opacity: 1;
+  max-height: 50px;
+  transition: opacity 0.3s, max-height 0.3s;
+}
+.sidebar:not(:hover) .sideProfile div {
+  opacity: 0;
+  max-height: 0;
 }
 .sideProfileName {
   font-family: var(--font-ui, 'Inter', sans-serif);
@@ -187,7 +227,7 @@
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--orange, #EE7A4C);
+  color: var(--blue, #204ECF);
   margin-bottom: 6px;
 }
 .headerTitle {
@@ -203,18 +243,18 @@
   padding: 12px 22px;
   border: none;
   border-radius: 999px;
-  background: var(--orange, #EE7A4C);
+  background: var(--blue, #204ECF);
   color: #fff;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 700;
   font-size: 14px;
-  box-shadow: 0 6px 18px rgba(238, 122, 76, 0.35);
+  box-shadow: 0 6px 18px rgba(32, 78, 207, 0.35);
   white-space: nowrap;
   flex-shrink: 0;
   cursor: pointer;
   transition: background 0.15s, transform 0.15s;
 }
-.newTournamentBtn:hover { background: var(--orange-600, #E0623A); transform: translateY(-1px); }
+.newTournamentBtn:hover { background: var(--blue-600, #183AA0); transform: translateY(-1px); }
 
 /* ── Stats row ────────────────────────────────────────────────── */
 .statsRow {
@@ -237,10 +277,10 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(238, 122, 76, 0.1);
+  background: rgba(32, 78, 207, 0.1);
   display: grid;
   place-items: center;
-  color: var(--orange, #EE7A4C);
+  color: var(--blue, #204ECF);
 }
 .statNum {
   font-family: var(--font-heading);
@@ -293,12 +333,12 @@
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .filterTab:hover {
-  border-color: rgba(238, 122, 76, 0.4);
+  border-color: rgba(32, 78, 207, 0.4);
   color: var(--ink-1, #14181E);
 }
 .filterTabActive {
-  background: var(--orange, #EE7A4C);
-  border-color: var(--orange, #EE7A4C);
+  background: var(--blue, #204ECF);
+  border-color: var(--blue, #204ECF);
   color: #fff;
 }
 .filterCount {
@@ -347,7 +387,7 @@
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(238, 122, 76, 0.18), rgba(238, 122, 76, 0.05));
+  background: linear-gradient(135deg, rgba(32, 78, 207, 0.18), rgba(32, 78, 207, 0.05));
 }
 .tournamentCardBg img {
   width: 100%;
@@ -365,7 +405,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(238, 122, 76, 0.55);
+  color: rgba(32, 78, 207, 0.55);
   min-height: 148px;
 }
 .tournamentCardBody {
@@ -399,9 +439,9 @@
   gap: 6px;
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(238, 122, 76, 0.1);
-  border: 1px solid rgba(238, 122, 76, 0.25);
-  color: var(--orange, #EE7A4C);
+  background: rgba(32, 78, 207, 0.1);
+  border: 1px solid rgba(32, 78, 207, 0.25);
+  color: var(--blue, #204ECF);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 10px;
   font-weight: 700;
@@ -534,7 +574,7 @@
   color: rgba(20, 24, 30, 0.5);
   white-space: nowrap;
 }
-.divAvailCountFull { color: var(--orange, #EE7A4C); }
+.divAvailCountFull { color: var(--blue, #204ECF); }
 .divAvailBarWrap {
   height: 7px;
   border-radius: 999px;
@@ -544,7 +584,7 @@
 .divAvailBarFill {
   height: 100%;
   border-radius: 999px;
-  background: var(--orange, #EE7A4C);
+  background: var(--blue, #204ECF);
   transition: width 0.3s ease;
 }
 .divAvailBarFull { background: #C9472A; }
@@ -569,7 +609,7 @@
   stroke-width: 5;
 }
 .divCircleFill {
-  stroke: var(--orange, #EE7A4C);
+  stroke: var(--blue, #204ECF);
   stroke-width: 5;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.4s ease;
@@ -702,7 +742,7 @@
 .progressBarFill {
   height: 100%;
   border-radius: 3px;
-  background: var(--orange, #EE7A4C);
+  background: var(--blue, #204ECF);
   transition: width 0.3s;
 }
 
@@ -737,10 +777,10 @@
 
 /* ── QR panel ─────────────────────────────────────────────────── */
 .qrPanel {
-  border: 1px solid rgba(238, 122, 76, 0.2);
+  border: 1px solid rgba(32, 78, 207, 0.2);
   border-radius: 16px;
   padding: 16px;
-  background: rgba(238, 122, 76, 0.04);
+  background: rgba(32, 78, 207, 0.04);
   margin-bottom: 14px;
 }
 .qrPanelHeader {
@@ -803,7 +843,7 @@
   display: inline-flex;
   padding: 5px 12px;
   border-radius: 8px;
-  background: var(--orange, #EE7A4C);
+  background: var(--blue, #204ECF);
   color: #fff;
   border: none;
   cursor: pointer;
@@ -813,7 +853,7 @@
   white-space: nowrap;
   transition: background 0.12s;
 }
-.copyBtn:hover { background: var(--orange-600, #E0623A); }
+.copyBtn:hover { background: var(--blue-600, #183AA0); }
 
 .tournamentCardFooter {
   display: flex;
@@ -829,11 +869,11 @@
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13px;
   font-weight: 700;
-  color: var(--orange, #EE7A4C);
+  color: var(--blue, #204ECF);
   text-decoration: none;
   transition: color 0.12s;
 }
-.viewLink:hover { color: var(--orange-600, #E0623A); }
+.viewLink:hover { color: var(--blue-600, #183AA0); }
 .editLink {
   display: inline-flex;
   align-items: center;
