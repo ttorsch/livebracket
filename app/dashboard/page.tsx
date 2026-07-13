@@ -326,10 +326,10 @@ function TournamentCard({
 
       <div className={styles.tournamentCardFooter}>
         <Link href={`/tournament/${t.id}`} className={styles.seeResultBtn}>
-          <Trophy size={16} /> See Bracket
+          <Trophy size={16} /> Bracket
         </Link>
         <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.setupWorkspaceBtn}>
-          <Settings size={16} /> Setup Tournament
+          <Settings size={16} /> Setup
         </Link>
       </div>
       </div>
