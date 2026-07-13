@@ -928,4 +928,10 @@
   .statsRow { grid-template-columns: 1fr 1fr; }
   .pastWinner { display: none; }
   .header { flex-direction: column; gap: 16px; }
+  .newTournamentBtn {
+    width: 100%;
+    justify-content: center;
+    border-radius: 16px;
+    padding: 14px 22px;
+  }
 }
