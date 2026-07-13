@@ -11,47 +11,41 @@
   padding: 0 24px;
 }
 
-/* ── Top Bar ──────────────────────────────────────────────────── */
-.topBar {
-  background: var(--ink-1, #14181E);
-  height: 60px;
-  display: flex;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.topBarInner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-/* Back to dashboard: black arrow on a glass circle */
+/* ── Floating back button ─────────────────────────────────────────
+   Black arrow on a glass circle, fixed to the top-left of the screen.
+   Acts like a navbar: hides on scroll down, returns on scroll up. */
 .backLink {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.6));
   border: 1px solid rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 24px -6px rgba(20, 31, 46, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   color: var(--ink-1, #14181E);
   text-decoration: none;
-  transition: background 0.15s, transform 0.15s;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s, background 0.15s;
 }
 .backLink:hover {
   background: #fff;
-  transform: translateX(-2px);
+}
+.backLinkHidden {
+  transform: translateY(-76px);
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ── Header ───────────────────────────────────────────────────── */
 .headerArea {
-  margin: 40px 0 28px;
+  margin: 76px 0 28px;
 }
 .title {
   font-family: var(--font-heading);

@@ -340,6 +340,20 @@ export default function OrganizerSetup() {
   const [newVoucherCode, setNewVoucherCode] = useState('');
   const [newVoucherVis, setNewVoucherVis] = useState<'public' | 'player'>('public');
 
+  // Floating back button: hides on scroll down, reappears on scroll up.
+  const [backHidden, setBackHidden] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > lastY && y > 80) setBackHidden(true);
+      else if (y < lastY) setBackHidden(false);
+      lastY = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const [rules, setRules] = useState('Standard FIVB Beach Volleyball rules apply. Matches are best of 3 sets to 21 points (third set to 15 if needed). Warm-ups are strictly limited to 5 minutes.');
   const [venueInfo, setVenueInfo] = useState('Memories Beach, Khao Lak. Food and drinks are available at the beach club. Free parking is available for players.');
 
@@ -907,15 +921,13 @@ export default function OrganizerSetup() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.topBar}>
-        <div className={styles.container}>
-          <div className={styles.topBarInner}>
-            <Link href="/dashboard" className={styles.backLink} aria-label="Back to Dashboard">
-              <ArrowLeft size={18} />
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Link
+        href="/dashboard"
+        className={`${styles.backLink} ${backHidden ? styles.backLinkHidden : ''}`}
+        aria-label="Back to Dashboard"
+      >
+        <ArrowLeft size={18} />
+      </Link>
 
       <main className={styles.main}>
         <div className={styles.container}>
