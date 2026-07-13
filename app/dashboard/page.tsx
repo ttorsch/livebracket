@@ -123,14 +123,14 @@ export default function OrganizerDashboard() {
           </button>
         </div>
 
-        {/* Live now — tournaments starting today */}
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>
-              Live Now
-            </h2>
-          </div>
-          {liveTournaments.length > 0 ? (
+        {/* Live now — tournaments starting today (hidden when none) */}
+        {liveTournaments.length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>
+                Live Now
+              </h2>
+            </div>
             <div className={styles.tournamentList}>
               {liveTournaments.map(t => (
                 <TournamentCard
@@ -143,10 +143,8 @@ export default function OrganizerDashboard() {
                 />
               ))}
             </div>
-          ) : (
-            <p className={styles.filterEmpty}>No tournaments live today.</p>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Active tournaments */}
         <section className={styles.section}>
