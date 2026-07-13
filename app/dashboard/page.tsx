@@ -215,19 +215,20 @@ function TournamentCard({
         {t.imageUrl && <img src={t.imageUrl} alt="" />}
       </div>
 
+      <span
+        className={styles.tournamentCardGlass}
+        aria-hidden="true"
+        style={{
+          backdropFilter: 'blur(15px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(15px) saturate(180%)',
+        }}
+      />
+
       <div className={styles.tournamentCardImage}>
         {!t.imageUrl && <Trophy size={36} strokeWidth={1.5} />}
       </div>
 
       <div className={styles.tournamentCardBody}>
-        <span
-          className={styles.tournamentCardGlass}
-          aria-hidden="true"
-          style={{
-            backdropFilter: 'blur(15px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(15px) saturate(180%)',
-          }}
-        />
       <div className={styles.tournamentCardTop}>
         <div>
           <p className={styles.tournamentCardEyebrow}>

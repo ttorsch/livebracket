@@ -373,21 +373,13 @@
   z-index: 1;
   flex: 1;
   min-width: 0;
-  border-radius: 16px;
-  padding: 20px;
 }
-.tournamentCardBody > *:not(.tournamentCardGlass) {
-  position: relative;
-  z-index: 1;
-}
-/* Glass pane under the body content (matches homepage cardGlassLayer) */
+/* Glass pane covering 100% of the image area (matches homepage cardGlassLayer) */
 .tournamentCardGlass {
   position: absolute;
   inset: 0;
   z-index: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.5));
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 @media (max-width: 640px) {
   .tournamentCard { flex-direction: column; }
