@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip } from '@/components/livebracket-ds';
+import { getDashboardTournaments, todayLocal, type DashboardTournament } from '@/lib/data';
 
 type Status = 'live' | 'upcoming' | 'finished';
 
@@ -408,11 +409,60 @@ const FILTERS: { key: 'all' | Status; label: string }[] = [
   { key: 'upcoming', label: 'Starting Soon' },
 ];
 
-const STATUS_LABEL: Record<Status, string> = { 
-  live: 'Live Now', 
-  upcoming: 'Upcoming', 
-  finished: 'Finished' 
+const STATUS_LABEL: Record<Status, string> = {
+  live: 'Live Now',
+  upcoming: 'Upcoming',
+  finished: 'Finished'
 };
+
+/* ── Real tournament data (events list) ─────────────────────────
+   The events section below the hero is fed from the database; the
+   hero's live pulse card and nearby banner keep their demo data. */
+
+const CARD_ACCENTS = [
+  'linear-gradient(135deg, #EA9836 0%, #F26749 100%)',
+  'linear-gradient(135deg, #204ECF 0%, #2C6FB3 100%)',
+  'linear-gradient(135deg, #F26749 0%, #C93E63 100%)',
+  'linear-gradient(135deg, #1F8A70 0%, #204ECF 100%)',
+];
+
+function shortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+}
+
+function toEventCard(t: DashboardTournament, index: number, organizerName: string | null): Tournament {
+  const today = todayLocal();
+  const end = t.endDate || t.startDate;
+  const status: Status =
+    end < today ? 'finished' : t.startDate <= today ? 'live' : 'upcoming';
+  const start = new Date(`${t.startDate}T00:00:00`);
+  const name = organizerName || 'Live Bracket';
+  const initials = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  return {
+    id: t.id,
+    title: t.title,
+    location: t.location,
+    dateLabel: shortDate(t.startDate),
+    endDateLabel: end !== t.startDate ? shortDate(end) : undefined,
+    chip: {
+      m: start.toLocaleDateString('en-US', { month: 'short' }),
+      d: String(start.getDate()).padStart(2, '0'),
+    },
+    status,
+    teams: t.divisions.reduce((sum, d) => sum + d.filled, 0),
+    format: `${t.divisions.length || 'No'} division${t.divisions.length === 1 ? '' : 's'}`,
+    accent: CARD_ACCENTS[index % CARD_ACCENTS.length],
+    divisions: t.divisions.map(d => d.name),
+    image: t.imageUrl || '/images/Hero.jpg',
+    timeLabel: '',
+    registrations: t.divisions.map(d => ({ division: d.name, filled: d.filled, total: d.cap })),
+    organizerName: name,
+    organizerInitials: initials,
+  };
+}
 
 const getPlayerInitial = (name: string) => {
   return name ? name.charAt(0).toUpperCase() : '?';
@@ -521,6 +571,24 @@ export default function LiveBracketHome() {
   const [userLoc, setUserLoc] = useState<string>('Khao Lak');
   const [nearbyEvent, setNearbyEvent] = useState<Tournament | null>(() => TOURNAMENTS.find((t) => t.status === 'upcoming') || null);
 
+  // Events list — real tournaments from the database (announced and later;
+  // drafts stay hidden from the public page).
+  const [events, setEvents] = useState<Tournament[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      getDashboardTournaments(),
+      fetch('/api/organizer').then(r => r.json()).catch(() => null),
+    ])
+      .then(([rows, organizer]) => {
+        const cards = rows
+          .filter(t => t.phase >= 2)
+          .map((t, i) => toEventCard(t, i, organizer?.name ?? null));
+        setEvents(cards);
+      })
+      .catch(console.error);
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -620,7 +688,7 @@ export default function LiveBracketHome() {
   // Filter lists based on Search input and Filter tabs.
   const filteredActiveUpcoming = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return TOURNAMENTS.filter((t) => {
+    return events.filter((t) => {
       if (t.status === 'finished') return false;
       if (filter === 'live' && t.status !== 'live') return false;
       if (filter === 'upcoming' && t.status !== 'upcoming') return false;
@@ -628,17 +696,21 @@ export default function LiveBracketHome() {
       if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [filter, query]);
+    // getDashboardTournaments returns rows ordered by start date, so
+    // live events (earliest) lead and the nearest upcoming follow.
+  }, [events, filter, query]);
 
   const filteredFinished = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return TOURNAMENTS.filter((t) => {
-      if (t.status !== 'finished') return false;
-      if (filter === 'live' || filter === 'upcoming') return false;
-      if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
-      return true;
-    });
-  }, [filter, query]);
+    return events
+      .filter((t) => {
+        if (t.status !== 'finished') return false;
+        if (filter === 'live' || filter === 'upcoming') return false;
+        if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
+        return true;
+      })
+      .reverse(); // most recently finished first
+  }, [events, filter, query]);
 
   const hasAnyResults = filteredActiveUpcoming.length > 0 || filteredFinished.length > 0;
 
@@ -1063,7 +1135,7 @@ export default function LiveBracketHome() {
                 {filteredActiveUpcoming.map((t) => (
                   <Link
                     key={t.id}
-                    href={`#events`}
+                    href={`/tournament/${t.id}`}
                     className={styles.card}
                     style={{
                       backdropFilter: 'blur(24px) saturate(200%)',

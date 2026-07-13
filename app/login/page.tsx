@@ -262,10 +262,6 @@ export default function LiveBracketLogin() {
           <div className={styles.heroScrim} />
         </div>
 
-        <div className={styles.wordmarkWrap}>
-          <p className={styles.kicker}>Khao Lak Volley presents</p>
-          <h1 className={styles.wordmark}>LIVE BRACKET</h1>
-        </div>
 
         <div
           className={styles.glassPanel}

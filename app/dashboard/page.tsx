@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, QrCode, Trophy, ArrowRight, Settings, Calendar, MapPin, History, Bell } from 'lucide-react';
+import {
+  Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown,
+} from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
-import { getDashboardTournaments, todayLocal, type DashboardTournament } from '../../lib/data';
+import { Button, SearchField } from '../../components/livebracket-ds';
+import {
+  getDashboardTournaments, getTournamentDetail, todayLocal,
+  type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
+} from '../../lib/data';
 
 interface Organizer {
   name: string;
@@ -14,6 +20,11 @@ interface Organizer {
 }
 
 const TODAY = todayLocal();
+const LIVE_POLL_MS = 15000;
+
+function isLiveNow(t: CardTournament): boolean {
+  return t.startDate <= TODAY && TODAY <= (t.endDate || t.startDate);
+}
 
 const MOCK_HISTORY: CardTournament[] = [
   {
@@ -23,6 +34,7 @@ const MOCK_HISTORY: CardTournament[] = [
     location: 'Copacabana Beach',
     phase: 4,
     startDate: '2025-12-15',
+    endDate: '2025-12-16',
     divisions: [
       { name: 'Men 2v2', cap: 16, filled: 16 },
       { name: 'Women 2v2', cap: 16, filled: 16 }
@@ -36,6 +48,7 @@ const MOCK_HISTORY: CardTournament[] = [
     location: 'Bondi Beach',
     phase: 4,
     startDate: '2025-10-01',
+    endDate: '2025-10-02',
     divisions: [
       { name: 'Mixed 4v4', cap: 8, filled: 8 }
     ],
@@ -63,14 +76,140 @@ function phaseToStatus(phase: number): 'coming-up' | 'announced' | 'draft' {
   }
 }
 
+function statusPill(t: CardTournament): { label: string; cls: string } {
+  if (t.phase === 3) return { label: 'Open', cls: styles.pillOpen };
+  if (t.phase === 4) return { label: 'Closed', cls: styles.pillClosed };
+  if (t.phase === 2) return { label: 'Announced', cls: styles.pillAnnounced };
+  return { label: 'Draft', cls: styles.pillDraft };
+}
+
 type CardTournament = DashboardTournament;
 
+function isCompleted(t: CardTournament): boolean {
+  return (t.endDate || t.startDate) < TODAY;
+}
+
 // Registration is open while live (phase 3); closed the day before (phase 4).
-function matchesFilter(t: CardTournament, key: StatusKey): boolean {
+function matchesFilter(t: CardTournament, key: StatusKey | null): boolean {
+  // Default (no filter selected): upcoming events only — drafts and
+  // completed tournaments stay hidden until their filter is chosen.
+  if (key === null) return !isCompleted(t) && phaseToStatus(t.phase) !== 'draft';
   if (key === 'all') return true;
+  if (key === 'draft') return phaseToStatus(t.phase) === 'draft';
+  if (isCompleted(t)) return false;
   if (key === 'open') return t.phase === 3;
   if (key === 'closed') return t.phase === 4;
   return phaseToStatus(t.phase) === key;
+}
+
+// Nearest upcoming event first; past events after, most recent first.
+function byNearestEvent(a: CardTournament, b: CardTournament): number {
+  const aDone = isCompleted(a);
+  const bDone = isCompleted(b);
+  if (aDone !== bDone) return aDone ? 1 : -1;
+  if (!aDone) return a.startDate.localeCompare(b.startDate);
+  return (b.endDate || b.startDate).localeCompare(a.endDate || a.startDate);
+}
+
+function matchesQuery(t: CardTournament, q: string): boolean {
+  if (!q) return true;
+  const needle = q.toLowerCase();
+  return (
+    t.title.toLowerCase().includes(needle) ||
+    t.location.toLowerCase().includes(needle) ||
+    t.divisions.some(d => d.name.toLowerCase().includes(needle))
+  );
+}
+
+/* ── Live courts model ──────────────────────────────────────────── */
+
+const SET_COLUMNS = 3;
+
+interface SetScore {
+  a: number;
+  b: number;
+  isLive: boolean;
+}
+
+interface CourtRow {
+  court: string;
+  division: string;
+  teamA: string;
+  teamB: string;
+  sets: (SetScore | null)[];
+  hasLive: boolean;
+  upNext: string | null;
+}
+
+function playerNames(players: DetailMatchPlayer[]): string {
+  return players.map(p => p.name).filter(Boolean).join(' / ') || 'TBD';
+}
+
+function buildCourtRows(detail: TournamentDetail): CourtRow[] {
+  type TaggedMatch = DetailMatch & { division: string };
+  const all: TaggedMatch[] = [];
+  detail.divisions.forEach(d =>
+    d.bracket.forEach(r =>
+      r.matches.forEach(m => all.push({ ...m, division: d.label }))
+    )
+  );
+
+  const courts = new Map<string, { live?: TaggedMatch; upcoming: TaggedMatch[] }>();
+  for (const m of all) {
+    if (m.status === 'done') continue;
+    const key = m.court || 'Unassigned';
+    if (!courts.has(key)) courts.set(key, { upcoming: [] });
+    const entry = courts.get(key)!;
+    if (m.status === 'live') {
+      if (!entry.live) entry.live = m;
+    } else {
+      entry.upcoming.push(m);
+    }
+  }
+
+  const rows: CourtRow[] = [];
+  for (const [court, entry] of courts) {
+    entry.upcoming.sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+    // Skip the match currently shown as live from the queue
+    const next = entry.upcoming[0];
+    const upNext = next
+      ? `${playerNames(next.teamA)} vs ${playerNames(next.teamB)}${next.time ? ` · ${next.time}` : ''}`
+      : null;
+
+    if (entry.live) {
+      const m = entry.live;
+      const a = m.scoreA ?? [];
+      const b = m.scoreB ?? [];
+      const setCount = Math.max(a.length, b.length);
+      const sets: (SetScore | null)[] = [];
+      for (let i = 0; i < SET_COLUMNS; i++) {
+        if (i >= setCount) { sets.push(null); continue; }
+        sets.push({ a: a[i] ?? 0, b: b[i] ?? 0, isLive: i === setCount - 1 });
+      }
+      rows.push({
+        court,
+        division: m.division,
+        teamA: playerNames(m.teamA),
+        teamB: playerNames(m.teamB),
+        sets,
+        hasLive: true,
+        upNext,
+      });
+    } else if (next) {
+      rows.push({
+        court,
+        division: next.division,
+        teamA: '',
+        teamB: '',
+        sets: Array(SET_COLUMNS).fill(null),
+        hasLive: false,
+        upNext,
+      });
+    }
+  }
+
+  rows.sort((x, y) => Number(y.hasLive) - Number(x.hasLive) || x.court.localeCompare(y.court, undefined, { numeric: true }));
+  return rows;
 }
 
 export default function OrganizerDashboard() {
@@ -79,16 +218,46 @@ export default function OrganizerDashboard() {
   const [organizer, setOrganizer] = useState<Organizer | null>(null);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusKey>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
 
   useEffect(() => {
     getDashboardTournaments().then(setTournaments).catch(console.error);
     fetch('/api/organizer').then(r => r.json()).then(setOrganizer).catch(console.error);
   }, []);
 
-  const visibleTournaments = tournaments.filter(t => matchesFilter(t, statusFilter));
-  const liveTournaments = tournaments.filter(t => t.startDate === TODAY);
+  const liveTournaments = useMemo(
+    () => tournaments.filter(isLiveNow),
+    [tournaments]
+  );
+
+  // Poll live tournament details for court scores
+  useEffect(() => {
+    if (liveTournaments.length === 0) return;
+    let cancelled = false;
+
+    const load = () => {
+      Promise.all(liveTournaments.map(t => getTournamentDetail(t.id).catch(() => null)))
+        .then(details => {
+          if (cancelled) return;
+          const map: Record<string, TournamentDetail> = {};
+          details.forEach(d => { if (d) map[d.slug] = d; });
+          setLiveDetails(map);
+        });
+    };
+
+    load();
+    const timer = setInterval(load, LIVE_POLL_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [liveTournaments]);
+
+  const liveIds = new Set(liveTournaments.map(t => t.id));
+  const visibleTournaments = tournaments
+    .filter(t => !liveIds.has(t.id) && matchesFilter(t, statusFilter) && matchesQuery(t, query))
+    .sort(byNearestEvent);
 
   const copyLink = (id: string, url: string) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -104,7 +273,7 @@ export default function OrganizerDashboard() {
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark}>
             <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="639.5" cy="416.5" r="343.5" fill="#204ECF" />
+  <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
   <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
   <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
   <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
@@ -119,30 +288,42 @@ export default function OrganizerDashboard() {
         </Link>
 
         <nav className={styles.sideNav}>
-          <Link href="#" onClick={(e) => { e.preventDefault(); setActiveTab('tournament'); }} className={`${styles.sideLink} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}>
-            <span className={styles.sideIcon}><Trophy size={18} /></span>
+          <button
+            type="button"
+            onClick={() => setActiveTab('tournament')}
+            className={`${styles.sideLink} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}
+          >
+            <Trophy size={20} />
             <span>My Tournament</span>
-          </Link>
-          <Link href="#" onClick={(e) => { e.preventDefault(); setActiveTab('history'); }} className={`${styles.sideLink} ${activeTab === 'history' ? styles.sideLinkActive : ''}`}>
-            <span className={styles.sideIcon}><History size={18} /></span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`${styles.sideLink} ${activeTab === 'history' ? styles.sideLinkActive : ''}`}
+          >
+            <History size={20} />
             <span>History</span>
-          </Link>
-          <Link href="#" onClick={(e) => { e.preventDefault(); setActiveTab('notifications'); }} className={`${styles.sideLink} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}>
-            <span className={styles.sideIcon}><Bell size={18} /></span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('notifications')}
+            className={`${styles.sideLink} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}
+          >
+            <Bell size={20} />
             <span>Notifications</span>
-          </Link>
+          </button>
         </nav>
 
         <Link href="/profile" className={styles.sideProfile}>
           <span className={styles.sideAvatar}>
             {organizer?.avatar_url ? (
-              <img src={organizer.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              <img src={organizer.avatar_url} alt="" />
             ) : '🏐'}
           </span>
-          <div>
-            <p className={styles.sideProfileName}>{organizer?.name ?? '—'}</p>
-            <p className={styles.sideProfileClub}>{organizer?.club ?? ''}</p>
-          </div>
+          <span className={styles.sideProfileText}>
+            <span className={styles.sideProfileName}>{organizer?.name ?? '—'}</span>
+            <span className={styles.sideProfileClub}>{organizer?.club ?? ''}</span>
+          </span>
         </Link>
       </aside>
 
@@ -154,52 +335,71 @@ export default function OrganizerDashboard() {
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
             <h1 className={styles.headerTitle}>Welcome back{organizer ? `, ${organizer.name.split(' ')[0]}` : ''}</h1>
           </div>
-          <button type="button" className={styles.newTournamentBtn} onClick={() => setCreateOpen(true)}>
-            <Plus size={18} />
-            New tournament
-          </button>
+          <Button variant="primary" iconLeft={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
+            New Tournament
+          </Button>
         </div>
 
         {activeTab === 'tournament' && (
           <>
-            {/* Live now — tournaments starting today (hidden when none) */}
-            {liveTournaments.length > 0 && (
-              <section className={styles.section}>
-                <div className={styles.sectionHeader}>
-                  <h2 className={styles.sectionTitle}>
-                    Live Now
-                  </h2>
+            {/* Featured live hero + courts table */}
+            {liveTournaments.map(t => (
+              <section key={t.id} className={styles.liveSection}>
+                <div className={styles.hero}>
+                  <div className={styles.heroBg} aria-hidden="true">
+                    {t.imageUrl && <img src={t.imageUrl} alt="" />}
+                  </div>
+                  <div className={styles.heroScrim} aria-hidden="true" />
+                  <div className={styles.heroContent}>
+                    <div className={styles.heroTopRow}>
+                      <span className={styles.livePill}>
+                        <span className={styles.livePillDot} aria-hidden="true" />
+                        Live now
+                      </span>
+                    </div>
+                    <h2 className={styles.heroTitle}>{t.title}</h2>
+                    <div className={styles.heroMeta}>
+                      <span><Calendar size={16} /> {t.date}</span>
+                      <span><MapPin size={16} /> {t.location}</span>
+                    </div>
+                    <div className={styles.heroActions}>
+                      <Link href={`/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
+                        <Trophy size={16} /> Open Live Bracket
+                      </Link>
+                      <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
+                        <Settings size={16} /> Manage Setup
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-                <div className={styles.tournamentList}>
-                  {liveTournaments.map(t => (
-                    <TournamentCard
-                      key={t.id}
-                      t={t}
-                      qrOpen={qrOpen}
-                      setQrOpen={setQrOpen}
-                      copiedId={copiedId}
-                      copyLink={copyLink}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
 
-            {/* Active tournaments */}
+                <CourtsTable detail={liveDetails[t.id] ?? null} />
+              </section>
+            ))}
+
+            {/* Tournament list */}
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
-                <h2 className={styles.sectionTitle}>Tournaments</h2>
+                <h2 className={styles.sectionTitle}>All Tournaments</h2>
               </div>
+
+              <SearchField
+                placeholder="Search tournaments, locations, divisions"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                showMic={false}
+                style={{ marginBottom: 18, background: 'var(--sand-200)' }}
+              />
 
               <div className={styles.filterTabs}>
                 {STATUS_FILTERS.map(f => {
-                  const count = tournaments.filter(t => matchesFilter(t, f.key)).length;
+                  const count = tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, f.key)).length;
                   return (
                     <button
                       key={f.key}
                       type="button"
                       className={`${styles.filterTab} ${statusFilter === f.key ? styles.filterTabActive : ''}`}
-                      onClick={() => setStatusFilter(f.key)}
+                      onClick={() => setStatusFilter(statusFilter === f.key ? null : f.key)}
                     >
                       {f.label}
                       <span className={styles.filterCount}>{count}</span>
@@ -208,14 +408,16 @@ export default function OrganizerDashboard() {
                 })}
               </div>
 
-              <div className={styles.tournamentList}>
+              <div className={styles.rowList}>
                 {visibleTournaments.length === 0 && (
-                  <p className={styles.filterEmpty}>No tournaments in this category.</p>
+                  <p className={styles.filterEmpty}>No tournaments match.</p>
                 )}
                 {visibleTournaments.map(t => (
-                  <TournamentCard
+                  <TournamentRow
                     key={t.id}
                     t={t}
+                    expanded={expandedId === t.id}
+                    onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                     qrOpen={qrOpen}
                     setQrOpen={setQrOpen}
                     copiedId={copiedId}
@@ -232,15 +434,18 @@ export default function OrganizerDashboard() {
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>Past Tournaments</h2>
             </div>
-            <div className={styles.tournamentList}>
+            <div className={styles.rowList}>
               {MOCK_HISTORY.map(t => (
-                <TournamentCard
+                <TournamentRow
                   key={t.id}
                   t={t}
+                  expanded={expandedId === t.id}
+                  onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                   qrOpen={null}
                   setQrOpen={() => {}}
                   copiedId={null}
                   copyLink={() => {}}
+                  hideQr
                 />
               ))}
             </div>
@@ -262,111 +467,152 @@ export default function OrganizerDashboard() {
   );
 }
 
-function TournamentCard({
+/* ── Live courts table ──────────────────────────────────────────── */
+
+function CourtsTable({ detail }: { detail: TournamentDetail | null }) {
+  const rows = useMemo(() => (detail ? buildCourtRows(detail) : []), [detail]);
+
+  if (!detail) {
+    return <div className={styles.courtsEmpty}>Loading court activity…</div>;
+  }
+  if (rows.length === 0) {
+    return <div className={styles.courtsEmpty}>No matches on court right now.</div>;
+  }
+
+  return (
+    <div className={styles.courtsCard}>
+      <div className={styles.courtsScroll}>
+        <table className={styles.courtsTable}>
+          <thead>
+            <tr>
+              <th>Court</th>
+              <th>Now playing</th>
+              {Array.from({ length: SET_COLUMNS }, (_, i) => (
+                <th key={i}>Set {i + 1}</th>
+              ))}
+              <th>Up next</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.court} className={r.hasLive ? '' : styles.courtRowIdle}>
+                <td className={styles.courtName}>
+                  {r.hasLive && <span className={styles.courtLiveDot} aria-hidden="true" />}
+                  {r.court}
+                </td>
+                <td>
+                  {r.hasLive ? (
+                    <div className={styles.courtPlayers}>
+                      <span>{r.teamA}</span>
+                      <span className={styles.courtVs}>vs</span>
+                      <span>{r.teamB}</span>
+                      <span className={styles.courtDivision}>{r.division}</span>
+                    </div>
+                  ) : (
+                    <span className={styles.courtIdleLabel}>Court free</span>
+                  )}
+                </td>
+                {r.sets.map((set, i) => (
+                  <td key={i}>
+                    {set ? (
+                      <span className={set.isLive ? styles.courtLiveScore : styles.courtSets}>
+                        {set.a}–{set.b}
+                      </span>
+                    ) : (
+                      <span className={styles.courtSets}>—</span>
+                    )}
+                  </td>
+                ))}
+                <td className={styles.courtUpNext}>{r.upNext ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── Compact tournament row (expandable) ────────────────────────── */
+
+function TournamentRow({
   t,
+  expanded,
+  onToggle,
   qrOpen,
   setQrOpen,
   copiedId,
   copyLink,
+  hideQr = false,
 }: {
   t: CardTournament;
+  expanded: boolean;
+  onToggle: () => void;
   qrOpen: string | null;
   setQrOpen: (v: string | null) => void;
   copiedId: string | null;
   copyLink: (id: string, url: string) => void;
+  hideQr?: boolean;
 }) {
+  const pill = statusPill(t);
+  const isLive = isLiveNow(t);
+
   return (
-    <div className={styles.tournamentCard}
-      style={{ backdropFilter: 'blur(16px) saturate(180%)', WebkitBackdropFilter: 'blur(16px) saturate(180%)' }}
-    >
-      <div className={styles.tournamentCardBg} aria-hidden="true">
-        {t.imageUrl && <img src={t.imageUrl} alt="" />}
-      </div>
-
-      <span
-        className={styles.tournamentCardGlass}
-        aria-hidden="true"
-        style={{
-          backdropFilter: 'blur(15px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(15px) saturate(180%)',
+    <div className={`${styles.row} ${expanded ? styles.rowExpanded : ''}`}>
+      <div
+        role="button"
+        tabIndex={0}
+        className={styles.rowMain}
+        onClick={onToggle}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
         }}
-      />
+        aria-expanded={expanded}
+      >
+        <span className={styles.rowThumb} aria-hidden="true">
+          {t.imageUrl ? <img src={t.imageUrl} alt="" /> : <Trophy size={22} strokeWidth={1.5} />}
+        </span>
 
-      <div className={styles.tournamentCardImage}>
-        {!t.imageUrl && <Trophy size={36} strokeWidth={1.5} />}
-      </div>
+        <span className={styles.rowInfo}>
+          <span className={styles.rowPills}>
+            <span className={`${styles.pill} ${pill.cls}`}>{pill.label}</span>
+            {isLive && (
+              <span className={styles.rowLive}>
+                <span className={styles.rowLiveDot} aria-hidden="true" /> Live
+              </span>
+            )}
+          </span>
+          <span className={styles.rowTitle}>{t.title}</span>
+          <span className={styles.rowMeta}>
+            <span>{t.date}</span>
+            <span className={styles.rowMetaDot} aria-hidden="true">•</span>
+            <span>{t.location}</span>
+          </span>
+        </span>
 
-      <div className={styles.tournamentCardBody}>
-      <div className={styles.tournamentCardTop}>
-        <div>
-          <p className={styles.tournamentCardEyebrow}>
-            <Calendar size={14} /> {t.date}
-          </p>
-          <h3 className={styles.tournamentCardTitle}>{t.title}</h3>
-          <div className={styles.tournamentMeta}>
-            <span className={styles.tournamentMetaItem}>
-              <MapPin size={14} /> {t.location}
-            </span>
-          </div>
-        </div>
-        <div className={styles.tournamentCardActions}>
-          <button
-            className={styles.iconBtn}
-            title="Generate scorekeeper QR"
-            onClick={() => setQrOpen(qrOpen === t.id ? null : t.id)}
-          >
-            <QrCode size={18} />
-          </button>
-          <Link href={`/tournament/${t.id}`} className={styles.iconBtn} title="View tournament">
-            <ArrowRight size={18} />
+        <span className={styles.rowActions} onClick={e => e.stopPropagation()}>
+          {!hideQr && (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              title="Generate scorekeeper QR"
+              onClick={() => setQrOpen(qrOpen === t.id ? null : t.id)}
+            >
+              <QrCode size={18} />
+            </button>
+          )}
+          <Link href={`/tournament/${t.id}`} className={styles.rowBracketBtn}>
+            <Trophy size={15} /> Bracket
           </Link>
-        </div>
-      </div>
+          <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>
+            <Settings size={15} /> Setup
+          </Link>
+        </span>
 
-      <div className={styles.divAvail}>
-        <div className={styles.divAvailHeader}>
-          <span className={styles.divAvailHeading}>Divisions</span>
-          <span className={styles.divAvailHint}>spots filled</span>
-        </div>
-        {t.divisions.length > 0 ? (
-          <div className={styles.divCircleGrid}>
-            {t.divisions.map(d => {
-              const pct = d.cap > 0 ? Math.min(100, (d.filled / d.cap) * 100) : 0;
-              const full = d.filled >= d.cap;
-              const R = 22;
-              const C = 2 * Math.PI * R;
-              return (
-                <div key={d.name} className={styles.divCircleItem}>
-                  <svg className={styles.divCircle} viewBox="0 0 52 52" width="56" height="56">
-                    <circle className={styles.divCircleTrack} cx="26" cy="26" r={R} fill="none" />
-                    <circle
-                      className={`${styles.divCircleFill} ${full ? styles.divCircleFillFull : ''}`}
-                      cx="26"
-                      cy="26"
-                      r={R}
-                      fill="none"
-                      strokeDasharray={C}
-                      strokeDashoffset={C * (1 - pct / 100)}
-                      transform="rotate(-90 26 26)"
-                    />
-                    <text
-                      className={styles.divCircleText}
-                      x="26"
-                      y="26"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                    >
-                      {d.filled}/{d.cap}
-                    </text>
-                  </svg>
-                  <span className={styles.divCircleName}>{d.name}</span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <span className={styles.divBadgeEmpty}>No divisions added yet</span>
-        )}
+        <ChevronDown size={18} className={styles.rowChevron} aria-hidden="true" />
       </div>
 
       {qrOpen === t.id && (
@@ -376,7 +622,6 @@ function TournamentCard({
             <button className={styles.qrClose} onClick={() => setQrOpen(null)}>×</button>
           </div>
           <div className={styles.qrCode}>
-            {/* Placeholder QR visual */}
             <div className={styles.qrPlaceholder}>
               <QrCode size={80} color="rgba(20,24,30,0.5)" />
               <p>Scan to open court scoring</p>
@@ -394,15 +639,40 @@ function TournamentCard({
         </div>
       )}
 
-      <div className={styles.tournamentCardFooter}>
-        <Link href={`/tournament/${t.id}`} className={styles.seeResultBtn}>
-          <Trophy size={16} /> Bracket
-        </Link>
-        <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.setupWorkspaceBtn}>
-          <Settings size={16} /> Setup
-        </Link>
-      </div>
-      </div>
+      {expanded && (
+        <div className={styles.rowExpand}>
+          {t.divisions.length === 0 ? (
+            <p className={styles.divEmpty}>No divisions added yet.</p>
+          ) : (
+            <div className={styles.divStatGrid}>
+              {t.divisions.map(d => {
+                const pct = d.cap > 0 ? Math.min(100, Math.round((d.filled / d.cap) * 100)) : 0;
+                const spotsLeft = Math.max(0, d.cap - d.filled);
+                const full = d.cap > 0 && d.filled >= d.cap;
+                return (
+                  <div key={d.name} className={styles.divStat}>
+                    <div className={styles.divStatTop}>
+                      <span className={styles.divStatName}>{d.name}</span>
+                      <span className={`${styles.divStatBadge} ${full ? styles.divStatBadgeFull : ''}`}>
+                        {full ? 'Full' : `${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} left`}
+                      </span>
+                    </div>
+                    <div className={styles.divStatValue}>
+                      {d.filled}<span className={styles.divStatCap}>/{d.cap} teams</span>
+                    </div>
+                    <div className={styles.divStatBar}>
+                      <span
+                        className={`${styles.divStatFill} ${full ? styles.divStatFillFull : ''}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

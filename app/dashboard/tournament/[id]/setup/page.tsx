@@ -9,6 +9,7 @@ import {
   Plus, 
   Trash2, 
   Settings, 
+  Pencil,
   Globe, 
   Lock, 
   Calendar, 
@@ -26,7 +27,10 @@ import {
   Award,
   ChevronDown,
   ImagePlus,
-  X
+  X,
+  MapPin,
+  Eye,
+  UploadCloud
 } from 'lucide-react';
 import styles from './page.module.css';
 import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow } from '../../../../../lib/data';
@@ -247,6 +251,25 @@ export default function OrganizerSetup() {
   const [editDescription, setEditDescription] = useState('');
   const [basicInfoSaving, setBasicInfoSaving] = useState(false);
   const [basicInfoError, setBasicInfoError] = useState('');
+  
+  const [posterHover, setPosterHover] = useState(false);
+  const [showPosterModal, setShowPosterModal] = useState(false);
+  const [tempPoster, setTempPoster] = useState('');
+
+  const handlePosterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setTempPoster(typeof reader.result === 'string' ? reader.result : '');
+    reader.readAsDataURL(file);
+  };
+
+  const savePoster = () => {
+    if (basicInfo) {
+      setBasicInfo({ ...basicInfo, imageUrl: tempPoster });
+    }
+    setShowPosterModal(false);
+  };
 
   // Phase 1 States: Division Modal & List
   const [showModal, setShowModal] = useState(false);
@@ -915,9 +938,12 @@ export default function OrganizerSetup() {
   const displayStart = basicInfo?.startDate ?? tournamentInfo?.startDate;
   const displayEnd = basicInfo?.endDate ?? tournamentInfo?.endDate;
   const displayDescription = basicInfo?.description ?? '';
-  const metaLine = [displayLocation, formatDateRange(displayStart, displayEnd ?? undefined)]
-    .filter(Boolean)
-    .join('  •  ');
+  const formatPillDate = (d?: string) => {
+    if (!d) return '';
+    return new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  const startPill = formatPillDate(displayStart);
+  const endPill = displayEnd ? formatPillDate(displayEnd) : startPill;
 
   return (
     <div className={styles.page}>
@@ -936,25 +962,100 @@ export default function OrganizerSetup() {
           </div>
 
           {/* ── Basic Info ───────────────────────────────────────── */}
-          <section className={styles.card} style={{ marginBottom: 24 }}>
-            <div className={styles.cardHeader}>
-              <Info className={styles.iconHeader} size={22} />
-              <div style={{ flex: 1 }}>
-                <h2 className={styles.cardTitle}>{displayTitle || 'Untitled tournament'}</h2>
-                {metaLine && <p className={styles.cardSubtitle}>{metaLine}</p>}
+          <div style={{ display: 'flex', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
+            {/* Card 1: Poster Image */}
+            <section 
+              className={styles.card} 
+              style={{ width: 220, padding: 0, overflow: 'hidden', flexShrink: 0, border: 'none', display: 'flex', flexDirection: 'column', position: 'relative' }}
+              onMouseEnter={() => setPosterHover(true)}
+              onMouseLeave={() => setPosterHover(false)}
+            >
+               {basicInfo?.imageUrl ? (
+                 <img src={basicInfo.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', aspectRatio: '1 / 1.414' }} />
+               ) : (
+                 <div style={{ width: '100%', height: '100%', minHeight: 311, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.03)', color: '#9ca3af' }}>
+                   <ImagePlus size={40} opacity={0.5} />
+                 </div>
+               )}
+
+               {/* Hover Overlay */}
+               {posterHover && (
+                 <div style={{ 
+                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+                   backgroundColor: 'rgba(0,0,0,0.6)', 
+                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+                   transition: 'opacity 0.2s', zIndex: 10
+                 }}>
+                    {basicInfo?.imageUrl && (
+                      <button 
+                        onClick={() => window.open(basicInfo.imageUrl, '_blank')}
+                        style={{ width: 140, padding: '10px 16px', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+                      >
+                        <Eye size={16} /> View
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => { setTempPoster(basicInfo?.imageUrl || ''); setShowPosterModal(true); }}
+                      style={{ width: 140, padding: '10px 16px', borderRadius: 24, backgroundColor: '#EE7A4C', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+                    >
+                      <UploadCloud size={16} /> Re-Upload
+                    </button>
+                 </div>
+               )}
+            </section>
+
+            {/* Card 2: Tournament Info */}
+            <section className={styles.card} style={{ flex: 1, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 240, border: 'none', position: 'relative' }}>
+              {/* Background Image with Overlay */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+                {basicInfo?.imageUrl ? (
+                  <img src={basicInfo.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', backgroundColor: '#1F2937' }} />
+                )}
+                {/* Dark Gradient Overlay for readability */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(90deg, rgba(17,24,39,0.95) 0%, rgba(17,24,39,0.75) 50%, rgba(17,24,39,0.4) 100%)' }} />
               </div>
-              <div className={styles.divActions}>
-                <button type="button" className={styles.btnGhost} onClick={openBasicInfoEdit}>
-                  <Settings size={15} /> Edit
-                </button>
+
+              {/* Foreground Content */}
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', width: '100%' }}>
+                {/* Content column */}
+                <div style={{ flex: 1, padding: 32, display: 'flex', flexDirection: 'column', color: '#fff' }}>
+                  <div className={styles.cardHeader} style={{ padding: 0, border: 'none', marginBottom: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <h2 style={{ fontSize: 36, fontWeight: 800, fontFamily: 'var(--font-heading), sans-serif', letterSpacing: '-0.02em', color: '#fff', marginBottom: 16 }}>
+                        {displayTitle || 'Untitled tournament'}
+                      </h2>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 16, color: '#D1D5DB', fontSize: 15, fontWeight: 500 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Calendar size={18} opacity={0.7} />
+                          <span>{startPill}{displayEnd && displayEnd !== displayStart ? ` to ${endPill}` : ''}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <MapPin size={18} opacity={0.7} />
+                          <span>{displayLocation}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.divActions}>
+                      <button type="button" className={styles.btnGhost} onClick={openBasicInfoEdit} style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}>
+                        <Pencil size={15} /> Edit
+                      </button>
+                    </div>
+                  </div>
+                  {displayDescription ? (
+                    <div className={styles.sectionBody} style={{ padding: 0, flex: 1, marginTop: 12 }}>
+                      <p className={styles.summaryText} style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: 15, lineHeight: 1.6 }}>{displayDescription}</p>
+                    </div>
+                  ) : (
+                    <div className={styles.sectionBody} style={{ padding: 0, flex: 1, marginTop: 12 }}>
+                      <p className={styles.summaryText} style={{ margin: 0, fontStyle: 'italic', opacity: 0.5, color: '#fff' }}>No description provided.</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            {displayDescription && (
-              <div className={styles.sectionBody}>
-                <p className={styles.summaryText}>{displayDescription}</p>
-              </div>
-            )}
-          </section>
+            </section>
+          </div>
 
           {divisionsLoading ? (
             <div className={styles.emptyDivisions}>
@@ -1002,7 +1103,7 @@ export default function OrganizerSetup() {
                     </div>
                     <div className={styles.divActions}>
                       <button type="button" className={styles.btnGhost} onClick={() => handleEditDivision(activeDivision.id)}>
-                        <Settings size={15} /> Edit
+                        <Pencil size={15} /> Edit
                       </button>
                       <button type="button" className={styles.btnRemove} onClick={() => removeDivision(activeDivision.id)} aria-label="Delete division">
                         <Trash2 size={16} />
@@ -1708,6 +1809,38 @@ export default function OrganizerSetup() {
               <button className={styles.btnActionPrimary} onClick={saveBasicInfo} disabled={basicInfoSaving}>
                 {basicInfoSaving ? 'Saving…' : 'Save Changes'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── POSTER UPLOAD MODAL ───────────────────────────────────── */}
+      {showPosterModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: 400 }}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Upload Poster</h2>
+              <button className={styles.modalCloseBtn} onClick={() => setShowPosterModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {tempPoster ? (
+                  <img src={tempPoster} alt="Preview" style={{ width: '100%', aspectRatio: '1 / 1.414', objectFit: 'cover', borderRadius: 8, border: '1px solid #E5E7EB' }} />
+                ) : (
+                  <div style={{ width: '100%', aspectRatio: '1 / 1.414', backgroundColor: '#F3F4F6', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #D1D5DB' }}>
+                    <span style={{ color: '#6B7280', fontSize: 14 }}>No image selected</span>
+                  </div>
+                )}
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', backgroundColor: '#EEF2FE', color: '#204ECF', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                  <UploadCloud size={18} style={{ marginRight: 8 }} />
+                  Choose File
+                  <input type="file" accept="image/*" onChange={handlePosterUpload} hidden />
+                </label>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.btnGhost} onClick={() => setShowPosterModal(false)}>Cancel</button>
+              <button className={styles.btnActionPrimary} onClick={savePoster} disabled={!tempPoster}>Save Image</button>
             </div>
           </div>
         </div>

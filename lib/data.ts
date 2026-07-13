@@ -11,6 +11,7 @@ export interface DashboardTournament {
   title: string;
   date: string;
   startDate: string;
+  endDate: string;
   location: string;
   phase: number;
   imageUrl: string | null;
@@ -26,12 +27,13 @@ export interface TournamentBasicInfo {
   isOneDay: boolean;
   phase: number;
   description: string | null;
+  imageUrl: string | null;
 }
 
 export async function getTournamentBasicInfo(slug: string): Promise<TournamentBasicInfo | null> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('slug, title, location, start_date, end_date, is_one_day, phase, description')
+    .select('slug, title, location, start_date, end_date, is_one_day, phase, description, image_url')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -47,6 +49,7 @@ export async function getTournamentBasicInfo(slug: string): Promise<TournamentBa
     isOneDay: data.is_one_day,
     phase: data.phase,
     description: data.description,
+    imageUrl: data.image_url,
   };
 }
 
@@ -155,6 +158,7 @@ export async function getDashboardTournaments(): Promise<DashboardTournament[]> 
     title: t.title,
     date: t.start_date === todayLocal() ? 'Today' : formatDateRange(t.start_date, t.end_date, t.is_one_day),
     startDate: t.start_date,
+    endDate: t.end_date ?? t.start_date,
     location: t.location,
     phase: t.phase,
     imageUrl: t.image_url,
