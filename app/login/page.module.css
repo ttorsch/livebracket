@@ -308,6 +308,7 @@
   font-weight: 600;
   margin-bottom: 16px;
   text-align: center;
+  white-space: pre-line;
 }
 .modeToggleBtn {
   background: none;
@@ -561,6 +562,12 @@
   font-weight: 600;
   font-size: 13px;
   color: #1FB856;
+}
+
+.nameRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 /* ── Responsive ───────────────────────────────────────────────── */

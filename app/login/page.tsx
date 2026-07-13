@@ -3,12 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { X, ShieldCheck } from 'lucide-react';
+import { X } from 'lucide-react';
 import styles from './page.module.css';
+import { supabase } from '@/lib/supabase';
 
 type Role = 'player' | 'organizer';
-
-const DEMO_OTP = '123456';
 
 const ROLE_CONTENT: Record<Role, {
   title: string;
@@ -75,11 +74,9 @@ export default function LiveBracketLogin() {
   // ── Sign-up modal state ────────────────────────────────────────
   const [signupOpen, setSignupOpen] = useState(false);
   const [suIdentifier, setSuIdentifier] = useState('');
-  const [suOtp, setSuOtp] = useState('');
-  const [suOtpSent, setSuOtpSent] = useState(false);
-  const [suOtpVerified, setSuOtpVerified] = useState(false);
   const [suPassword, setSuPassword] = useState('');
   const [suName, setSuName] = useState('');
+  const [suSurname, setSuSurname] = useState('');
   const [suLoading, setSuLoading] = useState(false);
   const [suError, setSuError] = useState<string | null>(null);
 
@@ -104,85 +101,130 @@ export default function LiveBracketLogin() {
     setSuccessMsg(null);
     setLoading(true);
 
-    // Demo auth: no backend wired up. Simulate the request, then route by role.
-    await new Promise(resolve => setTimeout(resolve, 400));
-    router.push(role === 'organizer' ? '/dashboard' : '/');
-    setLoading(false);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setErrorMsg(error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Check role from metadata if it exists
+      const userRole = data.user?.user_metadata?.role;
+      if (userRole && userRole !== role) {
+        await supabase.auth.signOut();
+        setErrorMsg(`Account exists, but is registered as a ${userRole}. Please switch role tabs.`);
+        setLoading(false);
+        return;
+      }
+
+      router.push(role === 'organizer' ? '/dashboard' : '/profile');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred during sign in.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSso = async (provider: 'Google' | 'Facebook') => {
     setErrorMsg(null);
     setSuccessMsg(null);
     setLoading(true);
-    // Demo SSO: simulate the provider round-trip, then route by role.
-    await new Promise(resolve => setTimeout(resolve, 600));
-    void provider;
-    router.push(role === 'organizer' ? '/dashboard' : '/');
-    setLoading(false);
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('oauth_signup_role', role);
+      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider.toLowerCase() as any,
+        options: {
+          redirectTo: `${window.location.origin}/profile`,
+        }
+      });
+      if (error) {
+        setErrorMsg(error.message);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'SSO failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── Sign-up modal helpers ──────────────────────────────────────
   const openSignup = () => {
     setSuIdentifier('');
-    setSuOtp('');
-    setSuOtpSent(false);
-    setSuOtpVerified(false);
     setSuPassword('');
     setSuName('');
+    setSuSurname('');
     setSuError(null);
     setSignupOpen(true);
   };
 
   const closeSignup = () => setSignupOpen(false);
 
-  const identifierValid =
-    /\S+@\S+\.\S+/.test(suIdentifier) || /^\+?[0-9()\-\s]{6,}$/.test(suIdentifier.trim());
-
-  const handleSendOtp = () => {
-    setSuError(null);
-    if (!identifierValid) {
-      setSuError('Enter a valid email address or phone number first.');
-      return;
-    }
-    // Demo OTP: no backend, so the code is fixed and hinted in the UI.
-    setSuOtp('');
-    setSuOtpVerified(false);
-    setSuOtpSent(true);
-  };
-
-  const handleVerifyOtp = () => {
-    setSuError(null);
-    if (suOtp === DEMO_OTP) {
-      setSuOtpVerified(true);
-    } else {
-      setSuError('Invalid code. Please try again.');
-    }
-  };
-
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuError(null);
-    if (!suOtpVerified) {
-      setSuError('Please verify your email or phone with the OTP code first.');
-      return;
-    }
     setSuLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 600));
-    setSuLoading(false);
-    closeSignup();
-    if (suIdentifier.includes('@')) setEmail(suIdentifier);
-    setSuccessMsg('Account created successfully! You can now sign in.');
+
+    try {
+      const fullName = role === 'player'
+        ? `${suName.trim()} ${suSurname.trim()}`
+        : suName.trim();
+
+      const { data, error } = await supabase.auth.signUp({
+        email: suIdentifier.trim(),
+        password: suPassword,
+        options: {
+          data: {
+            full_name: fullName,
+            role: role,
+          }
+        }
+      });
+
+      if (error) {
+        setSuError(error.message);
+        setSuLoading(false);
+        return;
+      }
+
+      closeSignup();
+      setEmail(suIdentifier.trim());
+      setPassword('');
+      setSuccessMsg("Account created successfully!\nPlease confirm on your email");
+    } catch (err: any) {
+      setSuError(err.message || 'An error occurred during account creation.');
+    } finally {
+      setSuLoading(false);
+    }
   };
 
   const handleSsoSignup = async (provider: 'Google' | 'Facebook') => {
     setSuError(null);
     setSuLoading(true);
-    // Demo SSO sign-up: simulate the provider round-trip, then route by role.
-    await new Promise(resolve => setTimeout(resolve, 600));
-    void provider;
-    setSuLoading(false);
-    closeSignup();
-    router.push(role === 'organizer' ? '/dashboard' : '/');
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('oauth_signup_role', role);
+      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider.toLowerCase() as any,
+        options: {
+          redirectTo: `${window.location.origin}/profile`,
+        }
+      });
+      if (error) {
+        setSuError(error.message);
+      }
+    } catch (err: any) {
+      setSuError(err.message || 'SSO sign-up failed.');
+    } finally {
+      setSuLoading(false);
+    }
   };
 
   return (
@@ -388,54 +430,15 @@ export default function LiveBracketLogin() {
 
             <form className={styles.form} onSubmit={handleSignup}>
               <label className={styles.field}>
-                <span>Email or phone number <em className={styles.req}>*</em></span>
-                <div className={styles.otpRow}>
-                  <input
-                    type="text"
-                    value={suIdentifier}
-                    onChange={(e) => {
-                      setSuIdentifier(e.target.value);
-                      setSuOtpSent(false);
-                      setSuOtpVerified(false);
-                    }}
-                    placeholder="you@example.com or +66 81 234 5678"
-                    required
-                    disabled={suOtpVerified}
-                  />
-                  {!suOtpVerified && (
-                    <button type="button" className={styles.sendCodeBtn} onClick={handleSendOtp}>
-                      {suOtpSent ? 'Resend' : 'Send code'}
-                    </button>
-                  )}
-                </div>
+                <span>Email address <em className={styles.req}>*</em></span>
+                <input
+                  type="email"
+                  value={suIdentifier}
+                  onChange={(e) => setSuIdentifier(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                />
               </label>
-
-              {suOtpVerified ? (
-                <p className={styles.verifiedBadge}>
-                  <ShieldCheck size={16} aria-hidden="true" /> Verified
-                </p>
-              ) : suOtpSent && (
-                <div className={styles.field}>
-                  <span>Verification code <em className={styles.req}>*</em></span>
-                  <div className={styles.otpRow}>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      className={styles.otpInput}
-                      value={suOtp}
-                      onChange={(e) => setSuOtp(e.target.value.replace(/\D/g, ''))}
-                      placeholder="••••••"
-                    />
-                    <button type="button" className={styles.sendCodeBtn} onClick={handleVerifyOtp}>
-                      Verify
-                    </button>
-                  </div>
-                  <p className={styles.otpHint}>
-                    We sent a 6-digit code to {suIdentifier}. (Demo: use {DEMO_OTP})
-                  </p>
-                </div>
-              )}
 
               <label className={styles.field}>
                 <span>Password <em className={styles.req}>*</em></span>
@@ -449,19 +452,43 @@ export default function LiveBracketLogin() {
                 />
               </label>
 
-              <label className={styles.field}>
-                <span>
-                  {role === 'organizer' ? <>Organizer&apos;s name</> : <>Player&apos;s name</>}{' '}
-                  <em className={styles.req}>*</em>
-                </span>
-                <input
-                  type="text"
-                  value={suName}
-                  onChange={(e) => setSuName(e.target.value)}
-                  placeholder={role === 'organizer' ? 'Khao Lak Volley Club' : 'Your full name'}
-                  required
-                />
-              </label>
+              {role === 'organizer' ? (
+                <label className={styles.field}>
+                  <span>
+                    Organizer&apos;s name <em className={styles.req}>*</em>
+                  </span>
+                  <input
+                    type="text"
+                    value={suName}
+                    onChange={(e) => setSuName(e.target.value)}
+                    placeholder="Khao Lak Volley Club"
+                    required
+                  />
+                </label>
+              ) : (
+                <div className={styles.nameRow}>
+                  <label className={styles.field}>
+                    <span>First name <em className={styles.req}>*</em></span>
+                    <input
+                      type="text"
+                      value={suName}
+                      onChange={(e) => setSuName(e.target.value)}
+                      placeholder="e.g. Alex"
+                      required
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>Surname <em className={styles.req}>*</em></span>
+                    <input
+                      type="text"
+                      value={suSurname}
+                      onChange={(e) => setSuSurname(e.target.value)}
+                      placeholder="e.g. Svensson"
+                      required
+                    />
+                  </label>
+                </div>
+              )}
 
               <button type="submit" className={styles.signIn} disabled={suLoading}>
                 {suLoading ? 'Creating account...' : `Create ${role} account`}

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Star, Trophy, Calendar, MapPin, ChevronRight, Settings, LogOut } from 'lucide-react';
 import styles from './page.module.css';
+import { supabase } from '@/lib/supabase';
 
 /* ── Sample player data ──────────────────────────────────────── */
 const PLAYER = {
@@ -38,6 +39,46 @@ type Tab = 'overview' | 'history' | 'starred';
 
 export default function PlayerProfile() {
   const [tab, setTab] = useState<Tab>('overview');
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+
+        if (user && typeof window !== 'undefined') {
+          const pendingRole = sessionStorage.getItem('oauth_signup_role');
+          if (pendingRole && !user.user_metadata?.role) {
+            const { data: updated } = await supabase.auth.updateUser({
+              data: { role: pendingRole }
+            });
+            if (updated.user) {
+              setUser(updated.user);
+            }
+            sessionStorage.removeItem('oauth_signup_role');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user session:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSession();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
+
+  const displayName = user?.user_metadata?.full_name || PLAYER.name;
 
   return (
     <div className={styles.page}>
@@ -62,7 +103,7 @@ export default function PlayerProfile() {
         <div className={styles.topBarActions}>
           <Link href="/" className={styles.topLink}>Browse events</Link>
           <button className={styles.iconBtn} title="Settings"><Settings size={18} /></button>
-          <button className={styles.iconBtn} title="Log out"><LogOut size={18} /></button>
+          <button className={styles.iconBtn} title="Log out" onClick={handleLogout}><LogOut size={18} /></button>
         </div>
       </header>
 
@@ -76,7 +117,7 @@ export default function PlayerProfile() {
             <div className={styles.avatar}>{PLAYER.avatar}</div>
             <div className={styles.profileInfo}>
               <div className={styles.profileNameRow}>
-                <h1 className={styles.profileName}>{PLAYER.name}</h1>
+                <h1 className={styles.profileName}>{displayName}</h1>
                 <span className={styles.profileFlag}>{PLAYER.flag}</span>
               </div>
               <div className={styles.profileMeta}>

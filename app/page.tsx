@@ -162,7 +162,7 @@ const TOURNAMENTS: Tournament[] = [
     id: 'sunset-shootout',
     title: 'Sunset Shootout 3v3',
     location: 'White Sand Beach',
-    dateLabel: 'Jun 28',
+    dateLabel: 'Jun 28, 2026',
     chip: { m: 'Jun', d: '28' },
     status: 'upcoming',
     teams: 12,
@@ -182,8 +182,8 @@ const TOURNAMENTS: Tournament[] = [
     id: 'monsoon-cup',
     title: 'Monsoon Cup',
     location: 'Khuk Khak Beach',
-    dateLabel: 'Jul 5',
-    endDateLabel: 'Jul 6',
+    dateLabel: 'Jul 5, 2026',
+    endDateLabel: 'Jul 6, 2026',
     chip: { m: 'Jul', d: '05' },
     status: 'upcoming',
     teams: 24,
@@ -202,7 +202,7 @@ const TOURNAMENTS: Tournament[] = [
     id: 'ladies-night-league',
     title: 'Ladies Night League',
     location: 'Bang Niang Beach',
-    dateLabel: 'Jul 12',
+    dateLabel: 'Jul 12, 2026',
     chip: { m: 'Jul', d: '12' },
     status: 'upcoming',
     teams: 8,
@@ -221,8 +221,8 @@ const TOURNAMENTS: Tournament[] = [
     id: 'andaman-open',
     title: 'Andaman Open',
     location: 'Nang Thong Beach',
-    dateLabel: 'Jul 19',
-    endDateLabel: 'Jul 20',
+    dateLabel: 'Jul 19, 2026',
+    endDateLabel: 'Jul 20, 2026',
     chip: { m: 'Jul', d: '19' },
     status: 'upcoming',
     teams: 32,
@@ -242,7 +242,7 @@ const TOURNAMENTS: Tournament[] = [
     id: 'full-moon-smash',
     title: 'Full Moon Smash',
     location: 'White Sand Beach',
-    dateLabel: 'May 31',
+    dateLabel: 'May 31, 2026',
     chip: { m: 'May', d: '31' },
     status: 'finished',
     teams: 16,
@@ -264,7 +264,7 @@ const TOURNAMENTS: Tournament[] = [
     id: 'low-season-cup',
     title: 'Low Season Cup',
     location: 'Khuk Khak Beach',
-    dateLabel: 'May 17',
+    dateLabel: 'May 17, 2026',
     chip: { m: 'May', d: '17' },
     status: 'finished',
     teams: 12,
@@ -1070,9 +1070,9 @@ export default function LiveBracketHome() {
                       <img src={t.image} alt={t.title} className={styles.cardPoster} />
                     </div>
                     
-                    <div className={`${styles.cardDetailsCol} ${!t.registrations ? styles.cardDetailsNoReg : ''}`}>
+                    <div className={styles.cardHeaderCol}>
                       <span
-                        className={styles.cardGlassLayer}
+                        className={styles.cardTopGlassLayer}
                         aria-hidden="true"
                         style={{
                           backdropFilter: 'blur(15px) saturate(180%)',
@@ -1082,17 +1082,28 @@ export default function LiveBracketHome() {
                       <div className={styles.cardMainInfo}>
                         <h3 className={styles.cardTitle}>{t.title}</h3>
 
-                        <div className={styles.cardLocationRow}>
-                          <MapPin size={13} className={styles.cardLocIcon} />
-                          <span className={styles.cardLocationText}>{t.location}</span>
-                        </div>
-
                         <div className={styles.cardPillsRow}>
                           <span className={styles.cardPillBadge}>{t.dateLabel}</span>
                           <span className={styles.cardPillTo}>to</span>
                           <span className={styles.cardPillBadge}>{t.endDateLabel || t.dateLabel}</span>
                         </div>
+
+                        <div className={styles.cardLocationRow}>
+                          <MapPin size={13} className={styles.cardLocIcon} />
+                          <span className={styles.cardLocationText}>{t.location}</span>
+                        </div>
                       </div>
+                    </div>
+                    
+                    <div className={`${styles.cardDetailsCol} ${!t.registrations ? styles.cardDetailsNoReg : ''}`}>
+                      <span
+                        className={styles.cardGlassLayer}
+                        aria-hidden="true"
+                        style={{
+                          backdropFilter: 'blur(15px) saturate(180%)',
+                          WebkitBackdropFilter: 'blur(15px) saturate(180%)',
+                        }}
+                      />
 
                       {t.registrations && (
                         <div className={styles.cardDivisionsSection}>
