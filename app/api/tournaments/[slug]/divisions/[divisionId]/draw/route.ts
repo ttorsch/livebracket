@@ -17,6 +17,7 @@ interface DrawBody {
   advance: number;
   crossing: string;
   generate?: boolean;
+  topSeedIds?: string[]; // organizer-picked top seeds, in order (subset of seedOrder)
 }
 
 interface MatchInsert {
@@ -165,9 +166,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const settings = (division.settings ?? {}) as Record<string, unknown>;
   const prevDraw = (settings.draw ?? {}) as Record<string, unknown>;
   const prevAttempts = typeof prevDraw.attempts === 'number' ? prevDraw.attempts : 0;
+  const topSeedIds = Array.isArray(body.topSeedIds) ? body.topSeedIds.filter(id => teamIdSet.has(id)) : (prevDraw.topSeedIds ?? []);
   const draw = {
     pools, advance, crossing,
     attempts: body.generate ? prevAttempts + 1 : prevAttempts,
+    topSeedIds,
     slots: body.generate ? slots : (prevDraw.slots ?? {}),
   };
   const { error: sError } = await supabaseAdmin
@@ -177,4 +180,36 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (sError) return NextResponse.json({ error: `Failed to save draw config: ${sError.message}` }, { status: 500 });
 
   return NextResponse.json({ ok: true, generated: !!body.generate });
+}
+
+interface TopSeedsBody {
+  topSeedIds: string[];
+}
+
+// Lightweight autosave for the organizer's pending top-seed picks — unlike
+// PUT, this never touches teams.seed or rounds/matches, so it's safe to call
+// on every add/remove/reorder without waiting for an actual draw.
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
+  const { slug, divisionId } = await params;
+  const body = (await request.json()) as TopSeedsBody;
+
+  let division;
+  try {
+    division = await getDivision(slug, divisionId);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Lookup failed' }, { status: 500 });
+  }
+  if (!division) return NextResponse.json({ error: 'Division not found' }, { status: 404 });
+
+  const confirmedIds = new Set(division.teams.filter(t => t.status !== 'waitlist').map(t => t.id));
+  const topSeedIds = (body.topSeedIds ?? []).filter(id => confirmedIds.has(id));
+
+  const settings = (division.settings ?? {}) as Record<string, unknown>;
+  const prevDraw = (settings.draw ?? {}) as Record<string, unknown>;
+  const draw = { ...prevDraw, topSeedIds };
+
+  const { error } = await supabaseAdmin.from('divisions').update({ settings: { ...settings, draw } }).eq('id', divisionId);
+  if (error) return NextResponse.json({ error: `Failed to save top seeds: ${error.message}` }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
 }

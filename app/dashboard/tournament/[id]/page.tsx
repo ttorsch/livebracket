@@ -183,6 +183,8 @@ export default function OrganizerBracketPage() {
 
   const [activeDiv, setActiveDiv] = useState<string>('');
   const [teamsOpen, setTeamsOpen] = useState(true);
+  const [poolPlayOpen, setPoolPlayOpen] = useState(true);
+  const [round2Open, setRound2Open] = useState(true);
   const [seedsByDiv, setSeedsByDiv] = useState<Record<string, SeedTeam[]>>({});
   const [configByDiv, setConfigByDiv] = useState<Record<string, DrawSettings>>({});
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
@@ -222,13 +224,24 @@ export default function OrganizerBracketPage() {
           : { ...DEFAULT_DRAW };
       });
       // Keep whatever top seeds were already picked for a division across a
-      // reload (e.g. right after Draw Pool) instead of clearing them; only
-      // drop references to teams that are no longer confirmed.
+      // reload (e.g. right after Draw Pool) instead of clearing them. On a
+      // fresh mount (no client state yet — e.g. navigating back to this
+      // page), hydrate from the persisted picks instead so they survive
+      // leaving the page entirely.
       setSeedsByDiv(prev => {
         const next: Record<string, SeedTeam[]> = {};
         data.divisions.forEach(d => {
-          const confirmedIds = new Set(d.teamsList.filter(t => t.status !== 'waitlist').map(t => t.id));
-          next[d.id] = (prev[d.id] ?? []).filter(s => confirmedIds.has(s.id));
+          const confirmedTeamsForDiv = d.teamsList.filter(t => t.status !== 'waitlist');
+          const confirmedIds = new Set(confirmedTeamsForDiv.map(t => t.id));
+          if (prev[d.id]) {
+            next[d.id] = prev[d.id].filter(s => confirmedIds.has(s.id));
+          } else {
+            const savedIds = d.drawConfig?.topSeedIds ?? [];
+            next[d.id] = savedIds
+              .map(id => confirmedTeamsForDiv.find(t => t.id === id))
+              .filter((t): t is (typeof confirmedTeamsForDiv)[number] => !!t)
+              .map(t => ({ id: t.id, name: t.name }));
+          }
         });
         return next;
       });
@@ -255,6 +268,23 @@ export default function OrganizerBracketPage() {
   const division = detail?.divisions.find(d => d.id === activeDiv) ?? null;
   const seeds = seedsByDiv[activeDiv] ?? [];
   const config = configByDiv[activeDiv] ?? DEFAULT_DRAW;
+
+  // Autosave the pending top-seed picks (debounced) so they survive leaving
+  // the page entirely, not just an in-session redraw.
+  useEffect(() => {
+    if (loading || !activeDiv) return;
+    const divisionId = activeDiv;
+    const topSeedIds = seeds.map(t => t.id);
+    const timer = setTimeout(() => {
+      fetch(`/api/tournaments/${slug}/divisions/${divisionId}/draw`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topSeedIds }),
+      }).catch(() => {});
+    }, 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeds, activeDiv, slug, loading]);
 
   const confirmedTeams = useMemo(() => {
     return division?.teamsList.filter(t => t.status !== 'waitlist') ?? [];
@@ -357,6 +387,7 @@ export default function OrganizerBracketPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           seedOrder: fullSeedOrder,
+          topSeedIds: seeds.map(t => t.id),
           pools: config.pools,
           advance: config.advance,
           crossing: config.crossing,
@@ -482,7 +513,16 @@ export default function OrganizerBracketPage() {
 
         {/* ── Round 1: pool play ─────────────────────────────── */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Round 1 <span style={{ color: 'var(--ink-500)' }}>· Pool Play</span></h2>
+          <div className={styles.sectionHead} onClick={() => setPoolPlayOpen(v => !v)}>
+            <h2 className={styles.sectionTitle}>Round 1 <span style={{ color: 'var(--ink-500)' }}>· Pool Play</span></h2>
+            <button type="button" className={styles.toggleBtn} aria-label="Toggle pool play">
+              <span>{poolPlayOpen ? 'Hide' : 'Show'}</span>
+              <span className={`${styles.chevron} ${poolPlayOpen ? styles.chevronOpen : ''}`}>
+                <ChevronDown size={18} />
+              </span>
+            </button>
+          </div>
+          <div className={`${styles.roundWrap} ${poolPlayOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
           <div className={styles.poolRow}>
             <div className={styles.seedCard}>
               <h3 className={styles.cardTitle}>Top Seed</h3>
@@ -705,11 +745,21 @@ export default function OrganizerBracketPage() {
               </div>
             </div>
           )}
+          </div>
         </section>
 
         {/* ── Round 2: single elimination ────────────────────── */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Round 2 · Single Elimination</h2>
+          <div className={styles.sectionHead} onClick={() => setRound2Open(v => !v)}>
+            <h2 className={styles.sectionTitle}>Round 2 · Single Elimination</h2>
+            <button type="button" className={styles.toggleBtn} aria-label="Toggle single elimination">
+              <span>{round2Open ? 'Hide' : 'Show'}</span>
+              <span className={`${styles.chevron} ${round2Open ? styles.chevronOpen : ''}`}>
+                <ChevronDown size={18} />
+              </span>
+            </button>
+          </div>
+          <div className={`${styles.roundWrap} ${round2Open ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
           <p className={styles.sectionSubSpaced}>
             {firstRoundMatches * 2 || 'No'}-team single elimination · {division?.label ?? '—'} ·{' '}
             {bracket?.fromDb ? 'generated draw' : 'projected from current seeding'}
@@ -771,6 +821,7 @@ export default function OrganizerBracketPage() {
               The bracket will appear here once at least two teams are registered.
             </div>
           )}
+          </div>
         </section>
       </main>
     </div>

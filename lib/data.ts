@@ -219,6 +219,7 @@ export interface DrawConfig {
   advance: number;
   crossing: string;
   attempts: number;
+  topSeedIds: string[];
   slots?: Record<string, string[]>;
 }
 
@@ -392,8 +393,11 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               status: m.status,
             })),
           })),
-        drawConfig: draw && typeof draw.pools === 'number'
-          ? { pools: draw.pools, advance: draw.advance ?? 2, crossing: draw.crossing ?? 'fivb', attempts: draw.attempts ?? 0 }
+        drawConfig: draw
+          ? {
+              pools: draw.pools ?? 4, advance: draw.advance ?? 2, crossing: draw.crossing ?? 'fivb',
+              attempts: draw.attempts ?? 0, topSeedIds: draw.topSeedIds ?? [],
+            }
           : null,
       };
     }),
