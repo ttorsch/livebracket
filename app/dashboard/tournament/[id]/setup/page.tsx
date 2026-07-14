@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { 
@@ -13,6 +13,7 @@ import {
   Globe, 
   Lock, 
   Calendar, 
+  Users,
   BookOpen, 
   Info, 
   Sparkles, 
@@ -26,6 +27,7 @@ import {
   Layers,
   Award,
   ChevronDown,
+  ChevronUp,
   ImagePlus,
   X,
   MapPin,
@@ -33,34 +35,8 @@ import {
   UploadCloud
 } from 'lucide-react';
 import styles from './page.module.css';
-import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow } from '../../../../../lib/data';
+import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow, getDivisionTeams, type RegisteredTeamRow } from '../../../../../lib/data';
 
-interface Question {
-  id: string;
-  label: string;
-  type: 'text' | 'select' | 'checkbox';
-  options?: string[];
-  required: boolean;
-}
-
-interface Voucher {
-  id: string;
-  title: string;
-  description: string;
-  code: string;
-  visibility: 'public' | 'player';
-}
-
-interface Team {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  seed: number;
-  paymentCleared: boolean;
-  registeredAt: Date;
-  status: 'confirmed' | 'unpaid' | 'waitlist';
-}
 
 // ── Per-division registration schema types ───────────────────────
 type RegFieldType = 'text' | 'phone' | 'email' | 'paragraph' | 'select';
@@ -252,6 +228,8 @@ export default function OrganizerSetup() {
   const [basicInfoSaving, setBasicInfoSaving] = useState(false);
   const [basicInfoError, setBasicInfoError] = useState('');
   
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [posterSaving, setPosterSaving] = useState(false);
   const [posterHover, setPosterHover] = useState(false);
   const [showPosterModal, setShowPosterModal] = useState(false);
   const [tempPoster, setTempPoster] = useState('');
@@ -259,16 +237,58 @@ export default function OrganizerSetup() {
   const handlePosterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onload = () => setTempPoster(typeof reader.result === 'string' ? reader.result : '');
     reader.readAsDataURL(file);
   };
 
-  const savePoster = () => {
-    if (basicInfo) {
-      setBasicInfo({ ...basicInfo, imageUrl: tempPoster });
+  const savePoster = async () => {
+    if (!selectedFile || !basicInfo) return;
+    setPosterSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      // 1. Upload to Supabase Storage via our API route
+      const uploadRes = await fetch('/api/tournaments/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+      const uploadBody = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadBody.error || 'Failed to upload image');
+
+      const imageUrl = uploadBody.url;
+
+      // 2. Save image URL to the tournament in the database
+      const updateRes = await fetch(`/api/tournaments/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: basicInfo.title,
+          location: basicInfo.location,
+          startDate: basicInfo.startDate,
+          endDate: basicInfo.endDate,
+          isOneDay: basicInfo.isOneDay,
+          description: basicInfo.description,
+          imageUrl,
+        }),
+      });
+      const updateBody = await updateRes.json();
+      if (!updateRes.ok) throw new Error(updateBody.error || 'Failed to save tournament changes');
+
+      // 3. Update local state
+      setBasicInfo({
+        ...basicInfo,
+        imageUrl,
+      });
+      setShowPosterModal(false);
+      setSelectedFile(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save image');
+    } finally {
+      setPosterSaving(false);
     }
-    setShowPosterModal(false);
   };
 
   // Phase 1 States: Division Modal & List
@@ -285,6 +305,9 @@ export default function OrganizerSetup() {
   // Which division is currently selected in the top toggle, and which (if any)
   // the modal is editing (null = creating a new division).
   const [activeDivisionId, setActiveDivisionId] = useState<string | null>(null);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [registeredTeams, setRegisteredTeams] = useState<RegisteredTeamRow[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
   const [editingDivisionId, setEditingDivisionId] = useState<string | null>(null);
 
   // Modal Form Inputs — A. Basics & dynamic capacity
@@ -321,47 +344,7 @@ export default function OrganizerSetup() {
   const [waitlistCap, setWaitlistCap] = useState(5);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Phase 2 States
-  const [questionsLocked, setQuestionsLocked] = useState(false);
-  const [questions, setQuestions] = useState<Question[]>([
-    { id: '1', label: 'T-shirt/Singlet Size', type: 'select', options: ['S', 'M', 'L', 'XL'], required: true },
-    { id: '2', label: 'Team Fun Fact (for commentators)', type: 'text', required: false },
-  ]);
-  const [newQuestionLabel, setNewQuestionLabel] = useState('');
-  const [newQuestionType, setNewQuestionType] = useState<'text' | 'select' | 'checkbox'>('text');
-  const [newQuestionOptions, setNewQuestionOptions] = useState('');
 
-  // Phase 3 States: Registration & 24h Clock Simulator
-  const [teams, setTeams] = useState<Team[]>([
-    { id: 't1', name: 'Santos / Lima', phone: '0812345678', email: 'santos@beach.com', seed: 1, paymentCleared: true, registeredAt: new Date(Date.now() - 3600000 * 4), status: 'confirmed' },
-    { id: 't2', name: 'Kramer / de Vries', phone: '0898765432', email: 'kramer@beach.com', seed: 2, paymentCleared: true, registeredAt: new Date(Date.now() - 3600000 * 2), status: 'confirmed' },
-    { id: 't3', name: 'Charoenwong / Rattanawong', phone: '0855551234', email: 'c@beach.com', seed: 3, paymentCleared: false, registeredAt: new Date(Date.now() - 3600000 * 25), status: 'unpaid' }, // Expired (>24h)
-    { id: 't4', name: 'Müller / Schmidt', phone: '0877778888', email: 'muller@beach.com', seed: 4, paymentCleared: false, registeredAt: new Date(), status: 'unpaid' },
-  ]);
-  const [waitlist, setWaitlist] = useState<Team[]>([
-    { id: 'wl1', name: 'Tanaka / Yamamoto', phone: '0833334444', email: 'tanaka@beach.com', seed: 5, paymentCleared: false, registeredAt: new Date(), status: 'waitlist' },
-  ]);
-  const [regTeamName, setRegTeamName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regError, setRegError] = useState<string | null>(null);
-
-  // Phase 4 States: Logistics
-  const [courts, setCourts] = useState<string[]>(['Center Court', 'Court 2']);
-  const [newCourtName, setNewCourtName] = useState('');
-  const [poolA, setPoolA] = useState<Team[]>([]);
-  const [poolB, setPoolB] = useState<Team[]>([]);
-  const [scheduleGenerated, setScheduleGenerated] = useState(false);
-
-  // Module 2 & 3 States
-  const [vouchers, setVouchers] = useState<Voucher[]>([
-    { id: 'v1', title: '20% off Pak Weep Hotel Rooms', description: 'Available for all visitors browsing the event page.', code: 'PAK20', visibility: 'public' },
-    { id: 'v2', title: 'Free Electrolyte Drink at Court Check-in', description: 'Exclusive voucher shown on player confirmation pass.', code: 'PLAYERFUEL', visibility: 'player' }
-  ]);
-  const [newVoucherTitle, setNewVoucherTitle] = useState('');
-  const [newVoucherDesc, setNewVoucherDesc] = useState('');
-  const [newVoucherCode, setNewVoucherCode] = useState('');
-  const [newVoucherVis, setNewVoucherVis] = useState<'public' | 'player'>('public');
 
   // Floating back button: hides on scroll down, reappears on scroll up.
   const [backHidden, setBackHidden] = useState(false);
@@ -525,6 +508,18 @@ export default function OrganizerSetup() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!activeDivisionId) {
+      setRegisteredTeams([]);
+      return;
+    }
+    setTeamsLoading(true);
+    getDivisionTeams(params.id as string, activeDivisionId)
+      .then(setRegisteredTeams)
+      .catch(console.error)
+      .finally(() => setTeamsLoading(false));
+  }, [activeDivisionId, params.id]);
+
   const openBasicInfoEdit = () => {
     if (basicInfo) {
       setEditTitle(basicInfo.title);
@@ -591,6 +586,7 @@ export default function OrganizerSetup() {
         isOneDay: body.is_one_day,
         phase: body.phase,
         description: body.description,
+        imageUrl: body.image_url,
       });
       setShowBasicInfoEdit(false);
     } catch (err) {
@@ -789,145 +785,7 @@ export default function OrganizerSetup() {
     }
   };
 
-  // Helper Actions: Phase 2
-  const lockQuestions = () => {
-    setQuestionsLocked(true);
-    setActivePhase(3); // Auto progress to Phase 3
-  };
 
-  const addQuestion = () => {
-    if (!newQuestionLabel.trim()) return;
-    const opts = newQuestionOptions.split(',').map(o => o.trim()).filter(Boolean);
-    const newQ: Question = {
-      id: Date.now().toString(),
-      label: newQuestionLabel,
-      type: newQuestionType,
-      options: newQuestionType === 'select' ? opts : undefined,
-      required: false
-    };
-    setQuestions([...questions, newQ]);
-    setNewQuestionLabel('');
-    setNewQuestionOptions('');
-  };
-
-  const removeQuestion = (id: string) => {
-    setQuestions(questions.filter(q => q.id !== id));
-  };
-
-  // Helper Actions: Phase 3
-  const simulateRegistration = (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegError(null);
-
-    // Guardrail: check unique phone number against active entries
-    const phoneExists = teams.some(t => t.phone === regPhone) || waitlist.some(t => t.phone === regPhone);
-    if (phoneExists) {
-      setRegError(`❌ Registration Blocked: Phone number ${regPhone} is already registered in Men's Open.`);
-      return;
-    }
-
-    const newTeam: Team = {
-      id: 't_' + Date.now(),
-      name: regTeamName,
-      phone: regPhone,
-      email: regEmail,
-      seed: teams.length + waitlist.length + 1,
-      paymentCleared: false,
-      registeredAt: new Date(),
-      status: teams.length >= 6 ? 'waitlist' : 'unpaid'
-    };
-
-    if (teams.length >= 6) {
-      setWaitlist([...waitlist, newTeam]);
-    } else {
-      setTeams([...teams, newTeam]);
-    }
-
-    setRegTeamName('');
-    setRegPhone('');
-    setRegEmail('');
-  };
-
-  const clearExpiredAndPromote = () => {
-    const cutoff = new Date(Date.now() - 3600000 * 24);
-    const paidOrFresh = teams.filter(t => t.paymentCleared || t.registeredAt > cutoff);
-    const expiredCount = teams.length - paidOrFresh.length;
-
-    if (expiredCount > 0 && waitlist.length > 0) {
-      const promoted = waitlist.slice(0, expiredCount).map(t => ({ ...t, status: 'unpaid' as const, registeredAt: new Date() }));
-      const remainingWaitlist = waitlist.slice(expiredCount);
-      setTeams([...paidOrFresh, ...promoted]);
-      setWaitlist(remainingWaitlist);
-    } else {
-      setTeams(paidOrFresh);
-    }
-  };
-
-  const markPaid = (id: string) => {
-    setTeams(teams.map(t => t.id === id ? { ...t, paymentCleared: true, status: 'confirmed' } : t));
-  };
-
-  // Helper Actions: Phase 4
-  const moveSeed = (index: number, direction: 'up' | 'down') => {
-    const updated = [...teams];
-    const target = direction === 'up' ? index - 1 : index + 1;
-    if (target < 0 || target >= updated.length) return;
-    const temp = updated[index];
-    updated[index] = updated[target];
-    updated[target] = temp;
-    
-    const ranked = updated.map((t, idx) => ({ ...t, seed: idx + 1 }));
-    setTeams(ranked);
-
-    if (scheduleGenerated) {
-      runSerpentineSerpents(ranked);
-    }
-  };
-
-  const runSerpentineSerpents = (currentTeams: Team[]) => {
-    const pA: Team[] = [];
-    const pB: Team[] = [];
-    currentTeams.forEach((team, index) => {
-      const snakeRound = Math.floor(index / 2);
-      if (snakeRound % 2 === 0) {
-        if (index % 2 === 0) pA.push(team);
-        else pB.push(team);
-      } else {
-        if (index % 2 === 0) pB.push(team);
-        else pA.push(team);
-      }
-    });
-    setPoolA(pA);
-    setPoolB(pB);
-    setScheduleGenerated(true);
-  };
-
-  const swapPoolTeams = (teamId: string, targetPool: 'A' | 'B') => {
-    if (targetPool === 'B') {
-      const team = poolA.find(t => t.id === teamId);
-      if (team) {
-        setPoolA(poolA.filter(t => t.id !== teamId));
-        setPoolB([...poolB, team]);
-      }
-    } else {
-      const team = poolB.find(t => t.id === teamId);
-      if (team) {
-        setPoolB(poolB.filter(t => t.id !== teamId));
-        setPoolA([...poolA, team]);
-      }
-    }
-  };
-
-  const addCourt = () => {
-    if (newCourtName.trim() && !courts.includes(newCourtName)) {
-      setCourts([...courts, newCourtName]);
-      setNewCourtName('');
-    }
-  };
-
-  const removeCourt = (court: string) => {
-    setCourts(courts.filter(c => c !== court));
-  };
 
   // The division shown in the per-division setup panel (falls back to the first).
   const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
@@ -988,7 +846,7 @@ export default function OrganizerSetup() {
                  }}>
                     {basicInfo?.imageUrl && (
                       <button 
-                        onClick={() => window.open(basicInfo.imageUrl, '_blank')}
+                        onClick={() => { if (basicInfo?.imageUrl) window.open(basicInfo.imageUrl, '_blank'); }}
                         style={{ width: 140, padding: '10px 16px', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
                       >
                         <Eye size={16} /> View
@@ -1092,7 +950,8 @@ export default function OrganizerSetup() {
 
               {/* Per-division setup */}
               {activeDivision && (
-                <section className={styles.card}>
+                <>
+                  <section className={styles.card}>
                   <div className={styles.cardHeader}>
                     <Layers className={styles.iconHeader} size={22} />
                     <div style={{ flex: 1 }}>
@@ -1108,10 +967,14 @@ export default function OrganizerSetup() {
                       <button type="button" className={styles.btnRemove} onClick={() => removeDivision(activeDivision.id)} aria-label="Delete division">
                         <Trash2 size={16} />
                       </button>
+                      <button type="button" className={styles.btnRemove} onClick={() => setDetailsCollapsed(!detailsCollapsed)} aria-label="Toggle details" style={{ color: '#EE7A4C' }}>
+                        {detailsCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                      </button>
                     </div>
                   </div>
 
-                  <div className={styles.sectionBody}>
+                  {!detailsCollapsed && (
+                    <div className={styles.sectionBody}>
                     <div className={styles.summaryGrid}>
                       <div className={styles.summaryItem}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
                       <div className={styles.summaryItem}><span>On-Sand Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
@@ -1176,9 +1039,103 @@ export default function OrganizerSetup() {
                         )}
                       </div>
                     )}
+                    </div>
+                  )}
+                </section>
+
+                {/* Registered Teams Section */}
+                <section className={styles.card} style={{ marginTop: 28 }}>
+                  <div className={styles.cardHeader}>
+                    <div className={styles.iconHeader}>
+                      <Users size={20} />
+                    </div>
+                    <div>
+                      <h3 className={styles.cardTitle}>Registered Teams</h3>
+                      <p className={styles.subtitle}>
+                        Manage teams registered for this division ({registeredTeams.filter(t => t.status !== 'waitlist').length}/{activeDivision.divisionTeamCap})
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.sectionBody}>
+                    {teamsLoading ? (
+                      <p className={styles.summaryText}>Loading registered teams…</p>
+                    ) : registeredTeams.length === 0 ? (
+                      <p className={styles.summaryText}>No teams registered yet.</p>
+                    ) : (
+                      <table className={styles.teamsTable}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: '60px' }}>No.</th>
+                            <th>Team / Players</th>
+                            <th style={{ width: '140px' }}>Captain Phone</th>
+                            <th style={{ width: '120px' }}>Status</th>
+                            <th style={{ width: '120px' }}>Payment</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {registeredTeams.map((t, idx) => {
+                            const firstWaitlistIdx = registeredTeams.findIndex(team => team.status === 'waitlist');
+                            const showWaitlistSeparator = t.status === 'waitlist' && idx === firstWaitlistIdx;
+                            const displayIndex = t.status === 'waitlist'
+                              ? idx - firstWaitlistIdx + 1
+                              : idx + 1;
+
+                            return (
+                              <Fragment key={t.id}>
+                                {showWaitlistSeparator && (
+                                  <tr key="waitlist-separator">
+                                    <td colSpan={5} style={{ padding: '24px 12px 12px', borderBottom: 'none' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#713F12', backgroundColor: '#FEF08A', padding: '4px 10px', borderRadius: '12px', fontFamily: "var(--font-ui, 'Inter', sans-serif)" }}>
+                                          Waiting List
+                                        </span>
+                                        <div style={{ flex: 1, height: '2px', backgroundColor: 'rgba(238, 122, 76, 0.25)', borderRadius: '1px' }} />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                                <tr>
+                                  <td style={{ fontWeight: 700, color: 'var(--orange, #EE7A4C)' }}>{displayIndex}</td>
+                                  <td>
+                                    <div className={styles.teamRowName}>
+                                      {t.players.length > 0
+                                        ? t.players.map(p => p.name).join(' / ')
+                                        : t.name}
+                                    </div>
+                                    {t.players.length > 0 && (
+                                      <div className={styles.teamPlayers}>
+                                        {t.players.map((p, pIdx) => (
+                                          <span key={p.id} className={styles.teamPlayer}>
+                                            Player {pIdx + 1}: {p.email || '—'}
+                                            {p.shirtSize && <span className={styles.teamPlayerSub}>Size {p.shirtSize}</span>}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td style={{ fontWeight: 500 }}>
+                                    {t.players[0]?.phone || '—'}
+                                  </td>
+                                  <td>
+                                    <span className={`${styles.statusBadge} ${t.status === 'confirmed' ? styles.statusConfirmed : t.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
+                                      {t.status}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className={t.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
+                                      {t.paymentCleared ? 'Paid' : 'Unpaid'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              </Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
                 </section>
-              )}
+              </>)}
             </>
           )}
         </div>
@@ -1840,7 +1797,9 @@ export default function OrganizerSetup() {
             </div>
             <div className={styles.modalFooter}>
               <button className={styles.btnGhost} onClick={() => setShowPosterModal(false)}>Cancel</button>
-              <button className={styles.btnActionPrimary} onClick={savePoster} disabled={!tempPoster}>Save Image</button>
+              <button className={styles.btnActionPrimary} onClick={savePoster} disabled={!tempPoster || posterSaving}>
+                {posterSaving ? 'Saving…' : 'Save Image'}
+              </button>
             </div>
           </div>
         </div>

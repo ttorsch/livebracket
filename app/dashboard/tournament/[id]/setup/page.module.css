@@ -1667,3 +1667,90 @@
   line-height: 1.5;
   color: var(--ink-1, #14181E);
 }
+
+/* Teams Table */
+.teamsSection {
+  margin-top: 24px;
+}
+.teamsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+.teamsTable th {
+  text-align: left;
+  padding: 10px 12px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-2, #7A8294);
+  border-bottom: 2px solid rgba(20, 31, 46, 0.08);
+}
+.teamsTable td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(20, 31, 46, 0.08);
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 14px;
+  color: var(--ink-1, #14181E);
+}
+.teamRowSeed {
+  font-weight: 700;
+  color: var(--orange, #EE7A4C);
+}
+.teamRowName {
+  font-weight: 600;
+}
+.teamPlayers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.teamPlayer {
+  font-size: 13px;
+  color: var(--ink-2, #3A414D);
+}
+.teamPlayerSub {
+  font-size: 11px;
+  color: var(--ink-3, #7A8294);
+  margin-left: 6px;
+}
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.statusConfirmed {
+  background: #DEF7EC;
+  color: #03543F;
+}
+.statusUnpaid {
+  background: #FDF2F2;
+  color: #9B1C1C;
+}
+.statusWaitlist {
+  background: #FEF08A;
+  color: #713F12;
+}
+.badgePaid {
+  background: #DEF7EC;
+  color: #03543F;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.badgeUnpaid {
+  background: #E5E7EB;
+  color: #374151;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}

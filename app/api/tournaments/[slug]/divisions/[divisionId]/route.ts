@@ -42,15 +42,15 @@ function toSettings(body: DivisionBody) {
   };
 }
 
-async function assertOwnership(slug: string, divisionId: string) {
+async function findDivision(slug: string, divisionId: string) {
   const { data, error } = await supabaseAdmin
     .from('divisions')
-    .select('id, tournaments!inner(slug)')
+    .select('id, settings, tournaments!inner(slug)')
     .eq('id', divisionId)
     .eq('tournaments.slug', slug)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return !!data;
+  return data;
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
@@ -61,13 +61,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: 'Division name is required' }, { status: 400 });
   }
 
+  let existing;
   try {
-    if (!(await assertOwnership(slug, divisionId))) {
+    existing = await findDivision(slug, divisionId);
+    if (!existing) {
       return NextResponse.json({ error: 'Division not found' }, { status: 404 });
     }
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Lookup failed' }, { status: 500 });
   }
+
+  // Preserve the bracket page's draw config — this route owns every other
+  // settings key, but `draw` is written by the draw endpoint.
+  const prevDraw = (existing.settings as Record<string, unknown> | null)?.draw;
 
   const { data: division, error: dError } = await supabaseAdmin
     .from('divisions')
@@ -77,7 +83,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       registration_fee: body.registrationFee,
       division_team_cap: body.divisionTeamCap,
       reg_fields: body.regFields,
-      settings: toSettings(body),
+      settings: prevDraw === undefined ? toSettings(body) : { ...toSettings(body), draw: prevDraw },
     })
     .eq('id', divisionId)
     .select('id, name, format_type_on_sand, registration_fee, division_team_cap, reg_fields, settings')
@@ -107,7 +113,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const { slug, divisionId } = await params;
 
   try {
-    if (!(await assertOwnership(slug, divisionId))) {
+    if (!(await findDivision(slug, divisionId))) {
       return NextResponse.json({ error: 'Division not found' }, { status: 404 });
     }
   } catch (err) {
@@ -118,4 +124,38 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
+}
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ slug: string; divisionId: string }> }
+) {
+  const { divisionId } = await params;
+
+  const { data, error } = await supabaseAdmin
+    .from('teams')
+    .select('id, name, seed, payment_cleared, status, players(id, name, phone, email, shirt_size)')
+    .eq('division_id', divisionId)
+    .order('seed', { ascending: true, nullsFirst: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const teams = (data ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    seed: t.seed,
+    paymentCleared: t.payment_cleared,
+    status: t.status,
+    players: (t.players ?? []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      phone: p.phone,
+      email: p.email,
+      shirtSize: p.shirt_size,
+    })),
+  }));
+
+  return NextResponse.json(teams);
 }

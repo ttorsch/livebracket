@@ -26,36 +26,6 @@ function isLiveNow(t: CardTournament): boolean {
   return t.startDate <= TODAY && TODAY <= (t.endDate || t.startDate);
 }
 
-const MOCK_HISTORY: CardTournament[] = [
-  {
-    id: 'hist_1',
-    title: 'Winter Beach Volley Open',
-    date: 'Dec 15 - Dec 16, 2025',
-    location: 'Copacabana Beach',
-    phase: 4,
-    startDate: '2025-12-15',
-    endDate: '2025-12-16',
-    divisions: [
-      { name: 'Men 2v2', cap: 16, filled: 16 },
-      { name: 'Women 2v2', cap: 16, filled: 16 }
-    ],
-    imageUrl: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=600'
-  },
-  {
-    id: 'hist_2',
-    title: 'Autumn Spike Festival',
-    date: 'Oct 01 - Oct 02, 2025',
-    location: 'Bondi Beach',
-    phase: 4,
-    startDate: '2025-10-01',
-    endDate: '2025-10-02',
-    divisions: [
-      { name: 'Mixed 4v4', cap: 8, filled: 8 }
-    ],
-    imageUrl: 'https://images.unsplash.com/photo-1544216717-3bbf52512659?q=80&w=600'
-  }
-];
-
 /* Map tournament phase → filter status */
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
@@ -234,6 +204,11 @@ export default function OrganizerDashboard() {
     [tournaments]
   );
 
+  const pastTournaments = useMemo(
+    () => tournaments.filter(isCompleted).sort((a, b) => (b.endDate || b.startDate).localeCompare(a.endDate || a.startDate)),
+    [tournaments]
+  );
+
   // Poll live tournament details for court scores
   useEffect(() => {
     if (liveTournaments.length === 0) return;
@@ -363,7 +338,7 @@ export default function OrganizerDashboard() {
                       <span><MapPin size={16} /> {t.location}</span>
                     </div>
                     <div className={styles.heroActions}>
-                      <Link href={`/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
+                      <Link href={`/dashboard/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
                         <Trophy size={16} /> Open Live Bracket
                       </Link>
                       <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
@@ -435,7 +410,10 @@ export default function OrganizerDashboard() {
               <h2 className={styles.sectionTitle}>Past Tournaments</h2>
             </div>
             <div className={styles.rowList}>
-              {MOCK_HISTORY.map(t => (
+              {pastTournaments.length === 0 && (
+                <p className={styles.filterEmpty}>No past tournaments found.</p>
+              )}
+              {pastTournaments.map(t => (
                 <TournamentRow
                   key={t.id}
                   t={t}
@@ -604,7 +582,7 @@ function TournamentRow({
               <QrCode size={18} />
             </button>
           )}
-          <Link href={`/tournament/${t.id}`} className={styles.rowBracketBtn}>
+          <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
             <Trophy size={15} /> Bracket
           </Link>
           <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>

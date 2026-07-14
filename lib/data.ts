@@ -188,6 +188,10 @@ export interface DetailMatch {
   time: string;
   teamA: DetailMatchPlayer[];
   teamB: DetailMatchPlayer[];
+  teamAId: string | null;
+  teamBId: string | null;
+  teamAName: string | null;
+  teamBName: string | null;
   scoreA?: number[];
   scoreB?: number[];
   winner?: 'A' | 'B';
@@ -196,13 +200,26 @@ export interface DetailMatch {
 
 export interface DetailRound {
   round: string;
+  format: string;
   matches: DetailMatch[];
 }
 
 export interface DetailTeam {
+  id: string;
   name: string;
   seed: number;
   status: string;
+}
+
+// Organizer draw settings persisted on divisions.settings.draw.
+// `slots` records the generated bracket's match order per round sequence
+// (matches have no slot column, and render order defines the bracket tree).
+export interface DrawConfig {
+  pools: number;
+  advance: number;
+  crossing: string;
+  attempts: number;
+  slots?: Record<string, string[]>;
 }
 
 export interface DetailDivision {
@@ -212,6 +229,7 @@ export interface DetailDivision {
   filled: number;
   teamsList: DetailTeam[];
   bracket: DetailRound[];
+  drawConfig: DrawConfig | null;
 }
 
 export interface DetailVoucher {
@@ -237,6 +255,14 @@ function teamNameToPlayers(name: string): DetailMatchPlayer[] {
   return name.split('/').map((part) => ({ name: part.trim(), flag: '' }));
 }
 
+// Order a round's matches by the generated slot list; matches not in the
+// list (or when no list exists) keep their original relative order at the end.
+function sortBySlots<T extends { id: string }>(matches: T[], slotIds?: string[]): T[] {
+  if (!slotIds || slotIds.length === 0) return matches;
+  const pos = new Map(slotIds.map((id, i) => [id, i]));
+  return [...matches].sort((a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity));
+}
+
 function formatMatchTime(iso: string | null): string {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -259,6 +285,7 @@ interface MatchRow {
 interface RoundRow {
   id: string;
   sequence: number;
+  format: string;
   name: string;
   matches: MatchRow[];
 }
@@ -274,6 +301,7 @@ interface DetailDivisionRow {
   id: string;
   name: string;
   division_team_cap: number;
+  settings: Record<string, unknown> | null;
   teams: TeamRow[];
   rounds: RoundRow[];
 }
@@ -304,10 +332,10 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     .select(`
       slug, title, location, start_date, end_date, is_one_day, phase, description,
       divisions (
-        id, name, division_team_cap,
+        id, name, division_team_cap, settings,
         teams ( id, name, seed, status ),
         rounds (
-          id, sequence, name,
+          id, sequence, format, name,
           matches (
             id, court, scheduled_time, status, score_a, score_b,
             team_a_id, team_b_id, winner_team_id,
@@ -333,31 +361,42 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     startDate: row.start_date,
     phase: row.phase,
     description: row.description,
-    divisions: row.divisions.map((d) => ({
-      id: d.id,
-      label: d.name,
-      teams: d.division_team_cap,
-      filled: d.teams.filter((team) => team.status !== 'waitlist').length,
-      teamsList: [...d.teams]
-        .sort((a, b) => a.seed - b.seed)
-        .map((team) => ({ name: team.name, seed: team.seed, status: team.status })),
-      bracket: [...d.rounds]
-        .sort((a, b) => a.sequence - b.sequence)
-        .map((r) => ({
-          round: r.name,
-          matches: r.matches.map((m) => ({
-            id: m.id,
-            court: m.court ?? '',
-            time: formatMatchTime(m.scheduled_time),
-            teamA: teamNameToPlayers(m.team_a?.name ?? 'TBD'),
-            teamB: teamNameToPlayers(m.team_b?.name ?? 'TBD'),
-            scoreA: m.score_a ?? undefined,
-            scoreB: m.score_b ?? undefined,
-            winner: m.winner_team_id === m.team_a_id ? 'A' : m.winner_team_id === m.team_b_id ? 'B' : undefined,
-            status: m.status,
+    divisions: row.divisions.map((d) => {
+      const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;
+      return {
+        id: d.id,
+        label: d.name,
+        teams: d.division_team_cap,
+        filled: d.teams.filter((team) => team.status !== 'waitlist').length,
+        teamsList: [...d.teams]
+          .sort((a, b) => a.seed - b.seed)
+          .map((team) => ({ id: team.id, name: team.name, seed: team.seed, status: team.status })),
+        bracket: [...d.rounds]
+          .sort((a, b) => a.sequence - b.sequence)
+          .map((r) => ({
+            round: r.name,
+            format: r.format,
+            matches: sortBySlots(r.matches, draw?.slots?.[String(r.sequence)]).map((m) => ({
+              id: m.id,
+              court: m.court ?? '',
+              time: formatMatchTime(m.scheduled_time),
+              teamA: teamNameToPlayers(m.team_a?.name ?? 'TBD'),
+              teamB: teamNameToPlayers(m.team_b?.name ?? 'TBD'),
+              teamAId: m.team_a_id ?? null,
+              teamBId: m.team_b_id ?? null,
+              teamAName: m.team_a?.name ?? null,
+              teamBName: m.team_b?.name ?? null,
+              scoreA: m.score_a ?? undefined,
+              scoreB: m.score_b ?? undefined,
+              winner: m.winner_team_id === m.team_a_id ? 'A' : m.winner_team_id === m.team_b_id ? 'B' : undefined,
+              status: m.status,
+            })),
           })),
-        })),
-    })),
+        drawConfig: draw && typeof draw.pools === 'number'
+          ? { pools: draw.pools, advance: draw.advance ?? 2, crossing: draw.crossing ?? 'fivb', attempts: draw.attempts ?? 0 }
+          : null,
+      };
+    }),
     vouchers: row.vouchers.map((v) => ({
       id: v.id,
       title: v.discount_type === 'percent' ? `${v.discount_value}% off with code ${v.code}` : `${v.discount_value} THB off with code ${v.code}`,
@@ -365,4 +404,53 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
       code: v.code,
     })),
   };
+}
+
+export interface RegisteredPlayerRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  shirtSize: string | null;
+}
+
+export interface RegisteredTeamRow {
+  id: string;
+  name: string;
+  seed: number | null;
+  paymentCleared: boolean;
+  status: 'confirmed' | 'unpaid' | 'waitlist';
+  players: RegisteredPlayerRow[];
+}
+
+export async function getDivisionTeams(slug: string, divisionId: string): Promise<RegisteredTeamRow[]> {
+  if (typeof window !== 'undefined') {
+    const res = await fetch(`/api/tournaments/${slug}/divisions/${divisionId}`);
+    if (!res.ok) throw new Error('Failed to load registered teams');
+    return res.json();
+  }
+
+  const { data, error } = await supabase
+    .from('teams')
+    .select('id, name, seed, payment_cleared, status, players(id, name, phone, email, shirt_size)')
+    .eq('division_id', divisionId)
+    .order('seed', { ascending: true, nullsFirst: false });
+
+  if (error) throw new Error(`Failed to load teams: ${error.message}`);
+  if (!data) return [];
+
+  return (data as any[]).map((t) => ({
+    id: t.id,
+    name: t.name,
+    seed: t.seed,
+    paymentCleared: t.payment_cleared,
+    status: t.status,
+    players: (t.players ?? []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      phone: p.phone,
+      email: p.email,
+      shirtSize: p.shirt_size,
+    })),
+  }));
 }
