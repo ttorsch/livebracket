@@ -53,16 +53,15 @@ interface RegField {
 }
 
 type OnSandFormat = '2v2' | '3v3' | '4v4' | '6v6';
-type RoundFormat = 'pool' | 'round-robin' | 'single' | 'double';
+type RoundFormat = 'round-robin' | 'single' | 'double';
 
 interface TournamentRound {
   id: string;
   format: RoundFormat | null; // null until the organizer picks one
-  scoring: ScoringRules;      // each round can have its own scoring (e.g. pool play to 21, single elim best of 3)
+  scoring: ScoringRules;      // each round can have its own scoring (e.g. round robin to 21, single elim best of 3)
 }
 
 const ROUND_FORMATS: { value: RoundFormat; label: string }[] = [
-  { value: 'pool', label: 'Pool Play' },
   { value: 'round-robin', label: 'Round Robin' },
   { value: 'single', label: 'Single Elimination' },
   { value: 'double', label: 'Double Elimination' },
@@ -319,8 +318,8 @@ export default function OrganizerSetup() {
   const [regFee, setRegFee] = useState(800);
   const [regOpenDate, setRegOpenDate] = useState('');
   const [isOpenImmediately, setIsOpenImmediately] = useState(true);
-  // C. Rules & formats — each round carries its own scoring rules (a pool
-  // play round might go to 21 points while the elimination round after it
+  // C. Rules & formats — each round carries its own scoring rules (a round
+  // robin round might go to 21 points while the elimination round after it
   // is best of 3), so scoring lives on TournamentRound, not the division.
   const [rounds, setRounds] = useState<TournamentRound[]>([{ id: 'r_1', format: null, scoring: defaultScoringRules() }]);
   const [divRules, setDivRules] = useState('Standard FIVB Beach Volleyball rules apply.');
@@ -1260,7 +1259,7 @@ export default function OrganizerSetup() {
                 <label className={styles.fieldLabel}>Competition Format *</label>
                 <p className={styles.fieldHint} style={{ marginTop: -2 }}>
                   Build the tournament one round at a time. Each round has its own format and
-                  scoring — e.g. pool play to 21 points, then a best-of-3 elimination bracket.
+                  scoring — e.g. round robin to 21 points, then a best-of-3 elimination bracket.
                 </p>
                 <div className={styles.roundsList}>
                   {rounds.map((round, i) => (

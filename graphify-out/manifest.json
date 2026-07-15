@@ -5,9 +5,9 @@
     "semantic_hash": "239f3ebf717465dc636818a1a619398d"
   },
   "/Users/torsmacair/livebracket/package.json": {
-    "mtime": 1782812451.2321262,
-    "ast_hash": "c3a0a2f5fc4672830e6b7e629669a16d",
-    "semantic_hash": "c3a0a2f5fc4672830e6b7e629669a16d"
+    "mtime": 1782956489.3034675,
+    "ast_hash": "bb73070ee64be9051ca9f69702060c0d",
+    "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/tsconfig.json": {
     "mtime": 1782447987.1053174,
@@ -30,23 +30,23 @@
     "semantic_hash": "312e3ade37e509bd831da4efc1d39222"
   },
   "/Users/torsmacair/livebracket/app/page.tsx": {
-    "mtime": 1782458394.246112,
-    "ast_hash": "4bdb20b9d36b28242e2707f69886a81a",
+    "mtime": 1783951609.359158,
+    "ast_hash": "613d7ad8dda49069a7cbfcb33e2ba703",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/page.tsx": {
-    "mtime": 1782775347.503306,
-    "ast_hash": "a7ad13ef9ce5b2f7e03b5ab3b9066ee6",
+    "mtime": 1782958056.025212,
+    "ast_hash": "6e74e090b056c11b36d59fec61baec3c",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/register/page.tsx": {
-    "mtime": 1782450392.4891322,
-    "ast_hash": "9b26b505a6219747e78969497d3fb416",
-    "semantic_hash": "9b26b505a6219747e78969497d3fb416"
+    "mtime": 1783311634.2377074,
+    "ast_hash": "28f07d6de3c0ac1dd9da9ebf31eccaa7",
+    "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/page.tsx": {
-    "mtime": 1782869090.9379625,
-    "ast_hash": "69d3a68ab884e665f45fb08fff9309b1",
+    "mtime": 1784027177.9525928,
+    "ast_hash": "78c5c28a8ceee3800cf9831b323914fd",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/create/page.tsx": {
@@ -60,9 +60,9 @@
     "semantic_hash": "4e4c15e907b1c35f7cf832401810de88"
   },
   "/Users/torsmacair/livebracket/app/profile/page.tsx": {
-    "mtime": 1782450392.485768,
-    "ast_hash": "71fcf20a3b5678b16396e81294e25ed6",
-    "semantic_hash": "71fcf20a3b5678b16396e81294e25ed6"
+    "mtime": 1783781415.139955,
+    "ast_hash": "d87378fe1af1a567b549c85508aa55a7",
+    "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/design-system/Simulator.tsx": {
     "mtime": 1782449471.756673,
@@ -80,8 +80,8 @@
     "semantic_hash": "4fea3897dd283446357818edae109298"
   },
   "/Users/torsmacair/livebracket/app/login/page.tsx": {
-    "mtime": 1782812451.2297862,
-    "ast_hash": "8833384b76e6096752a96de73213cd26",
+    "mtime": 1783944493.107623,
+    "ast_hash": "dcf5975b495c3c858fabf3bc7e3304f2",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/.claude/settings.local.json": {
@@ -395,23 +395,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/setup/page.tsx": {
-    "mtime": 1782831881.4993052,
-    "ast_hash": "55e0b58be0eaf3eb11455f0ce8a67204",
-    "semantic_hash": ""
-  },
-  "/Users/torsmacair/livebracket/.tmp/vercel-config/config.json": {
-    "mtime": 1782625570.7646067,
-    "ast_hash": "f1dd6d2bca726503affc6adb9588e36f",
-    "semantic_hash": ""
-  },
-  "/Users/torsmacair/livebracket/.tmp/vercel-config/telemetry-session.json": {
-    "mtime": 1782626171.7604792,
-    "ast_hash": "e4bffe1c18fde0a6cbb69209a41d4fce",
-    "semantic_hash": ""
-  },
-  "/Users/torsmacair/livebracket/.tmp/vercel-config/telemetry-device.json": {
-    "mtime": 1782625570.7512631,
-    "ast_hash": "30fc3191906cace3549d0bd437b82052",
+    "mtime": 1784091210.0564609,
+    "ast_hash": "762c49f28215d54bebd3edaffcfde67c",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/icon.svg": {
@@ -419,14 +404,9 @@
     "ast_hash": "91f90f90f8ad27cfcaf24247d681c41e",
     "semantic_hash": ""
   },
-  "/Users/torsmacair/livebracket/.tmp/diff_create.txt": {
-    "mtime": 1782813669.0976124,
-    "ast_hash": "94fc7a9eb29202a367dce3cbd727a213",
-    "semantic_hash": ""
-  },
   "/Users/torsmacair/livebracket/app/dashboard/CreateTournamentModal.tsx": {
-    "mtime": 1782888539.3855007,
-    "ast_hash": "7d75d2b174a4e1c5649b5500116c8508",
+    "mtime": 1783320157.7675855,
+    "ast_hash": "30d5120cb6eda44fc3bc5c0625262108",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/.claude/launch.json": {
@@ -447,6 +427,116 @@
   "/Users/torsmacair/livebracket/public/IMG_7225.jpg": {
     "mtime": 1740283681.0,
     "ast_hash": "5779d8bc58666a3e2504595a7e383b77",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/page.tsx": {
+    "mtime": 1784091771.2103312,
+    "ast_hash": "a7c071a008c4f64e046085fbb59399db",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/organizer/route.ts": {
+    "mtime": 1782960441.892366,
+    "ast_hash": "1c1f293ffa646174ba2ab7e01d17e388",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/tournaments/route.ts": {
+    "mtime": 1783320102.6704752,
+    "ast_hash": "660863e1e17811ed18d24bfa1187c23b",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/tournaments/upload-image/route.ts": {
+    "mtime": 1783320088.6320078,
+    "ast_hash": "b997cb59f946156d67dfe50c3a28b1cd",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/route.ts": {
+    "mtime": 1784027717.5768747,
+    "ast_hash": "47b2ef75d245da54f77d0c97bd8da8ae",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/route.ts": {
+    "mtime": 1783680802.6980724,
+    "ast_hash": "6285c4c5130bb220cb9071dcb5fa1809",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/[divisionId]/route.ts": {
+    "mtime": 1784029950.7242234,
+    "ast_hash": "1877961a18c707f1520435eacbf3d5f9",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/[divisionId]/draw/route.ts": {
+    "mtime": 1784091220.0093431,
+    "ast_hash": "d2a8a2a7ba77f4a38a1ff65177678ac5",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/supabase/migrations/0001_init.sql": {
+    "mtime": 1782956534.6842945,
+    "ast_hash": "fa126522e0a83ce9b6c19e7b6b8b8fb8",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/supabase/migrations/0003_division_settings.sql": {
+    "mtime": 1783680802.7013187,
+    "ast_hash": "ea9d94dc0a162f9b5e5fafd87b8b6fb9",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/supabase/migrations/0002_split_player_names.sql": {
+    "mtime": 1783311634.2385907,
+    "ast_hash": "593824310236518c4f98c0d001de22c6",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/supabase/migrations/0005_pools_and_bracket.sql": {
+    "mtime": 1784040989.3826282,
+    "ast_hash": "5740fcbe6322e13f615becbb46f4f8c3",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/supabase/migrations/0004_round_scoring_rules.sql": {
+    "mtime": 1783680802.701458,
+    "ast_hash": "dfa336e879ff0de5b2607a5b808ecd70",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/supabase/migrations/0006_remove_pool_format.sql": {
+    "mtime": 1784091305.8961146,
+    "ast_hash": "10f182074f34df95844b67dc02353f76",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/scripts/seed-demo-data.mjs": {
+    "mtime": 1783311634.238227,
+    "ast_hash": "bedc85a4a4c915622b89bdc170b056ab",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/data.ts": {
+    "mtime": 1784045774.1671548,
+    "ast_hash": "08f910d8f5631362f80bf7455e653bb1",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/slug.ts": {
+    "mtime": 1782958138.307025,
+    "ast_hash": "a4b4a3a1490c6f48104385aa19e5428c",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/poolDraw.ts": {
+    "mtime": 1784040960.1910727,
+    "ast_hash": "e519b7d0736300a342c7f7093bfaed17",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/redis.ts": {
+    "mtime": 1782956507.0564651,
+    "ast_hash": "34deb261aa7ee3a8a76d237e1abc15fa",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/supabaseAdmin.ts": {
+    "mtime": 1782957589.0249155,
+    "ast_hash": "9affe2fb20d1f177221b02d3218f8636",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/supabase.ts": {
+    "mtime": 1782956498.3969057,
+    "ast_hash": "df5e2f8be5e8cc77f2cb910f6b28c0bf",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/TorProfilePic.png": {
+    "mtime": 1760891636.6850636,
+    "ast_hash": "e3fe68d3288c1f4e9c6e255a6a932c81",
     "semantic_hash": ""
   }
 }

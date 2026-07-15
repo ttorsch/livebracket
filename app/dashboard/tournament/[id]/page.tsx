@@ -23,6 +23,12 @@ interface DrawSettings {
 
 const DEFAULT_DRAW: DrawSettings = { pools: 4, advance: 2, crossing: 'fivb' };
 
+const FORMAT_LABELS: Record<string, string> = {
+  'round-robin': 'Round Robin',
+  single: 'Single Elimination',
+  double: 'Double Elimination',
+};
+
 /* ── Bracket view model ───────────────────────────────────────
    One shape whether the rounds come from the database (generated
    draw) or from the client-side projection used before a draw
@@ -184,7 +190,11 @@ export default function OrganizerBracketPage() {
   const [activeDiv, setActiveDiv] = useState<string>('');
   const [teamsOpen, setTeamsOpen] = useState(true);
   const [poolPlayOpen, setPoolPlayOpen] = useState(true);
+  const [drawConfigOpen, setDrawConfigOpen] = useState(true);
+  const [poolResultsOpen, setPoolResultsOpen] = useState(true);
   const [round2Open, setRound2Open] = useState(true);
+  const [bracketConfigOpen, setBracketConfigOpen] = useState(true);
+  const [bracketOpen, setBracketOpen] = useState(true);
   const [seedsByDiv, setSeedsByDiv] = useState<Record<string, SeedTeam[]>>({});
   const [configByDiv, setConfigByDiv] = useState<Record<string, DrawSettings>>({});
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
@@ -194,6 +204,8 @@ export default function OrganizerBracketPage() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [animDiv, setAnimDiv] = useState<string | null>(null); // division whose draw reveal is playing
+  const [drawTick, setDrawTick] = useState(0); // remounts the pools grid so the reveal replays on every draw
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -309,14 +321,66 @@ export default function OrganizerBracketPage() {
 
   const poolGroups = useMemo(() => {
     if (!division?.drawConfig) return [];
-    const poolRound = division.bracket.find(r => r.format === 'pool');
+    const poolRound = division.bracket.find(r => r.format === 'round-robin');
     if (!poolRound || poolRound.matches.length === 0) return [];
-    return assignPools(confirmedTeams, division.drawConfig.pools).map(pool => {
-      const ids = new Set(pool.items.map(t => t.id));
-      const matches = poolRound.matches.filter(m => m.teamAId && m.teamBId && ids.has(m.teamAId) && ids.has(m.teamBId));
-      return { name: pool.name, teams: pool.items, matches };
-    });
+    return assignPools(confirmedTeams, division.drawConfig.pools).map(pool => ({ name: pool.name, teams: pool.items }));
   }, [division, confirmedTeams]);
+
+  // The Round 1 feature set (draw config, pool results) belongs to the
+  // round-robin format; other formats get their own features later.
+  const firstRoundFormat = division?.bracket[0]?.format ?? 'round-robin';
+  const isRoundRobin = firstRoundFormat === 'round-robin';
+
+  const hasRoundRobin = useMemo(() => {
+    return division?.bracket.some(r => r.format === 'round-robin') ?? false;
+  }, [division]);
+
+  const hasKnockout = useMemo(() => {
+    return division?.bracket.some(r => r.format === 'single' || r.format === 'double') ?? false;
+  }, [division]);
+
+  const knockoutFormat = useMemo(() => {
+    const r = division?.bracket.find(r => r.format === 'single' || r.format === 'double');
+    return r?.format ?? 'single';
+  }, [division]);
+
+  /* Draw-reveal choreography: pool cards morph in one by one (empty), then
+     top seeds land in seed order, then the remaining teams fill pool by pool
+     from A. Runs only for the division that was just drawn. */
+  const poolAnim = useMemo(() => {
+    if (animDiv !== activeDiv || poolGroups.length === 0) return null;
+    const CARD_STAGGER = 0.3, CARD_DUR = 0.5;
+    const SEED_STAGGER = 0.35, SEED_DUR = 0.4;
+    const FILL_STAGGER = 1.05, FILL_DUR = 0.35;
+
+    const cardDelay = new Map<string, number>();
+    poolGroups.forEach((p, i) => cardDelay.set(p.name, i * CARD_STAGGER));
+    const cardsEnd = (poolGroups.length - 1) * CARD_STAGGER + CARD_DUR;
+
+    const teamDelay = new Map<string, number>();
+    const drawnIds = new Set(poolGroups.flatMap(p => p.teams.map(t => t.id)));
+    const topSeedIds = (division?.drawConfig?.topSeedIds ?? []).filter(id => drawnIds.has(id));
+    topSeedIds.forEach((id, i) => teamDelay.set(id, cardsEnd + 0.2 + i * SEED_STAGGER));
+    const seedsEnd = topSeedIds.length > 0
+      ? cardsEnd + 0.2 + (topSeedIds.length - 1) * SEED_STAGGER + SEED_DUR
+      : cardsEnd;
+
+    let fillIdx = 0;
+    poolGroups.forEach(p => p.teams.forEach(t => {
+      if (!teamDelay.has(t.id)) teamDelay.set(t.id, seedsEnd + 0.2 + fillIdx++ * FILL_STAGGER);
+    }));
+    const total = seedsEnd + 0.2 + Math.max(0, fillIdx - 1) * FILL_STAGGER + FILL_DUR;
+
+    return { cardDelay, teamDelay, total };
+  }, [animDiv, activeDiv, poolGroups, division]);
+
+  // Drop the animation classes once the sequence has fully played out, so
+  // re-renders (division toggles, config edits) don't replay it.
+  useEffect(() => {
+    if (!poolAnim) return;
+    const t = setTimeout(() => setAnimDiv(null), (poolAnim.total + 0.5) * 1000);
+    return () => clearTimeout(t);
+  }, [poolAnim]);
 
   if (loading) {
     return <div className={styles.page}><div className={styles.centerState}>Loading tournament…</div></div>;
@@ -335,6 +399,22 @@ export default function OrganizerBracketPage() {
   const totalTeams = detail.divisions.reduce((sum, d) => sum + d.filled, 0);
   const isLive = detail.date === 'Today';
   const heroImage = FALLBACK_HERO;
+
+  // Master toggle for Round 1: showing opens every sub-section too, so the
+  // chevron always means "show all / hide all" regardless of sub-toggle state.
+  const togglePoolPlayAll = () => {
+    const next = !poolPlayOpen;
+    setPoolPlayOpen(next);
+    setDrawConfigOpen(next);
+    setPoolResultsOpen(next);
+  };
+
+  const toggleBracketAll = () => {
+    const next = !round2Open;
+    setRound2Open(next);
+    setBracketConfigOpen(next);
+    setBracketOpen(next);
+  };
 
   const setConfig = (patch: Partial<DrawSettings>) => {
     setConfigByDiv({ ...configByDiv, [activeDiv]: { ...config, ...patch } });
@@ -399,6 +479,8 @@ export default function OrganizerBracketPage() {
         throw new Error(body?.error ?? `Save failed (${res.status})`);
       }
       await load(division.id);
+      setAnimDiv(division.id);
+      setDrawTick(t => t + 1);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save the draw');
     } finally {
@@ -489,8 +571,7 @@ export default function OrganizerBracketPage() {
             <div>
               <h2 className={styles.sectionTitle}>Registered Teams <span style={{ color: 'var(--ink-500)' }}>({confirmedTeams.length})</span></h2>
             </div>
-            <button type="button" className={styles.toggleBtn} aria-label="Toggle teams">
-              <span>{teamsOpen ? 'Hide' : 'Show'}</span>
+            <button type="button" className={`${styles.toggleBtn} ${styles.toggleBtnIcon}`} aria-label="Toggle teams">
               <span className={`${styles.chevron} ${teamsOpen ? styles.chevronOpen : ''}`}>
                 <ChevronDown size={18} />
               </span>
@@ -512,317 +593,595 @@ export default function OrganizerBracketPage() {
         </section>
 
         {/* ── Round 1: pool play ─────────────────────────────── */}
-        <section className={styles.section}>
-          <div className={styles.sectionHead} onClick={() => setPoolPlayOpen(v => !v)}>
-            <h2 className={styles.sectionTitle}>Round 1 <span style={{ color: 'var(--ink-500)' }}>· Pool Play</span></h2>
-            <button type="button" className={styles.toggleBtn} aria-label="Toggle pool play">
-              <span>{poolPlayOpen ? 'Hide' : 'Show'}</span>
-              <span className={`${styles.chevron} ${poolPlayOpen ? styles.chevronOpen : ''}`}>
-                <ChevronDown size={18} />
-              </span>
-            </button>
-          </div>
-          <div className={`${styles.roundWrap} ${poolPlayOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
-          <div className={styles.poolRow}>
-            <div className={styles.seedCard}>
-              <h3 className={styles.cardTitle}>Top Seed</h3>
-              <div className={styles.seedSelectRow}>
-                <div className={styles.selectWrap} ref={dropdownRef}>
-                  <input
-                    type="text"
-                    className={`${styles.select} ${styles.selectAccent}`}
-                    style={{ cursor: 'text' }}
-                    placeholder={unseededTeams.length === 0 ? "All teams seeded" : "Select team..."}
-                    value={dropdownOpen ? searchQuery : (confirmedTeams.find(t => t.id === pendingSeed)?.name ?? searchQuery)}
-                    onChange={e => {
-                      setSearchQuery(e.target.value);
-                      setDropdownOpen(true);
-                    }}
-                    onFocus={() => {
-                      setSearchQuery('');
-                      setDropdownOpen(true);
-                    }}
-                    disabled={unseededTeams.length === 0}
-                  />
+        {hasRoundRobin && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead} onClick={togglePoolPlayAll}>
+              <h2 className={styles.sectionTitle}>
+                Round 1 <span style={{ color: 'var(--ink-500)' }}>· {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat}</span>
+              </h2>
+              <div className={styles.headBtns} onClick={e => e.stopPropagation()}>
+                {isRoundRobin && (
                   <button
                     type="button"
-                    className={styles.selectChevron}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                    onClick={() => {
-                      if (unseededTeams.length > 0) {
-                        setDropdownOpen(!dropdownOpen);
-                      }
-                    }}
-                    disabled={unseededTeams.length === 0}
-                    aria-label="Toggle dropdown"
+                    className={styles.toggleBtn}
+                    aria-label="Toggle draw configuration"
+                    onClick={() => setDrawConfigOpen(v => !v)}
                   >
-                    <ChevronDown size={18} />
+                    <span>Draw Config</span>
+                    <span className={`${styles.chevron} ${drawConfigOpen ? styles.chevronOpen : ''}`}>
+                      <ChevronDown size={18} />
+                    </span>
                   </button>
-
-                  {/* Dropdown list popover */}
-                  {dropdownOpen && unseededTeams.length > 0 && (
-                    <div className={styles.dropdownPopover}>
-                      {filteredTeams.map(team => (
-                        <div
-                          key={team.id}
-                          className={styles.dropdownOption}
-                          onClick={() => {
-                            setPendingSeed(team.id);
-                            setSearchQuery('');
-                            setDropdownOpen(false);
-                          }}
-                        >
-                          {team.name}
-                        </div>
-                      ))}
-                      {filteredTeams.length === 0 && (
-                        <div className={styles.dropdownEmpty}>No teams match search</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  variant="primary"
-                  size="medium"
-                  onClick={() => {
-                    if (pendingSeed) {
-                      addSeed(pendingSeed);
-                      setSearchQuery('');
-                      setDropdownOpen(false);
-                    }
-                  }}
-                  disabled={unseededTeams.length === 0 || !pendingSeed}
-                >
-                  Add Top Seed
-                </Button>
-              </div>
-              <div className={styles.seedList}>
-                {seeds.map((team, i) => (
-                  <div
-                    key={team.id}
-                    draggable
-                    onDragStart={() => setDragIndex(i)}
-                    onDragEnter={() => reorder(i)}
-                    onDragOver={e => e.preventDefault()}
-                    onDragEnd={() => setDragIndex(null)}
-                    className={`${styles.seedRow} ${dragIndex === i ? styles.seedRowDragging : ''}`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                )}
+                {isRoundRobin && poolGroups.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.toggleBtn}
+                    aria-label="Toggle pool results"
+                    onClick={() => setPoolResultsOpen(v => !v)}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span className={styles.seedRowNum}>{i + 1}</span>
-                      <span className={styles.seedRowName}>{team.name}</span>
-                    </div>
+                    <span>Pool Results</span>
+                    <span className={`${styles.chevron} ${poolResultsOpen ? styles.chevronOpen : ''}`}>
+                      <ChevronDown size={18} />
+                    </span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`${styles.toggleBtn} ${styles.toggleBtnIcon}`}
+                  aria-label={poolPlayOpen ? 'Hide all of pool play' : 'Show all of pool play'}
+                  onClick={togglePoolPlayAll}
+                >
+                  <span className={`${styles.chevron} ${poolPlayOpen ? styles.chevronOpen : ''}`}>
+                    <ChevronDown size={18} />
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div className={`${styles.roundWrap} ${poolPlayOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            {isRoundRobin ? (
+            <>
+            <div className={`${styles.roundWrap} ${drawConfigOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            <div className={styles.poolRow}>
+              <div className={styles.seedCard}>
+                <h3 className={styles.cardTitle}>Top Seed</h3>
+                <div className={styles.seedSelectRow}>
+                  <div className={styles.selectWrap} ref={dropdownRef}>
+                    <input
+                      type="text"
+                      className={`${styles.select} ${styles.selectAccent}`}
+                      style={{ cursor: 'text' }}
+                      placeholder={unseededTeams.length === 0 ? "All teams seeded" : "Select team..."}
+                      value={dropdownOpen ? searchQuery : (confirmedTeams.find(t => t.id === pendingSeed)?.name ?? searchQuery)}
+                      onChange={e => {
+                        setSearchQuery(e.target.value);
+                        setDropdownOpen(true);
+                      }}
+                      onFocus={() => {
+                        setSearchQuery('');
+                        setDropdownOpen(true);
+                      }}
+                      disabled={unseededTeams.length === 0}
+                    />
                     <button
                       type="button"
-                      onClick={() => removeSeed(team.id)}
-                      title="Remove from seeding"
-                      style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                      className={styles.selectChevron}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      onClick={() => {
+                        if (unseededTeams.length > 0) {
+                          setDropdownOpen(!dropdownOpen);
+                        }
+                      }}
+                      disabled={unseededTeams.length === 0}
+                      aria-label="Toggle dropdown"
                     >
-                      <X size={16} />
+                      <ChevronDown size={18} />
                     </button>
-                  </div>
-                ))}
-                {seeds.length === 0 && (
-                  <div className={styles.emptyNote}>No teams seeded yet. Use the dropdown above to add seeds.</div>
-                )}
-              </div>
-            </div>
 
-            <div className={styles.configCard}>
-              <h3 className={styles.cardTitle}>Draw Configuration</h3>
-              <div>
-                <label className={styles.fieldLabel}>Number of Pools</label>
-                <div className={styles.fieldRow}>
-                  <input
-                    type="number"
-                    min={2}
-                    max={8}
-                    value={config.pools}
-                    onChange={e => {
-                      let v = parseInt(e.target.value, 10);
-                      if (isNaN(v)) v = 2;
-                      setConfig({ pools: Math.max(2, Math.min(8, v)) });
+                    {/* Dropdown list popover */}
+                    {dropdownOpen && unseededTeams.length > 0 && (
+                      <div className={styles.dropdownPopover}>
+                        {filteredTeams.map(team => (
+                          <div
+                            key={team.id}
+                            className={styles.dropdownOption}
+                            onClick={() => {
+                              setPendingSeed(team.id);
+                              setSearchQuery('');
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            {team.name}
+                          </div>
+                        ))}
+                        {filteredTeams.length === 0 && (
+                          <div className={styles.dropdownEmpty}>No teams match search</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="medium"
+                    onClick={() => {
+                      if (pendingSeed) {
+                        addSeed(pendingSeed);
+                        setSearchQuery('');
+                        setDropdownOpen(false);
+                      }
                     }}
-                    className={styles.numInput}
-                  />
-                  <span className={styles.fieldSummary}>
-                    {confirmedTeams.length} teams · {config.pools} pools · ~{perPool} per pool
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className={styles.fieldLabel}>Teams Advancing per Pool</label>
-                <div className={styles.fieldRow}>
-                  <input
-                    type="number"
-                    min={1}
-                    max={4}
-                    value={config.advance}
-                    onChange={e => {
-                      let v = parseInt(e.target.value, 10);
-                      if (isNaN(v)) v = 1;
-                      setConfig({ advance: Math.max(1, Math.min(4, v)) });
-                    }}
-                    className={styles.numInput}
-                  />
-                  <span className={styles.fieldSummary}>
-                    {config.advance * config.pools} teams advance to the knockout round
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className={styles.fieldLabel}>Bracket Crossing Logic <em>*</em></label>
-                <div className={styles.selectWrap}>
-                  <select
-                    className={styles.select}
-                    value={config.crossing}
-                    onChange={e => setConfig({ crossing: e.target.value })}
+                    disabled={unseededTeams.length === 0 || !pendingSeed}
                   >
-                    <option value="fivb">FIVB Standard Draw</option>
-                    <option value="static">Static Cross-Bracket A1–D4</option>
-                  </select>
-                  <span className={styles.selectChevron}><ChevronDown size={18} /></span>
+                    Add Top Seed
+                  </Button>
                 </div>
-                <p className={styles.fieldNote}>Determines how pool finishers are seeded into the knockout round.</p>
+                <div className={styles.seedList}>
+                  {seeds.map((team, i) => (
+                    <div
+                      key={team.id}
+                      draggable
+                      onDragStart={() => setDragIndex(i)}
+                      onDragEnter={() => reorder(i)}
+                      onDragOver={e => e.preventDefault()}
+                      onDragEnd={() => setDragIndex(null)}
+                      className={`${styles.seedRow} ${dragIndex === i ? styles.seedRowDragging : ''}`}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span className={styles.seedRowNum}>{i + 1}</span>
+                        <span className={styles.seedRowName}>{team.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSeed(team.id)}
+                        title="Remove from seeding"
+                        style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  {seeds.length === 0 && (
+                    <div className={styles.emptyNote}>No teams seeded yet. Use the dropdown above to add seeds.</div>
+                  )}
+                </div>
               </div>
-              <div className={styles.drawBtnWrap}>
-                <Button
-                  variant="primary"
-                  size="medium"
-                  fullWidth
-                  loading={saving}
-                  disabled={confirmedTeams.length < 2}
-                  onClick={saveDraw}
-                >
-                  Draw Pool
-                </Button>
-                {saveError && <p className={styles.saveError}>{saveError}</p>}
-              </div>
-            </div>
-          </div>
 
-          {poolGroups.length > 0 && (
-            <div className={styles.poolsWrap}>
-              <div className={styles.poolsHead}>
-                <h3 className={styles.cardTitle}>Pool Results</h3>
-                {!!division?.drawConfig?.attempts && (
-                  <span className={styles.attemptNote}>
-                    {division.drawConfig.attempts} attempt{division.drawConfig.attempts === 1 ? '' : 's'}
-                  </span>
-                )}
-              </div>
-              <div className={styles.poolsGrid}>
-                {poolGroups.map(pool => (
-                  <div key={pool.name} className={styles.poolCard}>
-                    <div className={styles.poolCardHeader}>
-                      <span className={styles.poolBadge}>{pool.name}</span>
-                      <span className={styles.poolCardCount}>{pool.teams.length} teams</span>
-                    </div>
-                    <div className={styles.poolTeamList}>
-                      {pool.teams.map(t => (
-                        <div key={t.id} className={styles.poolTeamRow}>{t.name}</div>
-                      ))}
-                    </div>
-                    <div className={styles.poolMatchList}>
-                      {pool.matches.map(m => (
-                        <div key={m.id} className={styles.poolMatchRow}>
-                          <span className={`${styles.poolMatchName} ${m.winner === 'A' ? styles.poolMatchNameWin : ''}`}>
-                            {m.teamAName}
-                          </span>
-                          <span className={styles.poolMatchScore}>
-                            {m.status === 'done' && m.scoreA && m.scoreB
-                              ? m.scoreA.map((s, i) => `${s}-${m.scoreB?.[i] ?? 0}`).join(', ')
-                              : m.status === 'live' ? 'Live' : 'vs'}
-                          </span>
-                          <span className={`${styles.poolMatchName} ${m.winner === 'B' ? styles.poolMatchNameWin : ''}`}>
-                            {m.teamBName}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+              <div className={styles.configCard}>
+                <h3 className={styles.cardTitle}>Draw Configuration</h3>
+                <div>
+                  <label className={styles.fieldLabel}>Number of Pools</label>
+                  <div className={styles.fieldRow}>
+                    <input
+                      type="number"
+                      min={2}
+                      max={8}
+                      value={config.pools}
+                      onChange={e => {
+                        let v = parseInt(e.target.value, 10);
+                        if (isNaN(v)) v = 2;
+                        setConfig({ pools: Math.max(2, Math.min(8, v)) });
+                      }}
+                      className={styles.numInput}
+                    />
+                    <span className={styles.fieldSummary}>
+                      {confirmedTeams.length} teams · ~{perPool} per pool
+                    </span>
                   </div>
-                ))}
+                </div>
+                <div>
+                  <label className={styles.fieldLabel}>Teams Advancing per Pool</label>
+                  <div className={styles.fieldRow}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={config.advance}
+                      onChange={e => {
+                        let v = parseInt(e.target.value, 10);
+                        if (isNaN(v)) v = 1;
+                        setConfig({ advance: Math.max(1, Math.min(4, v)) });
+                      }}
+                      className={styles.numInput}
+                    />
+                    <span className={styles.fieldSummary}>
+                      {config.advance * config.pools} teams advance to next round
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className={styles.fieldLabel}>Bracket Crossing Logic <em>*</em></label>
+                  <div className={styles.selectWrap}>
+                    <select
+                      className={styles.select}
+                      value={config.crossing}
+                      onChange={e => setConfig({ crossing: e.target.value })}
+                    >
+                      <option value="fivb">FIVB Standard Draw</option>
+                      <option value="static">Static Cross-Bracket A1–D4</option>
+                    </select>
+                    <span className={styles.selectChevron}><ChevronDown size={18} /></span>
+                  </div>
+                  <p className={styles.fieldNote}>Determines how pool finishers are seeded into the knockout round.</p>
+                </div>
+                <div className={styles.drawBtnWrap}>
+                  <Button
+                    variant="primary"
+                    size="medium"
+                    fullWidth
+                    loading={saving}
+                    disabled={confirmedTeams.length < 2}
+                    onClick={saveDraw}
+                  >
+                    Draw Pool
+                  </Button>
+                  {saveError && <p className={styles.saveError}>{saveError}</p>}
+                </div>
               </div>
             </div>
-          )}
-          </div>
-        </section>
+            </div>
+
+            {poolGroups.length > 0 && (
+              <div className={`${styles.roundWrap} ${poolResultsOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+              <div className={styles.poolsWrap}>
+                <div className={styles.poolsHead}>
+                  <h3 className={styles.cardTitle}>Pool Results</h3>
+                  {!!division?.drawConfig?.attempts && (
+                    <span className={styles.attemptNote}>
+                      {division.drawConfig.attempts} attempt{division.drawConfig.attempts === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+                <div className={styles.poolsGrid} key={drawTick}>
+                  {poolGroups.map(pool => (
+                    <div
+                      key={pool.name}
+                      className={`${styles.poolCard} ${poolAnim ? styles.poolCardAnim : ''}`}
+                      style={poolAnim ? { animationDelay: `${poolAnim.cardDelay.get(pool.name) ?? 0}s` } : undefined}
+                    >
+                      <div className={styles.poolCardHeader}>
+                        <span className={styles.poolBadge}>{pool.name}</span>
+                        <span className={styles.poolCardCount}>{pool.teams.length} teams</span>
+                      </div>
+                      <div className={styles.poolTeamList}>
+                        {pool.teams.map(t => (
+                          <div
+                            key={t.id}
+                            className={`${styles.poolTeamRow} ${poolAnim ? styles.poolTeamAnim : ''}`}
+                            style={poolAnim ? { animationDelay: `${poolAnim.teamDelay.get(t.id) ?? 0}s` } : undefined}
+                          >
+                            {t.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              </div>
+            )}
+            </>
+            ) : (
+              <div className={styles.emptyNote}>
+                {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat} features for this round are coming soon.
+              </div>
+            )}
+            </div>
+          </section>
+        )}
 
         {/* ── Round 2: single elimination ────────────────────── */}
-        <section className={styles.section}>
-          <div className={styles.sectionHead} onClick={() => setRound2Open(v => !v)}>
-            <h2 className={styles.sectionTitle}>Round 2 · Single Elimination</h2>
-            <button type="button" className={styles.toggleBtn} aria-label="Toggle single elimination">
-              <span>{round2Open ? 'Hide' : 'Show'}</span>
-              <span className={`${styles.chevron} ${round2Open ? styles.chevronOpen : ''}`}>
-                <ChevronDown size={18} />
-              </span>
-            </button>
-          </div>
-          <div className={`${styles.roundWrap} ${round2Open ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
-          <p className={styles.sectionSubSpaced}>
-            {firstRoundMatches * 2 || 'No'}-team single elimination · {division?.label ?? '—'} ·{' '}
-            {bracket?.fromDb ? 'generated draw' : 'projected from current seeding'}
-          </p>
-          {bracket ? (
-            <div className={styles.bracketScroll}>
-              <div className={styles.bracketRow}>
-                {bracket.rounds.map(round => (
-                  <div key={round.name} className={styles.roundCol}>
-                    <div className={styles.roundName}>{round.name}</div>
-                    <div className={styles.roundMatches} style={{ height: colHeight }}>
-                      {round.matches.map((m, mi) => (
-                        <div key={mi} className={styles.matchSlot}>
-                          <div className={styles.matchCard}>
-                            {m.live && (
-                              <div className={styles.matchLiveRow}>
-                                <span className={styles.liveTag}>
-                                  <span className={styles.liveTagDot} aria-hidden="true" />
-                                  Live
-                                </span>
-                              </div>
-                            )}
-                            <div className={styles.matchRow}>
-                              <span className={styles.matchSeed}>{m.rowA.seed ?? '–'}</span>
-                              <span className={rowClass(m.rowA)}>{m.rowA.name}</span>
-                            </div>
-                            <div className={styles.matchDivider} />
-                            <div className={styles.matchRow}>
-                              <span className={styles.matchSeed}>{m.rowB.seed ?? '–'}</span>
-                              <span className={rowClass(m.rowB)}>{m.rowB.name}</span>
-                            </div>
-                          </div>
-                          {m.hasRight && <div className={styles.connRight} />}
-                          {m.hasSpine && <div className={styles.connSpine} />}
-                          {m.hasLeft && <div className={styles.connLeft} />}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <div className={styles.champCol}>
-                  <div className={styles.champLabel}>Champion</div>
-                  <div className={styles.champSlot} style={{ height: colHeight }}>
-                    <div className={styles.champCard}>
-                      <span className={styles.champTrophy}><Trophy size={30} /></span>
-                      <span className={styles.champEyebrow}>
-                        {bracket.fromDb ? (bracket.champion ? 'Champion' : 'Awaiting Final') : 'Projected Winner'}
-                      </span>
-                      <span className={styles.champName}>
-                        {bracket.champion ?? (bracket.fromDb ? 'TBD' : seeds[0]?.name ?? 'TBD')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        {hasKnockout && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead} onClick={toggleBracketAll}>
+              <h2 className={styles.sectionTitle}>
+                {hasRoundRobin ? 'Round 2' : 'Round 1'}{' '}
+                <span style={{ color: 'var(--ink-500)' }}>
+                  · {FORMAT_LABELS[knockoutFormat] ?? knockoutFormat ?? 'Single Elimination'}
+                </span>
+              </h2>
+              <div className={styles.headBtns} onClick={e => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className={styles.toggleBtn}
+                  aria-label="Toggle bracket configuration"
+                  onClick={() => setBracketConfigOpen(v => !v)}
+                >
+                  <span>Bracket Config</span>
+                  <span className={`${styles.chevron} ${bracketConfigOpen ? styles.chevronOpen : ''}`}>
+                    <ChevronDown size={18} />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.toggleBtn}
+                  aria-label="Toggle bracket view"
+                  onClick={() => setBracketOpen(v => !v)}
+                >
+                  <span>Bracket</span>
+                  <span className={`${styles.chevron} ${bracketOpen ? styles.chevronOpen : ''}`}>
+                    <ChevronDown size={18} />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.toggleBtn} ${styles.toggleBtnIcon}`}
+                  aria-label={round2Open ? 'Hide all of bracket' : 'Show all of bracket'}
+                  onClick={toggleBracketAll}
+                >
+                  <span className={`${styles.chevron} ${round2Open ? styles.chevronOpen : ''}`}>
+                    <ChevronDown size={18} />
+                  </span>
+                </button>
               </div>
             </div>
-          ) : (
-            <div className={styles.emptyNote}>
-              The bracket will appear here once at least two teams are registered.
+            <div className={`${styles.roundWrap} ${round2Open ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            {bracketConfigOpen && (
+              <>
+                <p className={styles.sectionSubSpaced}>
+                  {firstRoundMatches * 2 || 'No'}-team {knockoutFormat === 'double' ? 'double' : 'single'} elimination · {division?.label ?? '—'} ·{' '}
+                  {bracket?.fromDb ? 'generated draw' : 'projected from current seeding'}
+                </p>
+
+                {/* Seed / Draw Configuration for pure Single Elimination (no pool play) */}
+                {!hasRoundRobin && (
+                  <div className={styles.poolRow} style={{ marginBottom: 24 }}>
+                    <div className={styles.seedCard}>
+                      <h3 className={styles.cardTitle}>Top Seed</h3>
+                      <div className={styles.seedSelectRow}>
+                        <div className={styles.selectWrap} ref={dropdownRef}>
+                          <input
+                            type="text"
+                            className={`${styles.select} ${styles.selectAccent}`}
+                            style={{ cursor: 'text' }}
+                            placeholder={unseededTeams.length === 0 ? "All teams seeded" : "Select team..."}
+                            value={dropdownOpen ? searchQuery : (confirmedTeams.find(t => t.id === pendingSeed)?.name ?? searchQuery)}
+                            onChange={e => {
+                              setSearchQuery(e.target.value);
+                              setDropdownOpen(true);
+                            }}
+                            onFocus={() => {
+                              setSearchQuery('');
+                              setDropdownOpen(true);
+                            }}
+                            disabled={unseededTeams.length === 0}
+                          />
+                          <button
+                            type="button"
+                            className={styles.selectChevron}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            onClick={() => {
+                              if (unseededTeams.length > 0) {
+                                setDropdownOpen(!dropdownOpen);
+                              }
+                            }}
+                            disabled={unseededTeams.length === 0}
+                            aria-label="Toggle dropdown"
+                          >
+                            <ChevronDown size={18} />
+                          </button>
+
+                          {/* Dropdown list popover */}
+                          {dropdownOpen && unseededTeams.length > 0 && (
+                            <div className={styles.dropdownPopover}>
+                              {filteredTeams.map(team => (
+                                <div
+                                  key={team.id}
+                                  className={styles.dropdownOption}
+                                  onClick={() => {
+                                    setPendingSeed(team.id);
+                                    setSearchQuery('');
+                                    setDropdownOpen(false);
+                                  }}
+                                >
+                                  {team.name}
+                                </div>
+                              ))}
+                              {filteredTeams.length === 0 && (
+                                <div className={styles.dropdownEmpty}>No teams match search</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          variant="primary"
+                          size="medium"
+                          onClick={() => {
+                            if (pendingSeed) {
+                              addSeed(pendingSeed);
+                              setSearchQuery('');
+                              setDropdownOpen(false);
+                            }
+                          }}
+                          disabled={unseededTeams.length === 0 || !pendingSeed}
+                        >
+                          Add Top Seed
+                        </Button>
+                      </div>
+                      <div className={styles.seedList}>
+                        {seeds.map((team, i) => (
+                          <div
+                            key={team.id}
+                            draggable
+                            onDragStart={() => setDragIndex(i)}
+                            onDragEnter={() => reorder(i)}
+                            onDragOver={e => e.preventDefault()}
+                            onDragEnd={() => setDragIndex(null)}
+                            className={`${styles.seedRow} ${dragIndex === i ? styles.seedRowDragging : ''}`}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <span className={styles.seedRowNum}>{i + 1}</span>
+                              <span className={styles.seedRowName}>{team.name}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeSeed(team.id)}
+                              title="Remove from seeding"
+                              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+                        {seeds.length === 0 && (
+                          <div className={styles.emptyNote}>No teams seeded yet. Use the dropdown above to add seeds.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pool rankings and Bracket Crossing Settings Card when there is a preceding round-robin round */}
+                {hasRoundRobin && (
+                  <div className={styles.poolRow} style={{ marginBottom: 24, gap: 24 }}>
+                    {/* Pool Rankings */}
+                    <div className={styles.seedCard} style={{ flex: 1 }}>
+                      <h3 className={styles.cardTitle}>Pool Rankings</h3>
+                      <div className={styles.poolsGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+                        {poolGroups.map(pool => (
+                          <div key={pool.name} className={styles.poolCard} style={{ border: '1px solid var(--ink-200)', borderRadius: 12, padding: 12, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                            <div className={styles.poolCardHeader} style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className={styles.poolBadge}>{pool.name}</span>
+                              <span className={styles.poolCardCount} style={{ fontSize: 12, color: 'var(--ink-500)' }}>{pool.teams.length} teams</span>
+                            </div>
+                            <div className={styles.poolTeamList} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {pool.teams.map((t, idx) => (
+                                <div key={t.id} className={styles.poolTeamRow} style={{ fontSize: 13, color: 'var(--ink-800)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span className={styles.seedRowNum} style={{ fontSize: 11, fontWeight: 700, minWidth: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    #{idx + 1}
+                                  </span>
+                                  <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{t.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bracket Crossing Settings Card */}
+                    <div className={styles.configCard} style={{ width: 340, flexShrink: 0 }}>
+                      <h3 className={styles.cardTitle}>Bracket Crossing Settings</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div>
+                          <label className={styles.fieldLabel}>Teams Advancing per Pool</label>
+                          <div className={styles.fieldRow}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={4}
+                              value={config.advance}
+                              onChange={e => {
+                                let v = parseInt(e.target.value, 10);
+                                if (isNaN(v)) v = 1;
+                                setConfig({ advance: Math.max(1, Math.min(4, v)) });
+                              }}
+                              className={styles.numInput}
+                            />
+                            <span className={styles.fieldSummary}>
+                              {config.advance * poolGroups.length} teams advance
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className={styles.fieldLabel}>Bracket Crossing Logic <em>*</em></label>
+                          <div className={styles.selectWrap}>
+                            <select
+                              className={styles.select}
+                              value={config.crossing}
+                              onChange={e => setConfig({ crossing: e.target.value })}
+                            >
+                              <option value="fivb">FIVB Standard Draw</option>
+                              <option value="static">Static Cross-Bracket A1–D4</option>
+                            </select>
+                            <span className={styles.selectChevron}><ChevronDown size={18} /></span>
+                          </div>
+                          <p className={styles.fieldNote}>Determines how pool finishers are seeded into the knockout round.</p>
+                        </div>
+                        <div className={styles.drawBtnWrap}>
+                          <Button
+                            variant="primary"
+                            size="medium"
+                            fullWidth
+                            loading={saving}
+                            onClick={saveDraw}
+                          >
+                            Apply Crossing Config
+                          </Button>
+                          {saveError && <p className={styles.saveError}>{saveError}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {bracketOpen && (
+              <>
+                {bracket ? (
+                  <div className={styles.bracketScroll}>
+                    <div className={styles.bracketRow}>
+                      {bracket.rounds.map(round => (
+                        <div key={round.name} className={styles.roundCol}>
+                          <div className={styles.roundName}>{round.name}</div>
+                          <div className={styles.roundMatches} style={{ height: colHeight }}>
+                            {round.matches.map((m, mi) => (
+                              <div key={mi} className={styles.matchSlot}>
+                                <div className={styles.matchCard}>
+                                  {m.live && (
+                                    <div className={styles.matchLiveRow}>
+                                      <span className={styles.liveTag}>
+                                        <span className={styles.liveTagDot} aria-hidden="true" />
+                                        Live
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className={styles.matchRow}>
+                                    <span className={styles.matchSeed}>{m.rowA.seed ?? '–'}</span>
+                                    <span className={rowClass(m.rowA)}>{m.rowA.name}</span>
+                                  </div>
+                                  <div className={styles.matchDivider} />
+                                  <div className={styles.matchRow}>
+                                    <span className={styles.matchSeed}>{m.rowB.seed ?? '–'}</span>
+                                    <span className={rowClass(m.rowB)}>{m.rowB.name}</span>
+                                  </div>
+                                </div>
+                                {m.hasRight && <div className={styles.connRight} />}
+                                {m.hasSpine && <div className={styles.connSpine} />}
+                                {m.hasLeft && <div className={styles.connLeft} />}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <div className={styles.champCol}>
+                        <div className={styles.champLabel}>Champion</div>
+                        <div className={styles.champSlot} style={{ height: colHeight }}>
+                          <div className={styles.champCard}>
+                            <span className={styles.champTrophy}><Trophy size={30} /></span>
+                            <span className={styles.champEyebrow}>
+                              {bracket.fromDb ? (bracket.champion ? 'Champion' : 'Awaiting Final') : 'Projected Winner'}
+                            </span>
+                            <span className={styles.champName}>
+                              {bracket.champion ?? (bracket.fromDb ? 'TBD' : seeds[0]?.name ?? 'TBD')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.emptyNote}>
+                    The bracket will appear here once at least two teams are registered.
+                  </div>
+                )}
+              </>
+            )}
             </div>
-          )}
-          </div>
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );

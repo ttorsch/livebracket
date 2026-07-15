@@ -97,11 +97,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (body.generate) {
     // Carry each format's scoring rules over from the rounds configured in setup.
     const prevRounds = division.rounds ?? [];
-    const poolRules = prevRounds.find(r => r.format === 'pool' || r.format === 'round-robin')?.scoring_rules ?? {};
+    const poolRules = prevRounds.find(r => r.format === 'round-robin')?.scoring_rules ?? {};
     const elimRules = prevRounds.find(r => r.format === 'single' || r.format === 'double')?.scoring_rules ?? {};
 
     const { error: delError } = await supabaseAdmin.from('rounds').delete().eq('division_id', divisionId);
     if (delError) return NextResponse.json({ error: `Failed to clear rounds: ${delError.message}` }, { status: 500 });
+
+    const hasElimRound = prevRounds.some(r => r.format === 'single' || r.format === 'double');
 
     // Knockout field: pad to the next power of two; byes sit at the bottom seeds.
     let size = 2;
@@ -109,15 +111,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const stages = Math.log2(size);
 
     const roundRows = [
-      { id: randomUUID(), division_id: divisionId, sequence: 1, format: 'pool', name: 'Pool Play', scoring_rules: poolRules },
-      ...Array.from({ length: stages }, (_, s) => ({
-        id: randomUUID(),
-        division_id: divisionId,
-        sequence: s + 2,
-        format: 'single',
-        name: stageName(size >> s),
-        scoring_rules: elimRules,
-      })),
+      { id: randomUUID(), division_id: divisionId, sequence: 1, format: 'round-robin', name: 'Round Robin', scoring_rules: poolRules },
+      ...(hasElimRound
+        ? Array.from({ length: stages }, (_, s) => ({
+            id: randomUUID(),
+            division_id: divisionId,
+            sequence: s + 2,
+            format: 'single',
+            name: stageName(size >> s),
+            scoring_rules: elimRules,
+          }))
+        : []),
     ];
     const { error: rError } = await supabaseAdmin.from('rounds').insert(roundRows);
     if (rError) return NextResponse.json({ error: `Failed to create rounds: ${rError.message}` }, { status: 500 });
@@ -140,22 +144,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
-    // Knockout: empty placeholders only. Pairings depend on pool standings,
-    // which aren't known until pool play finishes, so nothing is seeded here.
-    let matchCount = size / 2;
-    for (let s = 0; s < stages; s++) {
-      const round = roundRows[s + 1];
-      const seq = String(s + 2);
-      slots[seq] = [];
-      for (let i = 0; i < matchCount; i++) {
-        const id = randomUUID();
-        matches.push({
-          id, round_id: round.id, division_id: divisionId,
-          team_a_id: null, team_b_id: null, winner_team_id: null, status: 'upcoming',
-        });
-        slots[seq].push(id);
+    if (hasElimRound) {
+      // Knockout: empty placeholders only. Pairings depend on pool standings,
+      // which aren't known until pool play finishes, so nothing is seeded here.
+      let matchCount = size / 2;
+      for (let s = 0; s < stages; s++) {
+        const round = roundRows[s + 1];
+        const seq = String(s + 2);
+        slots[seq] = [];
+        for (let i = 0; i < matchCount; i++) {
+          const id = randomUUID();
+          matches.push({
+            id, round_id: round.id, division_id: divisionId,
+            team_a_id: null, team_b_id: null, winner_team_id: null, status: 'upcoming',
+          });
+          slots[seq].push(id);
+        }
+        matchCount /= 2;
       }
-      matchCount /= 2;
     }
 
     const { error: mError } = await supabaseAdmin.from('matches').insert(matches);

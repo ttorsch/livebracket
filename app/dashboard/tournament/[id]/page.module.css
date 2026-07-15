@@ -239,6 +239,12 @@
   color: var(--ink-500);
   margin: 6px 0 24px;
 }
+.headBtns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .toggleBtn {
   display: inline-flex;
   align-items: center;
@@ -252,6 +258,9 @@
   font-weight: 600;
   font-size: 13px;
   color: var(--ink-600);
+}
+.toggleBtnIcon {
+  padding: 8px;
 }
 .chevron {
   display: inline-flex;
@@ -345,6 +354,7 @@
   padding: 24px;
 }
 .configCard {
+  order: -1; /* draw config sits left of the top-seed card */
   flex: 1;
   min-width: 280px;
   display: flex;
@@ -570,7 +580,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 14px;
 }
 .poolTeamRow {
   font-family: var(--font-text);
@@ -581,40 +590,28 @@
   border-radius: var(--radius-md);
   background: var(--sand-100);
 }
-.poolMatchList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-top: 1px solid var(--sand-300);
-  padding-top: 12px;
+
+/* ── Draw reveal choreography ────────────────────────────────
+   Cards morph from a small rectangle at their own top-left into
+   full size (still empty), then team rows pop in — top seeds
+   first, then the rest pool by pool. Delays are set inline. */
+@keyframes poolCardIn {
+  0% { opacity: 0; transform: scale(0.15); }
+  55% { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); }
 }
-.poolMatchRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
+.poolCardAnim {
+  transform-origin: top left;
+  opacity: 0;
+  animation: poolCardIn 500ms var(--ease-standard) both;
 }
-.poolMatchName {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-text);
-  font-weight: 500;
-  color: var(--ink-500);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+@keyframes poolTeamIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: none; }
 }
-.poolMatchNameWin {
-  font-weight: 700;
-  color: var(--ink-900);
-}
-.poolMatchScore {
-  flex-shrink: 0;
-  font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: 11px;
-  color: var(--ink-600);
+.poolTeamAnim {
+  opacity: 0;
+  animation: poolTeamIn 400ms var(--ease-standard) both;
 }
 
 /* ── Bracket ───────────────────────────────────────────────── */
