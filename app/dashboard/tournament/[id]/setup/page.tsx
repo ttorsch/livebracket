@@ -789,6 +789,18 @@ export default function OrganizerSetup() {
   // The division shown in the per-division setup panel (falls back to the first).
   const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
 
+  // Derived team-list splits + fill state, shared by the mobile Compact Utility view below.
+  const confirmedTeams = registeredTeams.filter(t => t.status !== 'waitlist');
+  const waitlistTeamsList = registeredTeams.filter(t => t.status === 'waitlist');
+  const teamCap = activeDivision?.divisionTeamCap ?? 0;
+  const fillRatio = teamCap > 0 ? Math.min(1, confirmedTeams.length / teamCap) : 0;
+  const isDivisionFull = teamCap > 0 && confirmedTeams.length >= teamCap;
+  const eventBadgeLabel = !activeDivision
+    ? null
+    : isDivisionFull
+      ? (waitlistTeamsList.length > 0 ? 'Waitlist Open' : 'Registration Full')
+      : 'Registration Open';
+
   // Basic info card prefers the real DB row; falls back to the unsaved draft.
   const displayTitle = basicInfo?.title ?? tournamentInfo?.title ?? '';
   const displayLocation = basicInfo?.location ?? tournamentInfo?.location;
@@ -815,330 +827,416 @@ export default function OrganizerSetup() {
       <main className={styles.main}>
         <div className={styles.container}>
           <div className={styles.headerArea}>
+            <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
+              <ArrowLeft size={18} />
+            </Link>
             <h1 className={styles.title}>Tournament Setup</h1>
           </div>
 
-          {/* ── Basic Info ───────────────────────────────────────── */}
-          <div style={{ display: 'flex', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
-            {/* Card 1: Poster Image */}
-            <section 
-              className={styles.card} 
-              style={{ width: 220, padding: 0, overflow: 'hidden', flexShrink: 0, border: 'none', display: 'flex', flexDirection: 'column', position: 'relative' }}
-              onMouseEnter={() => setPosterHover(true)}
-              onMouseLeave={() => setPosterHover(false)}
-            >
-               {basicInfo?.imageUrl ? (
-                 <img src={basicInfo.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', aspectRatio: '1 / 1.414' }} />
-               ) : (
-                 <div style={{ width: '100%', height: '100%', minHeight: 311, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.03)', color: '#9ca3af' }}>
-                   <ImagePlus size={40} opacity={0.5} />
-                 </div>
-               )}
-
-               {/* Hover Overlay */}
-               {posterHover && (
-                 <div style={{ 
-                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
-                   backgroundColor: 'rgba(0,0,0,0.6)', 
-                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
-                   transition: 'opacity 0.2s', zIndex: 10
-                 }}>
-                    {basicInfo?.imageUrl && (
-                      <button 
-                        onClick={() => { if (basicInfo?.imageUrl) window.open(basicInfo.imageUrl, '_blank'); }}
-                        style={{ width: 140, padding: '10px 16px', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
-                      >
-                        <Eye size={16} /> View
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => { setTempPoster(basicInfo?.imageUrl || ''); setShowPosterModal(true); }}
-                      style={{ width: 140, padding: '10px 16px', borderRadius: 24, backgroundColor: '#EE7A4C', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
-                    >
-                      <UploadCloud size={16} /> Re-Upload
-                    </button>
-                 </div>
-               )}
-            </section>
-
-            {/* Card 2: Tournament Info */}
-            <section className={styles.card} style={{ flex: 1, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 240, border: 'none', position: 'relative' }}>
-              {/* Background Image with Overlay */}
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-                {basicInfo?.imageUrl ? (
-                  <img src={basicInfo.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', backgroundColor: '#1F2937' }} />
-                )}
-                {/* Dark Gradient Overlay for readability */}
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(90deg, rgba(17,24,39,0.95) 0%, rgba(17,24,39,0.75) 50%, rgba(17,24,39,0.4) 100%)' }} />
-              </div>
-
-              {/* Foreground Content */}
-              <div style={{ position: 'relative', zIndex: 1, display: 'flex', width: '100%' }}>
-                {/* Content column */}
-                <div style={{ flex: 1, padding: 32, display: 'flex', flexDirection: 'column', color: '#fff' }}>
-                  <div className={styles.cardHeader} style={{ padding: 0, border: 'none', marginBottom: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <h2 style={{ fontSize: 36, fontWeight: 800, fontFamily: 'var(--font-heading), sans-serif', letterSpacing: '-0.02em', color: '#fff', marginBottom: 16 }}>
-                        {displayTitle || 'Untitled tournament'}
-                      </h2>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 16, color: '#D1D5DB', fontSize: 15, fontWeight: 500 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Calendar size={18} opacity={0.7} />
-                          <span>{startPill}{displayEnd && displayEnd !== displayStart ? ` to ${endPill}` : ''}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <MapPin size={18} opacity={0.7} />
-                          <span>{displayLocation}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={styles.divActions}>
-                      <button type="button" className={styles.btnGhost} onClick={openBasicInfoEdit} style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}>
-                        <Pencil size={15} /> Edit
-                      </button>
-                    </div>
+          {/* ── Mobile Event Card (Compact Utility / 1B) ──────────── */}
+          <div className={styles.mobileOnly}>
+            <div className={styles.mobileEventCard}>
+              {basicInfo?.imageUrl ? (
+                <img src={basicInfo.imageUrl} alt="" className={styles.mobileEventLogo} />
+              ) : (
+                <div className={styles.mobileEventLogo} />
+              )}
+              <div className={styles.mobileEventBody}>
+                <div className={styles.mobileEventTitle}>{displayTitle || 'Untitled tournament'}</div>
+                <div className={styles.mobileEventMeta}>
+                  <Calendar size={13} />
+                  <span>{startPill}{displayEnd && displayEnd !== displayStart ? ` – ${endPill}` : ''}</span>
+                </div>
+                {displayLocation && (
+                  <div className={styles.mobileEventMeta}>
+                    <MapPin size={13} />
+                    <span>{displayLocation}</span>
                   </div>
-                  {displayDescription ? (
-                    <div className={styles.sectionBody} style={{ padding: 0, flex: 1, marginTop: 12 }}>
-                      <p className={styles.summaryText} style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: 15, lineHeight: 1.6 }}>{displayDescription}</p>
-                    </div>
+                )}
+                {eventBadgeLabel && (
+                  <span
+                    className={`${styles.mobileEventBadge} ${
+                      isDivisionFull && waitlistTeamsList.length === 0
+                        ? styles.mobileEventBadgeFull
+                        : !isDivisionFull
+                          ? styles.mobileEventBadgeOpen
+                          : ''
+                    }`}
+                  >
+                    {eventBadgeLabel}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Basic Info & Setup Workspace (Design 2A Desktop View) ── */}
+          <div className={styles.desktopOnly}>
+            {/* 2A Desktop Top Header */}
+            <div className={styles.desktop2aHeader}>
+              <div className={styles.desktop2aHeaderLeft}>
+                <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
+              </div>
+              <button type="button" className={styles.desktop2aEditBtn} onClick={openBasicInfoEdit}>
+                <Pencil size={15} /> Edit Tournament
+              </button>
+            </div>
+
+            {/* 2A Desktop Full-Width Hero Poster Banner */}
+            <div className={styles.desktop2aHero}>
+              {basicInfo?.imageUrl ? (
+                <img src={basicInfo.imageUrl} alt="" className={styles.desktop2aHeroBg} />
+              ) : (
+                <div className={styles.desktop2aHeroBg} style={{ backgroundColor: '#14181E' }} />
+              )}
+              <div className={styles.desktop2aHeroOverlay} />
+              <div className={styles.desktop2aHeroContent}>
+                <div
+                  style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+                  onMouseEnter={() => setPosterHover(true)}
+                  onMouseLeave={() => setPosterHover(false)}
+                >
+                  {basicInfo?.imageUrl ? (
+                    <img src={basicInfo.imageUrl} alt="" className={styles.desktop2aPoster} />
                   ) : (
-                    <div className={styles.sectionBody} style={{ padding: 0, flex: 1, marginTop: 12 }}>
-                      <p className={styles.summaryText} style={{ margin: 0, fontStyle: 'italic', opacity: 0.5, color: '#fff' }}>No description provided.</p>
+                    <div className={styles.desktop2aPosterPlaceholder}>
+                      <ImagePlus size={32} opacity={0.6} />
+                    </div>
+                  )}
+                  {posterHover && (
+                    <div style={{
+                      position: 'absolute', inset: 0, borderRadius: 14,
+                      backgroundColor: 'rgba(0,0,0,0.65)',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      zIndex: 10
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => { setTempPoster(basicInfo?.imageUrl || ''); setShowPosterModal(true); }}
+                        style={{ padding: '6px 12px', borderRadius: 20, backgroundColor: '#EE7A4C', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <UploadCloud size={13} /> Re-Upload
+                      </button>
                     </div>
                   )}
                 </div>
+
+                <div className={styles.desktop2aHeroText}>
+                  <h2 className={styles.desktop2aHeroTitle}>{displayTitle || 'Untitled tournament'}</h2>
+                  <div className={styles.desktop2aHeroMeta}>
+                    <span className={styles.desktop2aMetaItem}>
+                      <Calendar size={16} opacity={0.8} />
+                      <span>{startPill}{displayEnd && displayEnd !== displayStart ? ` – ${endPill}` : ''}</span>
+                    </span>
+                    {displayLocation && (
+                      <span className={styles.desktop2aMetaItem}>
+                        <MapPin size={16} opacity={0.8} />
+                        <span>{displayLocation}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className={styles.desktop2aBadgeRow}>
+                    {activeDivision && (
+                      <span className={styles.desktop2aBadge}>{activeDivision.formatTypeOnSand}</span>
+                    )}
+                    {eventBadgeLabel && (
+                      <span className={`${styles.desktop2aBadge} ${styles.desktop2aBadgeActive}`}>
+                        {eventBadgeLabel}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </section>
+            </div>
+
+            {/* Division Tabs & 2-Column Split Layout */}
+            {divisionsLoading ? (
+              <div className={styles.emptyDivisions}>
+                <p className={styles.emptyDivisionsHint}>Loading divisions…</p>
+              </div>
+            ) : divisions.length === 0 ? (
+              <div className={styles.emptyDivisions}>
+                <button type="button" className={styles.bigAddDivision} onClick={handleOpenCreateModal}>
+                  <Plus size={34} />
+                  <span>Add Division</span>
+                </button>
+                <p className={styles.emptyDivisionsHint}>
+                  Create your first division to start configuring formats, rules, and registration.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className={styles.divisionToggle} style={{ marginBottom: 24 }}>
+                  {divisions.map(d => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      className={`${styles.divToggleBtn} ${activeDivision?.id === d.id ? styles.divToggleBtnActive : ''}`}
+                      onClick={() => setActiveDivisionId(d.id)}
+                    >
+                      {d.name}
+                    </button>
+                  ))}
+                  <button type="button" className={styles.divToggleAdd} onClick={handleOpenCreateModal}>
+                    <Plus size={16} /> Add Division
+                  </button>
+                </div>
+
+                {activeDivision && (
+                  <div className={styles.desktop2aGrid}>
+                    {/* Left Column: Registered Teams Table */}
+                    <div className={styles.desktop2aMainCol}>
+                      <section className={styles.card}>
+                        <div className={styles.cardHeader}>
+                          <div className={styles.iconHeader}>
+                            <Users size={20} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <h3 className={styles.cardTitle}>Registered Teams</h3>
+                            <p className={styles.subtitle}>
+                              Manage teams registered for {activeDivision.name} ({registeredTeams.filter(t => t.status !== 'waitlist').length}/{activeDivision.divisionTeamCap})
+                            </p>
+                          </div>
+                        </div>
+                        <div className={styles.sectionBody}>
+                          {teamsLoading ? (
+                            <p className={styles.summaryText}>Loading registered teams…</p>
+                          ) : registeredTeams.length === 0 ? (
+                            <p className={styles.summaryText}>No teams registered yet for this division.</p>
+                          ) : (
+                            <table className={styles.teamsTable}>
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '60px' }}>No.</th>
+                                  <th>Team / Players</th>
+                                  <th style={{ width: '140px' }}>Captain Phone</th>
+                                  <th style={{ width: '120px' }}>Status</th>
+                                  <th style={{ width: '120px' }}>Payment</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {registeredTeams.map((t, idx) => {
+                                  const firstWaitlistIdx = registeredTeams.findIndex(team => team.status === 'waitlist');
+                                  const showWaitlistSeparator = t.status === 'waitlist' && idx === firstWaitlistIdx;
+                                  const displayIndex = t.status === 'waitlist'
+                                    ? idx - firstWaitlistIdx + 1
+                                    : idx + 1;
+
+                                  return (
+                                    <Fragment key={t.id}>
+                                      {showWaitlistSeparator && (
+                                        <tr key="waitlist-separator">
+                                          <td colSpan={5} style={{ padding: '24px 12px 12px', borderBottom: 'none' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                              <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#713F12', backgroundColor: '#FEF08A', padding: '4px 10px', borderRadius: '12px', fontFamily: "var(--font-ui, 'Inter', sans-serif)" }}>
+                                                Waiting List
+                                              </span>
+                                              <div style={{ flex: 1, height: '2px', backgroundColor: 'rgba(238, 122, 76, 0.25)', borderRadius: '1px' }} />
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                      <tr>
+                                        <td style={{ fontWeight: 700, color: 'var(--orange, #EE7A4C)' }}>{displayIndex}</td>
+                                        <td>
+                                          <div className={styles.teamRowName}>
+                                            {t.players.length > 0
+                                              ? t.players.map(p => p.name).join(' / ')
+                                              : t.name}
+                                          </div>
+                                          {t.players.length > 0 && (
+                                            <div className={styles.teamPlayers}>
+                                              {t.players.map((p, pIdx) => (
+                                                <span key={p.id} className={styles.teamPlayer}>
+                                                  Player {pIdx + 1}: {p.email || '—'}
+                                                  {p.shirtSize && <span className={styles.teamPlayerSub}>Size {p.shirtSize}</span>}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td style={{ fontWeight: 500 }}>
+                                          {t.players[0]?.phone || '—'}
+                                        </td>
+                                        <td>
+                                          <span className={`${styles.statusBadge} ${t.status === 'confirmed' ? styles.statusConfirmed : t.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
+                                            {t.status}
+                                          </span>
+                                        </td>
+                                        <td>
+                                          <span className={t.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
+                                            {t.paymentCleared ? 'Paid' : 'Unpaid'}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    </Fragment>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* Right Column: Division Details & Setup Sidebar */}
+                    <div className={styles.desktop2aSidebar}>
+                      <section className={styles.card}>
+                        <div className={styles.cardHeader} style={{ marginBottom: 16 }}>
+                          <Layers className={styles.iconHeader} size={20} />
+                          <div style={{ flex: 1 }}>
+                            <h3 className={styles.cardTitle}>{activeDivision.name}</h3>
+                            <p className={styles.cardSubtitle}>
+                              {activeDivision.genderEligibility} • {activeDivision.formatTypeOnSand}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className={styles.sectionBody}>
+                          <div className={styles.summaryGrid} style={{ gridTemplateColumns: '1fr 1fr' }}>
+                            <div className={styles.summaryItem}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
+                            <div className={styles.summaryItem}><span>Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
+                            <div className={styles.summaryItem}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
+                            <div className={styles.summaryItem}><span>Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
+                            <div className={styles.summaryItem}><span>Opens</span><strong>{activeDivision.registrationOpenDate ? new Date(activeDivision.registrationOpenDate).toLocaleDateString() : 'Immediately'}</strong></div>
+                            <div className={styles.summaryItem}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
+                          </div>
+
+                          <hr className={styles.divider} />
+
+                          <div className={styles.fieldGroup}>
+                            <label className={styles.fieldLabel}>Competition Rounds</label>
+                            <div className={styles.summaryChips}>
+                              {activeDivision.rounds.map((r, i) => (
+                                <span key={r.id} className={styles.summaryChip}>
+                                  {roundLabel(i)}: {ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—'}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {activeDivision.rules && (
+                            <div className={styles.fieldGroup}>
+                              <label className={styles.fieldLabel}>Rules</label>
+                              <p className={styles.summaryText} style={{ fontSize: 13, lineHeight: 1.5 }}>{activeDivision.rules}</p>
+                            </div>
+                          )}
+
+                          <hr className={styles.divider} />
+
+                          <div className={styles.divActions} style={{ width: '100%', justifyContent: 'space-between', marginTop: 8 }}>
+                            <button type="button" className={styles.btnGhost} onClick={() => handleEditDivision(activeDivision.id)}>
+                              <Pencil size={15} /> Edit Division
+                            </button>
+                            <button type="button" className={styles.btnRemove} onClick={() => removeDivision(activeDivision.id)} aria-label="Delete division">
+                              <Trash2 size={16} /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
-          {divisionsLoading ? (
-            <div className={styles.emptyDivisions}>
-              <p className={styles.emptyDivisionsHint}>Loading divisions…</p>
-            </div>
-          ) : divisions.length === 0 ? (
-            <div className={styles.emptyDivisions}>
-              <button type="button" className={styles.bigAddDivision} onClick={handleOpenCreateModal}>
-                <Plus size={34} />
-                <span>Add Division</span>
-              </button>
-              <p className={styles.emptyDivisionsHint}>
-                Create your first division to start configuring formats, rules, and registration.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Division toggle (section control) */}
-              <div className={styles.divisionToggle}>
-                {divisions.map(d => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    className={`${styles.divToggleBtn} ${activeDivision?.id === d.id ? styles.divToggleBtnActive : ''}`}
-                    onClick={() => setActiveDivisionId(d.id)}
-                  >
-                    {d.name}
-                  </button>
-                ))}
-                <button type="button" className={styles.divToggleAdd} onClick={handleOpenCreateModal}>
-                  <Plus size={16} /> Add Division
-                </button>
-              </div>
-
-              {/* Per-division setup */}
-              {activeDivision && (
-                <>
-                  <section className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <Layers className={styles.iconHeader} size={22} />
-                    <div style={{ flex: 1 }}>
-                      <h2 className={styles.cardTitle}>{activeDivision.name}</h2>
-                      <p className={styles.cardSubtitle}>
-                        {activeDivision.genderEligibility} • {activeDivision.formatTypeOnSand} • {activeDivision.rounds.length} round{activeDivision.rounds.length > 1 ? 's' : ''}
-                      </p>
+                {/* ── Mobile stat row / details / teams (Compact Utility / 1B) ── */}
+                <div className={styles.mobileOnly}>
+                  <div className={styles.mobileStatRow}>
+                    <div className={styles.mobileStat}>
+                      <span className={styles.mobileStatValue}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
+                      <span className={styles.mobileStatLabel}>Teams</span>
                     </div>
-                    <div className={styles.divActions}>
-                      <button type="button" className={styles.btnGhost} onClick={() => handleEditDivision(activeDivision.id)}>
-                        <Pencil size={15} /> Edit
-                      </button>
-                      <button type="button" className={styles.btnRemove} onClick={() => removeDivision(activeDivision.id)} aria-label="Delete division">
-                        <Trash2 size={16} />
-                      </button>
-                      <button type="button" className={styles.btnRemove} onClick={() => setDetailsCollapsed(!detailsCollapsed)} aria-label="Toggle details" style={{ color: '#EE7A4C' }}>
-                        {detailsCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                      </button>
+                    <div className={styles.mobileStat}>
+                      <span className={styles.mobileStatValue}>{activeDivision.registrationFee === 0 ? 'Free' : `฿${activeDivision.registrationFee}`}</span>
+                      <span className={styles.mobileStatLabel}>Fee</span>
+                    </div>
+                    <div className={styles.mobileStat}>
+                      <span className={styles.mobileStatValue}>{activeDivision.formatTypeOnSand}</span>
+                      <span className={styles.mobileStatLabel}>Format</span>
+                    </div>
+                    <div className={styles.mobileStat}>
+                      <span className={styles.mobileStatValue}>{activeDivision.maxRosterSize}</span>
+                      <span className={styles.mobileStatLabel}>Roster</span>
                     </div>
                   </div>
 
-                  {!detailsCollapsed && (
-                    <div className={styles.sectionBody}>
-                    <div className={styles.summaryGrid}>
-                      <div className={styles.summaryItem}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
-                      <div className={styles.summaryItem}><span>On-Sand Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
-                      <div className={styles.summaryItem}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
-                      <div className={styles.summaryItem}><span>Registration Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
-                      <div className={styles.summaryItem}><span>Registration Opens</span><strong>{activeDivision.registrationOpenDate ? new Date(activeDivision.registrationOpenDate).toLocaleString() : 'Immediately'}</strong></div>
-                      <div className={styles.summaryItem}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
-                    </div>
-
-                    <hr className={styles.divider} />
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel}>Competition Format</label>
-                      <div className={styles.summaryChips}>
-                        {activeDivision.rounds.map((r, i) => (
-                          <span key={r.id} className={styles.summaryChip}>
-                            {roundLabel(i)}: {ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—'}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel}>Scoring</label>
-                      {activeDivision.rounds.map((r, i) => (
-                        <p key={r.id} className={styles.summaryText}>
-                          <strong>{roundLabel(i)}:</strong> Best of {r.scoring.setsBestOf} • Sets to {r.scoring.pointsPerSet}{r.scoring.winBy2 ? ' (win by 2)' : ''}{r.scoring.hardCap ? `, hard cap ${r.scoring.hardCap}` : ''} • Deciding set to {r.scoring.decidingSetPoints}
-                        </p>
-                      ))}
-                    </div>
-
-                    {activeDivision.rules && (
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Rules</label>
-                        <p className={styles.summaryText}>{activeDivision.rules}</p>
-                      </div>
-                    )}
-
-                    <hr className={styles.divider} />
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.fieldLabel}>Registration Form</label>
-                      <div className={styles.summaryChips}>
-                        {activeDivision.regFields.map(f => (
-                          <span key={f.id} className={`${styles.summaryChip} ${f.core ? styles.summaryChipCore : ''}`}>
-                            {f.label}{f.required ? ' *' : ''}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {(activeDivision.confirmationMessage || activeDivision.confirmationImage) && (
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Registration Response</label>
-                        {activeDivision.confirmationMessage && (
-                          <p className={styles.summaryText}>{activeDivision.confirmationMessage}</p>
-                        )}
-                        {activeDivision.confirmationImage && (
-                          <div className={styles.confirmImagePreview} style={{ marginTop: 8 }}>
-                            <img src={activeDivision.confirmationImage} alt="Registration response attachment" />
-                          </div>
+                  <div className={styles.mobileDetailsCard}>
+                    <button
+                      type="button"
+                      className={styles.mobileDetailsHeader}
+                      onClick={() => setDetailsCollapsed(!detailsCollapsed)}
+                    >
+                      Division Details
+                      {detailsCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                    </button>
+                    {!detailsCollapsed && (
+                      <div className={styles.mobileDetailsBody}>
+                        <div className={styles.mobileDetailRow}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
+                        <div className={styles.mobileDetailRow}><span>On-Sand Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
+                        <div className={styles.mobileDetailRow}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
+                        <div className={styles.mobileDetailRow}><span>Registration Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
+                        <div className={styles.mobileDetailRow}><span>Registration Opens</span><strong>{activeDivision.registrationOpenDate ? new Date(activeDivision.registrationOpenDate).toLocaleString() : 'Immediately'}</strong></div>
+                        <div className={styles.mobileDetailRow}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
+                        {activeDivision.rules && (
+                          <p className={styles.mobileDetailRules}>{activeDivision.rules}</p>
                         )}
                       </div>
                     )}
-                    </div>
-                  )}
-                </section>
-
-                {/* Registered Teams Section */}
-                <section className={styles.card} style={{ marginTop: 28 }}>
-                  <div className={styles.cardHeader}>
-                    <div className={styles.iconHeader}>
-                      <Users size={20} />
-                    </div>
-                    <div>
-                      <h3 className={styles.cardTitle}>Registered Teams</h3>
-                      <p className={styles.subtitle}>
-                        Manage teams registered for this division ({registeredTeams.filter(t => t.status !== 'waitlist').length}/{activeDivision.divisionTeamCap})
-                      </p>
-                    </div>
                   </div>
-                  <div className={styles.sectionBody}>
+
+                  <div className={styles.mobileTeamsCard}>
+                    <div className={styles.mobileTeamsHeader}>
+                      <h3>Registered Teams</h3>
+                      <span className={styles.mobileTeamsCount}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
+                    </div>
+                    <div className={styles.mobileTeamsBar}>
+                      <div className={styles.mobileTeamsBarFill} style={{ width: `${fillRatio * 100}%` }} />
+                    </div>
                     {teamsLoading ? (
                       <p className={styles.summaryText}>Loading registered teams…</p>
                     ) : registeredTeams.length === 0 ? (
                       <p className={styles.summaryText}>No teams registered yet.</p>
                     ) : (
-                      <table className={styles.teamsTable}>
-                        <thead>
-                          <tr>
-                            <th style={{ width: '60px' }}>No.</th>
-                            <th>Team / Players</th>
-                            <th style={{ width: '140px' }}>Captain Phone</th>
-                            <th style={{ width: '120px' }}>Status</th>
-                            <th style={{ width: '120px' }}>Payment</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {registeredTeams.map((t, idx) => {
-                            const firstWaitlistIdx = registeredTeams.findIndex(team => team.status === 'waitlist');
-                            const showWaitlistSeparator = t.status === 'waitlist' && idx === firstWaitlistIdx;
-                            const displayIndex = t.status === 'waitlist'
-                              ? idx - firstWaitlistIdx + 1
-                              : idx + 1;
+                      <>
+                        {confirmedTeams.map((t, idx) => (
+                          <div key={t.id} className={styles.mobileTeamRow}>
+                            <span className={styles.mobileTeamRank}>{idx + 1}</span>
+                            <span className={styles.mobileTeamName}>
+                              {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
+                            </span>
+                            <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
+                              {t.paymentCleared ? 'Paid' : 'Unpaid'}
+                            </span>
+                          </div>
+                        ))}
 
-                            return (
-                              <Fragment key={t.id}>
-                                {showWaitlistSeparator && (
-                                  <tr key="waitlist-separator">
-                                    <td colSpan={5} style={{ padding: '24px 12px 12px', borderBottom: 'none' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#713F12', backgroundColor: '#FEF08A', padding: '4px 10px', borderRadius: '12px', fontFamily: "var(--font-ui, 'Inter', sans-serif)" }}>
-                                          Waiting List
-                                        </span>
-                                        <div style={{ flex: 1, height: '2px', backgroundColor: 'rgba(238, 122, 76, 0.25)', borderRadius: '1px' }} />
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                                <tr>
-                                  <td style={{ fontWeight: 700, color: 'var(--orange, #EE7A4C)' }}>{displayIndex}</td>
-                                  <td>
-                                    <div className={styles.teamRowName}>
-                                      {t.players.length > 0
-                                        ? t.players.map(p => p.name).join(' / ')
-                                        : t.name}
-                                    </div>
-                                    {t.players.length > 0 && (
-                                      <div className={styles.teamPlayers}>
-                                        {t.players.map((p, pIdx) => (
-                                          <span key={p.id} className={styles.teamPlayer}>
-                                            Player {pIdx + 1}: {p.email || '—'}
-                                            {p.shirtSize && <span className={styles.teamPlayerSub}>Size {p.shirtSize}</span>}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td style={{ fontWeight: 500 }}>
-                                    {t.players[0]?.phone || '—'}
-                                  </td>
-                                  <td>
-                                    <span className={`${styles.statusBadge} ${t.status === 'confirmed' ? styles.statusConfirmed : t.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
-                                      {t.status}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <span className={t.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
-                                      {t.paymentCleared ? 'Paid' : 'Unpaid'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              </Fragment>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                        {waitlistTeamsList.length > 0 && (
+                          <>
+                            <div className={styles.mobileWaitlistHeader}>
+                              <span className={styles.mobileWaitlistDot} />
+                              Waiting List · {waitlistTeamsList.length}
+                            </div>
+                            {waitlistTeamsList.map((t, idx) => (
+                              <div key={t.id} className={styles.mobileTeamRow}>
+                                <span className={`${styles.mobileTeamRank} ${styles.mobileTeamRankWaitlist}`}>{idx + 1}</span>
+                                <span className={styles.mobileTeamName}>
+                                  {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
+                                </span>
+                                <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
+                                  {t.paymentCleared ? 'Paid' : 'Unpaid'}
+                                </span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </>
                     )}
                   </div>
-                </section>
-              </>)}
-            </>
-          )}
-        </div>
-      </main>
+                </div>
+              </div>
+            </main>
 
       {/* ── CREATE DIVISION MODAL ─────────────────────────────────── */}
       {showModal && (

@@ -1754,3 +1754,444 @@
   font-size: 10px;
   font-weight: 700;
 }
+
+/* ── Mobile Tournament Setup — Compact Utility (design 1B) ──────────
+   Desktop keeps the existing multi-card / table layout; below 680px
+   that's swapped for a dense, single-column mobile-native view. */
+.desktopOnly { display: block; }
+.mobileOnly { display: none; }
+.mobileBackBtn { display: none; }
+
+@media (max-width: 680px) {
+  .desktopOnly { display: none; }
+  .mobileOnly { display: block; }
+
+  .backLink { display: none; }
+
+  .headerArea {
+    padding-top: 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .title {
+    font-size: 22px;
+    margin-bottom: 0;
+  }
+  .mobileBackBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(20, 31, 46, 0.06);
+    color: var(--ink-1, #14181E);
+    flex-shrink: 0;
+  }
+  .container {
+    padding: 0 16px;
+  }
+}
+
+.mobileEventCard {
+  display: flex;
+  gap: 12px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 10px 30px -12px rgba(20, 31, 46, 0.12);
+  margin-bottom: 16px;
+}
+.mobileEventLogo {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(20, 31, 46, 0.05);
+}
+.mobileEventBody {
+  flex: 1;
+  min-width: 0;
+}
+.mobileEventTitle {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--ink-1, #14181E);
+  margin-bottom: 6px;
+}
+.mobileEventMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13px;
+  color: var(--ink-2, #3A414D);
+  margin-bottom: 4px;
+}
+.mobileEventBadge {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #FEF3D6;
+  color: #B06000;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mobileEventBadgeFull {
+  background: #FDF2F2;
+  color: #9B1C1C;
+}
+.mobileEventBadgeOpen {
+  background: #DEF7EC;
+  color: #03543F;
+}
+
+.mobileStatRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px -12px rgba(20, 31, 46, 0.1);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.mobileStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 14px 4px;
+  border-right: 1px solid rgba(20, 31, 46, 0.07);
+}
+.mobileStat:last-child { border-right: none; }
+.mobileStatValue {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink-1, #14181E);
+}
+.mobileStatLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2, #7A8294);
+}
+
+.mobileDetailsCard {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px -12px rgba(20, 31, 46, 0.1);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.mobileDetailsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink-1, #14181E);
+}
+.mobileDetailsBody {
+  padding: 0 16px 16px;
+}
+.mobileDetailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(20, 31, 46, 0.07);
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13.5px;
+}
+.mobileDetailRow span { color: var(--ink-2, #7A8294); }
+.mobileDetailRow strong { font-weight: 700; color: var(--ink-1, #14181E); }
+.mobileDetailRules {
+  padding: 12px 0 0;
+  margin: 0;
+  border-top: 1px solid rgba(20, 31, 46, 0.07);
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13px;
+  color: var(--ink-2, #3A414D);
+  line-height: 1.5;
+}
+
+.mobileTeamsCard {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px -12px rgba(20, 31, 46, 0.1);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.mobileTeamsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+.mobileTeamsHeader h3 {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--ink-1, #14181E);
+}
+.mobileTeamsCount {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--orange, #EE7A4C);
+}
+.mobileTeamsBar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(20, 31, 46, 0.08);
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+.mobileTeamsBarFill {
+  height: 100%;
+  background: var(--orange, #EE7A4C);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.mobileTeamRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(20, 31, 46, 0.07);
+}
+.mobileTeamRank {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--orange, #EE7A4C);
+  width: 18px;
+  flex-shrink: 0;
+}
+.mobileTeamRankWaitlist { color: var(--ink-2, #7A8294); }
+.mobileTeamName {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink-1, #14181E);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobilePillPaid, .mobilePillUnpaid {
+  flex-shrink: 0;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.mobilePillPaid { background: #DEF7EC; color: #03543F; }
+.mobilePillUnpaid { background: #E5E7EB; color: #374151; }
+
+.mobileWaitlistHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 0 8px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2, #7A8294);
+  border-top: 1px solid rgba(20, 31, 46, 0.07);
+}
+.mobileWaitlistDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--orange, #EE7A4C);
+  flex-shrink: 0;
+}
+
+/* ── Design 2A Desktop Styles (≥ 1024px) ────────────────────────── */
+.desktop2aHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.desktop2aHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.desktop2aTitle {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  color: var(--ink-1, #14181E);
+  margin: 0;
+}
+.desktop2aEditBtn {
+  height: 42px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 999px;
+  background: var(--orange, #EE7A4C);
+  color: #ffffff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(238, 122, 76, 0.25);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.15s, background 0.15s;
+}
+.desktop2aEditBtn:hover {
+  background: #E56A3C;
+  transform: translateY(-1px);
+}
+
+.desktop2aHero {
+  position: relative;
+  height: 220px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #14181E;
+  margin-bottom: 24px;
+  box-shadow: 0 12px 32px -8px rgba(20, 31, 46, 0.15);
+}
+.desktop2aHeroBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.desktop2aHeroOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(20, 24, 30, 0.88) 0%, rgba(20, 24, 30, 0.6) 45%, rgba(20, 24, 30, 0.15) 100%);
+}
+.desktop2aHeroContent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 32px;
+  z-index: 1;
+}
+.desktop2aPoster {
+  width: 116px;
+  height: 156px;
+  object-fit: cover;
+  border-radius: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 16px 34px -12px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.desktop2aPosterPlaceholder {
+  width: 116px;
+  height: 156px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px dashed rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+.desktop2aHeroText {
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.desktop2aHeroTitle {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0;
+}
+.desktop2aHeroMeta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.desktop2aMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.desktop2aBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.desktop2aBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+.desktop2aBadgeActive {
+  background: rgba(238, 122, 76, 0.9);
+  color: #ffffff;
+}
+
+.desktop2aGrid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  align-items: start;
+}
+.desktop2aMainCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.desktop2aSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: sticky;
+  top: 24px;
+}
+
