@@ -323,7 +323,12 @@ export default function OrganizerDashboard() {
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
             <h1 className={styles.headerTitle}>Welcome back{organizer ? `, ${organizer.name.split(' ')[0]}` : ''}</h1>
           </div>
-          <Button variant="primary" iconLeft={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
+          <Button
+            variant="primary"
+            iconLeft={<Plus size={18} />}
+            onClick={() => setCreateOpen(true)}
+            className={styles.newTournamentBtn}
+          >
             New Tournament
           </Button>
         </div>
