@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown,
 } from 'lucide-react';
@@ -402,12 +403,14 @@ export default function OrganizerDashboard() {
               </div>
 
               <div className={styles.filterDropdown} ref={filterMenuRef}>
-                <button
+                <motion.button
                   type="button"
                   className={styles.filterDropdownTrigger}
                   aria-haspopup="listbox"
                   aria-expanded={filterMenuOpen}
                   onClick={() => setFilterMenuOpen(o => !o)}
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 22 }}
                 >
                   <span>
                     {STATUS_FILTERS.find(f => f.key === statusFilter)?.label || 'All'}
@@ -416,30 +419,40 @@ export default function OrganizerDashboard() {
                     </span>
                   </span>
                   <ChevronDown size={18} className={filterMenuOpen ? styles.filterChevronOpen : ''} />
-                </button>
-                {filterMenuOpen && (
-                  <ul className={styles.filterDropdownMenu} role="listbox">
-                    {STATUS_FILTERS.map(f => {
-                      const count = tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, f.key)).length;
-                      const active = statusFilter === f.key;
-                      return (
-                        <li key={f.key} role="option" aria-selected={active}>
-                          <button
-                            type="button"
-                            className={`${styles.filterDropdownItem} ${active ? styles.filterDropdownItemActive : ''}`}
-                            onClick={() => {
-                              setStatusFilter(active ? null : f.key);
-                              setFilterMenuOpen(false);
-                            }}
-                          >
-                            {f.label}
-                            <span className={styles.filterCount}>{count}</span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                </motion.button>
+                <AnimatePresence>
+                  {filterMenuOpen && (
+                    <motion.ul
+                      className={styles.filterDropdownMenu}
+                      role="listbox"
+                      style={{ transformOrigin: 'top left' }}
+                      initial={{ opacity: 0, scale: 0.3, borderRadius: 999 }}
+                      animate={{ opacity: 1, scale: 1, borderRadius: 16 }}
+                      exit={{ opacity: 0, scale: 0.3, borderRadius: 999, transition: { duration: 0.14, ease: 'easeIn' } }}
+                      transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+                    >
+                      {STATUS_FILTERS.map(f => {
+                        const count = tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, f.key)).length;
+                        const active = statusFilter === f.key;
+                        return (
+                          <li key={f.key} role="option" aria-selected={active}>
+                            <button
+                              type="button"
+                              className={`${styles.filterDropdownItem} ${active ? styles.filterDropdownItemActive : ''}`}
+                              onClick={() => {
+                                setStatusFilter(active ? null : f.key);
+                                setFilterMenuOpen(false);
+                              }}
+                            >
+                              {f.label}
+                              <span className={styles.filterCount}>{count}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className={styles.rowList}>
