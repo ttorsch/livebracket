@@ -840,7 +840,7 @@
       calc(12px - var(--enter-t, 0) * 2px - var(--compact-t, 0) * 2px)
       calc(14px - var(--compact-t, 0) * 4px);
     gap: 8px;
-    border-radius: calc(var(--enter-t, 0) * 24px + var(--compact-t, 0) * 20px);
+    border-radius: calc(var(--enter-t, 0) * 999px); /* clamps to a true half-height pill once floated */
     box-shadow:
       0
       calc(var(--enter-t, 0) * 16px)
