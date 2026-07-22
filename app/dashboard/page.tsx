@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown,
+  Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown, Home,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
@@ -269,7 +269,7 @@ export default function OrganizerDashboard() {
     <div className={styles.page}>
       {/* ── Sidebar ──────────────────────────────────────────── */}
       <aside className={`${styles.sidebar} ${navScrolled ? styles.navScrolled : ''}`}>
-        <Link href="/" className={styles.brand}>
+        <Link href="/" className={styles.brand} aria-label="Live Bracket home">
           <span className={styles.brandMark}>
             <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
   <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
@@ -284,6 +284,7 @@ export default function OrganizerDashboard() {
 </svg>
           </span>
           <span className={styles.brandName}>Live Bracket</span>
+          <Home size={22} className={styles.brandHomeIcon} aria-hidden="true" />
         </Link>
 
         <nav className={styles.sideNav}>
