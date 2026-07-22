@@ -826,30 +826,47 @@
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    padding: 12px 14px;
+    transition: none; /* driven by --enter-t/--compact-t on scroll, not CSS transitions */
+    margin:
+      calc(var(--enter-t, 0) * 10px)
+      calc(var(--enter-t, 0) * 12px + var(--compact-t, 0) * 12vw)
+      0;
+    padding:
+      calc(12px - var(--enter-t, 0) * 2px - var(--compact-t, 0) * 2px)
+      calc(14px - var(--compact-t, 0) * 4px);
     gap: 8px;
-    transition:
-      padding 500ms cubic-bezier(0.16, 1, 0.3, 1),
-      background 500ms cubic-bezier(0.16, 1, 0.3, 1),
-      box-shadow 500ms cubic-bezier(0.16, 1, 0.3, 1),
-      backdrop-filter 500ms cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: calc(var(--enter-t, 0) * 24px + var(--compact-t, 0) * 20px);
+    box-shadow:
+      0
+      calc(var(--enter-t, 0) * 16px)
+      calc(var(--enter-t, 0) * 40px)
+      calc(var(--enter-t, 0) * -12px)
+      rgba(8, 18, 35, calc(var(--enter-t, 0) * 0.55));
   }
-  .navScrolled {
-    padding: 8px 12px;
-    background: rgba(20, 24, 30, 0.72);
-    backdrop-filter: blur(18px) saturate(150%);
-    -webkit-backdrop-filter: blur(18px) saturate(150%);
-    box-shadow: 0 20px 50px -20px rgba(8, 18, 35, 0.6);
-  }
-  .brand { padding: 0; flex-shrink: 0; transition: inherit; }
+  .brand { padding: 0; flex-shrink: 0; }
   .brandMark { display: none; }
   .brandName { display: none; }
-  .brandHomeIcon { display: inline-flex; }
+  .brandHomeIcon {
+    display: inline-flex;
+    width: calc(22px - var(--compact-t, 0) * 4px);
+    height: calc(22px - var(--compact-t, 0) * 4px);
+  }
   .sideNav { flex-direction: row; flex: 0 0 auto; gap: 4px; }
-  .sideLink { padding: 9px 11px; font-size: 14px; }
+  .sideLink {
+    padding: calc(9px - var(--compact-t, 0) * 3px) calc(11px - var(--compact-t, 0) * 3px);
+    font-size: 14px;
+  }
   .sideLink span { display: none; }
+  .sideLink svg {
+    width: calc(20px - var(--compact-t, 0) * 3px);
+    height: calc(20px - var(--compact-t, 0) * 3px);
+  }
   .sideProfile { margin-top: 0; margin-left: auto; padding: 6px; background: transparent; flex-shrink: 0; }
   .sideProfileText { display: none; }
+  .sideAvatar {
+    width: calc(44px - var(--compact-t, 0) * 10px);
+    height: calc(44px - var(--compact-t, 0) * 10px);
+  }
   .main { padding: 96px 20px 60px; }
   .headerTitle { font-size: 30px; }
   .heroTitle { font-size: 26px; }

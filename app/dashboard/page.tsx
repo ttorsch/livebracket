@@ -196,7 +196,7 @@ export default function OrganizerDashboard() {
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
-  const [navScrolled, setNavScrolled] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!filterMenuOpen) return;
@@ -209,13 +209,35 @@ export default function OrganizerDashboard() {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [filterMenuOpen]);
 
-  // Mirrors the homepage nav: pins to the top and compacts into a
-  // blurred glass pill once the page scrolls past 20px (mobile only).
+  // Mirrors the homepage nav's scroll-linked morph (mobile only): the bar
+  // floats into an inset pill shortly after scrolling starts (--enter-t),
+  // then keeps narrowing/compacting the further you scroll (--compact-t).
+  // Both are continuous functions of scrollY, so scrolling back up smoothly
+  // grows the bar back to its full-width resting state — no direction
+  // tracking needed. Written straight to the DOM (not React state) so it
+  // stays glued to scroll position without a re-render per pixel.
   useEffect(() => {
-    const handleScroll = () => setNavScrolled(window.scrollY > 20);
+    const enterStart = 8;
+    const enterEnd = 80;
+    const compactZone = 200;
+
+    const handleScroll = () => {
+      if (window.innerWidth >= 960) return;
+      const y = window.scrollY;
+      const enterT = Math.min(1, Math.max(0, (y - enterStart) / (enterEnd - enterStart)));
+      const compactT = Math.min(1, Math.max(0, (y - enterEnd) / compactZone));
+      const nav = navRef.current;
+      nav?.style.setProperty('--enter-t', String(enterT));
+      nav?.style.setProperty('--compact-t', String(compactT));
+    };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -268,7 +290,7 @@ export default function OrganizerDashboard() {
   return (
     <div className={styles.page}>
       {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside className={`${styles.sidebar} ${navScrolled ? styles.navScrolled : ''}`}>
+      <aside ref={navRef} className={styles.sidebar}>
         <Link href="/" className={styles.brand} aria-label="Live Bracket home">
           <span className={styles.brandMark}>
             <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
