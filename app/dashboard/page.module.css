@@ -444,8 +444,8 @@
   width: 100%;
   padding: 12px 16px;
   border-radius: var(--radius-lg, 14px);
-  border: 1px solid var(--sand-300, #E7E2D9);
-  background: var(--sand-50, #fff);
+  border: none;
+  background: var(--sand-200, #EFEAE0);
   font-family: var(--font-text, 'DM Sans', sans-serif);
   font-size: 14px;
   font-weight: 600;
@@ -845,7 +845,8 @@
   .rowChevron { order: 3; }
   .divStatGrid { grid-template-columns: 1fr; }
   .filterTabs { display: none; }
-  .filterDropdown { display: block; }
+  .filterDropdown { display: block; width: 30vw; }
+  .filterDropdownMenu { right: auto; width: max-content; min-width: 100%; }
   .newTournamentBtn {
     border-radius: 16px !important;
     height: 56px !important;
