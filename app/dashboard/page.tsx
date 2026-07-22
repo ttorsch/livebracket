@@ -224,6 +224,7 @@ export default function OrganizerDashboard() {
   useEffect(() => {
     const topThreshold = 4;
     let lastY = window.scrollY;
+    let wasScrolled = lastY > topThreshold;
 
     const handleScroll = () => {
       if (window.innerWidth >= 960) return;
@@ -232,6 +233,19 @@ export default function OrganizerDashboard() {
       if (!nav) return;
 
       const isScrolled = y > topThreshold;
+      // Returning all the way to the top gets a slower, more deliberate
+      // morph back to the flush rectangle header; every other transition
+      // (compacting, expanding mid-page) stays quick. Only touch --nav-dur
+      // when the scrolled/not-scrolled state actually flips — html has
+      // scroll-behavior: smooth, so a single scroll gesture fires many
+      // scroll events, and re-evaluating on every one of them was
+      // stomping the slow duration back to fast before it could finish.
+      if (isScrolled !== wasScrolled) {
+        const returningToTop = wasScrolled && !isScrolled;
+        nav.style.setProperty('--nav-dur', returningToTop ? '550ms' : '200ms');
+        wasScrolled = isScrolled;
+      }
+
       nav.style.setProperty('--enter-t', isScrolled ? '1' : '0');
       if (y > lastY) {
         nav.style.setProperty('--compact-t', isScrolled ? '1' : '0');
