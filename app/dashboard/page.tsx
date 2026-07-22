@@ -428,8 +428,8 @@ export default function OrganizerDashboard() {
                       style={{ transformOrigin: 'top left' }}
                       initial={{ opacity: 0, scale: 0.3, borderRadius: 999 }}
                       animate={{ opacity: 1, scale: 1, borderRadius: 16 }}
-                      exit={{ opacity: 0, scale: 0.3, borderRadius: 999, transition: { duration: 0.14, ease: 'easeIn' } }}
-                      transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+                      exit={{ opacity: 0, scale: 0.3, borderRadius: 999, transition: { duration: 0.28, ease: 'easeIn' } }}
+                      transition={{ type: 'spring', stiffness: 105, damping: 11 }}
                     >
                       {STATUS_FILTERS.map(f => {
                         const count = tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, f.key)).length;
