@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown,
@@ -193,6 +193,19 @@ export default function OrganizerDashboard() {
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!filterMenuOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setFilterMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [filterMenuOpen]);
 
   useEffect(() => {
     getDashboardTournaments().then(setTournaments).catch(console.error);
@@ -381,6 +394,47 @@ export default function OrganizerDashboard() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className={styles.filterDropdown} ref={filterMenuRef}>
+                <button
+                  type="button"
+                  className={styles.filterDropdownTrigger}
+                  aria-haspopup="listbox"
+                  aria-expanded={filterMenuOpen}
+                  onClick={() => setFilterMenuOpen(o => !o)}
+                >
+                  <span>
+                    {STATUS_FILTERS.find(f => f.key === statusFilter)?.label || 'All'}
+                    <span className={styles.filterCount}>
+                      {tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, statusFilter)).length}
+                    </span>
+                  </span>
+                  <ChevronDown size={18} className={filterMenuOpen ? styles.filterChevronOpen : ''} />
+                </button>
+                {filterMenuOpen && (
+                  <ul className={styles.filterDropdownMenu} role="listbox">
+                    {STATUS_FILTERS.map(f => {
+                      const count = tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, f.key)).length;
+                      const active = statusFilter === f.key;
+                      return (
+                        <li key={f.key} role="option" aria-selected={active}>
+                          <button
+                            type="button"
+                            className={`${styles.filterDropdownItem} ${active ? styles.filterDropdownItemActive : ''}`}
+                            onClick={() => {
+                              setStatusFilter(active ? null : f.key);
+                              setFilterMenuOpen(false);
+                            }}
+                          >
+                            {f.label}
+                            <span className={styles.filterCount}>{count}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
 
               <div className={styles.rowList}>
