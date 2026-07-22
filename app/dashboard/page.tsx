@@ -196,6 +196,7 @@ export default function OrganizerDashboard() {
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const [navScrolled, setNavScrolled] = useState(false);
 
   useEffect(() => {
     if (!filterMenuOpen) return;
@@ -207,6 +208,15 @@ export default function OrganizerDashboard() {
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [filterMenuOpen]);
+
+  // Mirrors the homepage nav: pins to the top and compacts into a
+  // blurred glass pill once the page scrolls past 20px (mobile only).
+  useEffect(() => {
+    const handleScroll = () => setNavScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     getDashboardTournaments().then(setTournaments).catch(console.error);
@@ -258,7 +268,7 @@ export default function OrganizerDashboard() {
   return (
     <div className={styles.page}>
       {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside className={styles.sidebar}>
+      <aside className={`${styles.sidebar} ${navScrolled ? styles.navScrolled : ''}`}>
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark}>
             <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">

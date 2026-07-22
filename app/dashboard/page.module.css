@@ -813,21 +813,40 @@
   .sidebar {
     width: auto;
     height: auto;
-    position: static;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    padding: 14px 16px;
-    gap: 10px;
+    padding: 12px 14px;
+    gap: 8px;
+    transition:
+      padding 500ms cubic-bezier(0.16, 1, 0.3, 1),
+      background 500ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 500ms cubic-bezier(0.16, 1, 0.3, 1),
+      backdrop-filter 500ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .brand { padding: 0; }
-  .sideNav { flex-direction: row; flex: 1; }
-  .sideLink { padding: 10px 14px; font-size: 14px; }
+  .navScrolled {
+    padding: 8px 12px;
+    background: rgba(20, 24, 30, 0.72);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    box-shadow: 0 20px 50px -20px rgba(8, 18, 35, 0.6);
+  }
+  .navScrolled .brandName { font-size: 15px; }
+  .navScrolled .brandMark { width: 26px; height: 26px; }
+  .brand { padding: 0; gap: 8px; flex-shrink: 0; transition: inherit; }
+  .brandName { white-space: nowrap; font-size: 17px; transition: font-size 500ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .brandMark { width: 30px; height: 30px; transition: width 500ms cubic-bezier(0.16, 1, 0.3, 1), height 500ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .sideNav { flex-direction: row; flex: 0 0 auto; gap: 4px; }
+  .sideLink { padding: 9px 11px; font-size: 14px; }
   .sideLink span { display: none; }
-  .sideLinkActive span { display: inline; }
-  .sideProfile { margin-top: 0; padding: 6px; background: transparent; }
+  .sideProfile { margin-top: 0; margin-left: auto; padding: 6px; background: transparent; flex-shrink: 0; }
   .sideProfileText { display: none; }
-  .main { padding: 24px 20px 60px; }
+  .main { padding: 96px 20px 60px; }
   .headerTitle { font-size: 30px; }
   .heroTitle { font-size: 26px; }
 }
