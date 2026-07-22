@@ -446,6 +446,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   width: 100%;
   padding: 12px 16px;
   border-radius: var(--radius-lg, 14px);
@@ -455,6 +456,7 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--text-secondary, #3A414D);
+  white-space: nowrap;
   cursor: pointer;
 }
 .filterDropdownTrigger span:first-child {
@@ -897,7 +899,7 @@
   .rowChevron { order: 3; }
   .divStatGrid { grid-template-columns: 1fr; }
   .filterTabs { display: none; }
-  .filterDropdown { display: block; width: 30vw; }
+  .filterDropdown { display: block; width: max-content; min-width: 30vw; max-width: 100%; }
   .filterDropdownMenu { right: auto; width: max-content; min-width: 100%; }
   .newTournamentBtn {
     border-radius: 16px !important;
