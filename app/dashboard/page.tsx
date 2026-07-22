@@ -209,33 +209,36 @@ export default function OrganizerDashboard() {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [filterMenuOpen]);
 
-  // Mirrors the homepage nav's scroll-linked morph (mobile only): the bar
-  // floats into an inset pill shortly after scrolling starts (--enter-t),
-  // then keeps narrowing/compacting the further you scroll down
-  // (--compact-t). --enter-t (pill shape/shadow/floating) is purely a
-  // function of scroll depth. --compact-t (width) is direction-aware:
-  // scrolling down grows it per scroll depth same as before, but any
-  // upward scroll — even deep in the page — snaps it straight back to 0
-  // (full-width pill) instead of only easing open as you approach the
-  // top. Written straight to the DOM (not React state) so it stays
-  // glued to scroll position without a re-render per pixel.
+  // Mobile navbar morph, driven by scroll *events* rather than scroll
+  // *distance*: --enter-t and --compact-t are always snapped straight to
+  // 0 or 1, never a fraction. Tying them proportionally to scrollY used
+  // to leave the bar visibly stuck mid-morph if the user scrolled a
+  // little and stopped; flipping a flag and letting the existing 200ms
+  // CSS transition run to completion means every scroll always ends in
+  // a fully-settled state. --enter-t: 1 once scrolled away from the very
+  // top, 0 back at the top. --compact-t: 1 the moment a downward scroll
+  // is detected, 0 the moment an upward scroll is detected (regardless
+  // of depth) — direction only, not position. Written straight to the
+  // DOM (not React state) so it stays glued to scroll events without a
+  // re-render per pixel.
   useEffect(() => {
-    const enterStart = 8;
-    const enterEnd = 80;
-    const compactZone = 200;
+    const topThreshold = 4;
     let lastY = window.scrollY;
 
     const handleScroll = () => {
       if (window.innerWidth >= 960) return;
       const y = window.scrollY;
-      const scrollingUp = y < lastY;
-      lastY = y;
-
-      const enterT = Math.min(1, Math.max(0, (y - enterStart) / (enterEnd - enterStart)));
-      const compactT = scrollingUp ? 0 : Math.min(1, Math.max(0, (y - enterEnd) / compactZone));
       const nav = navRef.current;
-      nav?.style.setProperty('--enter-t', String(enterT));
-      nav?.style.setProperty('--compact-t', String(compactT));
+      if (!nav) return;
+
+      const isScrolled = y > topThreshold;
+      nav.style.setProperty('--enter-t', isScrolled ? '1' : '0');
+      if (y > lastY) {
+        nav.style.setProperty('--compact-t', isScrolled ? '1' : '0');
+      } else if (y < lastY) {
+        nav.style.setProperty('--compact-t', '0');
+      }
+      lastY = y;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
