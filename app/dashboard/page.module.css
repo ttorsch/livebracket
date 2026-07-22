@@ -826,6 +826,7 @@
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
+    justify-content: space-between;
     transition:
       margin 350ms ease-in,
       padding 350ms ease-in,
@@ -856,7 +857,7 @@
     height: calc(22px - var(--compact-t, 0) * 4px);
     transition: width 350ms ease-in, height 350ms ease-in;
   }
-  .sideNav { flex-direction: row; flex: 0 0 auto; gap: 4px; }
+  .sideNav { flex-direction: row; flex: 0 0 auto; gap: 6px; }
   .sideLink {
     padding: calc(9px - var(--compact-t, 0) * 3px) calc(11px - var(--compact-t, 0) * 3px);
     font-size: 14px;
@@ -868,7 +869,7 @@
     height: calc(20px - var(--compact-t, 0) * 3px);
     transition: width 350ms ease-in, height 350ms ease-in;
   }
-  .sideProfile { margin-top: 0; margin-left: auto; padding: 6px; background: transparent; flex-shrink: 0; }
+  .sideProfile { margin-top: 0; padding: 6px; background: transparent; flex-shrink: 0; }
   .sideProfileText { display: none; }
   .sideAvatar {
     width: calc(44px - var(--compact-t, 0) * 10px);
