@@ -857,7 +857,10 @@
     height: calc(22px - var(--compact-t, 0) * 4px);
     transition: width 350ms ease-in, height 350ms ease-in;
   }
-  .sideNav { flex-direction: row; flex: 0 0 auto; gap: 6px; }
+  /* Unwraps the <nav> so its 3 buttons become flat siblings of the
+     Home icon and avatar, letting .sidebar's space-between distribute
+     all 5 items evenly instead of treating the buttons as one group. */
+  .sideNav { display: contents; }
   .sideLink {
     padding: calc(9px - var(--compact-t, 0) * 3px) calc(11px - var(--compact-t, 0) * 3px);
     font-size: 14px;
