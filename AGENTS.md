@@ -6,6 +6,12 @@ You operate within a 3-layer architecture that separates concerns to maximize re
 
 ---
 
+## Clarify Before Building (always)
+
+Before starting to build or plan anything in response to a prompt, ask the user clarifying questions first. Do not begin planning or implementation until the request is unambiguous enough that no follow-up adjustments should be needed afterward. This applies to every prompt, not just complex ones — when in doubt, ask rather than assume.
+
+---
+
 ## Project Overview
 
 **Live Bracket** — A real-time tournament bracket manager and live-scoring dashboard web application.
