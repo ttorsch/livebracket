@@ -220,6 +220,7 @@ export interface DrawConfig {
   crossing: string;
   attempts: number;
   topSeedIds: string[];
+  isLocked?: boolean;
   slots?: Record<string, string[]>;
 }
 
@@ -389,7 +390,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               teamBName: m.team_b?.name ?? null,
               scoreA: m.score_a ?? undefined,
               scoreB: m.score_b ?? undefined,
-              winner: m.winner_team_id === m.team_a_id ? 'A' : m.winner_team_id === m.team_b_id ? 'B' : undefined,
+              winner: m.winner_team_id && m.winner_team_id === m.team_a_id ? 'A' : m.winner_team_id && m.winner_team_id === m.team_b_id ? 'B' : undefined,
               status: m.status,
             })),
           })),
@@ -397,6 +398,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           ? {
               pools: draw.pools ?? 4, advance: draw.advance ?? 2, crossing: draw.crossing ?? 'fivb',
               attempts: draw.attempts ?? 0, topSeedIds: draw.topSeedIds ?? [],
+              isLocked: !!draw.isLocked,
             }
           : null,
       };

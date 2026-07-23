@@ -187,13 +187,24 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
 // Create Division modal is split into three navigable steps.
 const MODAL_STEPS = ['Basics & Fee', 'Format & Rules', 'Registration'];
 
+const safeFormatDate = (d?: string, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }): string => {
+  if (!d) return '';
+  try {
+    const cleanDate = d.includes('T') ? d : `${d}T00:00:00`;
+    const dt = new Date(cleanDate);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('en-US', opts);
+  } catch {
+    return d;
+  }
+};
+
 // Format the tournament date range collected on the create form (YYYY-MM-DD).
 const formatDateRange = (start?: string, end?: string): string => {
   if (!start) return '';
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-  const s = new Date(`${start}T00:00`).toLocaleDateString(undefined, opts);
+  const s = safeFormatDate(start);
   if (end && end !== start) {
-    const e = new Date(`${end}T00:00`).toLocaleDateString(undefined, opts);
+    const e = safeFormatDate(end);
     return `${s} – ${e}`;
   }
   return s;
@@ -259,8 +270,8 @@ export default function OrganizerSetup() {
 
       const imageUrl = uploadBody.url;
 
-      // 2. Save image URL to the tournament in the database
-      const updateRes = await fetch(`/api/tournaments/${params.id}`, {
+      const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
+      const updateRes = await fetch(`/api/tournaments/${tournamentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -508,12 +519,13 @@ export default function OrganizerSetup() {
   }, []);
 
   useEffect(() => {
-    if (!activeDivisionId) {
+    const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!activeDivisionId || !tournamentId) {
       setRegisteredTeams([]);
       return;
     }
     setTeamsLoading(true);
-    getDivisionTeams(params.id as string, activeDivisionId)
+    getDivisionTeams(tournamentId, activeDivisionId)
       .then(setRegisteredTeams)
       .catch(console.error)
       .finally(() => setTeamsLoading(false));
@@ -807,10 +819,7 @@ export default function OrganizerSetup() {
   const displayStart = basicInfo?.startDate ?? tournamentInfo?.startDate;
   const displayEnd = basicInfo?.endDate ?? tournamentInfo?.endDate;
   const displayDescription = basicInfo?.description ?? '';
-  const formatPillDate = (d?: string) => {
-    if (!d) return '';
-    return new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  const formatPillDate = (d?: string) => safeFormatDate(d);
   const startPill = formatPillDate(displayStart);
   const endPill = displayEnd ? formatPillDate(displayEnd) : startPill;
 
@@ -826,15 +835,14 @@ export default function OrganizerSetup() {
 
       <main className={styles.main}>
         <div className={styles.container}>
-          <div className={styles.headerArea}>
-            <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
-              <ArrowLeft size={18} />
-            </Link>
-            <h1 className={styles.title}>Tournament Setup</h1>
-          </div>
-
-          {/* ── Mobile Event Card (Compact Utility / 1B) ──────────── */}
+          {/* ── Mobile View (Header & Event Card) ──────────── */}
           <div className={styles.mobileOnly}>
+            <div className={styles.headerArea}>
+              <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
+                <ArrowLeft size={18} />
+              </Link>
+              <h1 className={styles.title}>Tournament Setup</h1>
+            </div>
             <div className={styles.mobileEventCard}>
               {basicInfo?.imageUrl ? (
                 <img src={basicInfo.imageUrl} alt="" className={styles.mobileEventLogo} />
@@ -1098,7 +1106,7 @@ export default function OrganizerSetup() {
                             <div className={styles.summaryItem}><span>Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
                             <div className={styles.summaryItem}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
                             <div className={styles.summaryItem}><span>Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
-                            <div className={styles.summaryItem}><span>Opens</span><strong>{activeDivision.registrationOpenDate ? new Date(activeDivision.registrationOpenDate).toLocaleDateString() : 'Immediately'}</strong></div>
+                            <div className={styles.summaryItem}><span>Opens</span><strong>{activeDivision.registrationOpenDate ? safeFormatDate(activeDivision.registrationOpenDate) : 'Immediately'}</strong></div>
                             <div className={styles.summaryItem}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
                           </div>
 
@@ -1143,84 +1151,68 @@ export default function OrganizerSetup() {
 
                 {/* ── Mobile stat row / details / teams (Compact Utility / 1B) ── */}
                 <div className={styles.mobileOnly}>
-                  <div className={styles.mobileStatRow}>
-                    <div className={styles.mobileStat}>
-                      <span className={styles.mobileStatValue}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
-                      <span className={styles.mobileStatLabel}>Teams</span>
-                    </div>
-                    <div className={styles.mobileStat}>
-                      <span className={styles.mobileStatValue}>{activeDivision.registrationFee === 0 ? 'Free' : `฿${activeDivision.registrationFee}`}</span>
-                      <span className={styles.mobileStatLabel}>Fee</span>
-                    </div>
-                    <div className={styles.mobileStat}>
-                      <span className={styles.mobileStatValue}>{activeDivision.formatTypeOnSand}</span>
-                      <span className={styles.mobileStatLabel}>Format</span>
-                    </div>
-                    <div className={styles.mobileStat}>
-                      <span className={styles.mobileStatValue}>{activeDivision.maxRosterSize}</span>
-                      <span className={styles.mobileStatLabel}>Roster</span>
-                    </div>
-                  </div>
+                  {activeDivision && (
+                    <>
+                      <div className={styles.mobileStatRow}>
+                        <div className={styles.mobileStat}>
+                          <span className={styles.mobileStatValue}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
+                          <span className={styles.mobileStatLabel}>Teams</span>
+                        </div>
+                        <div className={styles.mobileStat}>
+                          <span className={styles.mobileStatValue}>{activeDivision.registrationFee === 0 ? 'Free' : `฿${activeDivision.registrationFee}`}</span>
+                          <span className={styles.mobileStatLabel}>Fee</span>
+                        </div>
+                        <div className={styles.mobileStat}>
+                          <span className={styles.mobileStatValue}>{activeDivision.formatTypeOnSand}</span>
+                          <span className={styles.mobileStatLabel}>Format</span>
+                        </div>
+                        <div className={styles.mobileStat}>
+                          <span className={styles.mobileStatValue}>{activeDivision.maxRosterSize}</span>
+                          <span className={styles.mobileStatLabel}>Roster</span>
+                        </div>
+                      </div>
 
-                  <div className={styles.mobileDetailsCard}>
-                    <button
-                      type="button"
-                      className={styles.mobileDetailsHeader}
-                      onClick={() => setDetailsCollapsed(!detailsCollapsed)}
-                    >
-                      Division Details
-                      {detailsCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                    </button>
-                    {!detailsCollapsed && (
-                      <div className={styles.mobileDetailsBody}>
-                        <div className={styles.mobileDetailRow}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
-                        <div className={styles.mobileDetailRow}><span>On-Sand Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
-                        <div className={styles.mobileDetailRow}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
-                        <div className={styles.mobileDetailRow}><span>Registration Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
-                        <div className={styles.mobileDetailRow}><span>Registration Opens</span><strong>{activeDivision.registrationOpenDate ? new Date(activeDivision.registrationOpenDate).toLocaleString() : 'Immediately'}</strong></div>
-                        <div className={styles.mobileDetailRow}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
-                        {activeDivision.rules && (
-                          <p className={styles.mobileDetailRules}>{activeDivision.rules}</p>
+                      <div className={styles.mobileDetailsCard}>
+                        <button
+                          type="button"
+                          className={styles.mobileDetailsHeader}
+                          onClick={() => setDetailsCollapsed(!detailsCollapsed)}
+                        >
+                          Division Details
+                          {detailsCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        </button>
+                        {!detailsCollapsed && (
+                          <div className={styles.mobileDetailsBody}>
+                            <div className={styles.mobileDetailRow}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
+                            <div className={styles.mobileDetailRow}><span>On-Sand Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
+                            <div className={styles.mobileDetailRow}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
+                            <div className={styles.mobileDetailRow}><span>Registration Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
+                            <div className={styles.mobileDetailRow}><span>Registration Opens</span><strong>{activeDivision.registrationOpenDate ? safeFormatDate(activeDivision.registrationOpenDate) : 'Immediately'}</strong></div>
+                            <div className={styles.mobileDetailRow}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
+                            {activeDivision.rules && (
+                              <p className={styles.mobileDetailRules}>{activeDivision.rules}</p>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
 
-                  <div className={styles.mobileTeamsCard}>
-                    <div className={styles.mobileTeamsHeader}>
-                      <h3>Registered Teams</h3>
-                      <span className={styles.mobileTeamsCount}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
-                    </div>
-                    <div className={styles.mobileTeamsBar}>
-                      <div className={styles.mobileTeamsBarFill} style={{ width: `${fillRatio * 100}%` }} />
-                    </div>
-                    {teamsLoading ? (
-                      <p className={styles.summaryText}>Loading registered teams…</p>
-                    ) : registeredTeams.length === 0 ? (
-                      <p className={styles.summaryText}>No teams registered yet.</p>
-                    ) : (
-                      <>
-                        {confirmedTeams.map((t, idx) => (
-                          <div key={t.id} className={styles.mobileTeamRow}>
-                            <span className={styles.mobileTeamRank}>{idx + 1}</span>
-                            <span className={styles.mobileTeamName}>
-                              {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
-                            </span>
-                            <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
-                              {t.paymentCleared ? 'Paid' : 'Unpaid'}
-                            </span>
-                          </div>
-                        ))}
-
-                        {waitlistTeamsList.length > 0 && (
+                      <div className={styles.mobileTeamsCard}>
+                        <div className={styles.mobileTeamsHeader}>
+                          <h3>Registered Teams</h3>
+                          <span className={styles.mobileTeamsCount}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
+                        </div>
+                        <div className={styles.mobileTeamsBar}>
+                          <div className={styles.mobileTeamsBarFill} style={{ width: `${fillRatio * 100}%` }} />
+                        </div>
+                        {teamsLoading ? (
+                          <p className={styles.summaryText}>Loading registered teams…</p>
+                        ) : registeredTeams.length === 0 ? (
+                          <p className={styles.summaryText}>No teams registered yet.</p>
+                        ) : (
                           <>
-                            <div className={styles.mobileWaitlistHeader}>
-                              <span className={styles.mobileWaitlistDot} />
-                              Waiting List · {waitlistTeamsList.length}
-                            </div>
-                            {waitlistTeamsList.map((t, idx) => (
+                            {confirmedTeams.map((t, idx) => (
                               <div key={t.id} className={styles.mobileTeamRow}>
-                                <span className={`${styles.mobileTeamRank} ${styles.mobileTeamRankWaitlist}`}>{idx + 1}</span>
+                                <span className={styles.mobileTeamRank}>{idx + 1}</span>
                                 <span className={styles.mobileTeamName}>
                                   {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
                                 </span>
@@ -1229,11 +1221,31 @@ export default function OrganizerSetup() {
                                 </span>
                               </div>
                             ))}
+
+                            {waitlistTeamsList.length > 0 && (
+                              <>
+                                <div className={styles.mobileWaitlistHeader}>
+                                  <span className={styles.mobileWaitlistDot} />
+                                  Waiting List · {waitlistTeamsList.length}
+                                </div>
+                                {waitlistTeamsList.map((t, idx) => (
+                                  <div key={t.id} className={styles.mobileTeamRow}>
+                                    <span className={`${styles.mobileTeamRank} ${styles.mobileTeamRankWaitlist}`}>{idx + 1}</span>
+                                    <span className={styles.mobileTeamName}>
+                                      {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
+                                    </span>
+                                    <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
+                                      {t.paymentCleared ? 'Paid' : 'Unpaid'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </>
+                            )}
                           </>
                         )}
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </main>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Calendar, ChevronDown, MapPin, Trophy, Users, X } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Trophy, Unlock, Users, X } from 'lucide-react';
 import styles from './page.module.css';
 import { Button } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
@@ -38,6 +38,7 @@ interface ViewRow {
   seed: number | null;
   name: string;
   win: boolean;
+  lost: boolean;
   live: boolean;
 }
 
@@ -121,20 +122,21 @@ function projectBracket(teams: SeedTeam[]): BracketView | null {
       const aWins = b.name === null || (a.name !== null && a.seed < b.seed);
       winners.push(aWins ? a : b);
 
-      const mkRow = (e: Entrant, win: boolean): ViewRow => ({
+      const mkRow = (e: Entrant): ViewRow => ({
         seed: e.name === null ? null : e.seed,
         name: e.name ?? 'BYE',
-        win,
-        live: isFinal,
+        win: false,
+        lost: false,
+        live: false,
       });
 
       matches.push({
-        live: isFinal,
+        live: false,
         hasRight: !isFinal,
         hasLeft: r > 0,
         hasSpine: !isFinal && i % 2 === 0,
-        rowA: mkRow(a, !isFinal && aWins),
-        rowB: mkRow(b, !isFinal && !aWins),
+        rowA: mkRow(a),
+        rowB: mkRow(b),
       });
     }
 
@@ -143,6 +145,41 @@ function projectBracket(teams: SeedTeam[]): BracketView | null {
   }
 
   return { rounds, champion: teams[0]?.name ?? null, fromDb: false };
+}
+
+/* Empty bracket sized to the confirmed-team count, shown before a pure
+   single-elimination draw exists. The field is padded to the next power of
+   two and every slot is left blank (no teams, no byes) — the skeleton just
+   shows the match numbers and each later slot's "Winner of M#" feed, ready
+   to be populated one name at a time when the organizer draws. */
+function emptyBracket(teamCount: number): BracketView | null {
+  if (teamCount < 2) return null;
+  let size = 2;
+  while (size < teamCount) size *= 2;
+
+  const totalRounds = Math.log2(size);
+  const rounds: ViewRound[] = [];
+  let matchCount = size / 2;
+
+  for (let r = 0; r < totalRounds; r++) {
+    const isFinal = r === totalRounds - 1;
+    const matches: ViewMatch[] = [];
+    for (let i = 0; i < matchCount; i++) {
+      const mkRow = (): ViewRow => ({ seed: null, name: 'TBD', win: false, lost: false, live: false });
+      matches.push({
+        live: false,
+        hasRight: !isFinal,
+        hasLeft: r > 0,
+        hasSpine: !isFinal && i % 2 === 0,
+        rowA: mkRow(),
+        rowB: mkRow(),
+      });
+    }
+    rounds.push({ name: roundName(matchCount * 2), matches });
+    matchCount /= 2;
+  }
+
+  return { rounds, champion: null, fromDb: false };
 }
 
 /* Real bracket: the division's single-elimination rounds from the DB. */
@@ -161,6 +198,8 @@ function dbBracket(division: DetailDivision): BracketView | null {
         seed: id ? seedOf.get(id) ?? null : null,
         name: name ?? (bye ? 'BYE' : 'TBD'),
         win: winnerSide,
+        // A real team greys out once the match is decided against it.
+        lost: !!id && m.status === 'done' && m.winner !== undefined && !winnerSide,
         live: m.status === 'live',
       });
       return {
@@ -168,8 +207,8 @@ function dbBracket(division: DetailDivision): BracketView | null {
         hasRight: ri < total - 1,
         hasLeft: ri > 0,
         hasSpine: ri < total - 1 && mi % 2 === 0,
-        rowA: mkRow(m.teamAId, m.teamAName, m.winner === 'A'),
-        rowB: mkRow(m.teamBId, m.teamBName, m.winner === 'B'),
+        rowA: mkRow(m.teamAId, m.teamAName, m.status === 'done' && m.winner === 'A'),
+        rowB: mkRow(m.teamBId, m.teamBName, m.status === 'done' && m.winner === 'B'),
       };
     }),
   }));
@@ -192,6 +231,7 @@ export default function OrganizerBracketPage() {
   const [poolPlayOpen, setPoolPlayOpen] = useState(true);
   const [drawConfigOpen, setDrawConfigOpen] = useState(true);
   const [poolResultsOpen, setPoolResultsOpen] = useState(true);
+  const [standingsOpen, setStandingsOpen] = useState(true);
   const [round2Open, setRound2Open] = useState(true);
   const [bracketConfigOpen, setBracketConfigOpen] = useState(true);
   const [bracketOpen, setBracketOpen] = useState(true);
@@ -277,7 +317,38 @@ export default function OrganizerBracketPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const division = detail?.divisions.find(d => d.id === activeDiv) ?? null;
+  const division = useMemo(() => {
+    if (!detail) return null;
+    return detail.divisions.find(d => d.id === activeDiv) ?? detail.divisions[0] ?? null;
+  }, [detail, activeDiv]);
+
+  const [lockedByDiv, setLockedByDiv] = useState<Record<string, boolean>>({});
+
+  const isDrawLocked = useMemo(() => {
+    if (!activeDiv) return false;
+    if (lockedByDiv[activeDiv] !== undefined) return lockedByDiv[activeDiv];
+    return !!division?.drawConfig?.isLocked;
+  }, [activeDiv, lockedByDiv, division]);
+
+  const toggleLockDraw = async () => {
+    if (!division) return;
+    const nextLocked = !isDrawLocked;
+    setLockedByDiv(prev => ({ ...prev, [activeDiv]: nextLocked }));
+    if (nextLocked) {
+      setDrawConfigOpen(false);
+    }
+    try {
+      await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isLocked: nextLocked }),
+      });
+      await load(division.id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const seeds = seedsByDiv[activeDiv] ?? [];
   const config = configByDiv[activeDiv] ?? DEFAULT_DRAW;
 
@@ -316,8 +387,14 @@ export default function OrganizerBracketPage() {
 
   const bracket = useMemo<BracketView | null>(() => {
     if (!division) return null;
-    return dbBracket(division) ?? projectBracket(seeds);
-  }, [division, seeds]);
+    const db = dbBracket(division);
+    if (db) return db;
+    // Before a draw exists: with a preceding round robin, project from the
+    // seeds; for pure single elimination show the full empty bracket sized
+    // to the confirmed-team count.
+    const isRR = division.bracket.some(r => r.format === 'round-robin');
+    return isRR ? projectBracket(seeds) : emptyBracket(confirmedTeams.length);
+  }, [division, seeds, confirmedTeams]);
 
   const poolGroups = useMemo(() => {
     if (!division?.drawConfig) return [];
@@ -325,6 +402,65 @@ export default function OrganizerBracketPage() {
     if (!poolRound || poolRound.matches.length === 0) return [];
     return assignPools(confirmedTeams, division.drawConfig.pools).map(pool => ({ name: pool.name, teams: pool.items }));
   }, [division, confirmedTeams]);
+
+  /* Standings: pool matches carry no explicit pool id, so teams are
+     attributed to a pool via poolGroups (which mirrors the server's
+     serpentine assignment) and results are tallied from completed
+     round-robin matches. */
+  const poolStandings = useMemo(() => {
+    if (poolGroups.length === 0) return [];
+    const poolRound = division?.bracket.find(r => r.format === 'round-robin');
+    const matches = poolRound?.matches ?? [];
+
+    interface Standing {
+      teamId: string;
+      name: string;
+      played: number;
+      wins: number;
+      losses: number;
+      pointsFor: number;
+      pointsAgainst: number;
+    }
+    const statsByTeam = new Map<string, Standing>();
+    poolGroups.forEach(p => p.teams.forEach(t => {
+      statsByTeam.set(t.id, { teamId: t.id, name: t.name, played: 0, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0 });
+    }));
+
+    matches.forEach(m => {
+      if (m.status !== 'done' || !m.teamAId || !m.teamBId || !m.winner) return;
+      const a = statsByTeam.get(m.teamAId);
+      const b = statsByTeam.get(m.teamBId);
+      if (!a || !b) return;
+      a.played += 1; b.played += 1;
+      if (m.winner === 'A') { a.wins += 1; b.losses += 1; } else { b.wins += 1; a.losses += 1; }
+      (m.scoreA ?? []).forEach((points, i) => {
+        const against = m.scoreB?.[i] ?? 0;
+        a.pointsFor += points; a.pointsAgainst += against;
+        b.pointsFor += against; b.pointsAgainst += points;
+      });
+    });
+
+    return poolGroups.map(pool => ({
+      name: pool.name,
+      standings: pool.teams
+        .map(t => statsByTeam.get(t.id)!)
+        .sort((x, y) =>
+          y.wins - x.wins ||
+          (y.pointsFor - y.pointsAgainst) - (x.pointsFor - x.pointsAgainst) ||
+          y.pointsFor - x.pointsFor
+        ),
+    }));
+  }, [poolGroups, division]);
+
+  const rankingPools = useMemo(() => {
+    if (poolStandings.length > 0) {
+      return poolStandings.map(p => ({
+        name: p.name,
+        teams: p.standings.map(s => ({ id: s.teamId, name: s.name })),
+      }));
+    }
+    return poolGroups;
+  }, [poolStandings, poolGroups]);
 
   // The Round 1 feature set (draw config, pool results) belongs to the
   // round-robin format; other formats get their own features later.
@@ -374,13 +510,88 @@ export default function OrganizerBracketPage() {
     return { cardDelay, teamDelay, total };
   }, [animDiv, activeDiv, poolGroups, division]);
 
+  /* Re-draw reveal: on a re-draw the whole bracket starts empty and fills
+     one slot at a time, keyed per slot ("ri-mi-A" / "ri-mi-B").
+      • Round 1 first — with top seeds, team names reveal in seed order (top
+        seeds first), each BYE landing with its match's team; with no top
+        seeds, every BYE appears first, then the teams are drawn in.
+      • Later rounds only start AFTER round 1 is fully filled, so the pre-
+        advanced bye winners in round 2 don't spoil the draw. Each subsequent
+        slot continues the same one-at-a-time cadence. */
+  const bracketAnim = useMemo(() => {
+    if (animDiv !== activeDiv || !bracket || !bracket.fromDb) return null;
+    const rounds = bracket.rounds;
+    if (rounds.length === 0) return null;
+
+    const r1Matches = rounds[0]?.matches ?? [];
+    if (r1Matches.length === 0) return null;
+
+    const STAGGER = 3.0;
+    const DUR = 2.4;
+    const nameDelay = new Map<string, number>();
+    const hasTopSeeds = (division?.drawConfig?.topSeedIds?.length ?? 0) > 0;
+
+    let round1End: number;
+    if (hasRoundRobin) {
+      // Reveal single elimination bracket slots slowly one-by-one in match order
+      const teamSlots: string[] = [];
+      r1Matches.forEach((m, mi) => {
+        teamSlots.push(`0-${mi}-A`);
+        teamSlots.push(`0-${mi}-B`);
+      });
+      teamSlots.forEach((key, i) => nameDelay.set(key, i * STAGGER));
+      round1End = Math.max(0, teamSlots.length - 1) * STAGGER + DUR;
+    } else if (hasTopSeeds) {
+      // Team slots ordered by seed (ascending = top seeds first).
+      const teamSlots: { key: string; seed: number }[] = [];
+      r1Matches.forEach((m, mi) => {
+        if (m.rowA.name !== 'BYE') teamSlots.push({ key: `0-${mi}-A`, seed: m.rowA.seed ?? Infinity });
+        if (m.rowB.name !== 'BYE') teamSlots.push({ key: `0-${mi}-B`, seed: m.rowB.seed ?? Infinity });
+      });
+      teamSlots.sort((a, b) => a.seed - b.seed);
+      teamSlots.forEach((s, i) => nameDelay.set(s.key, i * STAGGER));
+      // A bye's empty side reveals with its match's team.
+      r1Matches.forEach((m, mi) => {
+        if (m.rowA.name === 'BYE') nameDelay.set(`0-${mi}-A`, nameDelay.get(`0-${mi}-B`) ?? 0);
+        if (m.rowB.name === 'BYE') nameDelay.set(`0-${mi}-B`, nameDelay.get(`0-${mi}-A`) ?? 0);
+      });
+      round1End = Math.max(0, teamSlots.length - 1) * STAGGER + DUR;
+    } else {
+      // No top seeds: reveal every BYE first (one-by-one), then the teams.
+      const BYE_STAGGER = 3.0;
+      const byeSlots: string[] = [];
+      const teamSlots: string[] = [];
+      r1Matches.forEach((m, mi) => {
+        (m.rowA.name === 'BYE' ? byeSlots : teamSlots).push(`0-${mi}-A`);
+        (m.rowB.name === 'BYE' ? byeSlots : teamSlots).push(`0-${mi}-B`);
+      });
+      byeSlots.forEach((key, i) => nameDelay.set(key, i * BYE_STAGGER));
+      const byesEnd = byeSlots.length > 0 ? (byeSlots.length - 1) * BYE_STAGGER + DUR : 0;
+      teamSlots.forEach((key, i) => nameDelay.set(key, byesEnd + i * STAGGER));
+      round1End = byesEnd + Math.max(0, teamSlots.length - 1) * STAGGER + DUR;
+    }
+
+    // --- Later rounds: all reveal together, once round 1 has fully filled ---
+    const laterDelay = round1End + 0.3; // small beat once round 1 is complete
+    for (let ri = 1; ri < rounds.length; ri++) {
+      rounds[ri].matches.forEach((_, mi) => {
+        nameDelay.set(`${ri}-${mi}-A`, laterDelay);
+        nameDelay.set(`${ri}-${mi}-B`, laterDelay);
+      });
+    }
+
+    const total = rounds.length > 1 ? laterDelay + DUR : round1End;
+    return { nameDelay, total };
+  }, [animDiv, activeDiv, bracket, hasRoundRobin, division]);
+
   // Drop the animation classes once the sequence has fully played out, so
   // re-renders (division toggles, config edits) don't replay it.
   useEffect(() => {
-    if (!poolAnim) return;
-    const t = setTimeout(() => setAnimDiv(null), (poolAnim.total + 0.5) * 1000);
+    const totalSec = bracketAnim?.total ?? poolAnim?.total ?? 0;
+    if (totalSec === 0) return;
+    const t = setTimeout(() => setAnimDiv(null), (totalSec + 0.5) * 1000);
     return () => clearTimeout(t);
-  }, [poolAnim]);
+  }, [poolAnim, bracketAnim]);
 
   if (loading) {
     return <div className={styles.page}><div className={styles.centerState}>Loading tournament…</div></div>;
@@ -481,6 +692,7 @@ export default function OrganizerBracketPage() {
       await load(division.id);
       setAnimDiv(division.id);
       setDrawTick(t => t + 1);
+      setBracketOpen(true);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save the draw');
     } finally {
@@ -492,8 +704,34 @@ export default function OrganizerBracketPage() {
   const firstRoundMatches = bracket?.rounds[0]?.matches.length ?? 0;
   const colHeight = Math.max(firstRoundMatches * 95, 190);
 
-  const rowClass = (row: ViewRow) =>
-    `${styles.matchName} ${row.win ? styles.matchNameWin : ''} ${row.live ? styles.matchNameLive : ''}`;
+  // Pure single-elimination summary (bracket padded to the next power of two).
+  const seTeams = confirmedTeams.length;
+  const seSize = seTeams >= 2 ? (() => { let s = 2; while (s < seTeams) s *= 2; return s; })() : 0;
+  const seByes = seSize > 0 ? seSize - seTeams : 0;
+
+  // Sequential match numbers across the whole bracket (round by round), so a
+  // fed slot can point at the match it comes from ("Winner of M3").
+  const matchNumbers: number[][] = [];
+  if (bracket) {
+    let counter = 1;
+    bracket.rounds.forEach((round, r) => {
+      matchNumbers[r] = round.matches.map(() => counter++);
+    });
+  }
+
+  // Winners are emphasized only for real, completed matches (from the DB) —
+  // never for projections. A fed slot with no team yet reads "Winner of M#"
+  // (its feeding match); an undrawn round-1 slot is left blank.
+  const rowClass = (row: ViewRow) => {
+    const dimmed = row.name === 'BYE' || (row.lost && bracket?.fromDb);
+    return `${styles.matchName} ${row.win && bracket?.fromDb ? styles.matchNameWin : ''} ${dimmed ? styles.matchNameLost : ''} ${row.live ? styles.matchNameLive : ''}`;
+  };
+
+  const rowDisplay = (row: ViewRow, roundIdx: number, feedNo: number | undefined) => {
+    if (row.name === 'BYE') return 'BYE';
+    if (row.name !== 'TBD') return row.name;
+    return roundIdx > 0 && feedNo !== undefined ? `Winner of M${feedNo}` : '';
+  };
 
   return (
     <div className={styles.page}>
@@ -600,7 +838,7 @@ export default function OrganizerBracketPage() {
                 Round 1 <span style={{ color: 'var(--ink-500)' }}>· {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat}</span>
               </h2>
               <div className={styles.headBtns} onClick={e => e.stopPropagation()}>
-                {isRoundRobin && (
+                {isRoundRobin && !isDrawLocked && (
                   <button
                     type="button"
                     className={styles.toggleBtn}
@@ -617,11 +855,24 @@ export default function OrganizerBracketPage() {
                   <button
                     type="button"
                     className={styles.toggleBtn}
-                    aria-label="Toggle pool results"
+                    aria-label="Toggle draw result"
                     onClick={() => setPoolResultsOpen(v => !v)}
                   >
-                    <span>Pool Results</span>
+                    <span>Draw Result</span>
                     <span className={`${styles.chevron} ${poolResultsOpen ? styles.chevronOpen : ''}`}>
+                      <ChevronDown size={18} />
+                    </span>
+                  </button>
+                )}
+                {isRoundRobin && poolGroups.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.toggleBtn}
+                    aria-label="Toggle standing table"
+                    onClick={() => setStandingsOpen(v => !v)}
+                  >
+                    <span>Standing Table</span>
+                    <span className={`${styles.chevron} ${standingsOpen ? styles.chevronOpen : ''}`}>
                       <ChevronDown size={18} />
                     </span>
                   </button>
@@ -641,7 +892,8 @@ export default function OrganizerBracketPage() {
             <div className={`${styles.roundWrap} ${poolPlayOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
             {isRoundRobin ? (
             <>
-            <div className={`${styles.roundWrap} ${drawConfigOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            {!isDrawLocked && (
+              <div className={`${styles.roundWrap} ${drawConfigOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
             <div className={styles.poolRow}>
               <div className={styles.seedCard}>
                 <h3 className={styles.cardTitle}>Top Seed</h3>
@@ -752,57 +1004,31 @@ export default function OrganizerBracketPage() {
                 <div>
                   <label className={styles.fieldLabel}>Number of Pools</label>
                   <div className={styles.fieldRow}>
-                    <input
-                      type="number"
-                      min={2}
-                      max={8}
-                      value={config.pools}
-                      onChange={e => {
-                        let v = parseInt(e.target.value, 10);
-                        if (isNaN(v)) v = 2;
-                        setConfig({ pools: Math.max(2, Math.min(8, v)) });
-                      }}
-                      className={styles.numInput}
-                    />
+                    <div className={styles.stepper}>
+                      <button
+                        type="button"
+                        className={styles.stepperBtn}
+                        onClick={() => setConfig({ pools: Math.max(2, config.pools - 1) })}
+                        disabled={config.pools <= 2}
+                        aria-label="Decrease number of pools"
+                      >
+                        −
+                      </button>
+                      <span className={styles.stepperValue}>{config.pools}</span>
+                      <button
+                        type="button"
+                        className={styles.stepperBtn}
+                        onClick={() => setConfig({ pools: Math.min(8, config.pools + 1) })}
+                        disabled={config.pools >= 8}
+                        aria-label="Increase number of pools"
+                      >
+                        +
+                      </button>
+                    </div>
                     <span className={styles.fieldSummary}>
                       {confirmedTeams.length} teams · ~{perPool} per pool
                     </span>
                   </div>
-                </div>
-                <div>
-                  <label className={styles.fieldLabel}>Teams Advancing per Pool</label>
-                  <div className={styles.fieldRow}>
-                    <input
-                      type="number"
-                      min={1}
-                      max={4}
-                      value={config.advance}
-                      onChange={e => {
-                        let v = parseInt(e.target.value, 10);
-                        if (isNaN(v)) v = 1;
-                        setConfig({ advance: Math.max(1, Math.min(4, v)) });
-                      }}
-                      className={styles.numInput}
-                    />
-                    <span className={styles.fieldSummary}>
-                      {config.advance * config.pools} teams advance to next round
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <label className={styles.fieldLabel}>Bracket Crossing Logic <em>*</em></label>
-                  <div className={styles.selectWrap}>
-                    <select
-                      className={styles.select}
-                      value={config.crossing}
-                      onChange={e => setConfig({ crossing: e.target.value })}
-                    >
-                      <option value="fivb">FIVB Standard Draw</option>
-                      <option value="static">Static Cross-Bracket A1–D4</option>
-                    </select>
-                    <span className={styles.selectChevron}><ChevronDown size={18} /></span>
-                  </div>
-                  <p className={styles.fieldNote}>Determines how pool finishers are seeded into the knockout round.</p>
                 </div>
                 <div className={styles.drawBtnWrap}>
                   <Button
@@ -812,6 +1038,7 @@ export default function OrganizerBracketPage() {
                     loading={saving}
                     disabled={confirmedTeams.length < 2}
                     onClick={saveDraw}
+                    style={{ height: 60, fontSize: 16 }}
                   >
                     Draw Pool
                   </Button>
@@ -820,17 +1047,35 @@ export default function OrganizerBracketPage() {
               </div>
             </div>
             </div>
+            )}
 
             {poolGroups.length > 0 && (
               <div className={`${styles.roundWrap} ${poolResultsOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
               <div className={styles.poolsWrap}>
                 <div className={styles.poolsHead}>
-                  <h3 className={styles.cardTitle}>Pool Results</h3>
-                  {!!division?.drawConfig?.attempts && (
-                    <span className={styles.attemptNote}>
-                      {division.drawConfig.attempts} attempt{division.drawConfig.attempts === 1 ? '' : 's'}
-                    </span>
-                  )}
+                  <div className={styles.poolsHeadLeft}>
+                    <h3 className={styles.cardTitle}>Draw Result</h3>
+                    {!!division?.drawConfig?.attempts && (
+                      <span className={styles.attemptNote}>
+                        {division.drawConfig.attempts} attempt{division.drawConfig.attempts === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className={isDrawLocked ? styles.lockBtnActive : styles.lockBtn}
+                    onClick={toggleLockDraw}
+                  >
+                    {isDrawLocked ? (
+                      <>
+                        <Lock size={14} /> Draw Result Locked
+                      </>
+                    ) : (
+                      <>
+                        <Unlock size={14} /> Lock Draw Result
+                      </>
+                    )}
+                  </button>
                 </div>
                 <div className={styles.poolsGrid} key={drawTick}>
                   {poolGroups.map(pool => (
@@ -854,6 +1099,50 @@ export default function OrganizerBracketPage() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              </div>
+            )}
+
+            {poolGroups.length > 0 && (
+              <div className={`${styles.roundWrap} ${standingsOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+              <div className={styles.poolsWrap}>
+                <div className={styles.poolsHead}>
+                  <div className={styles.poolsHeadLeft}>
+                    <h3 className={styles.cardTitle}>Standing Table</h3>
+                  </div>
+                </div>
+                <div className={styles.poolsGrid}>
+                  {poolStandings.map(pool => (
+                    <div key={pool.name} className={styles.poolCard}>
+                      <div className={styles.poolCardHeader}>
+                        <span className={styles.poolBadge}>{pool.name}</span>
+                        <span className={styles.poolCardCount}>{pool.standings.length} teams</span>
+                      </div>
+                      <table className={styles.standingsTable}>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Team</th>
+                            <th>W</th>
+                            <th>L</th>
+                            <th>Pts</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pool.standings.map((s, i) => (
+                            <tr key={s.teamId}>
+                              <td>{i + 1}</td>
+                              <td className={styles.standingsTeam}>{s.name}</td>
+                              <td>{s.wins}</td>
+                              <td>{s.losses}</td>
+                              <td>{s.pointsFor - s.pointsAgainst > 0 ? '+' : ''}{s.pointsFor - s.pointsAgainst}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   ))}
                 </div>
@@ -920,13 +1209,55 @@ export default function OrganizerBracketPage() {
               <>
                 <p className={styles.sectionSubSpaced}>
                   {firstRoundMatches * 2 || 'No'}-team {knockoutFormat === 'double' ? 'double' : 'single'} elimination · {division?.label ?? '—'} ·{' '}
-                  {bracket?.fromDb ? 'generated draw' : 'projected from current seeding'}
+                  {bracket?.fromDb
+                    ? 'generated draw'
+                    : hasRoundRobin
+                      ? 'projected from current seeding'
+                      : `empty bracket · ${confirmedTeams.length} teams · draw to place`}
                 </p>
 
                 {/* Seed / Draw Configuration for pure Single Elimination (no pool play) */}
                 {!hasRoundRobin && (
                   <div className={styles.poolRow} style={{ marginBottom: 24 }}>
-                    <div className={styles.seedCard}>
+                    {/* Left pane: bracket overview + draw action */}
+                    <div className={styles.configCard} style={{ flex: 1 }}>
+                      <h3 className={styles.cardTitle}>Bracket Overview</h3>
+                      <div className={styles.statList}>
+                        <div className={styles.statRow}>
+                          <span className={styles.statLabel}>Teams</span>
+                          <span className={styles.statValue}>{seTeams}</span>
+                        </div>
+                        <div className={styles.statRow}>
+                          <span className={styles.statLabel}>Top seeds</span>
+                          <span className={styles.statValue}>{seeds.length}</span>
+                        </div>
+                        <div className={styles.statRow}>
+                          <span className={styles.statLabel}>Byes</span>
+                          <span className={`${styles.statValue} ${seByes > 0 ? styles.statValueAccent : ''}`}>{seByes}</span>
+                        </div>
+                      </div>
+                      <div className={styles.drawBtnWrap}>
+                        <Button
+                          variant="primary"
+                          size="medium"
+                          fullWidth
+                          loading={saving}
+                          disabled={confirmedTeams.length < 2}
+                          onClick={saveDraw}
+                          style={{ height: 60, fontSize: 16 }}
+                        >
+                          {saving ? 'Drawing Bracket…' : bracket?.fromDb ? 'Re-Draw Bracket' : 'Draw Bracket'}
+                        </Button>
+                        {saveError && <p className={styles.saveError}>{saveError}</p>}
+                        {division?.drawConfig?.attempts ? (
+                          <p className={styles.fieldNote} style={{ marginTop: 8, textAlign: 'center' }}>
+                            Draw Attempt #{division.drawConfig.attempts}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    {/* Right pane: top-seed selection */}
+                    <div className={styles.seedCard} style={{ flex: 1 }}>
                       <h3 className={styles.cardTitle}>Top Seed</h3>
                       <div className={styles.seedSelectRow}>
                         <div className={styles.selectWrap} ref={dropdownRef}>
@@ -1002,22 +1333,26 @@ export default function OrganizerBracketPage() {
                         {seeds.map((team, i) => (
                           <div
                             key={team.id}
-                            draggable
-                            onDragStart={() => setDragIndex(i)}
-                            onDragEnter={() => reorder(i)}
+                            draggable={hasRoundRobin}
+                            onDragStart={() => hasRoundRobin && setDragIndex(i)}
+                            onDragEnter={() => hasRoundRobin && reorder(i)}
                             onDragOver={e => e.preventDefault()}
                             onDragEnd={() => setDragIndex(null)}
                             className={`${styles.seedRow} ${dragIndex === i ? styles.seedRowDragging : ''}`}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                              <span className={styles.seedRowNum}>{i + 1}</span>
+                              {!hasRoundRobin ? (
+                                <span className={styles.topSeedBadge}>Top Seed</span>
+                              ) : (
+                                <span className={styles.seedRowNum}>{i + 1}</span>
+                              )}
                               <span className={styles.seedRowName}>{team.name}</span>
                             </div>
                             <button
                               type="button"
                               onClick={() => removeSeed(team.id)}
-                              title="Remove from seeding"
+                              title="Remove top seed"
                               style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                             >
                               <X size={16} />
@@ -1025,7 +1360,11 @@ export default function OrganizerBracketPage() {
                           </div>
                         ))}
                         {seeds.length === 0 && (
-                          <div className={styles.emptyNote}>No teams seeded yet. Use the dropdown above to add seeds.</div>
+                          <div className={styles.emptyNote}>
+                            {!hasRoundRobin
+                              ? 'No top seeds assigned. All teams will be randomly drawn into the bracket.'
+                              : 'No teams seeded yet. Use the dropdown above to add seeds.'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1034,33 +1373,8 @@ export default function OrganizerBracketPage() {
 
                 {/* Pool rankings and Bracket Crossing Settings Card when there is a preceding round-robin round */}
                 {hasRoundRobin && (
-                  <div className={styles.poolRow} style={{ marginBottom: 24, gap: 24 }}>
-                    {/* Pool Rankings */}
-                    <div className={styles.seedCard} style={{ flex: 1 }}>
-                      <h3 className={styles.cardTitle}>Pool Rankings</h3>
-                      <div className={styles.poolsGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-                        {poolGroups.map(pool => (
-                          <div key={pool.name} className={styles.poolCard} style={{ border: '1px solid var(--ink-200)', borderRadius: 12, padding: 12, backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                            <div className={styles.poolCardHeader} style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span className={styles.poolBadge}>{pool.name}</span>
-                              <span className={styles.poolCardCount} style={{ fontSize: 12, color: 'var(--ink-500)' }}>{pool.teams.length} teams</span>
-                            </div>
-                            <div className={styles.poolTeamList} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              {pool.teams.map((t, idx) => (
-                                <div key={t.id} className={styles.poolTeamRow} style={{ fontSize: 13, color: 'var(--ink-800)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span className={styles.seedRowNum} style={{ fontSize: 11, fontWeight: 700, minWidth: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    #{idx + 1}
-                                  </span>
-                                  <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{t.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bracket Crossing Settings Card */}
+                  <div className={styles.poolRow} style={{ marginBottom: 24, gap: 24, display: 'flex', alignItems: 'flex-start' }}>
+                    {/* Left Pane: Bracket Crossing Settings Card */}
                     <div className={styles.configCard} style={{ width: 340, flexShrink: 0 }}>
                       <h3 className={styles.cardTitle}>Bracket Crossing Settings</h3>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1113,6 +1427,73 @@ export default function OrganizerBracketPage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Right Pane: Pool Rankings */}
+                    <div className={styles.seedCard} style={{ flex: 1 }}>
+                      <h3 className={styles.cardTitle}>Pool Rankings</h3>
+                      <div className={styles.poolsGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                        {rankingPools.map(pool => (
+                          <div key={pool.name} className={styles.poolCard} style={{ border: '1px solid var(--sand-300, #EAE5DD)', borderRadius: 12, padding: 14, backgroundColor: 'var(--surface-card, #ffffff)' }}>
+                            <div className={styles.poolCardHeader} style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className={styles.poolBadge} style={{ fontWeight: 800 }}>{pool.name}</span>
+                              <span className={styles.poolCardCount} style={{ fontSize: 12, color: 'var(--ink-500)' }}>{pool.teams.length} teams</span>
+                            </div>
+                            <div className={styles.poolTeamList} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {pool.teams.map((t, idx) => {
+                                const isAdvancing = idx < config.advance;
+                                return (
+                                  <div
+                                    key={t.id}
+                                    className={styles.poolTeamRow}
+                                    style={{
+                                      fontSize: 13,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 10,
+                                      padding: '6px 10px',
+                                      borderRadius: 8,
+                                      backgroundColor: isAdvancing ? 'var(--surface-card, #ffffff)' : 'transparent',
+                                      opacity: isAdvancing ? 1 : 0.45,
+                                      border: isAdvancing ? '1px solid var(--sand-300, #EAE5DD)' : '1px transparent solid',
+                                      transition: 'all 0.2s ease',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        minWidth: 22,
+                                        height: 22,
+                                        borderRadius: 6,
+                                        backgroundColor: isAdvancing ? 'var(--orange, #EE7A4C)' : 'rgba(0,0,0,0.06)',
+                                        color: isAdvancing ? '#ffffff' : 'var(--ink-600)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      #{idx + 1}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontWeight: isAdvancing ? 700 : 500,
+                                        color: isAdvancing ? 'var(--ink-900)' : 'var(--ink-500)',
+                                        textOverflow: 'ellipsis',
+                                        overflow: 'hidden',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {t.name}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </>
@@ -1123,13 +1504,20 @@ export default function OrganizerBracketPage() {
                 {bracket ? (
                   <div className={styles.bracketScroll}>
                     <div className={styles.bracketRow}>
-                      {bracket.rounds.map(round => (
+                      {bracket.rounds.map((round, ri) => (
                         <div key={round.name} className={styles.roundCol}>
                           <div className={styles.roundName}>{round.name}</div>
                           <div className={styles.roundMatches} style={{ height: colHeight }}>
-                            {round.matches.map((m, mi) => (
-                              <div key={mi} className={styles.matchSlot}>
-                                <div className={styles.matchCard}>
+                            {round.matches.map((m, mi) => {
+                              const feedA = ri > 0 ? matchNumbers[ri - 1]?.[mi * 2] : undefined;
+                              const feedB = ri > 0 ? matchNumbers[ri - 1]?.[mi * 2 + 1] : undefined;
+                              // Round-1 names reveal one at a time on a re-draw.
+                              const revealA = bracketAnim?.nameDelay.get(`${ri}-${mi}-A`);
+                              const revealB = bracketAnim?.nameDelay.get(`${ri}-${mi}-B`);
+                              return (
+                                <div key={mi} className={styles.matchSlot}>
+                                  <div className={styles.matchCard}>
+                                  <span className={styles.matchNo}>M{matchNumbers[ri]?.[mi]}</span>
                                   {m.live && (
                                     <div className={styles.matchLiveRow}>
                                       <span className={styles.liveTag}>
@@ -1139,20 +1527,28 @@ export default function OrganizerBracketPage() {
                                     </div>
                                   )}
                                   <div className={styles.matchRow}>
-                                    <span className={styles.matchSeed}>{m.rowA.seed ?? '–'}</span>
-                                    <span className={rowClass(m.rowA)}>{m.rowA.name}</span>
+                                    <span
+                                      className={`${rowClass(m.rowA)} ${revealA !== undefined ? styles.nameReveal : ''}`}
+                                      style={revealA !== undefined ? { animationDelay: `${revealA}s` } : undefined}
+                                    >
+                                      {rowDisplay(m.rowA, ri, feedA)}
+                                    </span>
                                   </div>
                                   <div className={styles.matchDivider} />
                                   <div className={styles.matchRow}>
-                                    <span className={styles.matchSeed}>{m.rowB.seed ?? '–'}</span>
-                                    <span className={rowClass(m.rowB)}>{m.rowB.name}</span>
+                                    <span
+                                      className={`${rowClass(m.rowB)} ${revealB !== undefined ? styles.nameReveal : ''}`}
+                                      style={revealB !== undefined ? { animationDelay: `${revealB}s` } : undefined}
+                                    >
+                                      {rowDisplay(m.rowB, ri, feedB)}
+                                    </span>
                                   </div>
                                 </div>
                                 {m.hasRight && <div className={styles.connRight} />}
                                 {m.hasSpine && <div className={styles.connSpine} />}
-                                {m.hasLeft && <div className={styles.connLeft} />}
-                              </div>
-                            ))}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       ))}
@@ -1162,10 +1558,12 @@ export default function OrganizerBracketPage() {
                           <div className={styles.champCard}>
                             <span className={styles.champTrophy}><Trophy size={30} /></span>
                             <span className={styles.champEyebrow}>
-                              {bracket.fromDb ? (bracket.champion ? 'Champion' : 'Awaiting Final') : 'Projected Winner'}
+                              {bracket.fromDb
+                                ? (bracket.champion ? 'Champion' : 'Awaiting Final')
+                                : (bracket.champion ? 'Projected Winner' : 'Champion')}
                             </span>
                             <span className={styles.champName}>
-                              {bracket.champion ?? (bracket.fromDb ? 'TBD' : seeds[0]?.name ?? 'TBD')}
+                              {bracket.champion ?? 'TBD'}
                             </span>
                           </div>
                         </div>

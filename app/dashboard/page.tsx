@@ -82,6 +82,15 @@ function byNearestEvent(a: CardTournament, b: CardTournament): number {
   return (b.endDate || b.startDate).localeCompare(a.endDate || a.startDate);
 }
 
+// Row thumbnail initials — derived from the city (the part of the location
+// after the last comma), e.g. "Nang Thong Beach, Khao Lak" → "KL".
+function locationInitials(location: string): string {
+  const city = location.split(',').pop()?.trim() ?? location;
+  const words = city.split(/\s+/).filter(Boolean);
+  const initials = words.slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+  return initials || '??';
+}
+
 function matchesQuery(t: CardTournament, q: string): boolean {
   if (!q) return true;
   const needle = q.toLowerCase();
@@ -394,39 +403,51 @@ export default function OrganizerDashboard() {
         {activeTab === 'tournament' && (
           <>
             {/* Featured live hero + courts table */}
-            {liveTournaments.map(t => (
-              <section key={t.id} className={styles.liveSection}>
-                <div className={styles.hero}>
-                  <div className={styles.heroBg} aria-hidden="true">
-                    {t.imageUrl && <img src={t.imageUrl} alt="" />}
+            {liveTournaments.map(t => {
+              const detail = liveDetails[t.id] ?? null;
+              const liveRow = detail ? buildCourtRows(detail).find(r => r.hasLive) ?? null : null;
+              return (
+                <section key={t.id} className={styles.liveSection}>
+                  <div className={styles.hero}>
+                    <div className={styles.heroBg} aria-hidden="true">
+                      {t.imageUrl && <img src={t.imageUrl} alt="" />}
+                    </div>
+                    <div className={styles.heroScrim} aria-hidden="true" />
+                    <div className={styles.heroContent}>
+                      <div className={styles.heroTopRow}>
+                        <span className={styles.livePill}>
+                          <span className={styles.livePillDot} aria-hidden="true" />
+                          Live now{liveRow ? ` · ${liveRow.division} · ${liveRow.court}` : ''}
+                        </span>
+                      </div>
+                      <h2 className={styles.heroTitle}>{t.title}</h2>
+                      {liveRow && (
+                        <p className={styles.heroMatchup}>{liveRow.teamA} vs {liveRow.teamB}</p>
+                      )}
+                      <div className={styles.heroMeta}>
+                        <span><Calendar size={16} /> {t.date}</span>
+                        <span><MapPin size={16} /> {t.location}</span>
+                      </div>
+                      {liveRow && liveRow.sets.some(Boolean) && (
+                        <div className={styles.heroScorePill}>
+                          {liveRow.sets.filter(Boolean).map(s => `${s!.a}–${s!.b}`).join(' · ')}
+                        </div>
+                      )}
+                      <div className={styles.heroActions}>
+                        <Link href={`/dashboard/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
+                          <Trophy size={16} /> Open Bracket
+                        </Link>
+                        <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
+                          <Settings size={16} /> Manage Setup
+                        </Link>
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.heroScrim} aria-hidden="true" />
-                  <div className={styles.heroContent}>
-                    <div className={styles.heroTopRow}>
-                      <span className={styles.livePill}>
-                        <span className={styles.livePillDot} aria-hidden="true" />
-                        Live now
-                      </span>
-                    </div>
-                    <h2 className={styles.heroTitle}>{t.title}</h2>
-                    <div className={styles.heroMeta}>
-                      <span><Calendar size={16} /> {t.date}</span>
-                      <span><MapPin size={16} /> {t.location}</span>
-                    </div>
-                    <div className={styles.heroActions}>
-                      <Link href={`/dashboard/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
-                        <Trophy size={16} /> Open Live Bracket
-                      </Link>
-                      <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
-                        <Settings size={16} /> Manage Setup
-                      </Link>
-                    </div>
-                  </div>
-                </div>
 
-                <CourtsTable detail={liveDetails[t.id] ?? null} />
-              </section>
-            ))}
+                  <CourtsTable detail={detail} />
+                </section>
+              );
+            })}
 
             {/* Tournament list */}
             <section className={styles.section}>
@@ -438,7 +459,6 @@ export default function OrganizerDashboard() {
                 placeholder="Search tournaments, locations, divisions"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                showMic={false}
                 style={{ marginBottom: 18, background: 'var(--sand-200)' }}
               />
 
@@ -680,7 +700,7 @@ function TournamentRow({
         aria-expanded={expanded}
       >
         <span className={styles.rowThumb} aria-hidden="true">
-          {t.imageUrl ? <img src={t.imageUrl} alt="" /> : <Trophy size={22} strokeWidth={1.5} />}
+          <span className={styles.rowThumbInitials}>{locationInitials(t.location)}</span>
         </span>
 
         <span className={styles.rowInfo}>
@@ -691,12 +711,13 @@ function TournamentRow({
                 <span className={styles.rowLiveDot} aria-hidden="true" /> Live
               </span>
             )}
+            <span className={styles.rowDate}>{t.date}</span>
           </span>
           <span className={styles.rowTitle}>{t.title}</span>
           <span className={styles.rowMeta}>
-            <span>{t.date}</span>
-            <span className={styles.rowMetaDot} aria-hidden="true">•</span>
             <span>{t.location}</span>
+            <span className={styles.rowMetaDot} aria-hidden="true">•</span>
+            <span>{t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
           </span>
         </span>
 
@@ -714,8 +735,8 @@ function TournamentRow({
           <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
             <Trophy size={15} /> Bracket
           </Link>
-          <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>
-            <Settings size={15} /> Setup
+          <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.iconBtn} title="Manage setup" aria-label="Manage setup">
+            <Settings size={18} />
           </Link>
         </span>
 

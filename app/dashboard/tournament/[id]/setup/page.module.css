@@ -2037,6 +2037,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding-top: 16px;
+  min-height: 44px;
   margin-bottom: 24px;
 }
 .desktop2aHeaderLeft {
@@ -2047,13 +2049,14 @@
 .desktop2aTitle {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 28px;
-  letter-spacing: -0.01em;
+  font-size: 38px;
+  letter-spacing: -0.02em;
   color: var(--ink-1, #14181E);
   margin: 0;
+  line-height: 44px;
 }
 .desktop2aEditBtn {
-  height: 42px;
+  height: 44px;
   padding: 0 22px;
   border: none;
   border-radius: 999px;
