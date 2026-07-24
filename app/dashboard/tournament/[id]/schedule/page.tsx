@@ -113,8 +113,17 @@ export default function TournamentSchedulePage() {
       id: d.id,
       label: d.label,
       pools: d.drawConfig?.pools ?? 1,
+      netHeight: d.netHeight,
+      gender: d.gender,
       dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
-      matchIds: d.bracket.flatMap(r => r.matches.map(m => m.id)),
+      matches: d.bracket.flatMap(r =>
+        r.matches.map(m => ({
+          id: m.id,
+          teamA: m.teamAId,
+          teamB: m.teamBId,
+          isPool: r.format === 'round-robin',
+        })),
+      ),
     }));
     setPreview(generateSchedule(divs, config));
     setSaveMsg(null);
@@ -458,6 +467,8 @@ export default function TournamentSchedulePage() {
               <span className={styles.previewTag}>Preview</span>
               <span className={styles.previewText}>
                 {preview.assignments.length} matches placed · {preview.mode === 'wave' ? 'Rolling-wave' : 'Parallel'} mode
+                {' '}(V<sub>R</sub> {preview.venueRatio.toFixed(2)})
+                {preview.pivots > 0 && <> · {preview.pivots} net pivot{preview.pivots === 1 ? '' : 's'}</>}
                 {preview.overflow.length > 0 && (
                   <span className={styles.previewWarn}>
                     <AlertTriangle size={13} /> {preview.overflow.length} won&apos;t fit before day end

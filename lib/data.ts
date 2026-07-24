@@ -251,6 +251,8 @@ export interface DetailDivision {
   bracket: DetailRound[];
   drawConfig: DrawConfig | null;
   dedicatedCourts: number | null; // D_d override from settings.schedule (null = auto)
+  netHeight: string | null;       // settings.netHeight (free text, e.g. "2.24m")
+  gender: string | null;          // settings.genderEligibility (e.g. "Men" / "Mixed")
 }
 
 export interface DetailVoucher {
@@ -402,6 +404,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     divisions: row.divisions.map((d) => {
       const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;
       const sched = (d.settings as { schedule?: { dedicatedCourts?: number } } | null)?.schedule;
+      const settings = (d.settings ?? {}) as { netHeight?: unknown; genderEligibility?: unknown };
       return {
         id: d.id,
         label: d.name,
@@ -439,6 +442,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
             }
           : null,
         dedicatedCourts: typeof sched?.dedicatedCourts === 'number' ? sched.dedicatedCourts : null,
+        netHeight: typeof settings.netHeight === 'string' ? settings.netHeight : null,
+        gender: typeof settings.genderEligibility === 'string' ? settings.genderEligibility : null,
       };
     }),
     vouchers: row.vouchers.map((v) => ({
