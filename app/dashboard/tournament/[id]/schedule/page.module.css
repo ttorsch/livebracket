@@ -261,10 +261,14 @@
 }
 
 /* ── Court Grid View ─────────────────────────────────────────── */
+/* One row of all courts: N columns fill the width when they fit, and the row
+   scrolls horizontally (rather than wrapping) once there are too many. */
 .courtsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(var(--court-count, 4), minmax(240px, 1fr));
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .courtCard {

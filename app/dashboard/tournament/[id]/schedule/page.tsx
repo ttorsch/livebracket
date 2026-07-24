@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -585,7 +585,7 @@ export default function TournamentSchedulePage() {
               <Grid size={22} color="var(--orange, #EE7A4C)" />
               Court Match Schedules ({courtGroups.length} Courts)
             </h2>
-            <div className={styles.courtsGrid}>
+            <div className={styles.courtsGrid} style={{ '--court-count': courtGroups.length || 1 } as CSSProperties}>
               {courtGroups.map(group => (
                 <div key={group.courtName} className={styles.courtCard}>
                   <div className={styles.courtHeader}>
