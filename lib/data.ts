@@ -1,4 +1,22 @@
 import { supabase } from './supabase';
+import { type ScheduleConfig, DEFAULT_SCHEDULE_CONFIG } from './schedule/generate';
+
+export type { ScheduleConfig };
+
+// Merge a persisted tournaments.schedule_config blob over the defaults so
+// callers always get a fully-populated config (the column defaults to '{}').
+function readScheduleConfig(raw: unknown): ScheduleConfig {
+  const c = (raw ?? {}) as Partial<ScheduleConfig>;
+  return {
+    startTime: typeof c.startTime === 'string' ? c.startTime : DEFAULT_SCHEDULE_CONFIG.startTime,
+    endTime: typeof c.endTime === 'string' ? c.endTime : DEFAULT_SCHEDULE_CONFIG.endTime,
+    courtCount: typeof c.courtCount === 'number' ? c.courtCount : DEFAULT_SCHEDULE_CONFIG.courtCount,
+    blockMinutes: typeof c.blockMinutes === 'number' ? c.blockMinutes : DEFAULT_SCHEDULE_CONFIG.blockMinutes,
+    lunchStart: typeof c.lunchStart === 'string' ? c.lunchStart : DEFAULT_SCHEDULE_CONFIG.lunchStart,
+    lunchEnd: typeof c.lunchEnd === 'string' ? c.lunchEnd : DEFAULT_SCHEDULE_CONFIG.lunchEnd,
+    netBufferMinutes: typeof c.netBufferMinutes === 'number' ? c.netBufferMinutes : DEFAULT_SCHEDULE_CONFIG.netBufferMinutes,
+  };
+}
 
 export interface DashboardDivision {
   name: string;
@@ -232,6 +250,7 @@ export interface DetailDivision {
   teamsList: DetailTeam[];
   bracket: DetailRound[];
   drawConfig: DrawConfig | null;
+  dedicatedCourts: number | null; // D_d override from settings.schedule (null = auto)
 }
 
 export interface DetailVoucher {
@@ -249,6 +268,7 @@ export interface TournamentDetail {
   startDate: string;
   phase: number;
   description: string | null;
+  scheduleConfig: ScheduleConfig;
   divisions: DetailDivision[];
   vouchers: DetailVoucher[];
 }
@@ -265,9 +285,12 @@ function sortBySlots<T extends { id: string }>(matches: T[], slotIds?: string[])
   return [...matches].sort((a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity));
 }
 
+// Scheduled times are stored as UTC instants whose wall-clock equals the
+// organizer's intended local time (see the schedule save route), so render
+// them in UTC — otherwise a viewer's browser timezone would shift every slot.
 function formatMatchTime(iso: string | null): string {
   if (!iso) return '';
-  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
 }
 
 interface MatchRow {
@@ -324,15 +347,17 @@ interface TournamentDetailRow {
   is_one_day: boolean;
   phase: number;
   description: string | null;
+  schedule_config?: Record<string, unknown> | null; // absent when migration 0007 not yet applied
   divisions: DetailDivisionRow[];
   vouchers: VoucherRow[];
 }
 
 export async function getTournamentDetail(slug: string): Promise<TournamentDetail | null> {
-  const { data, error } = await supabase
-    .from('tournaments')
-    .select(`
-      slug, title, location, start_date, end_date, is_one_day, phase, description,
+  // schedule_config is added by migration 0007. Query with it, but if the
+  // column isn't there yet (migration not applied), retry without it so the
+  // shared detail query — and the public tournament page — keep working and
+  // simply fall back to default schedule settings.
+  const rest = `
       divisions (
         id, name, division_team_cap, settings,
         teams ( id, name, seed, status ),
@@ -346,10 +371,20 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           )
         )
       ),
-      vouchers ( id, code, discount_type, discount_value )
-    `)
-    .eq('slug', slug)
-    .maybeSingle();
+      vouchers ( id, code, discount_type, discount_value )`;
+  const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description';
+
+  const runQuery = (withScheduleConfig: boolean) =>
+    supabase
+      .from('tournaments')
+      .select(`${baseCols}${withScheduleConfig ? ', schedule_config' : ''}, ${rest}`)
+      .eq('slug', slug)
+      .maybeSingle();
+
+  let { data, error } = await runQuery(true);
+  if (error && /schedule_config/i.test(error.message)) {
+    ({ data, error } = await runQuery(false));
+  }
 
   if (error) throw new Error(`Failed to load tournament: ${error.message}`);
   if (!data) return null;
@@ -363,8 +398,10 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     startDate: row.start_date,
     phase: row.phase,
     description: row.description,
+    scheduleConfig: readScheduleConfig(row.schedule_config),
     divisions: row.divisions.map((d) => {
       const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;
+      const sched = (d.settings as { schedule?: { dedicatedCourts?: number } } | null)?.schedule;
       return {
         id: d.id,
         label: d.name,
@@ -401,6 +438,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               isLocked: !!draw.isLocked,
             }
           : null,
+        dedicatedCourts: typeof sched?.dedicatedCourts === 'number' ? sched.dedicatedCourts : null,
       };
     }),
     vouchers: row.vouchers.map((v) => ({

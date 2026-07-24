@@ -4,22 +4,31 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
+  AlertTriangle,
   ArrowLeft,
   Calendar,
   ChevronDown,
   Clock,
-  Filter,
   Grid,
   List,
   MapPin,
   Printer,
-  QrCode,
+  Save,
   Settings,
+  SlidersHorizontal,
   Trophy,
   Users,
+  Wand2,
+  X,
 } from 'lucide-react';
 import styles from './page.module.css';
-import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../../lib/data';
+import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
+import {
+  generateSchedule,
+  autoDedicatedCourts,
+  type SchedulableDivision,
+  type ScheduleResult,
+} from '../../../../../lib/schedule/generate';
 
 interface ScheduleMatch {
   id: string;
@@ -34,6 +43,14 @@ interface ScheduleMatch {
   scoreA?: number[];
   scoreB?: number[];
   status: 'upcoming' | 'live' | 'done';
+  isPreview?: boolean;   // slot came from an unsaved generated preview
+  unscheduled?: boolean; // no court/time assigned
+}
+
+// Sort "HH:MM" ascending; unscheduled placeholders sink to the end.
+function timeKey(t: string): number {
+  const m = /^(\d{2}):(\d{2})$/.exec(t);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : Number.MAX_SAFE_INTEGER;
 }
 
 export default function TournamentSchedulePage() {
@@ -48,21 +65,98 @@ export default function TournamentSchedulePage() {
   const [viewMode, setViewMode] = useState<'court' | 'timeline'>('court');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'done'>('all');
 
+  // Generator: config, per-division D_d overrides, unsaved preview.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [config, setConfig] = useState<ScheduleConfig | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, number | null>>({});
+  const [preview, setPreview] = useState<ScheduleResult | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (!slug) return;
     let cancel = false;
     getTournamentDetail(slug)
       .then(res => {
-        if (!cancel) {
-          setDetail(res);
-          setLoading(false);
+        if (cancel || !res) {
+          if (!cancel) setLoading(false);
+          return;
         }
+        setDetail(res);
+        // Seed the generator config + per-division overrides from the load.
+        setConfig(res.scheduleConfig);
+        const ov: Record<string, number | null> = {};
+        res.divisions.forEach(d => { ov[d.id] = d.dedicatedCourts; });
+        setOverrides(ov);
+        setLoading(false);
       })
       .catch(() => {
         if (!cancel) setLoading(false);
       });
     return () => { cancel = true; };
   }, [slug]);
+
+  // Fast lookup of generated court/time by match id (only while previewing).
+  const previewMap = useMemo(() => {
+    const m = new Map<string, { court: string; time: string }>();
+    preview?.assignments.forEach(a => m.set(a.matchId, { court: a.court, time: a.time }));
+    return m;
+  }, [preview]);
+
+  const setConfigField = <K extends keyof ScheduleConfig>(key: K, value: ScheduleConfig[K]) => {
+    setConfig(prev => (prev ? { ...prev, [key]: value } : prev));
+  };
+
+  function handleGenerate() {
+    if (!detail || !config) return;
+    const divs: SchedulableDivision[] = detail.divisions.map(d => ({
+      id: d.id,
+      label: d.label,
+      pools: d.drawConfig?.pools ?? 1,
+      dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
+      matchIds: d.bracket.flatMap(r => r.matches.map(m => m.id)),
+    }));
+    setPreview(generateSchedule(divs, config));
+    setSaveMsg(null);
+  }
+
+  async function handleSave() {
+    if (!detail || !config || !preview) return;
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const divisionOverrides = detail.divisions.map(d => ({
+        divisionId: d.id,
+        dedicatedCourts: overrides[d.id] ?? null,
+      }));
+      const patchRes = await fetch(`/api/tournaments/${slug}/schedule`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config, divisionOverrides }),
+      });
+      if (!patchRes.ok) throw new Error((await patchRes.json().catch(() => ({}))).error || 'Failed to save config');
+
+      const assignments = [
+        ...preview.assignments.map(a => ({ matchId: a.matchId, court: a.court, time: a.time })),
+        ...preview.overflow.map(o => ({ matchId: o.matchId, court: null, time: null })),
+      ];
+      const putRes = await fetch(`/api/tournaments/${slug}/schedule`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments }),
+      });
+      if (!putRes.ok) throw new Error((await putRes.json().catch(() => ({}))).error || 'Failed to save schedule');
+
+      const fresh = await getTournamentDetail(slug);
+      setDetail(fresh);
+      setPreview(null);
+      setSaveMsg('Schedule saved.');
+    } catch (e) {
+      setSaveMsg(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Aggregate matches from all divisions
   const allMatches = useMemo<ScheduleMatch[]>(() => {
@@ -72,26 +166,31 @@ export default function TournamentSchedulePage() {
     detail.divisions.forEach((div: DetailDivision) => {
       div.bracket.forEach(round => {
         round.matches.forEach((m, idx) => {
+          const pv = previewMap.get(m.id);
+          const court = pv?.court ?? m.court ?? '';
+          const time = pv?.time ?? m.time ?? '';
           list.push({
             id: m.id,
             divisionLabel: div.label,
             divisionId: div.id,
             roundName: round.round,
             matchNo: `M${idx + 1}`,
-            court: m.court || `Court ${(idx % 4) + 1}`,
-            time: m.time || '10:00 AM',
+            court: court || 'Unscheduled',
+            time: time || '—',
             teamA: m.teamAName || 'TBD',
             teamB: m.teamBName || 'TBD',
             scoreA: m.scoreA,
             scoreB: m.scoreB,
             status: m.status,
+            isPreview: !!pv,
+            unscheduled: !court && !time,
           });
         });
       });
     });
 
     return list;
-  }, [detail]);
+  }, [detail, previewMap]);
 
   // Filtered matches
   const filteredMatches = useMemo(() => {
@@ -110,10 +209,12 @@ export default function TournamentSchedulePage() {
       if (!map.has(courtName)) map.set(courtName, []);
       map.get(courtName)!.push(m);
     });
-    return Array.from(map.entries()).map(([courtName, matches]) => ({
-      courtName,
-      matches,
-    }));
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+      .map(([courtName, matches]) => ({
+        courtName,
+        matches: [...matches].sort((x, y) => timeKey(x.time) - timeKey(y.time)),
+      }));
   }, [filteredMatches]);
 
   // Group matches by scheduled time
@@ -124,10 +225,12 @@ export default function TournamentSchedulePage() {
       if (!map.has(timeSlot)) map.set(timeSlot, []);
       map.get(timeSlot)!.push(m);
     });
-    return Array.from(map.entries()).map(([timeSlot, matches]) => ({
-      timeSlot,
-      matches,
-    }));
+    return Array.from(map.entries())
+      .sort((a, b) => timeKey(a[0]) - timeKey(b[0]))
+      .map(([timeSlot, matches]) => ({
+        timeSlot,
+        matches,
+      }));
   }, [filteredMatches]);
 
   const heroImage = 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1600&q=80';
@@ -177,7 +280,14 @@ export default function TournamentSchedulePage() {
           </div>
 
           <div className={styles.heroActions}>
-            <Link href={`/dashboard/tournament/${slug}`} className={styles.heroPrimaryBtn}>
+            <button
+              type="button"
+              className={styles.heroPrimaryBtn}
+              onClick={() => setPanelOpen(o => !o)}
+            >
+              <Wand2 size={16} /> Generate Schedule
+            </button>
+            <Link href={`/dashboard/tournament/${slug}`} className={styles.heroGhostBtn}>
               <Trophy size={16} /> Open Bracket
             </Link>
             <Link href={`/dashboard/tournament/${slug}/setup`} className={styles.heroGhostBtn}>
@@ -245,7 +355,7 @@ export default function TournamentSchedulePage() {
               <select
                 className={styles.select}
                 value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as any)}
+                onChange={e => setStatusFilter(e.target.value as 'all' | 'live' | 'upcoming' | 'done')}
               >
                 <option value="all">All Match Statuses</option>
                 <option value="live">Live Matches</option>
@@ -257,6 +367,116 @@ export default function TournamentSchedulePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Generator Panel ─────────────────────────────────── */}
+      {panelOpen && config && (
+        <div className={styles.genPanel}>
+          <div className={styles.genInner}>
+            <div className={styles.genHeaderRow}>
+              <div className={styles.genTitle}><SlidersHorizontal size={18} /> Schedule Generator</div>
+              <button type="button" className={styles.genClose} onClick={() => setPanelOpen(false)} aria-label="Close generator">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={styles.genGrid}>
+              <label className={styles.genField}>
+                <span>Day start</span>
+                <input type="time" value={config.startTime} onChange={e => setConfigField('startTime', e.target.value)} />
+              </label>
+              <label className={styles.genField}>
+                <span>Day end</span>
+                <input type="time" value={config.endTime} onChange={e => setConfigField('endTime', e.target.value)} />
+              </label>
+              <label className={styles.genField}>
+                <span>Courts</span>
+                <input type="number" min={1} max={64} value={config.courtCount} onChange={e => setConfigField('courtCount', Number(e.target.value))} />
+              </label>
+              <label className={styles.genField}>
+                <span>Block (min)</span>
+                <input type="number" min={5} max={240} step={5} value={config.blockMinutes} onChange={e => setConfigField('blockMinutes', Number(e.target.value))} />
+              </label>
+              <label className={styles.genField}>
+                <span>Lunch start</span>
+                <input type="time" value={config.lunchStart} onChange={e => setConfigField('lunchStart', e.target.value)} />
+              </label>
+              <label className={styles.genField}>
+                <span>Lunch end</span>
+                <input type="time" value={config.lunchEnd} onChange={e => setConfigField('lunchEnd', e.target.value)} />
+              </label>
+              <label className={styles.genField}>
+                <span>Net buffer (min)</span>
+                <input type="number" min={0} max={120} step={5} value={config.netBufferMinutes} onChange={e => setConfigField('netBufferMinutes', Number(e.target.value))} />
+              </label>
+            </div>
+
+            <div className={styles.genDivisions}>
+              <div className={styles.genSubhead}>Dedicated courts per division</div>
+              <div className={styles.genDivGrid}>
+                {detail?.divisions.map(d => {
+                  const pools = d.drawConfig?.pools ?? 1;
+                  const auto = autoDedicatedCourts(pools);
+                  const val = overrides[d.id];
+                  return (
+                    <label key={d.id} className={styles.genDivRow}>
+                      <span className={styles.genDivName}>{d.label}</span>
+                      <span className={styles.genDivMeta}>{pools} pool{pools === 1 ? '' : 's'}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={config.courtCount}
+                        placeholder={`auto (${auto})`}
+                        value={val ?? ''}
+                        onChange={e => {
+                          const raw = e.target.value;
+                          setOverrides(prev => ({ ...prev, [d.id]: raw === '' ? null : Number(raw) }));
+                        }}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+              <p className={styles.genHint}>
+                Leave blank to auto-size (half the pool count, min 1). Net-height pivots and staggered rest cycles arrive in Phase 2.
+              </p>
+            </div>
+
+            <div className={styles.genActions}>
+              <button type="button" className={styles.genGenerateBtn} onClick={handleGenerate}>
+                <Wand2 size={15} /> Generate Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Preview Save Bar ────────────────────────────────── */}
+      {preview && (
+        <div className={styles.previewBar}>
+          <div className={styles.previewInner}>
+            <div className={styles.previewInfo}>
+              <span className={styles.previewTag}>Preview</span>
+              <span className={styles.previewText}>
+                {preview.assignments.length} matches placed · {preview.mode === 'wave' ? 'Rolling-wave' : 'Parallel'} mode
+                {preview.overflow.length > 0 && (
+                  <span className={styles.previewWarn}>
+                    <AlertTriangle size={13} /> {preview.overflow.length} won&apos;t fit before day end
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className={styles.previewButtons}>
+              <button type="button" className={styles.previewDiscard} onClick={() => setPreview(null)} disabled={saving}>
+                Discard
+              </button>
+              <button type="button" className={styles.previewSave} onClick={handleSave} disabled={saving}>
+                <Save size={15} /> {saving ? 'Saving…' : 'Save Schedule'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {saveMsg && <div className={styles.saveMsg}>{saveMsg}</div>}
 
       {/* ── Main Schedule Content ───────────────────────────── */}
       <main className={styles.main}>
@@ -277,7 +497,7 @@ export default function TournamentSchedulePage() {
                     {group.matches.map(m => (
                       <div
                         key={m.id}
-                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''}`}
+                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''}`}
                       >
                         <div className={styles.matchItemTop}>
                           <span className={styles.matchTime}>
@@ -323,7 +543,7 @@ export default function TournamentSchedulePage() {
                     {group.matches.map(m => (
                       <div
                         key={m.id}
-                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''}`}
+                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''}`}
                       >
                         <div className={styles.matchItemTop}>
                           <span className={styles.matchTime}>{m.court} · {m.matchNo}</span>
