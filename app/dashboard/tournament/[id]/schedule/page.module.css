@@ -392,6 +392,111 @@
   gap: 14px;
 }
 
+/* ── Court × time grid view ──────────────────────────────────── */
+.gridScroll {
+  overflow-x: auto;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: 14px;
+  background: var(--surface-card, #FFFFFF);
+}
+.gridTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  font-size: 12px;
+}
+.gridTable th,
+.gridTable td {
+  border-right: 1px solid var(--sand-200, #F0EDE6);
+  border-bottom: 1px solid var(--sand-200, #F0EDE6);
+}
+.gridTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sand-100, #F4F1EA);
+}
+.gridTimeHead {
+  padding: 8px 10px;
+  min-width: 132px;
+  text-align: left;
+  white-space: nowrap;
+}
+.gridDate {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-500, #8A92A0);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.gridTimeVal {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+}
+/* First column (court names) sticks while scrolling time across. */
+.gridCorner,
+.gridCourtHead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 92px;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+  background: var(--sand-100, #F4F1EA);
+}
+.gridCorner { z-index: 3; }
+.gridCell {
+  padding: 5px;
+  vertical-align: top;
+  background: var(--surface-card, #FFFFFF);
+}
+.gridMatch {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--sand-100, #F4F1EA);
+  border: 1px solid var(--sand-300, #EAE5DD);
+}
+.gridMatch + .gridMatch { margin-top: 4px; }
+.gridMatchLive {
+  border-color: rgba(238, 122, 76, 0.5);
+  background: rgba(238, 122, 76, 0.08);
+}
+.gridMatchPreview {
+  border-style: dashed;
+  border-color: rgba(238, 122, 76, 0.45);
+  background: rgba(238, 122, 76, 0.05);
+}
+.gridMatchDiv {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--orange, #EE7A4C);
+}
+.gridMatchTeams {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-800, #2C323D);
+  line-height: 1.3;
+}
+.gridVs {
+  color: var(--ink-400, #A6ADB9);
+  font-weight: 500;
+}
+.gridNote {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ink-500, #8A92A0);
+}
+
 /* ── Day selector (multi-day) ────────────────────────────────── */
 .dayBar {
   max-width: 1240px;

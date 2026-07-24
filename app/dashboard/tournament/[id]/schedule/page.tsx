@@ -16,6 +16,7 @@ import {
   Save,
   Settings,
   SlidersHorizontal,
+  Table,
   Trophy,
   Users,
   Wand2,
@@ -86,7 +87,7 @@ export default function TournamentSchedulePage() {
   // Filters & Controls
   const [activeDivisionId, setActiveDivisionId] = useState<string>('all');
   const [activeDay, setActiveDay] = useState<number | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'court' | 'timeline'>('court');
+  const [viewMode, setViewMode] = useState<'court' | 'timeline' | 'grid'>('court');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'done'>('all');
 
   // Generator: config, per-division D_d overrides, unsaved preview.
@@ -274,6 +275,28 @@ export default function TournamentSchedulePage() {
     return Array.from(map.values()).sort((a, b) => timeKey(a.day, a.time) - timeKey(b.day, b.time));
   }, [filteredMatches]);
 
+  // Court × time grid: rows = courts (Y), columns = (day,time) slots (X),
+  // cells = the match(es) on that court at that time.
+  const gridData = useMemo(() => {
+    const scheduled = filteredMatches.filter(m => !m.unscheduled && m.day >= 0 && m.time !== '—');
+    const colMap = new Map<string, { day: number; time: string; dateLabel: string }>();
+    const rowSet = new Set<string>();
+    const cell = new Map<string, ScheduleMatch[]>();
+    scheduled.forEach(m => {
+      const colKey = `${m.day} ${m.time}`;
+      if (!colMap.has(colKey)) colMap.set(colKey, { day: m.day, time: m.time, dateLabel: m.dateLabel });
+      rowSet.add(m.court);
+      const ck = `${m.court} ${colKey}`;
+      (cell.get(ck) ?? cell.set(ck, []).get(ck)!).push(m);
+    });
+    const columns = [...colMap.entries()]
+      .map(([key, v]) => ({ key, ...v }))
+      .sort((a, b) => timeKey(a.day, a.time) - timeKey(b.day, b.time));
+    const rows = [...rowSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const at = (court: string, colKey: string) => cell.get(`${court} ${colKey}`) ?? [];
+    return { columns, rows, at, unscheduledCount: filteredMatches.length - scheduled.length };
+  }, [filteredMatches]);
+
   const heroImage = 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1600&q=80';
   const totalTeams = detail?.divisions.reduce((acc, d) => acc + d.filled, 0) ?? 0;
   const isLive = allMatches.some(m => m.status === 'live');
@@ -388,6 +411,14 @@ export default function TournamentSchedulePage() {
               >
                 <List size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: '-1px' }} />
                 Timeline
+              </button>
+              <button
+                type="button"
+                className={`${styles.segBtn} ${viewMode === 'grid' ? styles.segBtnActive : ''}`}
+                onClick={() => setViewMode('grid')}
+              >
+                <Table size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: '-1px' }} />
+                Grid
               </button>
             </div>
 
@@ -594,7 +625,7 @@ export default function TournamentSchedulePage() {
               ))}
             </div>
           </div>
-        ) : (
+        ) : viewMode === 'timeline' ? (
           <div>
             <h2 className={styles.sectionTitle}>
               <List size={22} color="var(--orange, #EE7A4C)" />
@@ -637,6 +668,58 @@ export default function TournamentSchedulePage() {
                 </div>
               ))}
             </div>
+          </div>
+        ) : (
+          <div>
+            <h2 className={styles.sectionTitle}>
+              <Table size={22} color="var(--orange, #EE7A4C)" />
+              Court Grid ({gridData.rows.length} Courts × {gridData.columns.length} Slots)
+            </h2>
+            {gridData.columns.length === 0 ? (
+              <p className={styles.gridNote}>No scheduled matches to show. Generate and save a schedule first.</p>
+            ) : (
+              <div className={styles.gridScroll}>
+                <table className={styles.gridTable}>
+                  <thead>
+                    <tr>
+                      <th className={styles.gridCorner}>Court</th>
+                      {gridData.columns.map(col => (
+                        <th key={col.key} className={styles.gridTimeHead}>
+                          {dayCount > 1 && col.dateLabel && <span className={styles.gridDate}>{col.dateLabel}</span>}
+                          <span className={styles.gridTimeVal}>{col.time}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gridData.rows.map(court => (
+                      <tr key={court}>
+                        <th className={styles.gridCourtHead}>{court}</th>
+                        {gridData.columns.map(col => {
+                          const cellMatches = gridData.at(court, col.key);
+                          return (
+                            <td key={col.key} className={styles.gridCell}>
+                              {cellMatches.map(m => (
+                                <div
+                                  key={m.id}
+                                  className={`${styles.gridMatch} ${m.status === 'live' ? styles.gridMatchLive : ''} ${m.isPreview ? styles.gridMatchPreview : ''}`}
+                                >
+                                  <span className={styles.gridMatchDiv}>{m.divisionLabel}</span>
+                                  <span className={styles.gridMatchTeams}>{m.teamA} <span className={styles.gridVs}>v</span> {m.teamB}</span>
+                                </div>
+                              ))}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {gridData.unscheduledCount > 0 && (
+              <p className={styles.gridNote}>{gridData.unscheduledCount} unscheduled match{gridData.unscheduledCount === 1 ? '' : 'es'} not shown in the grid.</p>
+            )}
           </div>
         )}
       </main>
