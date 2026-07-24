@@ -794,15 +794,10 @@ export default function OrganizerBracketPage() {
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {division && (
-              <span className={styles.teamsCountPill}>
-                <Users size={16} /> {division.filled} Teams · {division.label}
-              </span>
-            )}
+          <div className={styles.stickyActions}>
             <Link
               href={`/dashboard/tournament/${detail.slug}/schedule`}
-              className={styles.teamsCountPill}
+              className={`${styles.teamsCountPill} ${styles.scheduleLink}`}
               style={{ textDecoration: 'none' }}
             >
               <Calendar size={15} /> Schedule

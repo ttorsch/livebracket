@@ -201,6 +201,11 @@
   color: var(--ink-900);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
+.stickyActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .teamsCountPill {
   display: inline-flex;
   align-items: center;
@@ -1050,6 +1055,20 @@
   }
   .stickyInner {
     padding: 10px 20px;
+  }
+  .divisionsGroup {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+    width: 100%;
+  }
+  .stickyActions {
+    width: 100%;
+  }
+  .scheduleLink {
+    width: 100%;
+    justify-content: center;
   }
   .heroTitle {
     font-size: 34px;
