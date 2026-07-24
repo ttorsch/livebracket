@@ -133,10 +133,11 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(245, 241, 234, 0.82);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border-bottom: 1px solid var(--sand-300);
+  background: rgba(247, 245, 240, 0.68);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 20px rgba(20, 24, 30, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 .stickyInner {
   max-width: 1240px;
@@ -174,7 +175,10 @@
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
-  background: rgba(118, 118, 128, 0.12);
+  background: rgba(20, 24, 30, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 .segBtn {
   text-align: center;
@@ -191,9 +195,11 @@
   transition: background 200ms var(--ease-standard), box-shadow 200ms var(--ease-standard), color 200ms var(--ease-standard);
 }
 .segBtnActive {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--ink-900);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .teamsCountPill {
   display: inline-flex;
@@ -201,11 +207,14 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--ink-600);
-  background: #fff;
-  border: 1px solid var(--sand-300);
+  color: var(--ink-700);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   padding: 8px 14px;
   border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* ── Main layout ───────────────────────────────────────────── */
@@ -232,6 +241,12 @@
   letter-spacing: -0.01em;
   margin: 0;
   color: var(--ink-900);
+}
+.sectionSub {
+  font-family: var(--font-text);
+  font-size: 14px;
+  color: var(--ink-500);
+  margin: 4px 0 0;
 }
 .sectionSubSpaced {
   font-family: var(--font-text);

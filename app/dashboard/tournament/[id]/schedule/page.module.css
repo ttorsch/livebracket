@@ -1,0 +1,410 @@
+/* ── Tournament Schedule Landing Page Styles ────────────────── */
+
+.page {
+  min-height: 100vh;
+  background-color: var(--surface-canvas, #F7F5F0);
+  color: var(--ink-900, #14181E);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+}
+
+/* ── Fixed Back Link ─────────────────────────────────────────── */
+.backLink {
+  position: fixed;
+  top: 16px;
+  left: 24px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(20, 24, 30, 0.65);
+  backdrop-filter: blur(12px);
+  color: #FFFFFF;
+  text-decoration: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
+}
+
+.backLink:hover {
+  transform: translateY(-2px);
+  background: rgba(20, 24, 30, 0.85);
+}
+
+/* ── Hero Banner ─────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  background-color: #14181E;
+  background-size: cover;
+  background-position: center;
+  padding: 64px 24px 40px;
+  color: #FFFFFF;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.heroInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.heroContent {
+  max-width: 720px;
+}
+
+.heroTopRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.livePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(238, 122, 76, 0.2);
+  border: 1px solid rgba(238, 122, 76, 0.5);
+  color: #EE7A4C;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.livePillDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #EE7A4C;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.heroTitle {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 12px;
+  letter-spacing: -0.5px;
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+}
+
+.heroMetaPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.heroPrimaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--orange, #EE7A4C);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.heroPrimaryBtn:hover {
+  transform: translateY(-1px);
+  background: #E06838;
+}
+
+.heroGhostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.heroGhostBtn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ── Sticky Control Bar ───────────────────────────────────────── */
+.stickyBar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(247, 245, 240, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--sand-300, #EAE5DD);
+  padding: 14px 24px;
+}
+
+.stickyInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.controlsGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--sand-200, #F0EDE6);
+  border: 1px solid var(--sand-300, #EAE5DD);
+}
+
+.segBtn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--ink-600, #5A6270);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.segBtnActive {
+  background: var(--surface-card, #FFFFFF);
+  color: var(--ink-900, #14181E);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.select {
+  padding: 7px 32px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: var(--surface-card, #FFFFFF);
+  color: var(--ink-800, #2C323D);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  appearance: none;
+  cursor: pointer;
+}
+
+.selectWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.selectChevron {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  color: var(--ink-500, #8A92A0);
+}
+
+/* ── Main Layout Container ───────────────────────────────────── */
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.sectionTitle {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Court Grid View ─────────────────────────────────────────── */
+.courtsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.courtCard {
+  background: var(--surface-card, #FFFFFF);
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 20px;
+}
+
+.courtHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--sand-300, #EAE5DD);
+}
+
+.courtName {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+}
+
+.courtCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500, #8A92A0);
+}
+
+.matchList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.matchItem {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  background: var(--surface-canvas, #F7F5F0);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.matchItemLive {
+  border-color: rgba(238, 122, 76, 0.4);
+  background: rgba(238, 122, 76, 0.06);
+}
+
+.matchItemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.matchTime {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-600, #5A6270);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.divisionBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--sand-300, #EAE5DD);
+  color: var(--ink-700, #3E4654);
+}
+
+.matchTeams {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.teamRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-900, #14181E);
+}
+
+.teamScore {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--orange, #EE7A4C);
+}
+
+/* ── Timeline List View ──────────────────────────────────────── */
+.timelineFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.timeSlotGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timeSlotHeader {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-700, #3E4654);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timelineGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+/* ── Print Styles ────────────────────────────────────────────── */
+@media print {
+  .backLink,
+  .stickyBar,
+  .heroActions {
+    display: none !important;
+  }
+  .hero {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    padding: 0 !important;
+  }
+  .page {
+    background: #FFFFFF !important;
+  }
+}

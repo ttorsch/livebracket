@@ -794,11 +794,20 @@ export default function OrganizerBracketPage() {
               ))}
             </div>
           </div>
-          {division && (
-            <span className={styles.teamsCountPill}>
-              <Users size={16} /> {division.filled} Teams · {division.label}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {division && (
+              <span className={styles.teamsCountPill}>
+                <Users size={16} /> {division.filled} Teams · {division.label}
+              </span>
+            )}
+            <Link
+              href={`/dashboard/tournament/${detail.slug}/schedule`}
+              className={styles.teamsCountPill}
+              style={{ textDecoration: 'none' }}
+            >
+              <Calendar size={15} /> Schedule
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -807,7 +816,10 @@ export default function OrganizerBracketPage() {
         <section className={styles.section}>
           <div className={styles.sectionHead} onClick={() => setTeamsOpen(v => !v)}>
             <div>
-              <h2 className={styles.sectionTitle}>Registered Teams <span style={{ color: 'var(--ink-500)' }}>({confirmedTeams.length})</span></h2>
+              <h2 className={styles.sectionTitle}>Registered Teams</h2>
+              <p className={styles.sectionSub}>
+                {division?.label ?? 'Division'} · {confirmedTeams.length} teams confirmed
+              </p>
             </div>
             <button type="button" className={`${styles.toggleBtn} ${styles.toggleBtnIcon}`} aria-label="Toggle teams">
               <span className={`${styles.chevron} ${teamsOpen ? styles.chevronOpen : ''}`}>
@@ -834,9 +846,16 @@ export default function OrganizerBracketPage() {
         {hasRoundRobin && (
           <section className={styles.section}>
             <div className={styles.sectionHead} onClick={togglePoolPlayAll}>
-              <h2 className={styles.sectionTitle}>
-                Round 1 <span style={{ color: 'var(--ink-500)' }}>· {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat}</span>
-              </h2>
+              <div>
+                <h2 className={styles.sectionTitle}>
+                  Round 1 <span style={{ color: 'var(--ink-500)' }}>· {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat}</span>
+                </h2>
+                <p className={styles.sectionSub}>
+                  {firstRoundFormat === 'round_robin'
+                    ? 'Every team plays against all other teams in their pool to rank and advance to the knockout stage.'
+                    : 'Initial round matches.'}
+                </p>
+              </div>
               <div className={styles.headBtns} onClick={e => e.stopPropagation()}>
                 {isRoundRobin && !isDrawLocked && (
                   <button
@@ -1163,12 +1182,19 @@ export default function OrganizerBracketPage() {
         {hasKnockout && (
           <section className={styles.section}>
             <div className={styles.sectionHead} onClick={toggleBracketAll}>
-              <h2 className={styles.sectionTitle}>
-                {hasRoundRobin ? 'Round 2' : 'Round 1'}{' '}
-                <span style={{ color: 'var(--ink-500)' }}>
-                  · {FORMAT_LABELS[knockoutFormat] ?? knockoutFormat ?? 'Single Elimination'}
-                </span>
-              </h2>
+              <div>
+                <h2 className={styles.sectionTitle}>
+                  {hasRoundRobin ? 'Round 2' : 'Round 1'}{' '}
+                  <span style={{ color: 'var(--ink-500)' }}>
+                    · {FORMAT_LABELS[knockoutFormat] ?? knockoutFormat ?? 'Single Elimination'}
+                  </span>
+                </h2>
+                <p className={styles.sectionSub}>
+                  {hasRoundRobin
+                    ? 'Seed advancing teams from pool play into the single elimination knockout bracket.'
+                    : 'Single elimination knockout bracket.'}
+                </p>
+              </div>
               <div className={styles.headBtns} onClick={e => e.stopPropagation()}>
                 <button
                   type="button"

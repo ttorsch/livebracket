@@ -437,6 +437,9 @@ export default function OrganizerDashboard() {
                         <Link href={`/dashboard/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
                           <Trophy size={16} /> Open Bracket
                         </Link>
+                        <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.heroGhostBtn}>
+                          <Calendar size={16} /> Schedule
+                        </Link>
                         <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
                           <Settings size={16} /> Manage Setup
                         </Link>
@@ -734,6 +737,9 @@ function TournamentRow({
           )}
           <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
             <Trophy size={15} /> Bracket
+          </Link>
+          <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.rowBracketBtn}>
+            <Calendar size={15} /> Schedule
           </Link>
           <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.iconBtn} title="Manage setup" aria-label="Manage setup">
             <Settings size={18} />
