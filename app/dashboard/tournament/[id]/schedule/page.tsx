@@ -43,14 +43,37 @@ interface ScheduleMatch {
   scoreA?: number[];
   scoreB?: number[];
   status: 'upcoming' | 'live' | 'done';
+  day: number;           // 0-based day offset (-1 = unscheduled)
+  dateLabel: string;     // e.g. "Sat, Jul 26" ('' when unscheduled)
   isPreview?: boolean;   // slot came from an unsaved generated preview
   unscheduled?: boolean; // no court/time assigned
 }
 
-// Sort "HH:MM" ascending; unscheduled placeholders sink to the end.
-function timeKey(t: string): number {
+// Sort by (day, "HH:MM") ascending; unscheduled placeholders sink to the end.
+function timeKey(day: number, t: string): number {
   const m = /^(\d{2}):(\d{2})$/.exec(t);
-  return m ? Number(m[1]) * 60 + Number(m[2]) : Number.MAX_SAFE_INTEGER;
+  const mins = m ? Number(m[1]) * 60 + Number(m[2]) : 1e6;
+  const d = day < 0 ? 1e6 : day;
+  return d * 1e7 + mins;
+}
+
+// Add `n` UTC days to a 'YYYY-MM-DD' string, returning 'YYYY-MM-DD'.
+function addDaysUTC(dateStr: string, n: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
+}
+
+// Whole days between two 'YYYY-MM-DD' strings (UTC).
+function dayIndexOf(startDate: string, dateStr: string): number {
+  const toUTC = (v: string) => { const [y, m, d] = v.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((toUTC(dateStr) - toUTC(startDate)) / 86_400_000);
+}
+
+// Short human date label for a 'YYYY-MM-DD' string (UTC).
+function shortDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 export default function TournamentSchedulePage() {
@@ -62,6 +85,7 @@ export default function TournamentSchedulePage() {
 
   // Filters & Controls
   const [activeDivisionId, setActiveDivisionId] = useState<string>('all');
+  const [activeDay, setActiveDay] = useState<number | 'all'>('all');
   const [viewMode, setViewMode] = useState<'court' | 'timeline'>('court');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'done'>('all');
 
@@ -96,10 +120,10 @@ export default function TournamentSchedulePage() {
     return () => { cancel = true; };
   }, [slug]);
 
-  // Fast lookup of generated court/time by match id (only while previewing).
+  // Fast lookup of generated court/time/day by match id (only while previewing).
   const previewMap = useMemo(() => {
-    const m = new Map<string, { court: string; time: string }>();
-    preview?.assignments.forEach(a => m.set(a.matchId, { court: a.court, time: a.time }));
+    const m = new Map<string, { court: string; time: string; day: number }>();
+    preview?.assignments.forEach(a => m.set(a.matchId, { court: a.court, time: a.time, day: a.day }));
     return m;
   }, [preview]);
 
@@ -125,7 +149,7 @@ export default function TournamentSchedulePage() {
         })),
       ),
     }));
-    setPreview(generateSchedule(divs, config));
+    setPreview(generateSchedule(divs, config, detail.dayCount));
     setSaveMsg(null);
   }
 
@@ -146,7 +170,7 @@ export default function TournamentSchedulePage() {
       if (!patchRes.ok) throw new Error((await patchRes.json().catch(() => ({}))).error || 'Failed to save config');
 
       const assignments = [
-        ...preview.assignments.map(a => ({ matchId: a.matchId, court: a.court, time: a.time })),
+        ...preview.assignments.map(a => ({ matchId: a.matchId, court: a.court, time: a.time, day: a.day })),
         ...preview.overflow.map(o => ({ matchId: o.matchId, court: null, time: null })),
       ];
       const putRes = await fetch(`/api/tournaments/${slug}/schedule`, {
@@ -178,6 +202,13 @@ export default function TournamentSchedulePage() {
           const pv = previewMap.get(m.id);
           const court = pv?.court ?? m.court ?? '';
           const time = pv?.time ?? m.time ?? '';
+          // Day: from the preview when previewing, else from the saved date.
+          const day = pv
+            ? pv.day
+            : m.scheduledDate
+              ? dayIndexOf(detail.startDate, m.scheduledDate)
+              : -1;
+          const dateStr = day >= 0 ? addDaysUTC(detail.startDate, day) : '';
           list.push({
             id: m.id,
             divisionLabel: div.label,
@@ -191,6 +222,8 @@ export default function TournamentSchedulePage() {
             scoreA: m.scoreA,
             scoreB: m.scoreB,
             status: m.status,
+            day,
+            dateLabel: dateStr ? shortDate(dateStr) : '',
             isPreview: !!pv,
             unscheduled: !court && !time,
           });
@@ -201,14 +234,17 @@ export default function TournamentSchedulePage() {
     return list;
   }, [detail, previewMap]);
 
+  const dayCount = detail?.dayCount ?? 1;
+
   // Filtered matches
   const filteredMatches = useMemo(() => {
     return allMatches.filter(m => {
       if (activeDivisionId !== 'all' && m.divisionId !== activeDivisionId) return false;
+      if (activeDay !== 'all' && m.day !== activeDay) return false;
       if (statusFilter !== 'all' && m.status !== statusFilter) return false;
       return true;
     });
-  }, [allMatches, activeDivisionId, statusFilter]);
+  }, [allMatches, activeDivisionId, activeDay, statusFilter]);
 
   // Group matches by court
   const courtGroups = useMemo(() => {
@@ -222,24 +258,20 @@ export default function TournamentSchedulePage() {
       .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
       .map(([courtName, matches]) => ({
         courtName,
-        matches: [...matches].sort((x, y) => timeKey(x.time) - timeKey(y.time)),
+        matches: [...matches].sort((x, y) => timeKey(x.day, x.time) - timeKey(y.day, y.time)),
       }));
   }, [filteredMatches]);
 
-  // Group matches by scheduled time
+  // Group matches by day + scheduled time (so identical clock times on
+  // different days stay separate on a multi-day event).
   const timeGroups = useMemo(() => {
-    const map = new Map<string, ScheduleMatch[]>();
+    const map = new Map<string, { day: number; time: string; dateLabel: string; matches: ScheduleMatch[] }>();
     filteredMatches.forEach(m => {
-      const timeSlot = m.time;
-      if (!map.has(timeSlot)) map.set(timeSlot, []);
-      map.get(timeSlot)!.push(m);
+      const key = `${m.day} ${m.time}`;
+      if (!map.has(key)) map.set(key, { day: m.day, time: m.time, dateLabel: m.dateLabel, matches: [] });
+      map.get(key)!.matches.push(m);
     });
-    return Array.from(map.entries())
-      .sort((a, b) => timeKey(a[0]) - timeKey(b[0]))
-      .map(([timeSlot, matches]) => ({
-        timeSlot,
-        matches,
-      }));
+    return Array.from(map.values()).sort((a, b) => timeKey(a.day, a.time) - timeKey(b.day, b.time));
   }, [filteredMatches]);
 
   const heroImage = 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1600&q=80';
@@ -375,6 +407,31 @@ export default function TournamentSchedulePage() {
             </div>
           </div>
         </div>
+
+        {/* Day Selector (multi-day tournaments only) */}
+        {dayCount > 1 && (
+          <div className={styles.dayBar}>
+            <div className={styles.segmented}>
+              <button
+                type="button"
+                className={`${styles.segBtn} ${activeDay === 'all' ? styles.segBtnActive : ''}`}
+                onClick={() => setActiveDay('all')}
+              >
+                All Days
+              </button>
+              {Array.from({ length: dayCount }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`${styles.segBtn} ${activeDay === i ? styles.segBtnActive : ''}`}
+                  onClick={() => setActiveDay(i)}
+                >
+                  Day {i + 1} · {detail ? shortDate(addDaysUTC(detail.startDate, i)) : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Generator Panel ─────────────────────────────────── */}
@@ -471,7 +528,7 @@ export default function TournamentSchedulePage() {
                 {preview.pivots > 0 && <> · {preview.pivots} net pivot{preview.pivots === 1 ? '' : 's'}</>}
                 {preview.overflow.length > 0 && (
                   <span className={styles.previewWarn}>
-                    <AlertTriangle size={13} /> {preview.overflow.length} won&apos;t fit before day end
+                    <AlertTriangle size={13} /> {preview.overflow.length} won&apos;t fit in the schedule
                   </span>
                 )}
               </span>
@@ -512,7 +569,7 @@ export default function TournamentSchedulePage() {
                       >
                         <div className={styles.matchItemTop}>
                           <span className={styles.matchTime}>
-                            <Clock size={13} /> {m.time} · {m.matchNo}
+                            <Clock size={13} /> {dayCount > 1 && m.dateLabel ? `${m.dateLabel} · ` : ''}{m.time} · {m.matchNo}
                           </span>
                           <span className={styles.divisionBadge}>{m.divisionLabel}</span>
                         </div>
@@ -545,10 +602,10 @@ export default function TournamentSchedulePage() {
             </h2>
             <div className={styles.timelineFeed}>
               {timeGroups.map(group => (
-                <div key={group.timeSlot} className={styles.timeSlotGroup}>
+                <div key={`${group.day} ${group.time}`} className={styles.timeSlotGroup}>
                   <div className={styles.timeSlotHeader}>
                     <Clock size={16} color="var(--orange, #EE7A4C)" />
-                    Scheduled Time: {group.timeSlot}
+                    {dayCount > 1 && group.dateLabel ? `${group.dateLabel} · ` : 'Scheduled Time: '}{group.time}
                   </div>
                   <div className={styles.timelineGrid}>
                     {group.matches.map(m => (

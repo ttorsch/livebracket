@@ -392,6 +392,15 @@
   gap: 14px;
 }
 
+/* ── Day selector (multi-day) ────────────────────────────────── */
+.dayBar {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 40px 10px;
+  display: flex;
+  overflow-x: auto;
+}
+
 /* ── Schedule Generator Panel ────────────────────────────────── */
 .genPanel {
   background: var(--sand-100, #F4F1EA);

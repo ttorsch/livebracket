@@ -204,6 +204,7 @@ export interface DetailMatch {
   id: string;
   court: string;
   time: string;
+  scheduledDate: string | null; // UTC 'YYYY-MM-DD' of the scheduled slot (null = unscheduled)
   teamA: DetailMatchPlayer[];
   teamB: DetailMatchPlayer[];
   teamAId: string | null;
@@ -268,6 +269,8 @@ export interface TournamentDetail {
   location: string;
   date: string;
   startDate: string;
+  endDate: string;
+  dayCount: number; // number of days the tournament spans (>= 1)
   phase: number;
   description: string | null;
   scheduleConfig: ScheduleConfig;
@@ -293,6 +296,20 @@ function sortBySlots<T extends { id: string }>(matches: T[], slotIds?: string[])
 function formatMatchTime(iso: string | null): string {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
+}
+
+// The calendar date (UTC 'YYYY-MM-DD') of a scheduled match — used to place it
+// on the right day of a multi-day event. UTC for the same reason as above.
+function formatMatchDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+// Whole days spanned by an inclusive date range ('YYYY-MM-DD' strings).
+function diffDaysUTC(start: string, end: string): number {
+  const toUTC = (v: string) => { const [y, m, d] = v.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((toUTC(end) - toUTC(start)) / 86_400_000);
 }
 
 interface MatchRow {
@@ -398,6 +415,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     location: row.location,
     date: row.start_date === todayLocal() ? 'Today' : formatDateRange(row.start_date, row.end_date, row.is_one_day),
     startDate: row.start_date,
+    endDate: row.end_date ?? row.start_date,
+    dayCount: row.is_one_day || !row.end_date ? 1 : Math.max(1, diffDaysUTC(row.start_date, row.end_date) + 1),
     phase: row.phase,
     description: row.description,
     scheduleConfig: readScheduleConfig(row.schedule_config),
@@ -422,6 +441,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               id: m.id,
               court: m.court ?? '',
               time: formatMatchTime(m.scheduled_time),
+              scheduledDate: formatMatchDate(m.scheduled_time),
               teamA: teamNameToPlayers(m.team_a?.name ?? 'TBD'),
               teamB: teamNameToPlayers(m.team_b?.name ?? 'TBD'),
               teamAId: m.team_a_id ?? null,

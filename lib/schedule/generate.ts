@@ -59,6 +59,7 @@ export interface ScheduleAssignment {
   matchId: string;
   divisionId: string;
   court: string;   // e.g. "Court 2"
+  day: number;     // 0-based day offset from the tournament start date
   time: string;    // "HH:MM" start time
 }
 
@@ -96,12 +97,39 @@ function toHHMM(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/** Earliest start ≥ `from` whose [start, start+block) doesn't straddle lunch. */
-function nextStart(from: number, block: number, lunchStart: number, lunchEnd: number): number {
-  if (lunchEnd > lunchStart && from < lunchEnd && from + block > lunchStart) {
-    return lunchEnd; // would overlap lunch — push to just after it
+// Court cursors are absolute timeline minutes across the whole event:
+// `day * DAY_SPAN + minuteOfDay`. DAY_SPAN exceeds any minute-of-day (1440),
+// so ordering cursors by value orders them by (day, time).
+const DAY_SPAN = 1440;
+
+interface DaySlot { day: number; min: number; abs: number; }
+
+interface DayWindow {
+  block: number;
+  dayStart: number;
+  dayEnd: number;
+  lunchStart: number;
+  lunchEnd: number;
+  days: number;
+}
+
+/** Earliest valid slot at or after absolute cursor `from`: clamps into the
+ *  day window, skips the lunch block, and rolls to the next day's start when a
+ *  block won't fit before `dayEnd`. Returns null once past the final day. */
+function nextSlot(from: number, w: DayWindow): DaySlot | null {
+  let day = Math.floor(from / DAY_SPAN);
+  let min = from - day * DAY_SPAN;
+  if (min < w.dayStart) min = w.dayStart;
+  while (day < w.days) {
+    let s = min;
+    if (w.lunchEnd > w.lunchStart && s < w.lunchEnd && s + w.block > w.lunchStart) {
+      s = w.lunchEnd; // would overlap lunch — push to just after it
+    }
+    if (s + w.block <= w.dayEnd) return { day, min: s, abs: day * DAY_SPAN + s };
+    day += 1; // doesn't fit today — try the next day
+    min = w.dayStart;
   }
-  return from;
+  return null;
 }
 
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
@@ -246,6 +274,7 @@ interface CourtTrack {
 export function generateSchedule(
   divisions: SchedulableDivision[],
   config: ScheduleConfig,
+  days = 1,
 ): ScheduleResult {
   const courtCount = Math.max(1, Math.trunc(config.courtCount) || 1);
   const block = Math.max(1, Math.trunc(config.blockMinutes) || 1);
@@ -254,6 +283,8 @@ export function generateSchedule(
   const dayEnd = parseHHMM(config.endTime);
   const lunchStart = parseHHMM(config.lunchStart);
   const lunchEnd = parseHHMM(config.lunchEnd);
+  const dayCount = Math.max(1, Math.trunc(days) || 1);
+  const window: DayWindow = { block, dayStart, dayEnd, lunchStart, lunchEnd, days: dayCount };
 
   // D_d per division (override or auto), clamped to the court count.
   const dedicatedCourts: Record<string, number> = {};
@@ -289,7 +320,7 @@ export function generateSchedule(
 
   const courts: CourtTrack[] = Array.from({ length: courtCount }, (_, i) => ({
     name: `Court ${i + 1}`,
-    cursor: dayStart,
+    cursor: dayStart, // absolute timeline minute (day 0, dayStart)
     height: null,
   }));
 
@@ -315,13 +346,13 @@ export function generateSchedule(
 
     for (const matchId of orderDivisionMatches(div)) {
       const track = chosen.reduce((soonest, c) => (c.cursor < soonest.cursor ? c : soonest), chosen[0]);
-      const start = nextStart(track.cursor, block, lunchStart, lunchEnd);
-      if (start + block > dayEnd) {
-        overflow.push({ matchId, divisionId: div.id });
+      const slot = nextSlot(track.cursor, window);
+      if (!slot) {
+        overflow.push({ matchId, divisionId: div.id }); // past the final day
         continue;
       }
-      assignments.push({ matchId, divisionId: div.id, court: track.name, time: toHHMM(start) });
-      track.cursor = start + block;
+      assignments.push({ matchId, divisionId: div.id, court: track.name, day: slot.day, time: toHHMM(slot.min) });
+      track.cursor = slot.abs + block;
     }
   }
 

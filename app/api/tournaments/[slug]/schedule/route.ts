@@ -78,8 +78,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 interface AssignBody {
-  // time is "HH:MM" (local wall-clock) or null to clear the match's schedule.
-  assignments: { matchId: string; court: string | null; time: string | null }[];
+  // time is "HH:MM" (local wall-clock) or null to clear the match's schedule;
+  // day is the 0-based offset from the tournament start date (default 0).
+  assignments: { matchId: string; court: string | null; time: string | null; day?: number }[];
+}
+
+// Add `n` whole days to a 'YYYY-MM-DD' string, in UTC, returning 'YYYY-MM-DD'.
+function addDaysUTC(dateStr: string, n: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
@@ -110,8 +118,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   let written = 0;
   for (const a of assignments) {
     if (!validIds.has(a.matchId)) continue;
+    const day = Number.isFinite(a.day) ? Math.max(0, Math.trunc(a.day as number)) : 0;
     const scheduledTime =
-      a.time && HHMM.test(a.time) ? `${startDate}T${a.time}:00Z` : null;
+      a.time && HHMM.test(a.time) ? `${addDaysUTC(startDate, day)}T${a.time}:00Z` : null;
     const { error } = await supabaseAdmin
       .from('matches')
       .update({ court: a.court || null, scheduled_time: scheduledTime })
