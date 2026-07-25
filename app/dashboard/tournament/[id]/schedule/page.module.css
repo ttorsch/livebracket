@@ -44,7 +44,7 @@
 }
 
 .heroInner {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -167,14 +167,19 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(247, 245, 240, 0.92);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--sand-300, #EAE5DD);
+  background: rgba(247, 245, 240, 0.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform, backdrop-filter;
+  border-bottom: 1px solid rgba(20, 24, 30, 0.08);
+  box-shadow: 0 4px 20px rgba(20, 24, 30, 0.05);
   padding: 14px 24px;
 }
 
 .stickyInner {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -245,7 +250,7 @@
 
 /* ── Main Layout Container ───────────────────────────────────── */
 .main {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 32px 24px 64px;
 }
@@ -265,10 +270,11 @@
    scrolls horizontally (rather than wrapping) once there are too many. */
 .courtsGrid {
   display: grid;
-  grid-template-columns: repeat(var(--court-count, 4), minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(var(--court-count, 4), minmax(300px, 1fr));
+  gap: 14px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: 12px;
+  scroll-snap-type: x mandatory;
 }
 
 .courtCard {
@@ -308,7 +314,7 @@
 }
 
 .matchItem {
-  padding: 12px 14px;
+  padding: 16px 18px;
   border-radius: 12px;
   border: 1px solid var(--sand-300, #EAE5DD);
   background: var(--surface-canvas, #F7F5F0);
@@ -324,13 +330,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .matchTime {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-600, #5A6270);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-500, #8A92A0);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -348,15 +354,15 @@
 .matchTeams {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .teamRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--ink-900, #14181E);
 }
 
@@ -392,105 +398,427 @@
 
 .timelineGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(var(--match-count, 4), minmax(300px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scroll-snap-type: x mandatory;
+}
+
+/* ── Court calendar view (courts = X axis, time = Y axis) ────── */
+.calLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.calLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-700, #3D4453);
+}
+.calSwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--cal-bg);
+  border: 1px solid var(--cal-border);
+}
+
+/* ── Court Schedule Grid Design (Reference Image) ─────────── */
+.gridHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.gridHeaderLeft {
+  display: flex;
+  align-items: center;
   gap: 14px;
 }
 
-/* ── Court × time grid view ──────────────────────────────────── */
-.gridScroll {
-  overflow-x: auto;
+.gridHeaderIconBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--coral, #F26749);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(242, 103, 73, 0.25);
+}
+
+.gridHeaderEyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--coral, #F26749);
+  margin-bottom: 2px;
+}
+
+.gridHeaderTitle {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink-900, #14181E);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.gridHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pendingPill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500, #8A92A0);
+  background: rgba(20, 24, 30, 0.04);
+  border: 1px dashed var(--sand-300, #EAE5DD);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.calCourtHeadCard {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-card, #FFFFFF);
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(20, 24, 30, 0.03);
+}
+
+.calTimeLabelCell {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  padding: 14px 10px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-700, #3E4654);
+  background: var(--surface-canvas, #F7F5F0);
+  white-space: nowrap;
+}
+
+.lunchBreakSlot {
+  margin: 4px 6px;
+  border-radius: 12px;
+  background: rgba(234, 229, 216, 0.45);
+  border: 1px dashed var(--sand-400, #D5CFB8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  min-height: 48px;
+}
+
+.lunchBreakContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-600, #5A6270);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 6px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  box-shadow: 0 2px 8px rgba(20, 24, 30, 0.04);
+}
+
+.gridMatchCard {
+  position: relative;
+  background: var(--surface-card, #FFFFFF);
+  border: 2px solid var(--div-border, rgba(238, 122, 76, 0.45));
+  border-radius: 12px;
+  padding: 7px 12px;
+  margin: 3px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 3px 10px rgba(20, 24, 30, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gridMatchCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(20, 24, 30, 0.08);
+}
+
+.gridMatchCard[data-div="0"] {
+  --div-accent: #EE7A4C;
+  --div-border: rgba(238, 122, 76, 0.40);
+  --div-badge-bg: rgba(238, 122, 76, 0.12);
+}
+.gridMatchCard[data-div="1"] {
+  --div-accent: #2563EB;
+  --div-border: rgba(37, 99, 235, 0.40);
+  --div-badge-bg: rgba(37, 99, 235, 0.12);
+}
+.gridMatchCard[data-div="2"] {
+  --div-accent: #059669;
+  --div-border: rgba(5, 150, 105, 0.40);
+  --div-badge-bg: rgba(5, 150, 105, 0.12);
+}
+.gridMatchCard[data-div="3"] {
+  --div-accent: #7C3AED;
+  --div-border: rgba(124, 58, 237, 0.40);
+  --div-badge-bg: rgba(124, 58, 237, 0.12);
+}
+.gridMatchCard[data-div="4"] {
+  --div-accent: #DB2777;
+  --div-border: rgba(219, 39, 119, 0.40);
+  --div-badge-bg: rgba(219, 39, 119, 0.12);
+}
+
+.gridMatchTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gridMatchTimeWrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.gridMatchTime {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--div-accent, #EE7A4C);
+}
+
+.gridMatchDot {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--div-accent, #EE7A4C);
+  opacity: 0.7;
+}
+
+.gridMatchDuration {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--div-accent, #EE7A4C);
+  opacity: 0.8;
+}
+
+.gridMatchNo {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--div-accent, #EE7A4C);
+  background: var(--div-badge-bg, rgba(238, 122, 76, 0.12));
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.gridTeamRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gridTeamName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-900, #14181E);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gridScores {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.gridScoreBadgeWin {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--div-accent, #EE7A4C);
+  color: #FFFFFF;
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gridScoreBadge {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--sand-200, #F0EDE6);
+  border: 1px solid var(--sand-300, #EAE5DD);
+  color: var(--ink-800, #2C323D);
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gridScoreEmpty {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px dashed var(--sand-300, #EAE5DD);
+  background: transparent;
+}
+
+.gridVsRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -1px 0;
+}
+
+.gridVsLine {
+  flex: 1;
+  height: 1px;
+  background: var(--sand-200, #F0EDE6);
+}
+
+.gridVsText {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-400, #A6ADB9);
+  text-transform: lowercase;
+}
+.calDaySection { margin-bottom: 20px; }
+.calDayHeading {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-800, #2C323D);
+  margin: 4px 0 8px;
+}
+.calScroll {
+  overflow: auto;
+  max-height: 78vh;
   border: 1px solid var(--sand-300, #EAE5DD);
   border-radius: 14px;
   background: var(--surface-card, #FFFFFF);
 }
-.gridTable {
-  border-collapse: separate;
-  border-spacing: 0;
+.calGrid {
+  display: grid;
+  position: relative;
   width: max-content;
   min-width: 100%;
-  font-size: 12px;
 }
-.gridTable th,
-.gridTable td {
-  border-right: 1px solid var(--sand-200, #F0EDE6);
-  border-bottom: 1px solid var(--sand-200, #F0EDE6);
-}
-.gridTable thead th {
+/* Sticky court-header row (top) */
+.calCorner,
+.calCourtHead {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   background: var(--sand-100, #F4F1EA);
+  border-bottom: 1px solid var(--sand-300, #EAE5DD);
 }
-.gridTimeHead {
-  padding: 8px 10px;
-  min-width: 132px;
-  text-align: left;
-  white-space: nowrap;
+.calCorner {
+  left: 0;
+  z-index: 5;
+  border-right: 1px solid var(--sand-300, #EAE5DD);
 }
-.gridDate {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--ink-500, #8A92A0);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.gridTimeVal {
+.calCourtHead {
+  padding: 10px 12px;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink-900, #14181E);
+  text-align: center;
+  border-right: 1px solid var(--sand-200, #F0EDE6);
 }
-/* First column (court names) sticks while scrolling time across. */
-.gridCorner,
-.gridCourtHead {
+/* Sticky time column (left) */
+.calTimeLabel {
   position: sticky;
   left: 0;
-  z-index: 1;
-  min-width: 92px;
-  padding: 8px 12px;
-  text-align: left;
-  font-weight: 700;
-  color: var(--ink-900, #14181E);
-  background: var(--sand-100, #F4F1EA);
-}
-.gridCorner { z-index: 3; }
-.gridCell {
-  padding: 5px;
-  vertical-align: top;
+  z-index: 2;
+  padding: 2px 8px 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-500, #8A92A0);
   background: var(--surface-card, #FFFFFF);
+  border-top: 1px solid var(--sand-200, #F0EDE6);
+  border-right: 1px solid var(--sand-300, #EAE5DD);
+  white-space: nowrap;
 }
-.gridMatch {
+/* Horizontal gridlines across the court columns at each labelled tick */
+.calGridLine {
+  border-top: 1px solid var(--sand-200, #F0EDE6);
+  pointer-events: none;
+}
+/* A match block, sized by duration; tinted per division via data-div */
+.calBlock {
+  margin: 1px 3px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: var(--sand-100, #F4F1EA);
-  border: 1px solid var(--sand-300, #EAE5DD);
+  gap: 3px;
+  min-width: 0;
+  background: var(--cal-bg);
+  border: 1px solid var(--cal-border);
+  border-left: 3px solid var(--cal-accent);
 }
-.gridMatch + .gridMatch { margin-top: 4px; }
-.gridMatchLive {
-  border-color: rgba(238, 122, 76, 0.5);
-  background: rgba(238, 122, 76, 0.08);
+.calBlockTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
 }
-.gridMatchPreview {
-  border-style: dashed;
-  border-color: rgba(238, 122, 76, 0.45);
-  background: rgba(238, 122, 76, 0.05);
-}
-.gridMatchDiv {
+.calBlockTime {
   font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--orange, #EE7A4C);
+  font-weight: 500;
+  color: var(--cal-accent);
 }
-.gridMatchTeams {
-  font-size: 12px;
+.calBlockNo {
+  font-size: 10px;
   font-weight: 600;
-  color: var(--ink-800, #2C323D);
-  line-height: 1.3;
+  color: var(--ink-500, #8A92A0);
 }
+.calBlockTeams {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.calBlockPreview { border-style: dashed; }
+.calBlockLive { box-shadow: 0 0 0 1px var(--cal-accent) inset; }
+/* Division palette — index via data-div (0..5) */
+.calBlock[data-div="0"], .calSwatch[data-div="0"] { --cal-bg: rgba(238,122,76,0.12); --cal-border: rgba(238,122,76,0.40); --cal-accent: #E06838; }
+.calBlock[data-div="1"], .calSwatch[data-div="1"] { --cal-bg: rgba(59,130,246,0.12); --cal-border: rgba(59,130,246,0.40); --cal-accent: #2563EB; }
+.calBlock[data-div="2"], .calSwatch[data-div="2"] { --cal-bg: rgba(16,185,129,0.12); --cal-border: rgba(16,185,129,0.40); --cal-accent: #059669; }
+.calBlock[data-div="3"], .calSwatch[data-div="3"] { --cal-bg: rgba(139,92,246,0.12); --cal-border: rgba(139,92,246,0.40); --cal-accent: #7C3AED; }
+.calBlock[data-div="4"], .calSwatch[data-div="4"] { --cal-bg: rgba(236,72,153,0.12); --cal-border: rgba(236,72,153,0.40); --cal-accent: #DB2777; }
+.calBlock[data-div="5"], .calSwatch[data-div="5"] { --cal-bg: rgba(202,138,4,0.14); --cal-border: rgba(202,138,4,0.40); --cal-accent: #CA8A04; }
 .gridVs {
   color: var(--ink-400, #A6ADB9);
   font-weight: 500;
@@ -738,6 +1066,17 @@
 }
 .matchItemUnscheduled {
   opacity: 0.72;
+}
+/* Over-scheduled: the generator couldn't fit this match within the event's days. */
+.matchItemOverflow {
+  opacity: 1;
+  border-color: rgba(220, 38, 38, 0.55);
+  border-style: solid;
+  background: rgba(220, 38, 38, 0.08);
+}
+.matchItemOverflow .matchTime {
+  color: #dc2626;
+  font-weight: 700;
 }
 
 /* ── Print Styles ────────────────────────────────────────────── */

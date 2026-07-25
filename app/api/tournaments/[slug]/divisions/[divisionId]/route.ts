@@ -10,7 +10,8 @@ interface DivisionBody {
   registrationOpenDate: string;
   // Each round carries its own scoring rules (e.g. pool play to 21, the
   // elimination round after it best of 3) instead of one blob per division.
-  rounds: { format: string; scoring: Record<string, unknown> }[];
+  // durationMinutes (per-round match length) is folded into scoring_rules on save.
+  rounds: { format: string; scoring: Record<string, unknown>; durationMinutes?: number }[];
   rules: string;
   regFields: unknown[];
   allowMulti: boolean;
@@ -25,6 +26,10 @@ interface DivisionBody {
 
 const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'];
 const roundLabel = (i: number) => (ORDINALS[i] ? `${ORDINALS[i]} Round` : `Round ${i + 1}`);
+
+// Per-round match length (minutes), clamped to a sane range; defaults to 45.
+const clampMinutes = (v: number | undefined) =>
+  typeof v === 'number' && v > 0 ? Math.max(5, Math.min(240, Math.trunc(v))) : 45;
 
 function toSettings(body: DivisionBody) {
   return {
@@ -99,7 +104,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     sequence: i + 1,
     format: r.format,
     name: roundLabel(i),
-    scoring_rules: r.scoring,
+    scoring_rules: { ...r.scoring, durationMinutes: clampMinutes(r.durationMinutes) },
   }));
   const { data: rounds, error: rError } = roundRows.length
     ? await supabaseAdmin.from('rounds').insert(roundRows).select('id, sequence, format, name, scoring_rules')

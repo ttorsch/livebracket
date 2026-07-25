@@ -160,22 +160,29 @@ function emptyBracket(teamCount: number): BracketView | null {
   const totalRounds = Math.log2(size);
   const rounds: ViewRound[] = [];
   let matchCount = size / 2;
+  let cumulativeMatchNo = 1;
 
   for (let r = 0; r < totalRounds; r++) {
     const isFinal = r === totalRounds - 1;
     const matches: ViewMatch[] = [];
+    const prevStartMatchNo = r > 0 ? cumulativeMatchNo - (matchCount * 2) : 1;
+
     for (let i = 0; i < matchCount; i++) {
-      const mkRow = (): ViewRow => ({ seed: null, name: 'TBD', win: false, lost: false, live: false });
+      const nameA = r === 0 ? `Winner of M${2 * i + 1}` : `Winner of M${prevStartMatchNo + 2 * i}`;
+      const nameB = r === 0 ? `Winner of M${2 * i + 2}` : `Winner of M${prevStartMatchNo + 2 * i + 1}`;
+
+      const mkRow = (name: string): ViewRow => ({ seed: null, name, win: false, lost: false, live: false });
       matches.push({
         live: false,
         hasRight: !isFinal,
         hasLeft: r > 0,
         hasSpine: !isFinal && i % 2 === 0,
-        rowA: mkRow(),
-        rowB: mkRow(),
+        rowA: mkRow(nameA),
+        rowB: mkRow(nameB),
       });
     }
     rounds.push({ name: roundName(matchCount * 2), matches });
+    cumulativeMatchNo += matchCount;
     matchCount /= 2;
   }
 
@@ -189,29 +196,40 @@ function dbBracket(division: DetailDivision): BracketView | null {
 
   const seedOf = new Map(division.teamsList.map(t => [t.id, t.seed]));
   const total = knockout.length;
+  let cumulativeMatchNo = 1;
 
-  const rounds: ViewRound[] = knockout.map((r, ri) => ({
-    name: r.round,
-    matches: r.matches.map((m, mi) => {
+  const rounds: ViewRound[] = knockout.map((r, ri) => {
+    const prevStartMatchNo = ri > 0 ? cumulativeMatchNo - (knockout[ri - 1]?.matches.length || 0) : 1;
+
+    const matches = r.matches.map((m, mi) => {
       const bye = ri === 0 && m.status === 'done' && (m.teamAId === null) !== (m.teamBId === null);
-      const mkRow = (id: string | null, name: string | null, winnerSide: boolean): ViewRow => ({
+      const fallbackA = ri === 0 ? `Winner of M${2 * mi + 1}` : `Winner of M${prevStartMatchNo + 2 * mi}`;
+      const fallbackB = ri === 0 ? `Winner of M${2 * mi + 2}` : `Winner of M${prevStartMatchNo + 2 * mi + 1}`;
+
+      const nameA = (m.teamAName && m.teamAName !== 'TBD') ? m.teamAName : (bye ? 'BYE' : fallbackA);
+      const nameB = (m.teamBName && m.teamBName !== 'TBD') ? m.teamBName : (bye ? 'BYE' : fallbackB);
+
+      const mkRow = (id: string | null, name: string, winnerSide: boolean): ViewRow => ({
         seed: id ? seedOf.get(id) ?? null : null,
-        name: name ?? (bye ? 'BYE' : 'TBD'),
+        name,
         win: winnerSide,
-        // A real team greys out once the match is decided against it.
         lost: !!id && m.status === 'done' && m.winner !== undefined && !winnerSide,
         live: m.status === 'live',
       });
+
       return {
         live: m.status === 'live',
         hasRight: ri < total - 1,
         hasLeft: ri > 0,
         hasSpine: ri < total - 1 && mi % 2 === 0,
-        rowA: mkRow(m.teamAId, m.teamAName, m.status === 'done' && m.winner === 'A'),
-        rowB: mkRow(m.teamBId, m.teamBName, m.status === 'done' && m.winner === 'B'),
+        rowA: mkRow(m.teamAId, nameA, m.status === 'done' && m.winner === 'A'),
+        rowB: mkRow(m.teamBId, nameB, m.status === 'done' && m.winner === 'B'),
       };
-    }),
-  }));
+    });
+
+    cumulativeMatchNo += r.matches.length;
+    return { name: r.round, matches };
+  });
 
   const final = knockout[total - 1].matches[0];
   const champion = final?.winner === 'A' ? final.teamAName : final?.winner === 'B' ? final.teamBName : null;
@@ -264,6 +282,7 @@ export default function OrganizerBracketPage() {
 
   const [backHidden, setBackHidden] = useState(false);
   const lastScrollY = useRef(0);
+  const drawResultRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async (preferDiv?: string) => {
     const data = await getTournamentDetail(slug);
@@ -692,7 +711,11 @@ export default function OrganizerBracketPage() {
       await load(division.id);
       setAnimDiv(division.id);
       setDrawTick(t => t + 1);
+      setPoolResultsOpen(true);
       setBracketOpen(true);
+      setTimeout(() => {
+        drawResultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save the draw');
     } finally {
@@ -744,12 +767,7 @@ export default function OrganizerBracketPage() {
       </Link>
 
       {/* ── Hero ─────────────────────────────────────────────── */}
-      <section
-        className={styles.hero}
-        style={{
-          backgroundImage: `linear-gradient(180deg, rgba(20,24,30,0.12) 0%, rgba(20,24,30,0.30) 45%, rgba(20,24,30,0.62) 100%), url('${heroImage}')`,
-        }}
-      >
+      <section className={styles.hero}>
         <div className={styles.heroInner}>
           <div className={styles.heroContent}>
             {isLive && (
@@ -1065,7 +1083,7 @@ export default function OrganizerBracketPage() {
 
             {poolGroups.length > 0 && (
               <div className={`${styles.roundWrap} ${poolResultsOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
-              <div className={styles.poolsWrap}>
+              <div ref={drawResultRef} className={styles.poolsWrap}>
                 <div className={styles.poolsHead}>
                   <div className={styles.poolsHeadLeft}>
                     <h3 className={styles.cardTitle}>Draw Result</h3>

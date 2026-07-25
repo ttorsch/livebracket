@@ -19,6 +19,7 @@ import {
   Table,
   Trophy,
   Users,
+  Utensils,
   Wand2,
   X,
 } from 'lucide-react';
@@ -48,6 +49,8 @@ interface ScheduleMatch {
   dateLabel: string;     // e.g. "Sat, Jul 26" ('' when unscheduled)
   isPreview?: boolean;   // slot came from an unsaved generated preview
   unscheduled?: boolean; // no court/time assigned
+  overScheduled?: boolean; // couldn't fit in the tournament's days (preview overflow)
+  durationMinutes: number; // match slot length, for sizing calendar blocks
 }
 
 // Sort by (day, "HH:MM") ascending; unscheduled placeholders sink to the end.
@@ -76,6 +79,16 @@ function shortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
+
+// Minutes-since-midnight -> "HH:MM".
+function toHHMM(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// Vertical scale of the calendar grid: pixels per minute of match time.
+const PX_PER_MIN = 2.3;
 
 export default function TournamentSchedulePage() {
   const params = useParams();
@@ -128,6 +141,9 @@ export default function TournamentSchedulePage() {
     return m;
   }, [preview]);
 
+  // Matches the generator couldn't fit before the last day ends — over-scheduled.
+  const overflowIds = useMemo(() => new Set(preview?.overflow.map(o => o.matchId) ?? []), [preview]);
+
   const setConfigField = <K extends keyof ScheduleConfig>(key: K, value: ScheduleConfig[K]) => {
     setConfig(prev => (prev ? { ...prev, [key]: value } : prev));
   };
@@ -147,6 +163,7 @@ export default function TournamentSchedulePage() {
           teamA: m.teamAId,
           teamB: m.teamBId,
           isPool: r.format === 'round-robin',
+          durationMinutes: r.durationMinutes, // per-round slot length declared in setup
         })),
       ),
     }));
@@ -192,48 +209,91 @@ export default function TournamentSchedulePage() {
     }
   }
 
-  // Aggregate matches from all divisions
+  // Aggregate matches from all divisions (excluding BYE matches, formatting TBD as Winner of M...)
   const allMatches = useMemo<ScheduleMatch[]>(() => {
     if (!detail) return [];
     const list: ScheduleMatch[] = [];
 
     detail.divisions.forEach((div: DetailDivision) => {
-      div.bracket.forEach(round => {
+      let cumulativeMatchNo = 1;
+
+      div.bracket.forEach((round, rIdx) => {
+        const roundStartMatchNo = cumulativeMatchNo;
+        const prevRoundStartMatchNo = rIdx > 0 ? cumulativeMatchNo - (div.bracket[rIdx - 1]?.matches.length || 0) : 1;
+
         round.matches.forEach((m, idx) => {
+          const currentMatchNoNum = roundStartMatchNo + idx;
+
+          // Rule 2: Don't put BYE matches in the schedule!
+          const isByeMatch =
+            m.teamAName?.toUpperCase() === 'BYE' ||
+            m.teamBName?.toUpperCase() === 'BYE' ||
+            m.teamAId === 'bye' ||
+            m.teamBId === 'bye' ||
+            (round.round.toLowerCase().includes('round of') && m.status === 'done' && (!m.teamAName || !m.teamBName));
+
+          if (isByeMatch) return;
+
+          // Rule 1: Replace TBD with Winner of M...
+          let formattedTeamA = m.teamAName;
+          if (!formattedTeamA || formattedTeamA === 'TBD' || formattedTeamA.trim() === '') {
+            if (rIdx === 0) {
+              formattedTeamA = `Winner of M${2 * idx + 1}`;
+            } else {
+              formattedTeamA = `Winner of M${prevRoundStartMatchNo + 2 * idx}`;
+            }
+          }
+
+          let formattedTeamB = m.teamBName;
+          if (!formattedTeamB || formattedTeamB === 'TBD' || formattedTeamB.trim() === '') {
+            if (rIdx === 0) {
+              formattedTeamB = `Winner of M${2 * idx + 2}`;
+            } else {
+              formattedTeamB = `Winner of M${prevRoundStartMatchNo + 2 * idx + 1}`;
+            }
+          }
+
           const pv = previewMap.get(m.id);
-          const court = pv?.court ?? m.court ?? '';
-          const time = pv?.time ?? m.time ?? '';
-          // Day: from the preview when previewing, else from the saved date.
-          const day = pv
-            ? pv.day
-            : m.scheduledDate
-              ? dayIndexOf(detail.startDate, m.scheduledDate)
-              : -1;
+          const overScheduled = overflowIds.has(m.id);
+          const court = overScheduled ? 'Unscheduled' : (pv?.court ?? m.court ?? '');
+          const time = overScheduled ? '—' : (pv?.time ?? m.time ?? '');
+          const day = overScheduled
+            ? -1
+            : pv
+              ? pv.day
+              : m.scheduledDate
+                ? dayIndexOf(detail.startDate, m.scheduledDate)
+                : -1;
           const dateStr = day >= 0 ? addDaysUTC(detail.startDate, day) : '';
+
           list.push({
             id: m.id,
             divisionLabel: div.label,
             divisionId: div.id,
             roundName: round.round,
-            matchNo: `M${idx + 1}`,
+            matchNo: `M${currentMatchNoNum}`,
             court: court || 'Unscheduled',
             time: time || '—',
-            teamA: m.teamAName || 'TBD',
-            teamB: m.teamBName || 'TBD',
+            teamA: formattedTeamA,
+            teamB: formattedTeamB,
             scoreA: m.scoreA,
             scoreB: m.scoreB,
             status: m.status,
             day,
             dateLabel: dateStr ? shortDate(dateStr) : '',
             isPreview: !!pv,
-            unscheduled: !court && !time,
+            unscheduled: !court || court === 'Unscheduled' || !time || time === '—',
+            overScheduled,
+            durationMinutes: round.durationMinutes ?? 45,
           });
         });
+
+        cumulativeMatchNo += round.matches.length;
       });
     });
 
     return list;
-  }, [detail, previewMap]);
+  }, [detail, previewMap, overflowIds]);
 
   const dayCount = detail?.dayCount ?? 1;
 
@@ -256,7 +316,11 @@ export default function TournamentSchedulePage() {
       map.get(courtName)!.push(m);
     });
     return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+      .sort((a, b) => {
+        if (a[0] === 'Unscheduled') return 1;
+        if (b[0] === 'Unscheduled') return -1;
+        return a[0].localeCompare(b[0], undefined, { numeric: true });
+      })
       .map(([courtName, matches]) => ({
         courtName,
         matches: [...matches].sort((x, y) => timeKey(x.day, x.time) - timeKey(y.day, y.time)),
@@ -275,27 +339,117 @@ export default function TournamentSchedulePage() {
     return Array.from(map.values()).sort((a, b) => timeKey(a.day, a.time) - timeKey(b.day, b.time));
   }, [filteredMatches]);
 
-  // Court × time grid: rows = courts (Y), columns = (day,time) slots (X),
-  // cells = the match(es) on that court at that time.
-  const gridData = useMemo(() => {
+  // Calendar grid: courts on the X axis (columns), time on the Y axis (rows) at
+  // a fixed interval. Each match is a block sized by its duration; one section
+  // per day; blocks are tinted by division. `pitch` is the row granularity in
+  // minutes (the GCD of every match's start offset and length, so each block
+  // lands on an exact row); PX_PER_MIN keeps the visual scale constant.
+  const calendar = useMemo(() => {
+    const parseMin = (t: string) => { const x = /^(\d{2}):(\d{2})$/.exec(t); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
+    const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+
     const scheduled = filteredMatches.filter(m => !m.unscheduled && m.day >= 0 && m.time !== '—');
-    const colMap = new Map<string, { day: number; time: string; dateLabel: string }>();
-    const rowSet = new Set<string>();
-    const cell = new Map<string, ScheduleMatch[]>();
-    scheduled.forEach(m => {
-      const colKey = `${m.day} ${m.time}`;
-      if (!colMap.has(colKey)) colMap.set(colKey, { day: m.day, time: m.time, dateLabel: m.dateLabel });
-      rowSet.add(m.court);
-      const ck = `${m.court} ${colKey}`;
-      (cell.get(ck) ?? cell.set(ck, []).get(ck)!).push(m);
+    const unscheduled = filteredMatches.filter(m => m.unscheduled || m.court === 'Unscheduled');
+
+    const scheduledCourts = [...new Set(scheduled.map(m => m.court))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const courts = unscheduled.length > 0 ? [...scheduledCourts, 'Unscheduled'] : scheduledCourts;
+    const divOrder = [...new Set(filteredMatches.map(m => m.divisionLabel))];
+
+    type Item = { m: ScheduleMatch; startMin: number; dur: number };
+    const byDay = new Map<number, { day: number; dateLabel: string; items: Item[] }>();
+    for (const m of scheduled) {
+      const s = parseMin(m.time);
+      if (s == null) continue;
+      const dur = Math.max(5, Math.trunc(m.durationMinutes) || 45);
+      if (!byDay.has(m.day)) byDay.set(m.day, { day: m.day, dateLabel: m.dateLabel, items: [] });
+      byDay.get(m.day)!.items.push({ m, startMin: s, dur });
+    }
+    if (byDay.size === 0 && unscheduled.length > 0) {
+      byDay.set(0, { day: 0, dateLabel: 'Day 1', items: [] });
+    }
+    const dayList = [...byDay.values()].sort((a, b) => a.day - b.day);
+
+    // One global pitch so every day's rows line up on the same grid.
+    let g = 0;
+    for (const d of dayList) {
+      const dayStart = d.items.length > 0 ? Math.min(...d.items.map(i => i.startMin)) : 480;
+      for (const i of d.items) { g = gcd(g, i.startMin - dayStart); g = gcd(g, i.dur); }
+    }
+    const pitch = Math.max(5, g || 30);
+
+    const days = dayList.map((d, dIdx) => {
+      const startMin = d.items.length > 0 ? Math.min(...d.items.map(i => i.startMin)) : 480;
+      const endMin = d.items.length > 0 ? Math.max(...d.items.map(i => i.startMin + i.dur)) : 720;
+
+      // Stack unscheduled matches in the 'Unscheduled' column
+      const unscheduledBlocks: { m: ScheduleMatch; court: string; startSlot: number; spanSlots: number }[] = [];
+      if (unscheduled.length > 0) {
+        let currentSlot = 0;
+        unscheduled.forEach((u) => {
+          const spanSlots = Math.max(1, Math.round((u.durationMinutes || 45) / pitch));
+          unscheduledBlocks.push({
+            m: u,
+            court: 'Unscheduled',
+            startSlot: currentSlot,
+            spanSlots,
+          });
+          currentSlot += spanSlots;
+        });
+      }
+
+      const maxUnscheduledSlot = unscheduledBlocks.reduce((max, b) => Math.max(max, b.startSlot + b.spanSlots), 0);
+      const scheduledSlots = Math.max(1, Math.round((endMin - startMin) / pitch));
+      const slots = Math.max(scheduledSlots, maxUnscheduledSlot);
+
+      const blocks = [
+        ...d.items.map(i => ({
+          m: i.m,
+          court: i.m.court,
+          startSlot: Math.round((i.startMin - startMin) / pitch),
+          spanSlots: Math.max(1, Math.round(i.dur / pitch)),
+        })),
+        ...(dIdx === 0 ? unscheduledBlocks : []),
+      ];
+
+      let lunchBlock: { startSlot: number; spanSlots: number; text: string } | null = null;
+      if (config?.lunchStart && config?.lunchEnd) {
+        const lStart = parseMin(config.lunchStart);
+        const lEnd = parseMin(config.lunchEnd);
+        if (lStart != null && lEnd != null && lEnd > lStart) {
+          const lStartSlot = Math.round((lStart - startMin) / pitch);
+          const lSpanSlots = Math.max(1, Math.round((lEnd - lStart) / pitch));
+          if (lStartSlot >= 0 && lStartSlot < slots) {
+            lunchBlock = {
+              startSlot: lStartSlot,
+              spanSlots: lSpanSlots,
+              text: `Lunch Break (${config.lunchStart} – ${config.lunchEnd})`,
+            };
+          }
+        }
+      }
+
+      // Time-axis labels only on full hours (every 60 minutes)
+      const labelEvery = Math.max(1, Math.round(60 / pitch));
+      const labels: { slot: number; time: string }[] = [];
+      for (let s = 0; s <= slots; s += 1) {
+        const totalMin = startMin + s * pitch;
+        if (totalMin % 60 === 0) {
+          labels.push({ slot: s, time: toHHMM(totalMin) });
+        }
+      }
+
+      return { day: d.day, dateLabel: d.dateLabel, startMin, slots, blocks, labels, lunchBlock };
     });
-    const columns = [...colMap.entries()]
-      .map(([key, v]) => ({ key, ...v }))
-      .sort((a, b) => timeKey(a.day, a.time) - timeKey(b.day, b.time));
-    const rows = [...rowSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    const at = (court: string, colKey: string) => cell.get(`${court} ${colKey}`) ?? [];
-    return { columns, rows, at, unscheduledCount: filteredMatches.length - scheduled.length };
+
+    return { courts, days, pitch, divOrder, unscheduledCount: unscheduled.length };
   }, [filteredMatches]);
+
+  // Division -> color index (0..5) for calendar tinting, by first appearance.
+  const divColorIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    calendar.divOrder.forEach((label, i) => map.set(label, i % 6));
+    return map;
+  }, [calendar.divOrder]);
 
   const heroImage = 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1600&q=80';
   const totalTeams = detail?.divisions.reduce((acc, d) => acc + d.filled, 0) ?? 0;
@@ -490,10 +644,6 @@ export default function TournamentSchedulePage() {
                 <input type="number" min={1} max={64} value={config.courtCount} onChange={e => setConfigField('courtCount', Number(e.target.value))} />
               </label>
               <label className={styles.genField}>
-                <span>Block (min)</span>
-                <input type="number" min={5} max={240} step={5} value={config.blockMinutes} onChange={e => setConfigField('blockMinutes', Number(e.target.value))} />
-              </label>
-              <label className={styles.genField}>
                 <span>Lunch start</span>
                 <input type="time" value={config.lunchStart} onChange={e => setConfigField('lunchStart', e.target.value)} />
               </label>
@@ -534,7 +684,8 @@ export default function TournamentSchedulePage() {
                 })}
               </div>
               <p className={styles.genHint}>
-                Leave blank to auto-size (half the pool count, min 1). Net-height pivots and staggered rest cycles arrive in Phase 2.
+                Each match uses the length set for its round in Setup. Leave courts blank to auto-size (half the pool count, min 1).
+                Divisions with no matches yet reserve no courts. Matches that can&apos;t fit within the tournament&apos;s {dayCount} day{dayCount === 1 ? '' : 's'} are flagged as over-scheduled.
               </p>
             </div>
 
@@ -556,10 +707,11 @@ export default function TournamentSchedulePage() {
               <span className={styles.previewText}>
                 {preview.assignments.length} matches placed · {preview.mode === 'wave' ? 'Rolling-wave' : 'Parallel'} mode
                 {' '}(V<sub>R</sub> {preview.venueRatio.toFixed(2)})
+                {' '}· {Math.floor(preview.dayCapacityMinutes / 60)}h {preview.dayCapacityMinutes % 60}m/court/day
                 {preview.pivots > 0 && <> · {preview.pivots} net pivot{preview.pivots === 1 ? '' : 's'}</>}
                 {preview.overflow.length > 0 && (
                   <span className={styles.previewWarn}>
-                    <AlertTriangle size={13} /> {preview.overflow.length} won&apos;t fit in the schedule
+                    <AlertTriangle size={13} /> {preview.overflow.length} over-scheduled (won&apos;t fit in {dayCount} day{dayCount === 1 ? '' : 's'})
                   </span>
                 )}
               </span>
@@ -596,11 +748,13 @@ export default function TournamentSchedulePage() {
                     {group.matches.map(m => (
                       <div
                         key={m.id}
-                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''}`}
+                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''} ${m.overScheduled ? styles.matchItemOverflow : ''}`}
                       >
                         <div className={styles.matchItemTop}>
                           <span className={styles.matchTime}>
-                            <Clock size={13} /> {dayCount > 1 && m.dateLabel ? `${m.dateLabel} · ` : ''}{m.time} · {m.matchNo}
+                            {m.overScheduled
+                              ? <><AlertTriangle size={13} /> Over-scheduled · {m.matchNo}</>
+                              : <><Clock size={13} /> {dayCount > 1 && m.dateLabel ? `${m.dateLabel} · ` : ''}{m.time} · {m.matchNo}</>}
                           </span>
                           <span className={styles.divisionBadge}>{m.divisionLabel}</span>
                         </div>
@@ -638,14 +792,14 @@ export default function TournamentSchedulePage() {
                     <Clock size={16} color="var(--orange, #EE7A4C)" />
                     {dayCount > 1 && group.dateLabel ? `${group.dateLabel} · ` : 'Scheduled Time: '}{group.time}
                   </div>
-                  <div className={styles.timelineGrid}>
+                  <div className={styles.timelineGrid} style={{ '--match-count': group.matches.length || 1 } as CSSProperties}>
                     {group.matches.map(m => (
                       <div
                         key={m.id}
-                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''}`}
+                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''} ${m.overScheduled ? styles.matchItemOverflow : ''}`}
                       >
                         <div className={styles.matchItemTop}>
-                          <span className={styles.matchTime}>{m.court} · {m.matchNo}</span>
+                          <span className={styles.matchTime}>{m.overScheduled ? <><AlertTriangle size={13} /> Over-scheduled</> : m.court} · {m.matchNo}</span>
                           <span className={styles.divisionBadge}>{m.divisionLabel}</span>
                         </div>
                         <div className={styles.matchTeams}>
@@ -671,54 +825,150 @@ export default function TournamentSchedulePage() {
           </div>
         ) : (
           <div>
-            <h2 className={styles.sectionTitle}>
-              <Table size={22} color="var(--orange, #EE7A4C)" />
-              Court Grid ({gridData.rows.length} Courts × {gridData.columns.length} Slots)
-            </h2>
-            {gridData.columns.length === 0 ? (
+            <div className={styles.gridHeaderRow}>
+              <div className={styles.gridHeaderLeft}>
+                <div className={styles.gridHeaderIconBadge}>
+                  <Table size={20} color="#FFFFFF" />
+                </div>
+                <div>
+                  <div className={styles.gridHeaderEyebrow}>
+                    {detail ? detail.title.toUpperCase() : 'TOURNAMENT'} · DAY 1
+                  </div>
+                  <h2 className={styles.gridHeaderTitle}>Court Schedule</h2>
+                </div>
+              </div>
+              <div className={styles.gridHeaderRight}>
+                {calendar.divOrder.map(label => (
+                  <span key={label} className={styles.calLegendItem}>
+                    <span className={styles.calSwatch} data-div={divColorIndex.get(label) ?? 0} />
+                    {label}
+                  </span>
+                ))}
+                <span className={styles.pendingPill}>Result pending</span>
+              </div>
+            </div>
+
+            {calendar.courts.length === 0 ? (
               <p className={styles.gridNote}>No scheduled matches to show. Generate and save a schedule first.</p>
             ) : (
-              <div className={styles.gridScroll}>
-                <table className={styles.gridTable}>
-                  <thead>
-                    <tr>
-                      <th className={styles.gridCorner}>Court</th>
-                      {gridData.columns.map(col => (
-                        <th key={col.key} className={styles.gridTimeHead}>
-                          {dayCount > 1 && col.dateLabel && <span className={styles.gridDate}>{col.dateLabel}</span>}
-                          <span className={styles.gridTimeVal}>{col.time}</span>
-                        </th>
+              calendar.days.map(day => (
+                <div key={day.day} className={styles.calDaySection}>
+                  {dayCount > 1 && day.dateLabel && <div className={styles.calDayHeading}>{day.dateLabel}</div>}
+                  <div className={styles.calScroll}>
+                    <div
+                      className={styles.calGrid}
+                      style={{
+                        gridTemplateColumns: `70px repeat(${calendar.courts.length}, minmax(280px, 1fr))`,
+                        gridTemplateRows: `auto repeat(${day.slots}, auto)`,
+                      } as CSSProperties}
+                    >
+                      {/* Top-left corner cell */}
+                      <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties} />
+
+                      {/* Top Sticky Court Headers */}
+                      {calendar.courts.map((court, ci) => {
+                        const count = filteredMatches.filter(m => m.court === court).length;
+                        return (
+                          <div key={court} className={styles.calCourtHeadCard} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
+                            <span className={styles.courtName}>{court}</span>
+                            <span className={styles.courtCount}>{count} matches</span>
+                          </div>
+                        );
+                      })}
+
+                      {/* Y-axis Left Sticky Time Labels */}
+                      {day.labels.map(l => (
+                        <div key={`t${l.slot}`} className={styles.calTimeLabelCell} style={{ gridColumn: 1, gridRow: l.slot + 2 } as CSSProperties}>
+                          <span>{l.time}</span>
+                        </div>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gridData.rows.map(court => (
-                      <tr key={court}>
-                        <th className={styles.gridCourtHead}>{court}</th>
-                        {gridData.columns.map(col => {
-                          const cellMatches = gridData.at(court, col.key);
-                          return (
-                            <td key={col.key} className={styles.gridCell}>
-                              {cellMatches.map(m => (
-                                <div
-                                  key={m.id}
-                                  className={`${styles.gridMatch} ${m.status === 'live' ? styles.gridMatchLive : ''} ${m.isPreview ? styles.gridMatchPreview : ''}`}
-                                >
-                                  <span className={styles.gridMatchDiv}>{m.divisionLabel}</span>
-                                  <span className={styles.gridMatchTeams}>{m.teamA} <span className={styles.gridVs}>v</span> {m.teamB}</span>
-                                </div>
-                              ))}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {gridData.unscheduledCount > 0 && (
-              <p className={styles.gridNote}>{gridData.unscheduledCount} unscheduled match{gridData.unscheduledCount === 1 ? '' : 'es'} not shown in the grid.</p>
+
+                      {/* Horizontal Gridlines */}
+                      {day.labels.map(l => (
+                        <div key={`ln${l.slot}`} className={styles.calGridLine} style={{ gridColumn: `2 / ${calendar.courts.length + 2}`, gridRow: l.slot + 2 } as CSSProperties} />
+                      ))}
+
+                      {/* Lunch Break Slot Banner */}
+                      {day.lunchBlock && (
+                        <div
+                          className={styles.lunchBreakSlot}
+                          style={{
+                            gridColumn: `2 / ${calendar.courts.filter(c => c !== 'Unscheduled').length + 2}`,
+                            gridRow: `${day.lunchBlock.startSlot + 2} / span ${day.lunchBlock.spanSlots}`,
+                          } as CSSProperties}
+                        >
+                          <div className={styles.lunchBreakContent}>
+                            <Utensils size={15} />
+                            <span>{day.lunchBlock.text}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Match Block Cards placed at their exact Y-axis time row! */}
+                      {day.blocks.map(b => {
+                        const ci = calendar.courts.indexOf(b.court);
+                        if (ci < 0) return null;
+                        const divIdx = divColorIndex.get(b.m.divisionLabel) ?? 0;
+                        return (
+                          <div
+                            key={b.m.id}
+                            className={`${styles.gridMatchCard} ${b.m.status === 'live' ? styles.gridMatchCardLive : ''}`}
+                            data-div={divIdx}
+                            style={{
+                              gridColumn: ci + 2,
+                              gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
+                            } as CSSProperties}
+                          >
+                            <div className={styles.gridMatchTop}>
+                              <div className={styles.gridMatchTimeWrap}>
+                                <span className={styles.gridMatchTime}>{b.m.time}</span>
+                                <span className={styles.gridMatchDot}>·</span>
+                                <span className={styles.gridMatchDuration}>{b.m.durationMinutes || 45} m</span>
+                              </div>
+                              <span className={styles.gridMatchNo}>{b.m.matchNo}</span>
+                            </div>
+                            <div className={styles.gridTeamRow}>
+                              <span className={styles.gridTeamName}>{b.m.teamA}</span>
+                              <div className={styles.gridScores}>
+                                {b.m.scoreA && b.m.scoreA.length > 0 ? (
+                                  b.m.scoreA.map((s, idx) => (
+                                    <span key={idx} className={styles.gridScoreBadgeWin}>{s}</span>
+                                  ))
+                                ) : (
+                                  <>
+                                    <span className={styles.gridScoreEmpty} />
+                                    <span className={styles.gridScoreEmpty} />
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className={styles.gridVsRow}>
+                              <span className={styles.gridVsLine} />
+                              <span className={styles.gridVsText}>vs</span>
+                              <span className={styles.gridVsLine} />
+                            </div>
+                            <div className={styles.gridTeamRow}>
+                              <span className={styles.gridTeamName}>{b.m.teamB}</span>
+                              <div className={styles.gridScores}>
+                                {b.m.scoreB && b.m.scoreB.length > 0 ? (
+                                  b.m.scoreB.map((s, idx) => (
+                                    <span key={idx} className={styles.gridScoreBadge}>{s}</span>
+                                  ))
+                                ) : (
+                                  <>
+                                    <span className={styles.gridScoreEmpty} />
+                                    <span className={styles.gridScoreEmpty} />
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         )}

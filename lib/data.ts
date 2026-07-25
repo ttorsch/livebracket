@@ -80,6 +80,7 @@ export interface SetupRoundRow {
   format: string;
   name: string;
   scoringRules: Record<string, unknown>;
+  durationMinutes: number; // match slot length for this round (minutes)
 }
 
 export interface SetupDivisionRow {
@@ -125,7 +126,12 @@ export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[
     settings: d.settings ?? {},
     rounds: [...(d.rounds ?? [])]
       .sort((a, b) => a.sequence - b.sequence)
-      .map((r) => ({ ...r, scoringRules: r.scoring_rules ?? {} })),
+      .map((r) => {
+        // durationMinutes rides inside scoring_rules; split it back out so the
+        // setup page manages it as its own field and scoringRules stays pure.
+        const { durationMinutes: _dm, ...scoringRules } = (r.scoring_rules ?? {}) as Record<string, unknown>;
+        return { ...r, scoringRules, durationMinutes: readRoundMinutes(r.scoring_rules) };
+      }),
   }));
 }
 
@@ -220,6 +226,7 @@ export interface DetailMatch {
 export interface DetailRound {
   round: string;
   format: string;
+  durationMinutes?: number; // match slot length for this round (minutes)
   matches: DetailMatch[];
 }
 
@@ -295,7 +302,10 @@ function sortBySlots<T extends { id: string }>(matches: T[], slotIds?: string[])
 // them in UTC — otherwise a viewer's browser timezone would shift every slot.
 function formatMatchTime(iso: string | null): string {
   if (!iso) return '';
-  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
+  const d = new Date(iso);
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 // The calendar date (UTC 'YYYY-MM-DD') of a scheduled match — used to place it
@@ -331,7 +341,17 @@ interface RoundRow {
   sequence: number;
   format: string;
   name: string;
+  scoring_rules?: Record<string, unknown> | null;
   matches: MatchRow[];
+}
+
+// Per-round match length is stored inside the round's scoring_rules jsonb blob
+// (under `durationMinutes`) so no schema migration is needed — the same blob
+// already carries the round's scoring config. Falls back to a sane default.
+const DEFAULT_MATCH_MINUTES = 45;
+function readRoundMinutes(blob: Record<string, unknown> | null | undefined): number {
+  const v = (blob as { durationMinutes?: unknown } | null | undefined)?.durationMinutes;
+  return typeof v === 'number' && v > 0 ? Math.trunc(v) : DEFAULT_MATCH_MINUTES;
 }
 
 interface TeamRow {
@@ -381,7 +401,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         id, name, division_team_cap, settings,
         teams ( id, name, seed, status ),
         rounds (
-          id, sequence, format, name,
+          id, sequence, format, name, scoring_rules,
           matches (
             id, court, scheduled_time, status, score_a, score_b,
             team_a_id, team_b_id, winner_team_id,
@@ -437,6 +457,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           .map((r) => ({
             round: r.name,
             format: r.format,
+            durationMinutes: readRoundMinutes(r.scoring_rules),
             matches: sortBySlots(r.matches, draw?.slots?.[String(r.sequence)]).map((m) => ({
               id: m.id,
               court: m.court ?? '',

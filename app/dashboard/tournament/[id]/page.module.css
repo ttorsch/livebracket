@@ -44,18 +44,18 @@
 /* ── Hero ──────────────────────────────────────────────────── */
 .hero {
   position: relative;
-  min-height: 460px;
+  min-height: 178px;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
-  background-size: cover;
-  background-position: center 58%;
+  background: var(--surface-canvas, #F7F5F0);
+  border-bottom: 1px solid var(--sand-300, #EAE5DD);
 }
 .heroInner {
   max-width: 1240px;
   margin: 0 auto;
   width: 100%;
-  padding: 40px;
+  padding: 10px 40px;
 }
 .heroContent {
   max-width: 600px;
@@ -100,7 +100,7 @@
   line-height: 1.04;
   letter-spacing: -0.02em;
   margin: 0 0 16px;
-  color: #fff;
+  color: var(--ink-900, #14181E);
 }
 .heroMeta {
   display: flex;
@@ -113,9 +113,9 @@
   align-items: center;
   gap: 7px;
   font-size: 13px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--ink-700, #3E4654);
+  background: rgba(20, 24, 30, 0.05);
+  border: 1px solid var(--sand-300, #EAE5DD);
   padding: 6px 13px;
   border-radius: 999px;
 }
@@ -124,7 +124,7 @@
   font-size: 15px;
   line-height: 23px;
   margin: 0;
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--ink-600, #5A6270);
   max-width: 520px;
 }
 
@@ -132,12 +132,15 @@
 .stickyBar {
   position: sticky;
   top: 0;
-  z-index: 50;
-  background: rgba(247, 245, 240, 0.68);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 4px 20px rgba(20, 24, 30, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  z-index: 100;
+  background: rgba(247, 245, 240, 0.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform, backdrop-filter;
+  border-bottom: 1px solid rgba(20, 24, 30, 0.08);
+  box-shadow: 0 4px 20px rgba(20, 24, 30, 0.05);
 }
 .stickyInner {
   max-width: 1240px;
@@ -858,7 +861,7 @@
   border: 1px solid var(--sand-300);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 12px 14px;
+  padding: 16px 16px;
 }
 .matchNo {
   position: absolute;
@@ -910,7 +913,7 @@
 .matchDivider {
   height: 1px;
   background: var(--sand-300);
-  margin: 8px 0;
+  margin: 10px 0;
 }
 .matchSeed {
   flex-shrink: 0;

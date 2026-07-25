@@ -59,7 +59,10 @@ interface TournamentRound {
   id: string;
   format: RoundFormat | null; // null until the organizer picks one
   scoring: ScoringRules;      // each round can have its own scoring (e.g. round robin to 21, single elim best of 3)
+  durationMinutes: number;    // match slot length for this round, used by the scheduler
 }
+
+const DEFAULT_MATCH_MINUTES = 45;
 
 const ROUND_FORMATS: { value: RoundFormat; label: string }[] = [
   { value: 'round-robin', label: 'Round Robin' },
@@ -170,6 +173,7 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
       scoring: (r.scoringRules as unknown as ScoringRules) && Object.keys(r.scoringRules).length
         ? (r.scoringRules as unknown as ScoringRules)
         : defaultScoringRules(),
+      durationMinutes: typeof r.durationMinutes === 'number' ? r.durationMinutes : DEFAULT_MATCH_MINUTES,
     })),
     rules: typeof settings.rules === 'string' ? settings.rules : 'Standard FIVB Beach Volleyball rules apply.',
     regFields: (row.regFields as RegField[]) ?? makeBaseFields(),
@@ -332,7 +336,7 @@ export default function OrganizerSetup() {
   // C. Rules & formats — each round carries its own scoring rules (a round
   // robin round might go to 21 points while the elimination round after it
   // is best of 3), so scoring lives on TournamentRound, not the division.
-  const [rounds, setRounds] = useState<TournamentRound[]>([{ id: 'r_1', format: null, scoring: defaultScoringRules() }]);
+  const [rounds, setRounds] = useState<TournamentRound[]>([{ id: 'r_1', format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
   const [divRules, setDivRules] = useState('Standard FIVB Beach Volleyball rules apply.');
 
   // Per-division registration schema (isolated to this division)
@@ -383,7 +387,7 @@ export default function OrganizerSetup() {
     setRegFee(800);
     setRegOpenDate('');
     setIsOpenImmediately(true);
-    setRounds([{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules() }]);
+    setRounds([{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
     setDivRules('Standard FIVB Beach Volleyball rules apply.');
     setRegFields(makeBaseFields());
     setConfirmationMessage('');
@@ -412,7 +416,7 @@ export default function OrganizerSetup() {
     setRegFee(d.registrationFee);
     setRegOpenDate(d.registrationOpenDate);
     setIsOpenImmediately(!d.registrationOpenDate);
-    setRounds(d.rounds.length ? d.rounds : [{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules() }]);
+    setRounds(d.rounds.length ? d.rounds : [{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
     setDivRules(d.rules);
     setRegFields(d.regFields);
     setConfirmationMessage(d.confirmationMessage);
@@ -623,7 +627,7 @@ export default function OrganizerSetup() {
 
   // ── Tournament rounds builder ──────────────────────────────────
   const addRound = () => {
-    setRounds([...rounds, { id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules() }]);
+    setRounds([...rounds, { id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
     setFormError(null);
   };
 
@@ -634,6 +638,10 @@ export default function OrganizerSetup() {
 
   const setRoundScoring = (id: string, patch: Partial<ScoringRules>) => {
     setRounds(rounds.map(r => (r.id === id ? { ...r, scoring: { ...r.scoring, ...patch } } : r)));
+  };
+
+  const setRoundDuration = (id: string, minutes: number) => {
+    setRounds(rounds.map(r => (r.id === id ? { ...r, durationMinutes: minutes } : r)));
   };
 
   const removeRound = (id: string) => {
@@ -750,13 +758,18 @@ export default function OrganizerSetup() {
         divisionTeamCap: body.division_team_cap,
         regFields: body.reg_fields,
         settings: body.settings,
-        rounds: (body.rounds ?? []).map((r: { id: string; sequence: number; format: string; name: string; scoring_rules: Record<string, unknown> }) => ({
-          id: r.id,
-          sequence: r.sequence,
-          format: r.format,
-          name: r.name,
-          scoringRules: r.scoring_rules,
-        })),
+        rounds: (body.rounds ?? []).map((r: { id: string; sequence: number; format: string; name: string; scoring_rules: Record<string, unknown> }) => {
+          // Split the per-round duration back out of the scoring_rules blob.
+          const { durationMinutes, ...scoringRules } = (r.scoring_rules ?? {}) as Record<string, unknown>;
+          return {
+            id: r.id,
+            sequence: r.sequence,
+            format: r.format,
+            name: r.name,
+            scoringRules,
+            durationMinutes: typeof durationMinutes === 'number' ? durationMinutes : DEFAULT_MATCH_MINUTES,
+          };
+        }),
       });
 
       if (editingDivisionId) {
@@ -1405,6 +1418,21 @@ export default function OrganizerSetup() {
 
                       {round.format !== null && (
                         <div className={styles.scoringMatrix} style={{ marginTop: 12 }}>
+                          <div className={styles.scoringRow}>
+                            <span className={styles.scoringRowLabel}>Match length</span>
+                            <label className={styles.scoringCell}>
+                              <input
+                                type="number"
+                                className={styles.scoringInput}
+                                min={5}
+                                max={240}
+                                step={5}
+                                value={round.durationMinutes}
+                                onChange={e => setRoundDuration(round.id, parseInt(e.target.value) || 0)}
+                              />
+                              <span>min</span>
+                            </label>
+                          </div>
                           <div className={styles.scoringRow}>
                             <span className={styles.scoringRowLabel}>Match</span>
                             <label className={styles.scoringCell}>

@@ -40,10 +40,14 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
 
 export interface SchedulableMatch {
   id: string;
-  teamA: string | null; // team id (null for TBD / bye)
+  teamA: string | null;      // team id (null for TBD / bye)
   teamB: string | null;
-  isPool: boolean;      // true = pool-play (round-robin) match
+  isPool: boolean;           // true = pool-play (round-robin) match
+  durationMinutes?: number;  // this match's slot length; falls back to config.blockMinutes
 }
+
+/** Fallback match length (minutes) when a match/round declares none. */
+export const DEFAULT_MATCH_MINUTES = 45;
 
 export interface SchedulableDivision {
   id: string;
@@ -70,6 +74,7 @@ export interface ScheduleResult {
   mode: 'parallel' | 'wave';                           // V_R ≤ 1 vs > 1
   venueRatio: number;                                  // V_R = Σ D_d / courtCount
   pivots: number;                                      // net-height pivot blocks inserted
+  dayCapacityMinutes: number;                          // playable minutes/court/day (window − lunch)
 }
 
 /** Auto dedicated-court count for a division: half its pools, min 1.
@@ -105,7 +110,6 @@ const DAY_SPAN = 1440;
 interface DaySlot { day: number; min: number; abs: number; }
 
 interface DayWindow {
-  block: number;
   dayStart: number;
   dayEnd: number;
   lunchStart: number;
@@ -113,19 +117,21 @@ interface DayWindow {
   days: number;
 }
 
-/** Earliest valid slot at or after absolute cursor `from`: clamps into the
- *  day window, skips the lunch block, and rolls to the next day's start when a
- *  block won't fit before `dayEnd`. Returns null once past the final day. */
-function nextSlot(from: number, w: DayWindow): DaySlot | null {
+/** Earliest valid slot at or after absolute cursor `from` that fits a `block`
+ *  minutes long match: clamps into the day window, skips the lunch block, and
+ *  rolls to the next day's start when the block won't fit before `dayEnd`.
+ *  Returns null once past the final day. Block length is per-match, so a longer
+ *  match can roll to the next day where a shorter one still fits the same day. */
+function nextSlot(from: number, w: DayWindow, block: number): DaySlot | null {
   let day = Math.floor(from / DAY_SPAN);
   let min = from - day * DAY_SPAN;
   if (min < w.dayStart) min = w.dayStart;
   while (day < w.days) {
     let s = min;
-    if (w.lunchEnd > w.lunchStart && s < w.lunchEnd && s + w.block > w.lunchStart) {
+    if (w.lunchEnd > w.lunchStart && s < w.lunchEnd && s + block > w.lunchStart) {
       s = w.lunchEnd; // would overlap lunch — push to just after it
     }
-    if (s + w.block <= w.dayEnd) return { day, min: s, abs: day * DAY_SPAN + s };
+    if (s + block <= w.dayEnd) return { day, min: s, abs: day * DAY_SPAN + s };
     day += 1; // doesn't fit today — try the next day
     min = w.dayStart;
   }
@@ -284,12 +290,25 @@ export function generateSchedule(
   const lunchStart = parseHHMM(config.lunchStart);
   const lunchEnd = parseHHMM(config.lunchEnd);
   const dayCount = Math.max(1, Math.trunc(days) || 1);
-  const window: DayWindow = { block, dayStart, dayEnd, lunchStart, lunchEnd, days: dayCount };
+  const window: DayWindow = { dayStart, dayEnd, lunchStart, lunchEnd, days: dayCount };
 
-  // D_d per division (override or auto), clamped to the court count.
+  // Playable minutes per court per day: the day window minus the lunch break
+  // (only when lunch actually falls inside the window). Surfaced so the UI can
+  // show "blocks/day" capacity and reason about over-scheduling.
+  const lunchInWindow = lunchEnd > lunchStart && lunchStart >= dayStart && lunchEnd <= dayEnd;
+  const dayCapacityMinutes = Math.max(0, dayEnd - dayStart - (lunchInWindow ? lunchEnd - lunchStart : 0));
+
+  // D_d per division (override or auto), clamped to the court count. A division
+  // with no matches to schedule reserves zero courts — otherwise it would tie up
+  // capacity an active division could use (and, since the spare-court pass only
+  // runs when Σ D_d < courtCount, it would never be reclaimed).
   const dedicatedCourts: Record<string, number> = {};
   let sumDd = 0;
   for (const div of divisions) {
+    if (div.matches.length === 0) {
+      dedicatedCourts[div.id] = 0;
+      continue;
+    }
     const dd = Math.max(1, Math.min(courtCount, Math.trunc(div.dedicatedCourts ?? autoDedicatedCourts(div.pools)) || 1));
     dedicatedCourts[div.id] = dd;
     sumDd += dd;
@@ -344,17 +363,21 @@ export function generateSchedule(
       if (height != null) c.height = height;
     }
 
+    const byId = new Map(div.matches.map(m => [m.id, m]));
     for (const matchId of orderDivisionMatches(div)) {
+      // Each match consumes its own declared length (per round), falling back to
+      // the global block when a round didn't set one.
+      const mBlock = Math.max(1, Math.trunc(byId.get(matchId)?.durationMinutes ?? block) || block);
       const track = chosen.reduce((soonest, c) => (c.cursor < soonest.cursor ? c : soonest), chosen[0]);
-      const slot = nextSlot(track.cursor, window);
+      const slot = nextSlot(track.cursor, window, mBlock);
       if (!slot) {
         overflow.push({ matchId, divisionId: div.id }); // past the final day
         continue;
       }
       assignments.push({ matchId, divisionId: div.id, court: track.name, day: slot.day, time: toHHMM(slot.min) });
-      track.cursor = slot.abs + block;
+      track.cursor = slot.abs + mBlock;
     }
   }
 
-  return { assignments, overflow, dedicatedCourts, mode, venueRatio, pivots };
+  return { assignments, overflow, dedicatedCourts, mode, venueRatio, pivots, dayCapacityMinutes };
 }
