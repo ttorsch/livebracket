@@ -505,6 +505,17 @@
   box-shadow: 0 2px 8px rgba(20, 24, 30, 0.03);
 }
 
+/* Full-height backing behind the hourly time labels, so courts scrolling
+   horizontally pass underneath the gutter rather than through it. */
+.calTimeGutter {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface-canvas, #F7F5F0);
+  border-right: 1px solid var(--sand-300, #EAE5DD);
+  pointer-events: none;
+}
+
 .calTimeLabelCell {
   position: sticky;
   left: 0;
@@ -724,12 +735,20 @@
   border: 1px solid var(--sand-300, #EAE5DD);
   border-radius: 14px;
   background: var(--surface-card, #FFFFFF);
+  /* Keep a horizontal swipe inside the calendar instead of chaining to the
+     page (or to the browser's back gesture) once a court edge is reached. */
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
+/* Column/row geometry lives in custom properties so breakpoints can retune it —
+   the counts come in as inline vars from the page (--cal-courts, --cal-rows). */
 .calGrid {
   display: grid;
   position: relative;
   width: max-content;
   min-width: 100%;
+  grid-template-columns: var(--cal-time-col, 70px) repeat(var(--cal-courts, 1), minmax(var(--cal-court-col, 280px), 1fr));
+  grid-template-rows: auto repeat(var(--cal-rows, 1), auto);
 }
 /* Sticky court-header row (top) */
 .calCorner,
@@ -742,7 +761,9 @@
 }
 .calCorner {
   left: 0;
-  z-index: 5;
+  /* Above the court header cards, which share the sticky top row and would
+     otherwise slide out over the corner (they come later in the DOM). */
+  z-index: 6;
   border-right: 1px solid var(--sand-300, #EAE5DD);
 }
 .calCourtHead {
@@ -1077,6 +1098,127 @@
 .matchItemOverflow .matchTime {
   color: #dc2626;
   font-weight: 700;
+}
+
+/* ── Tablet & below ──────────────────────────────────────────── */
+@media (max-width: 860px) {
+  /* The back button is fixed on desktop, which parks it permanently on top of
+     the first filter tab once the sticky bar pins. Anchor it to the page so it
+     scrolls away with the hero instead. */
+  .page { position: relative; }
+  .backLink {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .hero { padding: 60px 16px 24px; }
+  .heroInner { gap: 18px; }
+  .heroTitle { font-size: 26px; margin-bottom: 10px; }
+  .heroMeta { gap: 10px 14px; font-size: 13px; }
+  .heroActions { gap: 8px; }
+  .heroPrimaryBtn,
+  .heroGhostBtn { padding: 9px 14px; font-size: 13px; }
+
+  /* Filter rows stack, and each pill group scrolls sideways rather than
+     wrapping into a several-line-tall sticky header. */
+  .stickyBar { padding: 10px 12px; }
+  .stickyInner { flex-direction: column; align-items: stretch; gap: 8px; }
+  .controlsGroup { gap: 8px; }
+  .segmented {
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .segmented::-webkit-scrollbar { display: none; }
+  .segBtn { flex: 0 0 auto; white-space: nowrap; }
+  .selectWrap { flex: 0 0 auto; }
+  .dayBar { padding: 0 12px 8px; }
+
+  .main { padding: 20px 16px 48px; }
+  .sectionTitle { font-size: 18px; margin-bottom: 14px; }
+
+  .genInner { padding: 16px 16px 20px; }
+  .previewInner { padding: 12px 16px; }
+  .saveMsg { padding: 0 16px; }
+
+  /* Grid view header */
+  .gridHeaderRow { gap: 12px; margin-bottom: 16px; }
+  .gridHeaderIconBadge { width: 36px; height: 36px; border-radius: 10px; }
+  .gridHeaderTitle { font-size: 20px; }
+  .gridHeaderRight { gap: 10px; }
+  .calLegendItem { font-size: 11px; gap: 5px; }
+  .pendingPill { font-size: 11px; padding: 3px 10px; }
+
+  /* Grid view calendar — geometry is set on the scroll container so that both
+     the track sizing and the snap padding read the same values. */
+  .calScroll {
+    --cal-time-col: 56px;
+    --cal-court-col: 240px;
+  }
+  .calTimeLabelCell { padding: 12px 8px 0 4px; font-size: 12px; }
+  .calCourtHeadCard { padding: 8px 12px; }
+  .calCourtHeadCard .courtName { font-size: 15px; }
+  .lunchBreakContent { padding: 5px 12px; font-size: 11px; letter-spacing: 0.02em; }
+}
+
+/* ── Phone ───────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  /* One court per screen: columns are sized to the viewport (minus the time
+     gutter, page padding and a sliver of the next court) and each swipe snaps
+     onto the next court header. */
+  .calScroll {
+    --cal-time-col: 44px;
+    /* viewport − page padding − border − time gutter − a sliver of the next
+       court, so the court in view is full-width and the swipe is discoverable */
+    --cal-court-col: calc(100vw - 96px);
+    scroll-snap-type: x mandatory;
+    /* Snap past the sticky time gutter so a court lands flush beside it. */
+    scroll-padding-left: var(--cal-time-col);
+    /* Fit the calendar into the gap under the pinned control bar, so the page
+       and the calendar never fight over the same vertical scroll. The 68px is
+       this file's own trailing space (.main padding-bottom + .calDaySection
+       margin-bottom) — without allowing for it the page runs out of scroll
+       before the calendar clears the bar, hiding the sticky court headers. */
+    max-height: calc(100vh - var(--chrome-h, 138px) - 68px);
+    max-height: calc(100dvh - var(--chrome-h, 138px) - 68px);
+    min-height: 320px;
+    border-radius: 12px;
+  }
+  .calCourtHeadCard {
+    scroll-snap-align: start;
+    scroll-margin-left: 4px;
+  }
+
+  .calTimeLabelCell {
+    padding: 12px 4px 0 4px;
+    font-size: 11px;
+  }
+
+  /* Match blocks: trim the chrome so team names keep the width */
+  .gridMatchCard { padding: 6px 9px; margin: 3px 4px; border-radius: 10px; }
+  .gridMatchTime { font-size: 11px; }
+  .gridMatchDuration { font-size: 10px; }
+  .gridTeamName { font-size: 12px; }
+  .gridScores { gap: 2px; }
+  .gridScoreBadge,
+  .gridScoreBadgeWin,
+  .gridScoreEmpty { width: 18px; height: 18px; border-radius: 4px; font-size: 10px; }
+
+  .heroTitle { font-size: 22px; }
+  .gridHeaderTitle { font-size: 18px; }
+  .gridHeaderEyebrow { font-size: 10px; }
+}
+
+/* Lift-on-hover is a pointer affordance; on touch it sticks after a tap. */
+@media (hover: none) {
+  .gridMatchCard:hover {
+    transform: none;
+    box-shadow: 0 3px 10px rgba(20, 24, 30, 0.03);
+  }
 }
 
 /* ── Print Styles ────────────────────────────────────────────── */

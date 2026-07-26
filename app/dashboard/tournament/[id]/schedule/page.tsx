@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -110,6 +110,23 @@ export default function TournamentSchedulePage() {
   const [preview, setPreview] = useState<ScheduleResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  // Height of the pinned control bar, published as --chrome-h. On mobile the
+  // calendar sizes itself against this so it comes to rest exactly below the
+  // bar instead of having its sticky court headers hidden underneath it. The
+  // bar grows a row on multi-day events, hence measuring rather than guessing.
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const [chromeHeight, setChromeHeight] = useState(0);
+
+  useEffect(() => {
+    const el = stickyRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setChromeHeight(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading, detail]);
 
   useEffect(() => {
     if (!slug) return;
@@ -464,7 +481,10 @@ export default function TournamentSchedulePage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div
+      className={styles.page}
+      style={chromeHeight ? ({ '--chrome-h': `${chromeHeight}px` } as CSSProperties) : undefined}
+    >
       {/* ── Fixed Back Link ───────────────────────────────────── */}
       <Link href="/dashboard" className={styles.backLink} aria-label="Back to Dashboard">
         <ArrowLeft size={18} />
@@ -523,7 +543,7 @@ export default function TournamentSchedulePage() {
       </section>
 
       {/* ── Sticky Control Bar ───────────────────────────────── */}
-      <div className={styles.stickyBar}>
+      <div className={styles.stickyBar} ref={stickyRef}>
         <div className={styles.stickyInner}>
           {/* Division Selector Tabs */}
           <div className={styles.segmented}>
@@ -858,8 +878,8 @@ export default function TournamentSchedulePage() {
                     <div
                       className={styles.calGrid}
                       style={{
-                        gridTemplateColumns: `70px repeat(${calendar.courts.length}, minmax(280px, 1fr))`,
-                        gridTemplateRows: `auto repeat(${day.slots}, auto)`,
+                        '--cal-courts': calendar.courts.length,
+                        '--cal-rows': day.slots,
                       } as CSSProperties}
                     >
                       {/* Top-left corner cell */}
@@ -875,6 +895,14 @@ export default function TournamentSchedulePage() {
                           </div>
                         );
                       })}
+
+                      {/* Opaque backing for the sticky time column. Labels only
+                          exist on the hour, so without this the match blocks
+                          show through the gaps as courts scroll underneath. */}
+                      <div
+                        className={styles.calTimeGutter}
+                        style={{ gridColumn: 1, gridRow: `2 / span ${Math.max(1, day.slots)}` } as CSSProperties}
+                      />
 
                       {/* Y-axis Left Sticky Time Labels */}
                       {day.labels.map(l => (
