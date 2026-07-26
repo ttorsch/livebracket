@@ -471,15 +471,22 @@ export default function OrganizerBracketPage() {
     }));
   }, [poolGroups, division]);
 
-  const rankingPools = useMemo(() => {
-    if (poolStandings.length > 0) {
-      return poolStandings.map(p => ({
+  /* A ranking has to come from results. Until a pool's matches are played every
+     team in it sits on zero, so the standings sort is a no-op and the order
+     left behind is the serpentine draw — which would render as a finishing
+     order, #1 and #2 marked as advancing, purely from seeding. Each pool
+     therefore reports whether it has anything real to rank yet. */
+  const rankingPools = useMemo(
+    () =>
+      poolStandings.map(p => ({
         name: p.name,
+        played: p.standings.some(s => s.played > 0),
         teams: p.standings.map(s => ({ id: s.teamId, name: s.name })),
-      }));
-    }
-    return poolGroups;
-  }, [poolStandings, poolGroups]);
+      })),
+    [poolStandings],
+  );
+
+  const hasPoolResults = rankingPools.some(p => p.played);
 
   // The Round 1 feature set (draw config, pool results) belongs to the
   // round-robin format; other formats get their own features later.
@@ -1470,6 +1477,12 @@ export default function OrganizerBracketPage() {
                     {/* Right Pane: Pool Rankings */}
                     <div className={styles.seedCard} style={{ flex: 1 }}>
                       <h3 className={styles.cardTitle}>Pool Rankings</h3>
+                      {!hasPoolResults ? (
+                        <p className={styles.emptyNote}>
+                          No pool results yet. Rankings appear here once matches have been played — until then
+                          there is nothing to rank, only the draw.
+                        </p>
+                      ) : (
                       <div className={styles.poolsGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                         {rankingPools.map(pool => (
                           <div key={pool.name} className={styles.poolCard} style={{ border: '1px solid var(--sand-300, #EAE5DD)', borderRadius: 12, padding: 14, backgroundColor: 'var(--surface-card, #ffffff)' }}>
@@ -1479,7 +1492,9 @@ export default function OrganizerBracketPage() {
                             </div>
                             <div className={styles.poolTeamList} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {pool.teams.map((t, idx) => {
-                                const isAdvancing = idx < config.advance;
+                                // This pool has played nothing yet, so it has no order to show —
+                                // list its teams flat rather than implying a finishing position.
+                                const isAdvancing = pool.played && idx < config.advance;
                                 return (
                                   <div
                                     key={t.id}
@@ -1512,7 +1527,7 @@ export default function OrganizerBracketPage() {
                                         flexShrink: 0,
                                       }}
                                     >
-                                      #{idx + 1}
+                                      {pool.played ? `#${idx + 1}` : '–'}
                                     </span>
                                     <span
                                       style={{
@@ -1529,9 +1544,15 @@ export default function OrganizerBracketPage() {
                                 );
                               })}
                             </div>
+                            {!pool.played && (
+                              <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--ink-500)' }}>
+                                Awaiting results
+                              </p>
+                            )}
                           </div>
                         ))}
                       </div>
+                      )}
                     </div>
                   </div>
                 )}
