@@ -44,6 +44,10 @@ export interface SchedulableMatch {
   teamB: string | null;
   isPool: boolean;           // true = pool-play (round-robin) match
   durationMinutes?: number;  // this match's slot length; falls back to config.blockMinutes
+  // 0-based position of this match's round in the division's setup round list.
+  // Drives the opening-round pass on multi-day events. When every match omits
+  // it they all read as round 0, which collapses to the original single pass.
+  roundIndex?: number;
 }
 
 /** Fallback match length (minutes) when a match/round declares none. */
@@ -75,6 +79,7 @@ export interface ScheduleResult {
   venueRatio: number;                                  // V_R = Σ D_d / courtCount
   pivots: number;                                      // net-height pivot blocks inserted
   dayCapacityMinutes: number;                          // playable minutes/court/day (window − lunch)
+  openingRoundSpill: number;                           // opening-round matches that didn't fit day one
 }
 
 /** Auto dedicated-court count for a division: half its pools, min 1.
@@ -346,7 +351,80 @@ export function generateSchedule(
   const assignments: ScheduleAssignment[] = [];
   const overflow: { matchId: string; divisionId: string }[] = [];
   let pivots = 0;
+  let openingRoundSpill = 0;
 
+  // Multi-day events lead with every division's opening round, so day one fills
+  // with first-round matches before any division's later rounds take court time;
+  // whatever doesn't fit rolls to the next day. Single-day events keep the
+  // original single pass — there is no next day to push to, so splitting the
+  // passes would only reshuffle matches within the same day.
+  const openingFirst = dayCount > 1;
+
+  /** Buffer a court that has to change net height, and record the pivot. */
+  const pivotTo = (c: CourtTrack, height: number | null) => {
+    if (c.height != null && height != null && c.height !== height) {
+      c.cursor += netBuffer;
+      pivots++;
+    }
+    if (height != null) c.height = height;
+  };
+
+  /** What switching `c` to `height` would cost, without committing to it. */
+  const pivotCost = (c: CourtTrack, height: number | null) =>
+    c.height != null && height != null && c.height !== height ? netBuffer : 0;
+
+  interface DivPlan {
+    div: SchedulableDivision;
+    chosen: CourtTrack[];          // the division's dedicated courts (D_d)
+    height: number | null;
+    byId: Map<string, SchedulableMatch>;
+    rest: string[];                // match ids held back for the second pass
+  }
+
+  const plans: DivPlan[] = [];
+
+  /** Place one match on the division's dedicated courts. With `rescue` set (an
+   *  opening-round match on a multi-day event) and those courts unable to host
+   *  it on day one, any court that still can is used instead: finishing the
+   *  first round on day one is worth more than keeping the division on its own
+   *  courts while others sit idle. */
+  function place(matchId: string, plan: DivPlan, rescue: boolean): void {
+    // Each match consumes its own declared length (per round), falling back to
+    // the global block when a round didn't set one.
+    const mBlock = Math.max(1, Math.trunc(plan.byId.get(matchId)?.durationMinutes ?? block) || block);
+    let track = plan.chosen.reduce((soonest, c) => (c.cursor < soonest.cursor ? c : soonest), plan.chosen[0]);
+    let slot = track ? nextSlot(track.cursor, window, mBlock) : null;
+
+    if (rescue && (!slot || slot.day > 0)) {
+      let best: { court: CourtTrack; slot: DaySlot; cost: number } | null = null;
+      for (const c of courts) {
+        const cost = pivotCost(c, plan.height);
+        const s = nextSlot(c.cursor + cost, window, mBlock);
+        if (!s || s.day > 0) continue; // no help — still misses day one
+        // Prefer a court already at the right net height, then the earliest slot.
+        if (!best || cost < best.cost || (cost === best.cost && s.abs < best.slot.abs)) {
+          best = { court: c, slot: s, cost };
+        }
+      }
+      if (best) {
+        if (best.cost > 0) { best.court.cursor += best.cost; pivots++; }
+        if (plan.height != null) best.court.height = plan.height;
+        track = best.court;
+        slot = best.slot;
+      }
+    }
+
+    if (!slot || !track) {
+      overflow.push({ matchId, divisionId: plan.div.id }); // past the final day
+      return;
+    }
+    if (rescue && slot.day > 0) openingRoundSpill++;
+    assignments.push({ matchId, divisionId: plan.div.id, court: track.name, day: slot.day, time: toHHMM(slot.min) });
+    track.cursor = slot.abs + mBlock;
+  }
+
+  // Pass 1 — every division's opening round (and, on a single-day event, all
+  // of its matches).
   for (const div of prioritizeDivisions(divisions)) {
     const dd = dedicatedCourts[div.id];
     const height = parseNetHeight(div.netHeight);
@@ -355,29 +433,32 @@ export function generateSchedule(
     const chosen = [...courts].sort((a, b) => a.cursor - b.cursor).slice(0, dd);
 
     // Net-height pivot: a reused court set to a different height needs a buffer.
-    for (const c of chosen) {
-      if (c.height != null && height != null && c.height !== height) {
-        c.cursor += netBuffer;
-        pivots++;
-      }
-      if (height != null) c.height = height;
-    }
+    for (const c of chosen) pivotTo(c, height);
 
     const byId = new Map(div.matches.map(m => [m.id, m]));
-    for (const matchId of orderDivisionMatches(div)) {
-      // Each match consumes its own declared length (per round), falling back to
-      // the global block when a round didn't set one.
-      const mBlock = Math.max(1, Math.trunc(byId.get(matchId)?.durationMinutes ?? block) || block);
-      const track = chosen.reduce((soonest, c) => (c.cursor < soonest.cursor ? c : soonest), chosen[0]);
-      const slot = nextSlot(track.cursor, window, mBlock);
-      if (!slot) {
-        overflow.push({ matchId, divisionId: div.id }); // past the final day
-        continue;
-      }
-      assignments.push({ matchId, divisionId: div.id, court: track.name, day: slot.day, time: toHHMM(slot.min) });
-      track.cursor = slot.abs + mBlock;
-    }
+    const ordered = orderDivisionMatches(div);
+
+    // The opening round is the division's lowest setup round index, so a
+    // division that starts on pool play opens with pool play and a pure
+    // knockout division opens with its first knockout round.
+    let openIndex = Infinity;
+    for (const m of div.matches) openIndex = Math.min(openIndex, m.roundIndex ?? 0);
+    const isOpening = (id: string) => !openingFirst || (byId.get(id)?.roundIndex ?? 0) === openIndex;
+
+    const plan: DivPlan = { div, chosen, height, byId, rest: ordered.filter(id => !isOpening(id)) };
+    plans.push(plan);
+
+    for (const id of ordered) if (isOpening(id)) place(id, plan, openingFirst);
   }
 
-  return { assignments, overflow, dedicatedCourts, mode, venueRatio, pivots, dayCapacityMinutes };
+  // Pass 2 — later rounds, backfilling whatever court time day one has left.
+  for (const plan of plans) {
+    if (plan.rest.length === 0) continue;
+    // Courts may have been handed to another division (or rescued to a different
+    // net height) during pass 1, so re-check the pivot before resuming.
+    for (const c of plan.chosen) pivotTo(c, plan.height);
+    for (const id of plan.rest) place(id, plan, false);
+  }
+
+  return { assignments, overflow, dedicatedCourts, mode, venueRatio, pivots, dayCapacityMinutes, openingRoundSpill };
 }

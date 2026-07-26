@@ -174,13 +174,14 @@ export default function TournamentSchedulePage() {
       netHeight: d.netHeight,
       gender: d.gender,
       dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
-      matches: d.bracket.flatMap(r =>
+      matches: d.bracket.flatMap((r, rIdx) =>
         r.matches.map(m => ({
           id: m.id,
           teamA: m.teamAId,
           teamB: m.teamBId,
           isPool: r.format === 'round-robin',
           durationMinutes: r.durationMinutes, // per-round slot length declared in setup
+          roundIndex: rIdx,                   // bracket is setup-round order; 0 = opening round
         })),
       ),
     }));
@@ -729,6 +730,16 @@ export default function TournamentSchedulePage() {
                 {' '}(V<sub>R</sub> {preview.venueRatio.toFixed(2)})
                 {' '}· {Math.floor(preview.dayCapacityMinutes / 60)}h {preview.dayCapacityMinutes % 60}m/court/day
                 {preview.pivots > 0 && <> · {preview.pivots} net pivot{preview.pivots === 1 ? '' : 's'}</>}
+                {dayCount > 1 && (
+                  preview.openingRoundSpill > 0 ? (
+                    <span className={styles.previewWarn}>
+                      <AlertTriangle size={13} /> {preview.openingRoundSpill} first-round match
+                      {preview.openingRoundSpill === 1 ? '' : 'es'} rolled past day 1
+                    </span>
+                  ) : (
+                    <> · first round fits day 1</>
+                  )
+                )}
                 {preview.overflow.length > 0 && (
                   <span className={styles.previewWarn}>
                     <AlertTriangle size={13} /> {preview.overflow.length} over-scheduled (won&apos;t fit in {dayCount} day{dayCount === 1 ? '' : 's'})
