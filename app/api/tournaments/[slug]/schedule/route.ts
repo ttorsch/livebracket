@@ -15,6 +15,7 @@ interface ConfigBody {
     lunchStart?: string;
     lunchEnd?: string;
     netBufferMinutes?: number;
+    maxMatchesPerTeamPerDay?: number;
   };
   // dedicatedCourts null clears the override (falls back to auto).
   divisionOverrides?: { divisionId: string; dedicatedCourts: number | null }[];
@@ -31,6 +32,8 @@ function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unkno
   if (typeof c.courtCount === 'number') out.courtCount = Math.max(1, Math.min(64, Math.trunc(c.courtCount)));
   if (typeof c.blockMinutes === 'number') out.blockMinutes = Math.max(5, Math.min(240, Math.trunc(c.blockMinutes)));
   if (typeof c.netBufferMinutes === 'number') out.netBufferMinutes = Math.max(0, Math.min(120, Math.trunc(c.netBufferMinutes)));
+  // 0 stores "no cap", so this is clamped from 0 rather than 1.
+  if (typeof c.maxMatchesPerTeamPerDay === 'number') out.maxMatchesPerTeamPerDay = Math.max(0, Math.min(50, Math.trunc(c.maxMatchesPerTeamPerDay)));
   return out;
 }
 

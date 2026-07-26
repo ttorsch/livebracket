@@ -684,6 +684,21 @@ export default function TournamentSchedulePage() {
                 <span>Net buffer (min)</span>
                 <input type="number" min={0} max={120} step={5} value={config.netBufferMinutes} onChange={e => setConfigField('netBufferMinutes', Number(e.target.value))} />
               </label>
+              <label className={styles.genField}>
+                <span>Max matches / team / day</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  placeholder="No limit"
+                  value={config.maxMatchesPerTeamPerDay > 0 ? config.maxMatchesPerTeamPerDay : ''}
+                  onChange={e => {
+                    // Blank (and anything below 1) means no cap, stored as 0.
+                    const n = Number(e.target.value);
+                    setConfigField('maxMatchesPerTeamPerDay', e.target.value === '' || !Number.isFinite(n) || n < 1 ? 0 : Math.trunc(n));
+                  }}
+                />
+              </label>
             </div>
 
             <div className={styles.genDivisions}>
@@ -713,7 +728,9 @@ export default function TournamentSchedulePage() {
                 })}
               </div>
               <p className={styles.genHint}>
-                Each match uses the length set for its round in Setup. Leave courts blank to auto-size (half the pool count, min 1).
+                Each match uses the length set for its round in Setup. Leave <em>max matches / team / day</em> blank for no limit; set it and a team&apos;s
+                remaining matches roll to the next day once it hits the cap (pool play only — a knockout match&apos;s teams aren&apos;t known until the round
+                before it is played). Leave courts blank to auto-size (half the pool count, min 1).
                 Divisions with no matches yet reserve no courts. Matches that can&apos;t fit within the tournament&apos;s {dayCount} day{dayCount === 1 ? '' : 's'} are flagged as over-scheduled.
               </p>
             </div>

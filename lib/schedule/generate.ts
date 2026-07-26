@@ -26,6 +26,10 @@ export interface ScheduleConfig {
   lunchStart: string;       // "HH:MM"
   lunchEnd: string;         // "HH:MM"
   netBufferMinutes: number; // gap inserted on a net-height change
+  // Most matches one team may be given on a single day. 0 = no limit. Only
+  // enforceable where the generator knows who is playing, i.e. pool play —
+  // a knockout match's teams aren't decided until the round feeding it is.
+  maxMatchesPerTeamPerDay: number;
 }
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
@@ -36,6 +40,7 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   lunchStart: '12:00',
   lunchEnd: '13:00',
   netBufferMinutes: 15,
+  maxMatchesPerTeamPerDay: 0,
 };
 
 export interface SchedulableMatch {
@@ -390,6 +395,32 @@ export function generateSchedule(
   // once as soon as a round's matches don't divide evenly across its courts.
   const teamFree = new Map<string, number>();
 
+  // Matches already given to a team on a given day, keyed "teamId|day", against
+  // the organizer's per-team daily cap (0 = no cap).
+  const maxPerTeamDay = Math.max(0, Math.trunc(config.maxMatchesPerTeamPerDay ?? 0) || 0);
+  const teamDayCount = new Map<string, number>();
+
+  /** Has either of this match's teams already used up the day's allowance? */
+  const atDailyCap = (m: SchedulableMatch | undefined, day: number): boolean => {
+    if (maxPerTeamDay <= 0 || !m) return false;
+    for (const t of [m.teamA, m.teamB]) {
+      if (t && (teamDayCount.get(`${t}|${day}`) ?? 0) >= maxPerTeamDay) return true;
+    }
+    return false;
+  };
+
+  /** Earliest slot from `from` that also respects the daily cap. A capped team
+   *  cannot be helped by waiting later the same day, so each rejection skips to
+   *  the start of the next day rather than to the next free court time. */
+  function nextOpenSlot(from: number, mBlock: number, m: SchedulableMatch | undefined): DaySlot | null {
+    let cursor = from;
+    for (;;) {
+      const s = nextSlot(cursor, window, mBlock);
+      if (!s || !atDailyCap(m, s.day)) return s;
+      cursor = (s.day + 1) * DAY_SPAN + dayStart;
+    }
+  }
+
   /** Earliest absolute minute a match may start: after both its teams' previous
    *  matches, and after every earlier round in its division has finished — a
    *  round's teams aren't known until the round feeding it is complete, so a
@@ -438,7 +469,7 @@ export function generateSchedule(
       // placement rather than only when the court is claimed: another division's
       // opening round can land on any court and leave it at a different height.
       const cCost = pivotCost(c, plan.height);
-      const s = nextSlot(Math.max(c.cursor + cCost, floor), window, mBlock);
+      const s = nextOpenSlot(Math.max(c.cursor + cCost, floor), mBlock, m);
       if (!s) continue;
       // Earliest slot wins; ties go to the cheaper net change, then to a court
       // the division already owns so its matches stay clustered.
@@ -459,8 +490,12 @@ export function generateSchedule(
     const end = slot.abs + mBlock;
     assignments.push({ matchId, divisionId: plan.div.id, court: track.name, day: slot.day, time: toHHMM(slot.min) });
     track.cursor = end;
-    if (m?.teamA) teamFree.set(m.teamA, end);
-    if (m?.teamB) teamFree.set(m.teamB, end);
+    for (const t of [m?.teamA, m?.teamB]) {
+      if (!t) continue;
+      teamFree.set(t, end);
+      const k = `${t}|${slot.day}`;
+      teamDayCount.set(k, (teamDayCount.get(k) ?? 0) + 1);
+    }
     const round = m?.roundIndex ?? 0;
     plan.roundEnd.set(round, Math.max(plan.roundEnd.get(round) ?? 0, end));
   }

@@ -15,6 +15,7 @@ function readScheduleConfig(raw: unknown): ScheduleConfig {
     lunchStart: typeof c.lunchStart === 'string' ? c.lunchStart : DEFAULT_SCHEDULE_CONFIG.lunchStart,
     lunchEnd: typeof c.lunchEnd === 'string' ? c.lunchEnd : DEFAULT_SCHEDULE_CONFIG.lunchEnd,
     netBufferMinutes: typeof c.netBufferMinutes === 'number' ? c.netBufferMinutes : DEFAULT_SCHEDULE_CONFIG.netBufferMinutes,
+    maxMatchesPerTeamPerDay: typeof c.maxMatchesPerTeamPerDay === 'number' ? c.maxMatchesPerTeamPerDay : DEFAULT_SCHEDULE_CONFIG.maxMatchesPerTeamPerDay,
   };
 }
 
