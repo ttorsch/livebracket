@@ -29,6 +29,7 @@ import {
   generateSchedule,
   scheduleInventory,
   autoDedicatedCourts,
+  DEFAULT_MATCH_MINUTES,
   type SchedulableDivision,
   type ScheduleResult,
 } from '../../../../../lib/schedule/generate';
@@ -79,6 +80,21 @@ function dayIndexOf(startDate: string, dateStr: string): number {
 function shortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+// An undecided side reads as the match that will decide it, e.g. "Winner of M3".
+// `side` is 0 for the home team and 1 for the away team.
+function teamOrPlaceholder(
+  raw: string | null | undefined,
+  roundIndex: number,
+  matchIndex: number,
+  prevRoundStartNo: number,
+  side: 0 | 1,
+): string {
+  if (raw && raw !== 'TBD' && raw.trim() !== '') return raw;
+  return roundIndex === 0
+    ? `Winner of M${2 * matchIndex + 1 + side}`
+    : `Winner of M${prevRoundStartNo + 2 * matchIndex + side}`;
 }
 
 // Minutes as a duration, e.g. 510 -> "8h 30m".
@@ -211,6 +227,52 @@ export default function TournamentSchedulePage() {
     }));
   }, [detail, overrides]);
 
+  // Division whose full match list is open in the modal (null = closed).
+  const [matchListDivId, setMatchListDivId] = useState<string | null>(null);
+
+  // Every match of that division, grouped by round, numbered the same way the
+  // schedule views number them and with byes left out — byes are never played,
+  // so they are not part of what gets scheduled.
+  const matchList = useMemo(() => {
+    if (!detail || !matchListDivId) return null;
+    const div = detail.divisions.find(d => d.id === matchListDivId);
+    if (!div) return null;
+
+    let cumulative = 1;
+    const rounds = div.bracket.map((r, rIdx) => {
+      const startNo = cumulative;
+      const prevStartNo = rIdx > 0 ? cumulative - (div.bracket[rIdx - 1]?.matches.length || 0) : 1;
+      cumulative += r.matches.length;
+      return {
+        name: r.round,
+        format: r.format,
+        durationMinutes: r.durationMinutes ?? DEFAULT_MATCH_MINUTES,
+        matches: r.matches
+          .map((m, idx) => ({
+            id: m.id,
+            no: `M${startNo + idx}`,
+            teamA: teamOrPlaceholder(m.teamAName, rIdx, idx, prevStartNo, 0),
+            teamB: teamOrPlaceholder(m.teamBName, rIdx, idx, prevStartNo, 1),
+            status: m.status,
+            bye: isByeMatch(r.round, m),
+          }))
+          .filter(m => !m.bye),
+      };
+    }).filter(r => r.matches.length > 0);
+
+    const matches = rounds.reduce((s, r) => s + r.matches.length, 0);
+    const minutes = rounds.reduce((s, r) => s + r.matches.length * r.durationMinutes, 0);
+    return { id: div.id, label: div.label, netHeight: div.netHeight, rounds, matches, minutes };
+  }, [detail, matchListDivId]);
+
+  // Close the match list on Escape, the way a dialog is expected to behave.
+  useEffect(() => {
+    if (!matchListDivId) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMatchListDivId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [matchListDivId]);
+
   // Court time on offer vs court time needed. Recomputed as the organizer edits
   // the config, so they can see whether the event fits before generating.
   const inventory = useMemo(() => {
@@ -281,23 +343,8 @@ export default function TournamentSchedulePage() {
           if (isByeMatch(round.round, m)) return;
 
           // Rule 1: Replace TBD with Winner of M...
-          let formattedTeamA = m.teamAName;
-          if (!formattedTeamA || formattedTeamA === 'TBD' || formattedTeamA.trim() === '') {
-            if (rIdx === 0) {
-              formattedTeamA = `Winner of M${2 * idx + 1}`;
-            } else {
-              formattedTeamA = `Winner of M${prevRoundStartMatchNo + 2 * idx}`;
-            }
-          }
-
-          let formattedTeamB = m.teamBName;
-          if (!formattedTeamB || formattedTeamB === 'TBD' || formattedTeamB.trim() === '') {
-            if (rIdx === 0) {
-              formattedTeamB = `Winner of M${2 * idx + 2}`;
-            } else {
-              formattedTeamB = `Winner of M${prevRoundStartMatchNo + 2 * idx + 1}`;
-            }
-          }
+          const formattedTeamA = teamOrPlaceholder(m.teamAName, rIdx, idx, prevRoundStartMatchNo, 0);
+          const formattedTeamB = teamOrPlaceholder(m.teamBName, rIdx, idx, prevRoundStartMatchNo, 1);
 
           const pv = previewMap.get(m.id);
           const overScheduled = overflowIds.has(m.id);
@@ -763,13 +810,19 @@ export default function TournamentSchedulePage() {
                 <div className={styles.genSubhead}>Matches to schedule</div>
                 <div className={styles.genDivGrid}>
                   {inventory.demand.map(d => (
-                    <div key={d.divisionId} className={styles.genDivRow}>
+                    <button
+                      key={d.divisionId}
+                      type="button"
+                      className={`${styles.genDivRow} ${styles.demandCard}`}
+                      onClick={() => setMatchListDivId(d.divisionId)}
+                      aria-label={`Show all ${d.matches} matches for ${d.label}`}
+                    >
                       <span className={styles.genDivName}>{d.label}</span>
                       <span className={styles.genDivMeta}>{d.netHeight != null ? `${d.netHeight}m net` : 'net n/a'}</span>
                       <span className={styles.demandValue}>
                         {d.matches} · {hoursMinutes(d.minutes)}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1114,6 +1167,66 @@ export default function TournamentSchedulePage() {
           </div>
         )}
       </main>
+
+      {/* ── Division Match List ─────────────────────────────── */}
+      {matchList && (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onClick={e => { if (e.target === e.currentTarget) setMatchListDivId(null); }}
+        >
+          <div className={styles.modalPanel} role="dialog" aria-modal="true" aria-labelledby="matchListTitle">
+            <div className={styles.modalHeader}>
+              <div>
+                <div className={styles.modalEyebrow}>
+                  {matchList.matches} match{matchList.matches === 1 ? '' : 'es'} · {hoursMinutes(matchList.minutes)}
+                  {matchList.netHeight ? ` · ${matchList.netHeight} net` : ''}
+                </div>
+                <h3 className={styles.modalTitle} id="matchListTitle">{matchList.label}</h3>
+              </div>
+              <button
+                type="button"
+                className={styles.genClose}
+                onClick={() => setMatchListDivId(null)}
+                aria-label="Close match list"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {matchList.rounds.length === 0 ? (
+                <p className={styles.gridNote}>This division has no matches drawn yet.</p>
+              ) : (
+                matchList.rounds.map(round => (
+                  <div key={round.name} className={styles.roundBlock}>
+                    <div className={styles.roundHead}>
+                      <span className={styles.roundName}>{round.name}</span>
+                      <span className={styles.roundMeta}>
+                        {round.matches.length} match{round.matches.length === 1 ? '' : 'es'} · {round.durationMinutes} min
+                        {round.matches.length === 1 ? '' : ' each'}
+                      </span>
+                    </div>
+                    <div className={styles.roundMatches}>
+                      {round.matches.map(m => (
+                        <div key={m.id} className={styles.matchRow}>
+                          <span className={styles.matchRowNo}>{m.no}</span>
+                          <span className={styles.matchRowTeams}>
+                            {m.teamA} <span className={styles.gridVsText}>vs</span> {m.teamB}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+              <p className={styles.genHint}>
+                Byes are left out — they are never played, so they take no court time.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
