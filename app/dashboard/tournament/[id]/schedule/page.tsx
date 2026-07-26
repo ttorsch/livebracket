@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import styles from './page.module.css';
-import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch, type ScheduleConfig } from '../../../../../lib/data';
+import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
 import {
   generateSchedule,
   scheduleInventory,
@@ -33,6 +33,7 @@ import {
   type SchedulableDivision,
   type ScheduleResult,
 } from '../../../../../lib/schedule/generate';
+import { labelDivisionMatches, type MatchLabel } from '../../../../../lib/divisionMatches';
 
 interface ScheduleMatch {
   id: string;
@@ -47,7 +48,8 @@ interface ScheduleMatch {
   scoreA?: number[];
   scoreB?: number[];
   status: 'upcoming' | 'live' | 'done';
-  day: number;           // 0-based day offset (-1 = unscheduled)
+  day: number;           // 0-based day offset (-1 = unscheduled or off the event's days)
+  date: string;          // 'YYYY-MM-DD' the match sits on ('' when unscheduled)
   dateLabel: string;     // e.g. "Sat, Jul 26" ('' when unscheduled)
   isPreview?: boolean;   // slot came from an unsaved generated preview
   unscheduled?: boolean; // no court/time assigned
@@ -82,21 +84,6 @@ function shortDate(dateStr: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
-// An undecided side reads as the match that will decide it, e.g. "Winner of M3".
-// `side` is 0 for the home team and 1 for the away team.
-function teamOrPlaceholder(
-  raw: string | null | undefined,
-  roundIndex: number,
-  matchIndex: number,
-  prevRoundStartNo: number,
-  side: 0 | 1,
-): string {
-  if (raw && raw !== 'TBD' && raw.trim() !== '') return raw;
-  return roundIndex === 0
-    ? `Winner of M${2 * matchIndex + 1 + side}`
-    : `Winner of M${prevRoundStartNo + 2 * matchIndex + side}`;
-}
-
 // Minutes as a duration, e.g. 510 -> "8h 30m".
 function hoursMinutes(mins: number): string {
   const h = Math.floor(mins / 60);
@@ -113,19 +100,6 @@ function toHHMM(mins: number): string {
 
 // Vertical scale of the calendar grid: pixels per minute of match time.
 const PX_PER_MIN = 2.3;
-
-// A bye isn't played, so it is hidden from every view — and must not be handed
-// to the generator either, or it silently eats a court slot that shows up as a
-// gap in the schedule. One predicate so both uses can never drift apart.
-function isByeMatch(roundName: string, m: DetailMatch): boolean {
-  return (
-    m.teamAName?.toUpperCase() === 'BYE' ||
-    m.teamBName?.toUpperCase() === 'BYE' ||
-    m.teamAId === 'bye' ||
-    m.teamBId === 'bye' ||
-    (roundName.toLowerCase().includes('round of') && m.status === 'done' && (!m.teamAName || !m.teamBName))
-  );
-}
 
 export default function TournamentSchedulePage() {
   const params = useParams();
@@ -202,6 +176,14 @@ export default function TournamentSchedulePage() {
     setConfig(prev => (prev ? { ...prev, [key]: value } : prev));
   };
 
+  // Match numbers and slot names for every division, from the one place that
+  // decides them — so the bracket, these views and the match list agree.
+  const labelsByDivision = useMemo(() => {
+    const out = new Map<string, Map<string, MatchLabel>>();
+    detail?.divisions.forEach(d => out.set(d.id, labelDivisionMatches(d)));
+    return out;
+  }, [detail]);
+
   // Everything the generator needs, derived from the loaded bracket.
   const schedulableDivisions = useMemo<SchedulableDivision[]>(() => {
     if (!detail) return [];
@@ -214,7 +196,8 @@ export default function TournamentSchedulePage() {
       dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
       matches: d.bracket.flatMap((r, rIdx) =>
         r.matches
-          .filter(m => !isByeMatch(r.round, m)) // a bye is never played — don't reserve a court for it
+          // a bye is never played — don't reserve a court for it
+          .filter(m => !labelsByDivision.get(d.id)?.get(m.id)?.bye)
           .map(m => ({
             id: m.id,
             teamA: m.teamAId,
@@ -225,45 +208,62 @@ export default function TournamentSchedulePage() {
           })),
       ),
     }));
-  }, [detail, overrides]);
+  }, [detail, overrides, labelsByDivision]);
 
   // Division whose full match list is open in the modal (null = closed).
   const [matchListDivId, setMatchListDivId] = useState<string | null>(null);
 
-  // Every match of that division, grouped by round, numbered the same way the
-  // schedule views number them and with byes left out — byes are never played,
-  // so they are not part of what gets scheduled.
+  // Every match of that division, grouped by round — and, in pool play, by
+  // pool, since a round robin is really one small tournament per pool. Byes
+  // are left out: they are never played, so they are not part of what gets
+  // scheduled.
   const matchList = useMemo(() => {
     if (!detail || !matchListDivId) return null;
     const div = detail.divisions.find(d => d.id === matchListDivId);
     if (!div) return null;
+    const labels = labelsByDivision.get(div.id) ?? new Map<string, MatchLabel>();
 
-    let cumulative = 1;
-    const rounds = div.bracket.map((r, rIdx) => {
-      const startNo = cumulative;
-      const prevStartNo = rIdx > 0 ? cumulative - (div.bracket[rIdx - 1]?.matches.length || 0) : 1;
-      cumulative += r.matches.length;
+    const rounds = div.bracket.map(r => {
+      const matches = r.matches
+        .map(m => {
+          const label = labels.get(m.id);
+          return {
+            id: m.id,
+            no: label?.no ?? '',
+            teamA: label?.teamA ?? 'TBD',
+            teamB: label?.teamB ?? 'TBD',
+            pool: label?.pool ?? null,
+            status: m.status,
+            bye: !!label?.bye,
+          };
+        })
+        .filter(m => !m.bye);
+
+      // One group per pool, in pool order; everything else stays a single list.
+      const byPool = new Map<string, typeof matches>();
+      matches.forEach(m => {
+        const key = m.pool ?? '';
+        const list = byPool.get(key);
+        if (list) list.push(m);
+        else byPool.set(key, [m]);
+      });
+      const groups = [...byPool.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, list]) => ({ name: name ? `Pool ${name}` : null, matches: list }));
+
       return {
         name: r.round,
         format: r.format,
         durationMinutes: r.durationMinutes ?? DEFAULT_MATCH_MINUTES,
-        matches: r.matches
-          .map((m, idx) => ({
-            id: m.id,
-            no: `M${startNo + idx}`,
-            teamA: teamOrPlaceholder(m.teamAName, rIdx, idx, prevStartNo, 0),
-            teamB: teamOrPlaceholder(m.teamBName, rIdx, idx, prevStartNo, 1),
-            status: m.status,
-            bye: isByeMatch(r.round, m),
-          }))
-          .filter(m => !m.bye),
+        matches,
+        groups,
       };
     }).filter(r => r.matches.length > 0);
 
     const matches = rounds.reduce((s, r) => s + r.matches.length, 0);
     const minutes = rounds.reduce((s, r) => s + r.matches.length * r.durationMinutes, 0);
     return { id: div.id, label: div.label, netHeight: div.netHeight, rounds, matches, minutes };
-  }, [detail, matchListDivId]);
+  }, [detail, matchListDivId, labelsByDivision]);
 
   // Close the match list on Escape, the way a dialog is expected to behave.
   useEffect(() => {
@@ -324,27 +324,19 @@ export default function TournamentSchedulePage() {
     }
   }
 
-  // Aggregate matches from all divisions (excluding BYE matches, formatting TBD as Winner of M...)
+  // Aggregate matches from all divisions. Byes are left out — never played —
+  // and an undecided side reads as whatever the shared labelling calls it.
   const allMatches = useMemo<ScheduleMatch[]>(() => {
     if (!detail) return [];
     const list: ScheduleMatch[] = [];
 
     detail.divisions.forEach((div: DetailDivision) => {
-      let cumulativeMatchNo = 1;
+      const labels = labelsByDivision.get(div.id) ?? new Map<string, MatchLabel>();
 
-      div.bracket.forEach((round, rIdx) => {
-        const roundStartMatchNo = cumulativeMatchNo;
-        const prevRoundStartMatchNo = rIdx > 0 ? cumulativeMatchNo - (div.bracket[rIdx - 1]?.matches.length || 0) : 1;
-
-        round.matches.forEach((m, idx) => {
-          const currentMatchNoNum = roundStartMatchNo + idx;
-
-          // Rule 2: Don't put BYE matches in the schedule!
-          if (isByeMatch(round.round, m)) return;
-
-          // Rule 1: Replace TBD with Winner of M...
-          const formattedTeamA = teamOrPlaceholder(m.teamAName, rIdx, idx, prevRoundStartMatchNo, 0);
-          const formattedTeamB = teamOrPlaceholder(m.teamBName, rIdx, idx, prevRoundStartMatchNo, 1);
+      div.bracket.forEach(round => {
+        round.matches.forEach(m => {
+          const label = labels.get(m.id);
+          if (label?.bye) return;
 
           const pv = previewMap.get(m.id);
           const overScheduled = overflowIds.has(m.id);
@@ -357,22 +349,27 @@ export default function TournamentSchedulePage() {
               : m.scheduledDate
                 ? dayIndexOf(detail.startDate, m.scheduledDate)
                 : -1;
-          const dateStr = day >= 0 ? addDaysUTC(detail.startDate, day) : '';
+          // The date a match is actually on, which is not always one of the
+          // event's days: a schedule saved before the organizer moved the
+          // dates still points at the old ones, and that should read as the
+          // date it is rather than as "unscheduled".
+          const dateStr = overScheduled ? '' : pv ? addDaysUTC(detail.startDate, pv.day) : (m.scheduledDate || '');
 
           list.push({
             id: m.id,
             divisionLabel: div.label,
             divisionId: div.id,
             roundName: round.round,
-            matchNo: `M${currentMatchNoNum}`,
+            matchNo: label?.no ?? '',
             court: court || 'Unscheduled',
             time: time || '—',
-            teamA: formattedTeamA,
-            teamB: formattedTeamB,
+            teamA: label?.teamA ?? 'TBD',
+            teamB: label?.teamB ?? 'TBD',
             scoreA: m.scoreA,
             scoreB: m.scoreB,
             status: m.status,
             day,
+            date: dateStr,
             dateLabel: dateStr ? shortDate(dateStr) : '',
             isPreview: !!pv,
             unscheduled: !court || court === 'Unscheduled' || !time || time === '—',
@@ -380,13 +377,11 @@ export default function TournamentSchedulePage() {
             durationMinutes: round.durationMinutes ?? 45,
           });
         });
-
-        cumulativeMatchNo += round.matches.length;
       });
     });
 
     return list;
-  }, [detail, previewMap, overflowIds]);
+  }, [detail, previewMap, overflowIds, labelsByDivision]);
 
   const dayCount = detail?.dayCount ?? 1;
 
@@ -400,37 +395,92 @@ export default function TournamentSchedulePage() {
     });
   }, [allMatches, activeDivisionId, activeDay, statusFilter]);
 
-  // Group matches by court
-  const courtGroups = useMemo(() => {
-    const map = new Map<string, ScheduleMatch[]>();
+  // A multi-day event viewed as a whole gets one block per day; on a single-day
+  // event, or with one day selected, there is only ever one block and no
+  // heading — every match on screen belongs to the same day.
+  const splitByDay = dayCount > 1 && activeDay === 'all';
+
+  /* The heading a block of matches sits under. Blocks are keyed by the date
+     the matches are on rather than by day index, so a schedule still pointing
+     at dates the event has since moved off reads as its own dated block
+     instead of being lumped in with the matches that have no slot at all. */
+  const sectionTitle = (date: string): string => {
+    if (!date) return 'Not yet scheduled';
+    if (!detail) return shortDate(date);
+    const idx = dayIndexOf(detail.startDate, date);
+    return idx >= 0 && idx < dayCount ? `Day ${idx + 1} · ${shortDate(date)}` : shortDate(date);
+  };
+
+  // Undated matches sort last; everything else runs in date order.
+  const byDate = (a: string, b: string) => (!a ? 1 : !b ? -1 : a.localeCompare(b));
+
+  // Group matches by court, within the day they are played.
+  const courtSections = useMemo(() => {
+    const sections = new Map<string, Map<string, ScheduleMatch[]>>();
     filteredMatches.forEach(m => {
-      const courtName = m.court;
-      if (!map.has(courtName)) map.set(courtName, []);
-      map.get(courtName)!.push(m);
+      const key = splitByDay ? (m.court === 'Unscheduled' ? '' : m.date) : '';
+      let courts = sections.get(key);
+      if (!courts) { courts = new Map(); sections.set(key, courts); }
+      const list = courts.get(m.court);
+      if (list) list.push(m);
+      else courts.set(m.court, [m]);
     });
-    return Array.from(map.entries())
-      .sort((a, b) => {
-        if (a[0] === 'Unscheduled') return 1;
-        if (b[0] === 'Unscheduled') return -1;
-        return a[0].localeCompare(b[0], undefined, { numeric: true });
-      })
-      .map(([courtName, matches]) => ({
-        courtName,
-        matches: [...matches].sort((x, y) => timeKey(x.day, x.time) - timeKey(y.day, y.time)),
+
+    return Array.from(sections.entries())
+      .sort(([a], [b]) => byDate(a, b))
+      .map(([date, courts]) => ({
+        key: date || 'undated',
+        title: splitByDay ? sectionTitle(date) : null,
+        courts: Array.from(courts.entries())
+          .sort((a, b) => {
+            if (a[0] === 'Unscheduled') return 1;
+            if (b[0] === 'Unscheduled') return -1;
+            return a[0].localeCompare(b[0], undefined, { numeric: true });
+          })
+          .map(([courtName, matches]) => ({
+            courtName,
+            matches: [...matches].sort((x, y) => timeKey(x.day, x.time) - timeKey(y.day, y.time)),
+          })),
       }));
-  }, [filteredMatches]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredMatches, splitByDay, detail, dayCount]);
+
+  // Distinct courts across the whole view, for the section heading.
+  const courtCount = useMemo(
+    () => new Set(filteredMatches.map(m => m.court)).size,
+    [filteredMatches],
+  );
 
   // Group matches by day + scheduled time (so identical clock times on
   // different days stay separate on a multi-day event).
   const timeGroups = useMemo(() => {
-    const map = new Map<string, { day: number; time: string; dateLabel: string; matches: ScheduleMatch[] }>();
+    const map = new Map<string, { day: number; date: string; time: string; dateLabel: string; matches: ScheduleMatch[] }>();
     filteredMatches.forEach(m => {
-      const key = `${m.day} ${m.time}`;
-      if (!map.has(key)) map.set(key, { day: m.day, time: m.time, dateLabel: m.dateLabel, matches: [] });
+      const key = `${m.date} ${m.time}`;
+      if (!map.has(key)) map.set(key, { day: m.day, date: m.date, time: m.time, dateLabel: m.dateLabel, matches: [] });
       map.get(key)!.matches.push(m);
     });
     return Array.from(map.values()).sort((a, b) => timeKey(a.day, a.time) - timeKey(b.day, b.time));
   }, [filteredMatches]);
+
+  // The same time slots, gathered under the day they fall on.
+  const timelineSections = useMemo(() => {
+    const sections = new Map<string, typeof timeGroups>();
+    timeGroups.forEach(g => {
+      const key = splitByDay ? g.date : '';
+      const list = sections.get(key);
+      if (list) list.push(g);
+      else sections.set(key, [g]);
+    });
+    return Array.from(sections.entries())
+      .sort(([a], [b]) => byDate(a, b))
+      .map(([date, groups]) => ({
+        key: date || 'undated',
+        title: splitByDay ? sectionTitle(date) : null,
+        groups,
+      }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeGroups, splitByDay, detail, dayCount]);
 
   // Calendar grid: courts on the X axis (columns), time on the Y axis (rows) at
   // a fixed interval. Each match is a block sized by its duration; one section
@@ -537,12 +587,17 @@ export default function TournamentSchedulePage() {
     return { courts, days, pitch, divOrder, unscheduledCount: unscheduled.length };
   }, [filteredMatches]);
 
-  // Division -> color index (0..5) for calendar tinting, by first appearance.
+  // Division -> color index (0..5). Taken from the tournament's own division
+  // order, not from what is on screen, so a division keeps its color when the
+  // view is filtered down to it.
   const divColorIndex = useMemo(() => {
     const map = new Map<string, number>();
-    calendar.divOrder.forEach((label, i) => map.set(label, i % 6));
+    detail?.divisions.forEach((d, i) => map.set(d.label, i % 6));
+    calendar.divOrder.forEach(label => {
+      if (!map.has(label)) map.set(label, map.size % 6);
+    });
     return map;
-  }, [calendar.divOrder]);
+  }, [detail, calendar.divOrder]);
 
   const heroImage = 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1600&q=80';
   const totalTeams = detail?.divisions.reduce((acc, d) => acc + d.filled, 0) ?? 0;
@@ -921,10 +976,21 @@ export default function TournamentSchedulePage() {
           <div>
             <h2 className={styles.sectionTitle}>
               <Grid size={22} color="var(--orange, #EE7A4C)" />
-              Court Match Schedules ({courtGroups.length} Courts)
+              Court Match Schedules ({courtCount} Courts)
             </h2>
-            <div className={styles.courtsGrid} style={{ '--court-count': courtGroups.length || 1 } as CSSProperties}>
-              {courtGroups.map(group => (
+            {courtSections.map(section => (
+            <section key={section.key} className={styles.daySection}>
+            {section.title && (
+              <div className={styles.dayHeading}>
+                <Calendar size={16} color="var(--orange, #EE7A4C)" />
+                <span>{section.title}</span>
+                <span className={styles.dayHeadingMeta}>
+                  {section.courts.reduce((sum, c) => sum + c.matches.length, 0)} matches
+                </span>
+              </div>
+            )}
+            <div className={styles.courtsGrid} style={{ '--court-count': section.courts.length || 1 } as CSSProperties}>
+              {section.courts.map(group => (
                 <div key={group.courtName} className={styles.courtCard}>
                   <div className={styles.courtHeader}>
                     <span className={styles.courtName}>{group.courtName}</span>
@@ -935,12 +1001,14 @@ export default function TournamentSchedulePage() {
                       <div
                         key={m.id}
                         className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''} ${m.overScheduled ? styles.matchItemOverflow : ''}`}
+                        data-div={divColorIndex.get(m.divisionLabel) ?? 0}
                       >
                         <div className={styles.matchItemTop}>
                           <span className={styles.matchTime}>
                             {m.overScheduled
                               ? <><AlertTriangle size={13} /> Over-scheduled · {m.matchNo}</>
-                              : <><Clock size={13} /> {dayCount > 1 && m.dateLabel ? `${m.dateLabel} · ` : ''}{m.time} · {m.matchNo}</>}
+                              /* The block heading already says the date. */
+                              : <><Clock size={13} /> {!splitByDay && dayCount > 1 && m.dateLabel ? `${m.dateLabel} · ` : ''}{m.time} · {m.matchNo}</>}
                           </span>
                           <span className={styles.divisionBadge}>{m.divisionLabel}</span>
                         </div>
@@ -964,6 +1032,8 @@ export default function TournamentSchedulePage() {
                 </div>
               ))}
             </div>
+            </section>
+            ))}
           </div>
         ) : viewMode === 'timeline' ? (
           <div>
@@ -971,18 +1041,30 @@ export default function TournamentSchedulePage() {
               <List size={22} color="var(--orange, #EE7A4C)" />
               Chronological Match Timeline
             </h2>
+            {timelineSections.map(section => (
+            <section key={section.key} className={styles.daySection}>
+            {section.title && (
+              <div className={styles.dayHeading}>
+                <Calendar size={16} color="var(--orange, #EE7A4C)" />
+                <span>{section.title}</span>
+                <span className={styles.dayHeadingMeta}>
+                  {section.groups.reduce((sum, g) => sum + g.matches.length, 0)} matches
+                </span>
+              </div>
+            )}
             <div className={styles.timelineFeed}>
-              {timeGroups.map(group => (
+              {section.groups.map(group => (
                 <div key={`${group.day} ${group.time}`} className={styles.timeSlotGroup}>
                   <div className={styles.timeSlotHeader}>
                     <Clock size={16} color="var(--orange, #EE7A4C)" />
-                    {dayCount > 1 && group.dateLabel ? `${group.dateLabel} · ` : 'Scheduled Time: '}{group.time}
+                    {splitByDay ? '' : 'Scheduled Time: '}{group.time}
                   </div>
                   <div className={styles.timelineGrid} style={{ '--match-count': group.matches.length || 1 } as CSSProperties}>
                     {group.matches.map(m => (
                       <div
                         key={m.id}
                         className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''} ${m.overScheduled ? styles.matchItemOverflow : ''}`}
+                        data-div={divColorIndex.get(m.divisionLabel) ?? 0}
                       >
                         <div className={styles.matchItemTop}>
                           <span className={styles.matchTime}>{m.overScheduled ? <><AlertTriangle size={13} /> Over-scheduled</> : m.court} · {m.matchNo}</span>
@@ -1008,6 +1090,8 @@ export default function TournamentSchedulePage() {
                 </div>
               ))}
             </div>
+            </section>
+            ))}
           </div>
         ) : (
           <div>
@@ -1207,16 +1291,28 @@ export default function TournamentSchedulePage() {
                         {round.matches.length === 1 ? '' : ' each'}
                       </span>
                     </div>
-                    <div className={styles.roundMatches}>
-                      {round.matches.map(m => (
-                        <div key={m.id} className={styles.matchRow}>
-                          <span className={styles.matchRowNo}>{m.no}</span>
-                          <span className={styles.matchRowTeams}>
-                            {m.teamA} <span className={styles.gridVsText}>vs</span> {m.teamB}
-                          </span>
+                    {round.groups.map((group, gi) => (
+                      <div key={group.name ?? gi} className={styles.roundGroup}>
+                        {group.name && (
+                          <div className={styles.poolHead}>
+                            <span className={styles.poolHeadName}>{group.name}</span>
+                            <span className={styles.poolHeadMeta}>
+                              {group.matches.length} match{group.matches.length === 1 ? '' : 'es'}
+                            </span>
+                          </div>
+                        )}
+                        <div className={styles.roundMatches}>
+                          {group.matches.map(m => (
+                            <div key={m.id} className={styles.matchRow}>
+                              <span className={styles.matchRowNo}>{m.no}</span>
+                              <span className={styles.matchRowTeams}>
+                                {m.teamA} <span className={styles.gridVsText}>vs</span> {m.teamB}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 ))
               )}

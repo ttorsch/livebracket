@@ -265,6 +265,32 @@
   gap: 10px;
 }
 
+/* ── Day sections ─────────────────────────────────────────────
+   A multi-day event viewed as a whole is shown one day at a time: each day
+   gets its own row of courts (or run of time slots) under a dated heading,
+   so two days never pile up inside the same column. Single-day events show
+   no heading — there is only one day to be in. */
+.daySection + .daySection { margin-top: 32px; }
+.dayHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--sand-300, #EAE5DD);
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+}
+.dayHeadingMeta {
+  margin-left: auto;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500, #8A92A0);
+}
+
 /* ── Court Grid View ─────────────────────────────────────────── */
 /* One row of all courts: N columns fill the width when they fit, and the row
    scrolls horizontally (rather than wrapping) once there are too many. */
@@ -316,8 +342,8 @@
 .matchItem {
   padding: 16px 18px;
   border-radius: 12px;
-  border: 1px solid var(--sand-300, #EAE5DD);
-  background: var(--surface-canvas, #F7F5F0);
+  border: 1px solid var(--cal-border, var(--sand-300, #EAE5DD));
+  background: var(--cal-bg, var(--surface-canvas, #F7F5F0));
   transition: border-color 0.15s, background 0.15s;
 }
 
@@ -347,8 +373,9 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--sand-300, #EAE5DD);
-  color: var(--ink-700, #3E4654);
+  background: var(--cal-bg, var(--sand-300, #EAE5DD));
+  color: var(--cal-accent, var(--ink-700, #3E4654));
+  border: 1px solid var(--cal-border, transparent);
 }
 
 .matchTeams {
@@ -575,31 +602,6 @@
   box-shadow: 0 6px 18px rgba(20, 24, 30, 0.08);
 }
 
-.gridMatchCard[data-div="0"] {
-  --div-accent: #EE7A4C;
-  --div-border: rgba(238, 122, 76, 0.40);
-  --div-badge-bg: rgba(238, 122, 76, 0.12);
-}
-.gridMatchCard[data-div="1"] {
-  --div-accent: #2563EB;
-  --div-border: rgba(37, 99, 235, 0.40);
-  --div-badge-bg: rgba(37, 99, 235, 0.12);
-}
-.gridMatchCard[data-div="2"] {
-  --div-accent: #059669;
-  --div-border: rgba(5, 150, 105, 0.40);
-  --div-badge-bg: rgba(5, 150, 105, 0.12);
-}
-.gridMatchCard[data-div="3"] {
-  --div-accent: #7C3AED;
-  --div-border: rgba(124, 58, 237, 0.40);
-  --div-badge-bg: rgba(124, 58, 237, 0.12);
-}
-.gridMatchCard[data-div="4"] {
-  --div-accent: #DB2777;
-  --div-border: rgba(219, 39, 119, 0.40);
-  --div-badge-bg: rgba(219, 39, 119, 0.12);
-}
 
 .gridMatchTop {
   display: flex;
@@ -834,12 +836,24 @@
 .calBlockPreview { border-style: dashed; }
 .calBlockLive { box-shadow: 0 0 0 1px var(--cal-accent) inset; }
 /* Division palette — index via data-div (0..5) */
-.calBlock[data-div="0"], .calSwatch[data-div="0"] { --cal-bg: rgba(238,122,76,0.12); --cal-border: rgba(238,122,76,0.40); --cal-accent: #E06838; }
-.calBlock[data-div="1"], .calSwatch[data-div="1"] { --cal-bg: rgba(59,130,246,0.12); --cal-border: rgba(59,130,246,0.40); --cal-accent: #2563EB; }
-.calBlock[data-div="2"], .calSwatch[data-div="2"] { --cal-bg: rgba(16,185,129,0.12); --cal-border: rgba(16,185,129,0.40); --cal-accent: #059669; }
-.calBlock[data-div="3"], .calSwatch[data-div="3"] { --cal-bg: rgba(139,92,246,0.12); --cal-border: rgba(139,92,246,0.40); --cal-accent: #7C3AED; }
-.calBlock[data-div="4"], .calSwatch[data-div="4"] { --cal-bg: rgba(236,72,153,0.12); --cal-border: rgba(236,72,153,0.40); --cal-accent: #DB2777; }
-.calBlock[data-div="5"], .calSwatch[data-div="5"] { --cal-bg: rgba(202,138,4,0.14); --cal-border: rgba(202,138,4,0.40); --cal-accent: #CA8A04; }
+/* ── Division colors ──────────────────────────────────────────
+   One palette, shared by every view that shows matches from more than one
+   division — calendar blocks, the legend, the grid cards and the court /
+   timeline cards — so a division is the same color wherever it appears.
+   The index comes from divColorIndex and cycles after six. */
+.calBlock[data-div="0"], .calSwatch[data-div="0"], .gridMatchCard[data-div="0"], .matchItem[data-div="0"] { --cal-bg: rgba(238,122,76,0.12); --cal-border: rgba(238,122,76,0.40); --cal-accent: #E06838; }
+.calBlock[data-div="1"], .calSwatch[data-div="1"], .gridMatchCard[data-div="1"], .matchItem[data-div="1"] { --cal-bg: rgba(59,130,246,0.12); --cal-border: rgba(59,130,246,0.40); --cal-accent: #2563EB; }
+.calBlock[data-div="2"], .calSwatch[data-div="2"], .gridMatchCard[data-div="2"], .matchItem[data-div="2"] { --cal-bg: rgba(16,185,129,0.12); --cal-border: rgba(16,185,129,0.40); --cal-accent: #059669; }
+.calBlock[data-div="3"], .calSwatch[data-div="3"], .gridMatchCard[data-div="3"], .matchItem[data-div="3"] { --cal-bg: rgba(139,92,246,0.12); --cal-border: rgba(139,92,246,0.40); --cal-accent: #7C3AED; }
+.calBlock[data-div="4"], .calSwatch[data-div="4"], .gridMatchCard[data-div="4"], .matchItem[data-div="4"] { --cal-bg: rgba(236,72,153,0.12); --cal-border: rgba(236,72,153,0.40); --cal-accent: #DB2777; }
+.calBlock[data-div="5"], .calSwatch[data-div="5"], .gridMatchCard[data-div="5"], .matchItem[data-div="5"] { --cal-bg: rgba(202,138,4,0.14); --cal-border: rgba(202,138,4,0.40); --cal-accent: #CA8A04; }
+
+/* The grid cards and badges were written against their own variable names. */
+.gridMatchCard[data-div], .matchItem[data-div] {
+  --div-accent: var(--cal-accent);
+  --div-border: var(--cal-border);
+  --div-badge-bg: var(--cal-bg);
+}
 .gridVs {
   color: var(--ink-400, #A6ADB9);
   font-weight: 500;
@@ -1098,6 +1112,26 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+/* Pool play is one small tournament per pool, so the round robin is listed
+   pool by pool rather than as one long run of matches. */
+.roundGroup + .roundGroup { margin-top: 14px; }
+.poolHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.poolHeadName {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-700, #3F4854);
+}
+.poolHeadMeta {
+  font-size: 11px;
+  color: var(--ink-500, #8A92A0);
 }
 .matchRow {
   display: grid;

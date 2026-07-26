@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
+import type { CrossSlot } from '../../../../../../../lib/data';
 
 // Persists the organizer's draw for one division: seed order on teams,
 // draw configuration on divisions.settings.draw, and (optionally) the
@@ -10,6 +11,13 @@ import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
 // recorded in settings.draw.slots as { [roundSequence]: matchId[] } — ids
 // are generated here (not read back from the insert) so the mapping never
 // depends on returned row order.
+//
+// Two write modes:
+//   mode 'draw' (default) — the full draw: seeds, pools and (optionally) the
+//     whole bracket, regenerated from scratch.
+//   mode 'crossing' — bracket crossing only: pools, their matches and the
+//     seeds are left exactly as they are; just the knockout rounds are
+//     rebuilt from the new advance/crossing config.
 
 interface DrawBody {
   seedOrder: string[]; // team ids, index 0 = seed 1
@@ -18,6 +26,7 @@ interface DrawBody {
   crossing: string;
   generate?: boolean;
   topSeedIds?: string[]; // organizer-picked top seeds, in order (subset of seedOrder)
+  mode?: 'draw' | 'crossing';
 }
 
 interface MatchInsert {
@@ -33,7 +42,7 @@ interface MatchInsert {
 async function getDivision(slug: string, divisionId: string) {
   const { data, error } = await supabaseAdmin
     .from('divisions')
-    .select('id, settings, tournaments!inner(slug), teams(id, name, status), rounds(id, sequence, format, scoring_rules)')
+    .select('id, settings, tournaments!inner(slug), teams(id, name, seed, status), rounds(id, sequence, format, scoring_rules)')
     .eq('id', divisionId)
     .eq('tournaments.slug', slug)
     .maybeSingle();
@@ -83,74 +92,327 @@ function shuffle<T>(items: T[]): T[] {
   return arr;
 }
 
-function getStaticElimSlots(poolAdvancing: string[][], r1Count: number): { elimSlotsA: (string | null)[]; elimSlotsB: (string | null)[] } {
-  const elimSlotsA: (string | null)[] = Array(r1Count).fill(null);
-  const elimSlotsB: (string | null)[] = Array(r1Count).fill(null);
-  const pools = poolAdvancing.length;
+// Round-1 knockout slots are drawn as pool positions (CrossSlot), not teams:
+// pool play hasn't happened yet when the bracket is generated, so the matches
+// are created with no team ids and read as "#1 Pool A" until the pools decide.
+
+const POOL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function poolName(index: number): string {
+  return POOL_LETTERS[index] ?? String(index + 1);
+}
+
+// `counts[p]` = how many teams pool p sends into the knockout. A position no
+// pool can fill (rank beyond that pool's advancing count) resolves to null.
+function makeSlot(counts: number[], pool: number, rank: number): CrossSlot | null {
+  return rank <= (counts[pool] ?? 0) ? { pool: poolName(pool), rank } : null;
+}
+
+function getStaticCrossSlots(counts: number[], r1Count: number): { slotsA: (CrossSlot | null)[]; slotsB: (CrossSlot | null)[] } {
+  const slotsA: (CrossSlot | null)[] = Array(r1Count).fill(null);
+  const slotsB: (CrossSlot | null)[] = Array(r1Count).fill(null);
+  const pools = counts.length;
+
+  // Pairs are [poolIndex, rank] — the published static cross-bracket charts.
+  //
+  // Match order is what puts a pairing in a bracket half, and every chart uses
+  // the same one: the pool winners run A, B | C, D, so A1 and B1 share a half
+  // and meet in the semifinal, C1 and D1 in the other. That holds whether two
+  // or four teams advance per pool, so the arrangement an organizer sees
+  // doesn't change shape when they change the advance count.
+  const chart = (pairs: [[number, number], [number, number]][]) => {
+    pairs.forEach(([a, b], idx) => {
+      slotsA[idx] = makeSlot(counts, a[0], a[1]);
+      slotsB[idx] = makeSlot(counts, b[0], b[1]);
+    });
+    return { slotsA, slotsB };
+  };
 
   if (pools === 4) {
-    const k = Math.max(...poolAdvancing.map(p => p.length), 1);
+    const k = Math.max(...counts, 1);
     if (k === 4 && r1Count >= 8) {
-      // 16-Team Static Cross-Bracket (A1-D4, C2-B3, B1-C4, D2-A3, C1-B4, A2-D3, D1-A4, B2-C3)
-      const pairs: [[number, number], [number, number]][] = [
-        [ [0, 0], [3, 3] ], // Match 1: A1 vs D4
-        [ [2, 1], [1, 2] ], // Match 2: C2 vs B3
-        [ [1, 0], [2, 3] ], // Match 3: B1 vs C4
-        [ [3, 1], [0, 2] ], // Match 4: D2 vs A3
-        [ [2, 0], [1, 3] ], // Match 5: C1 vs B4
-        [ [0, 1], [3, 2] ], // Match 6: A2 vs D3
-        [ [3, 0], [0, 3] ], // Match 7: D1 vs A4
-        [ [1, 1], [2, 2] ], // Match 8: B2 vs C3
-      ];
-      pairs.forEach(([a, b], idx) => {
-        elimSlotsA[idx] = poolAdvancing[a[0]]?.[a[1]] ?? null;
-        elimSlotsB[idx] = poolAdvancing[b[0]]?.[b[1]] ?? null;
-      });
-      return { elimSlotsA, elimSlotsB };
+      // 16-Team Static Cross-Bracket
+      return chart([
+        [ [0, 1], [3, 4] ], // Match 1: A1 vs D4
+        [ [2, 2], [1, 3] ], // Match 2: C2 vs B3
+        [ [1, 1], [2, 4] ], // Match 3: B1 vs C4
+        [ [3, 2], [0, 3] ], // Match 4: D2 vs A3
+        [ [2, 1], [1, 4] ], // Match 5: C1 vs B4
+        [ [0, 2], [3, 3] ], // Match 6: A2 vs D3
+        [ [3, 1], [0, 4] ], // Match 7: D1 vs A4
+        [ [1, 2], [2, 3] ], // Match 8: B2 vs C3
+      ]);
     }
 
     if (k === 2 && r1Count >= 4) {
-      // 8-Team Static Cross-Bracket (A1-D2, C1-B2, B1-C2, D1-A2)
-      const pairs: [[number, number], [number, number]][] = [
-        [ [0, 0], [3, 1] ], // Match 1: A1 vs D2
-        [ [2, 0], [1, 1] ], // Match 2: C1 vs B2
-        [ [1, 0], [2, 1] ], // Match 3: B1 vs C2
-        [ [3, 0], [0, 1] ], // Match 4: D1 vs A2
-      ];
-      pairs.forEach(([a, b], idx) => {
-        elimSlotsA[idx] = poolAdvancing[a[0]]?.[a[1]] ?? null;
-        elimSlotsB[idx] = poolAdvancing[b[0]]?.[b[1]] ?? null;
-      });
-      return { elimSlotsA, elimSlotsB };
+      // 8-Team Static Cross-Bracket — semifinals A1/B1 and C1/D1.
+      return chart([
+        [ [0, 1], [3, 2] ], // Match 1: A1 vs D2
+        [ [1, 1], [2, 2] ], // Match 2: B1 vs C2
+        [ [2, 1], [1, 2] ], // Match 3: C1 vs B2
+        [ [3, 1], [0, 2] ], // Match 4: D1 vs A2
+      ]);
     }
 
     if (k === 1 && r1Count >= 2) {
-      // 4-Team Static Cross-Bracket (A1-D1, B1-C1)
-      const pairs: [[number, number], [number, number]][] = [
-        [ [0, 0], [3, 0] ], // Match 1: A1 vs D1
-        [ [1, 0], [2, 0] ], // Match 2: B1 vs C1
-      ];
-      pairs.forEach(([a, b], idx) => {
-        elimSlotsA[idx] = poolAdvancing[a[0]]?.[a[1]] ?? null;
-        elimSlotsB[idx] = poolAdvancing[b[0]]?.[b[1]] ?? null;
-      });
-      return { elimSlotsA, elimSlotsB };
+      // 4-Team Static Cross-Bracket. One match per half, so the pool winners
+      // can't share one — A1 and B1 meet in the final here whatever the order.
+      return chart([
+        [ [0, 1], [3, 1] ], // Match 1: A1 vs D1
+        [ [1, 1], [2, 1] ], // Match 2: B1 vs C1
+      ]);
     }
   }
 
-  // Fallback for general pool configurations
+  // Fallback for general pool configurations: pool winners meet the runner-up
+  // from the pool at the opposite end of the list.
   let idx = 0;
-  for (let p = 0; p < pools; p++) {
+  for (let p = 0; p < pools && idx < r1Count; p++) {
     const opp = pools - 1 - p;
-    const teamA = poolAdvancing[p]?.[0] ?? null;
-    const teamB = poolAdvancing[opp]?.[1] ?? poolAdvancing[opp]?.[0] ?? null;
-    if (idx < r1Count) {
-      elimSlotsA[idx] = teamA;
-      elimSlotsB[idx] = teamB;
-      idx++;
+    slotsA[idx] = makeSlot(counts, p, 1);
+    slotsB[idx] = makeSlot(counts, opp, 2) ?? makeSlot(counts, opp, 1);
+    idx++;
+  }
+  return { slotsA, slotsB };
+}
+
+function getFivbCrossSlots(counts: number[], r1Count: number): { slotsA: (CrossSlot | null)[]; slotsB: (CrossSlot | null)[] } {
+  const pools = counts.length;
+  const slotsA: (CrossSlot | null)[] = Array(r1Count).fill(null);
+  const slotsB: (CrossSlot | null)[] = Array(r1Count).fill(null);
+
+  const placed = new Set<string>();
+  const key = (s: CrossSlot | null) => (s ? `${s.pool}:${s.rank}` : '');
+  const place = (side: (CrossSlot | null)[], idx: number, slot: CrossSlot | null) => {
+    if (!slot || placed.has(key(slot))) return;
+    side[idx] = slot;
+    placed.add(key(slot));
+  };
+
+  for (let p = 0; p < pools; p++) {
+    const matchIdx = Math.floor((p * r1Count) / pools);
+    const crossedPool = (p + Math.floor(pools / 2)) % pools;
+    if (slotsA[matchIdx] === null) place(slotsA, matchIdx, makeSlot(counts, p, 1));
+    if (slotsB[matchIdx] === null) {
+      place(slotsB, matchIdx, makeSlot(counts, crossedPool, 2) ?? makeSlot(counts, crossedPool, 1));
     }
   }
-  return { elimSlotsA, elimSlotsB };
+
+  // Fill any slot the crossing left empty with the advancing positions that
+  // haven't been placed, pool by pool.
+  const remaining: CrossSlot[] = [];
+  counts.forEach((count, p) => {
+    for (let rank = 1; rank <= count; rank++) {
+      const slot = { pool: poolName(p), rank };
+      if (!placed.has(key(slot))) remaining.push(slot);
+    }
+  });
+
+  let remIdx = 0;
+  for (let i = 0; i < r1Count; i++) {
+    if (slotsA[i] === null && remIdx < remaining.length) slotsA[i] = remaining[remIdx++];
+    if (slotsB[i] === null && remIdx < remaining.length) slotsB[i] = remaining[remIdx++];
+  }
+
+  return { slotsA, slotsB };
+}
+
+/* The advancing pool positions in seeding order, best first.
+
+   Finishing rank is the only ranking available — nothing separates two pools'
+   winners before they've played — so every winner outranks every runner-up,
+   and so on. Within a rank the pools are ordered by bracket geometry rather
+   than alphabetically: pool i's winner takes the seed that lands it in the
+   i-th section of the bracket, which is what puts A1 and B1 in one half and
+   C1/D1 in the other, the same arrangement the fixed charts draw. Each
+   following rank runs the pools in the opposite direction, so a pool's
+   runner-up is drawn against a winner from the far side of the bracket. */
+function crossEntrants(counts: number[]): CrossSlot[] {
+  const pools = counts.length;
+  let sectionSize = 1;
+  while (sectionSize < pools) sectionSize *= 2;
+  // sectionOrder[i] = the seed that sits in the bracket's i-th section.
+  const sectionOrder = seedPlacement(sectionSize).filter(seed => seed <= pools);
+
+  const bySeed: (CrossSlot | null)[] = [];
+  const maxRank = Math.max(...counts, 0);
+  for (let rank = 1; rank <= maxRank; rank++) {
+    counts.forEach((count, p) => {
+      if (rank > count) return;
+      const order = rank % 2 === 1 ? sectionOrder[p] : sectionOrder[pools - 1 - p];
+      bySeed[(rank - 1) * pools + order - 1] = { pool: poolName(p), rank };
+    });
+  }
+
+  // Uneven pools leave gaps mid-list (a short pool sends no 3rd place, say).
+  // Closing them keeps the seeding order intact and puts every empty seat at
+  // the bottom, where byes belong.
+  return bySeed.filter((slot): slot is CrossSlot => !!slot);
+}
+
+/* Seeds the advancing pool positions into a `size` bracket exactly the way a
+   pure single-elimination draw seeds teams: standard placement (seed 1 meets
+   seed `size`, 2 meets `size − 1`, …). When the advancing count doesn't fill
+   the bracket the empty seats are the bottom seeds, so — as in the pure draw —
+   the byes land on the top seeds, i.e. the pool winners.
+
+   Used whenever the field isn't a power of two, where the fixed crossing
+   charts have no answer: they pair whole ranks against each other and assume
+   every seat is taken. */
+function getSeededCrossSlots(counts: number[], size: number): { slotsA: (CrossSlot | null)[]; slotsB: (CrossSlot | null)[] } {
+  const entrants = crossEntrants(counts);
+  // field[position] = the pool position seeded there, or null for a bye.
+  const field: (CrossSlot | null)[] = seedPlacement(size).map(seed => entrants[seed - 1] ?? null);
+
+  // Two teams out of the same pool have already played each other, so avoid
+  // opening the knockout with a rematch: swap one side with another pairing
+  // where doing so leaves both pairings clash-free.
+  //
+  // Only positions that are already in a real pairing can be swapped with, and
+  // an equal finishing rank is taken first — a swap must not move a bye or
+  // hand one to a lower finisher, which is the whole point of the seeding.
+  for (let i = 0; i < size / 2; i++) {
+    const a = field[2 * i];
+    const b = field[2 * i + 1];
+    if (!a || !b || a.pool !== b.pool) continue;
+
+    const canSwap = (k: number) => {
+      if (k === 2 * i || k === 2 * i + 1) return false;
+      const x = field[k];
+      const partner = field[k % 2 === 0 ? k + 1 : k - 1];
+      if (!x || !partner) return false; // never disturb a bye pairing
+      return x.pool !== a.pool && partner.pool !== b.pool;
+    };
+
+    const positions = Array.from({ length: size }, (_, k) => k);
+    const target =
+      positions.find(k => canSwap(k) && field[k]!.rank === b.rank) ??
+      positions.find(canSwap);
+    if (target === undefined) continue;
+
+    field[2 * i + 1] = field[target];
+    field[target] = b;
+  }
+
+  const slotsA: (CrossSlot | null)[] = [];
+  const slotsB: (CrossSlot | null)[] = [];
+  for (let i = 0; i < size / 2; i++) {
+    slotsA.push(field[2 * i]);
+    slotsB.push(field[2 * i + 1]);
+  }
+  return { slotsA, slotsB };
+}
+
+function getCrossSlots(crossing: string, counts: number[], r1Count: number) {
+  return crossing === 'static' ? getStaticCrossSlots(counts, r1Count) : getFivbCrossSlots(counts, r1Count);
+}
+
+interface RoundInsert {
+  id: string;
+  division_id: string;
+  sequence: number;
+  format: string;
+  name: string;
+  scoring_rules: unknown;
+}
+
+interface KnockoutBuild {
+  roundRows: RoundInsert[];
+  matches: MatchInsert[];
+  slots: Record<string, string[]>;
+  // Round-1 pool positions, per match id — what the bracket shows until the
+  // pools have been played.
+  crossSlots: Record<string, { a: CrossSlot | null; b: CrossSlot | null }>;
+}
+
+/* Builds the knockout stage that follows pool play: rounds sized to the teams
+   advancing out of the pools, and round-1 matches drawn as pool positions
+   (no teams — nothing has been played yet). */
+function buildKnockout(opts: {
+  divisionId: string;
+  poolSizes: number[];
+  advance: number;
+  crossing: string;
+  scoringRules: unknown;
+  startSequence: number;
+}): KnockoutBuild {
+  const { divisionId, poolSizes, advance, crossing, scoringRules, startSequence } = opts;
+
+  const counts = poolSizes.map(size => Math.min(advance, size));
+  const totalAdvancing = counts.reduce((sum, c) => sum + c, 0);
+
+  let elimSize = 2;
+  while (elimSize < totalAdvancing) elimSize *= 2;
+  const elimStages = Math.log2(elimSize);
+  const r1Count = elimSize / 2;
+
+  const roundRows: RoundInsert[] = Array.from({ length: elimStages }, (_, s) => ({
+    id: randomUUID(),
+    division_id: divisionId,
+    sequence: startSequence + s,
+    format: 'single',
+    name: stageName(elimSize >> s),
+    scoring_rules: scoringRules,
+  }));
+
+  const matches: MatchInsert[] = [];
+  const slots: Record<string, string[]> = {};
+  const crossSlots: KnockoutBuild['crossSlots'] = {};
+
+  // The fixed crossing charts pair whole ranks against each other, so they
+  // only answer a field that fills the bracket. Anything else (5 pools, 3 per
+  // pool, a short pool) is drawn by seeding the positions and letting the
+  // spare seats fall out as byes.
+  const { slotsA, slotsB } = totalAdvancing === elimSize
+    ? getCrossSlots(crossing, counts, r1Count)
+    : getSeededCrossSlots(counts, elimSize);
+
+  // A pairing with one position and one empty seat is a bye: the match is
+  // settled before it starts and the position it holds carries straight into
+  // the next round (round-1 match i feeds round-2 match ⌊i/2⌋, side A when i
+  // is even else side B).
+  const r2Slots: { a: CrossSlot | null; b: CrossSlot | null }[] =
+    Array.from({ length: r1Count / 2 }, () => ({ a: null, b: null }));
+
+  const r1Seq = String(startSequence);
+  slots[r1Seq] = [];
+  for (let i = 0; i < r1Count; i++) {
+    const a = slotsA[i] ?? null;
+    const b = slotsB[i] ?? null;
+    const isBye = (a === null) !== (b === null);
+    const id = randomUUID();
+    matches.push({
+      id, round_id: roundRows[0].id, division_id: divisionId,
+      team_a_id: null, team_b_id: null, winner_team_id: null,
+      status: isBye ? 'done' : 'upcoming',
+    });
+    slots[r1Seq].push(id);
+    crossSlots[id] = { a, b };
+    if (isBye) {
+      const next = r2Slots[Math.floor(i / 2)];
+      if (next) next[i % 2 === 0 ? 'a' : 'b'] = a ?? b;
+    }
+  }
+
+  let mCount = r1Count / 2;
+  for (let s = 1; s < elimStages; s++) {
+    const seq = String(startSequence + s);
+    slots[seq] = [];
+    for (let i = 0; i < mCount; i++) {
+      const id = randomUUID();
+      matches.push({
+        id, round_id: roundRows[s].id, division_id: divisionId,
+        team_a_id: null, team_b_id: null, winner_team_id: null, status: 'upcoming',
+      });
+      slots[seq].push(id);
+      // Round 2 shows the positions that walked through on a bye.
+      const advanced = s === 1 ? r2Slots[i] : null;
+      if (advanced && (advanced.a || advanced.b)) crossSlots[id] = advanced;
+    }
+    mCount /= 2;
+  }
+
+  return { roundRows, matches, slots, crossSlots };
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
@@ -170,6 +432,75 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!division) return NextResponse.json({ error: 'Division not found' }, { status: 404 });
 
   const confirmedTeams = division.teams.filter(t => t.status !== 'waitlist');
+
+  // Crossing only: the pools have already been drawn and must stay exactly as
+  // they are — seeds, pool round and pool matches are all left alone. Only the
+  // knockout rounds hanging off them are rebuilt for the new config.
+  if (body.mode === 'crossing') {
+    const settings = (division.settings ?? {}) as Record<string, unknown>;
+    const prevDraw = (settings.draw ?? {}) as Record<string, unknown>;
+
+    const prevRounds = division.rounds ?? [];
+    const poolRound = prevRounds.find(r => r.format === 'round-robin');
+    if (!poolRound) {
+      return NextResponse.json({ error: 'This division has no pool round — draw the pools first' }, { status: 400 });
+    }
+    const elimRounds = prevRounds.filter(r => r.format === 'single' || r.format === 'double');
+    if (elimRounds.length === 0) {
+      return NextResponse.json({ error: 'This division has no knockout round to apply a crossing to' }, { status: 400 });
+    }
+
+    // Pool composition comes from the seeds already on the teams, so it
+    // reproduces the pools that were drawn rather than drawing new ones.
+    const poolCount = typeof prevDraw.pools === 'number' ? prevDraw.pools : pools;
+    const seededOrder = [...confirmedTeams].sort((a, b) => a.seed - b.seed).map(t => t.id);
+    const poolList = assignPools(seededOrder, poolCount);
+
+    const knockout = buildKnockout({
+      divisionId,
+      poolSizes: poolList.map(p => p.length),
+      advance,
+      crossing,
+      scoringRules: elimRounds[0].scoring_rules ?? {},
+      startSequence: poolRound.sequence + 1,
+    });
+
+    const elimRoundIds = elimRounds.map(r => r.id);
+    const { error: mDelError } = await supabaseAdmin.from('matches').delete().in('round_id', elimRoundIds);
+    if (mDelError) return NextResponse.json({ error: `Failed to clear knockout matches: ${mDelError.message}` }, { status: 500 });
+    const { error: rDelError } = await supabaseAdmin.from('rounds').delete().in('id', elimRoundIds);
+    if (rDelError) return NextResponse.json({ error: `Failed to clear knockout rounds: ${rDelError.message}` }, { status: 500 });
+
+    const { error: rInsError } = await supabaseAdmin.from('rounds').insert(knockout.roundRows);
+    if (rInsError) return NextResponse.json({ error: `Failed to create knockout rounds: ${rInsError.message}` }, { status: 500 });
+    const { error: mInsError } = await supabaseAdmin.from('matches').insert(knockout.matches);
+    if (mInsError) return NextResponse.json({ error: `Failed to create knockout matches: ${mInsError.message}` }, { status: 500 });
+
+    // Keep the pool round's slot order; swap in the new knockout ordering.
+    const prevSlots = (prevDraw.slots ?? {}) as Record<string, string[]>;
+    const poolSeq = String(poolRound.sequence);
+    const nextSlots: Record<string, string[]> = {
+      ...(prevSlots[poolSeq] ? { [poolSeq]: prevSlots[poolSeq] } : {}),
+      ...knockout.slots,
+    };
+
+    const draw = {
+      ...prevDraw,
+      pools: poolCount,
+      advance,
+      crossing,
+      slots: nextSlots,
+      crossSlots: knockout.crossSlots,
+    };
+    const { error: sError } = await supabaseAdmin
+      .from('divisions')
+      .update({ settings: { ...settings, draw } })
+      .eq('id', divisionId);
+    if (sError) return NextResponse.json({ error: `Failed to save crossing config: ${sError.message}` }, { status: 500 });
+
+    return NextResponse.json({ ok: true, generated: true, mode: 'crossing' });
+  }
+
   const teamIdSet = new Set(confirmedTeams.map(t => t.id));
   const seedOrder = (body.seedOrder ?? []).filter(id => teamIdSet.has(id));
   if (seedOrder.length !== teamIdSet.size || new Set(seedOrder).size !== seedOrder.length) {
@@ -186,6 +517,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const slots: Record<string, string[]> = {};
+  let crossSlots: KnockoutBuild['crossSlots'] = {};
 
   // 2. Optionally regenerate rounds and matches.
   if (body.generate) {
@@ -200,44 +532,30 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const hasRoundRobin = prevRounds.some(r => r.format === 'round-robin');
     const hasElimRound = prevRounds.some(r => r.format === 'single' || r.format === 'double');
 
-    // Knockout field: pad to the next power of two
-    let size = 2;
-    while (size < seedOrder.length) size *= 2;
-    const stages = Math.log2(size);
-
-    const roundRows = hasRoundRobin
-      ? [
-          { id: randomUUID(), division_id: divisionId, sequence: 1, format: 'round-robin', name: 'Round Robin', scoring_rules: poolRules },
-          ...(hasElimRound
-            ? Array.from({ length: stages }, (_, s) => ({
-                id: randomUUID(),
-                division_id: divisionId,
-                sequence: s + 2,
-                format: 'single',
-                name: stageName(size >> s),
-                scoring_rules: elimRules,
-              }))
-            : []),
-        ]
-      : Array.from({ length: stages }, (_, s) => ({
-          id: randomUUID(),
-          division_id: divisionId,
-          sequence: s + 1,
-          format: 'single',
-          name: stageName(size >> s),
-          scoring_rules: elimRules,
-        }));
-
-    const { error: rError } = await supabaseAdmin.from('rounds').insert(roundRows);
-    if (rError) return NextResponse.json({ error: `Failed to create rounds: ${rError.message}` }, { status: 500 });
-
     const matches: MatchInsert[] = [];
+    let roundRows: RoundInsert[];
 
     if (hasRoundRobin) {
       // Pool play: round robin within each serpentine-assigned pool.
-      const poolRound = roundRows[0];
+      const poolList = assignPools(seedOrder, pools);
+      const poolRound: RoundInsert = {
+        id: randomUUID(), division_id: divisionId, sequence: 1,
+        format: 'round-robin', name: 'Round Robin', scoring_rules: poolRules,
+      };
+      const knockout = hasElimRound
+        ? buildKnockout({
+            divisionId,
+            poolSizes: poolList.map(p => p.length),
+            advance,
+            crossing,
+            scoringRules: elimRules,
+            startSequence: 2,
+          })
+        : null;
+      roundRows = [poolRound, ...(knockout?.roundRows ?? [])];
+
       slots['1'] = [];
-      for (const pool of assignPools(seedOrder, pools)) {
+      for (const pool of poolList) {
         for (let i = 0; i < pool.length; i++) {
           for (let j = i + 1; j < pool.length; j++) {
             const id = randomUUID();
@@ -250,92 +568,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         }
       }
 
-      if (hasElimRound) {
-        const poolList = assignPools(seedOrder, pools);
-        const advancingPerPool = Math.max(1, Math.min(4, advance));
-
-        // Gather advancing team IDs per pool in rank order
-        const poolAdvancing: string[][] = poolList.map(p => p.slice(0, advancingPerPool));
-        const totalAdvancing = poolAdvancing.reduce((sum, p) => sum + p.length, 0);
-
-        let elimSize = 2;
-        while (elimSize < totalAdvancing) elimSize *= 2;
-        const elimStages = Math.log2(elimSize);
-        const r1Count = elimSize / 2;
-
-        let elimSlotsA: (string | null)[];
-        let elimSlotsB: (string | null)[];
-
-        if (crossing === 'static') {
-          const res = getStaticElimSlots(poolAdvancing, r1Count);
-          elimSlotsA = res.elimSlotsA;
-          elimSlotsB = res.elimSlotsB;
-        } else {
-          // Standard / FIVB Crossing
-          elimSlotsA = Array(r1Count).fill(null);
-          elimSlotsB = Array(r1Count).fill(null);
-          for (let p = 0; p < pools; p++) {
-            const matchIdx = Math.floor((p * r1Count) / pools);
-            const crossedPoolIdx = (p + Math.floor(pools / 2)) % pools;
-
-            if (elimSlotsA[matchIdx] === null) {
-              elimSlotsA[matchIdx] = poolAdvancing[p]?.[0] ?? null;
-            }
-            if (elimSlotsB[matchIdx] === null) {
-              elimSlotsB[matchIdx] = poolAdvancing[crossedPoolIdx]?.[1] ?? poolAdvancing[crossedPoolIdx]?.[0] ?? null;
-            }
-          }
-
-          // Fill any remaining empty slots with unassigned advancing teams
-          const allAdvancingFlat = poolAdvancing.flat();
-          const placedSet = new Set([...elimSlotsA, ...elimSlotsB].filter(Boolean));
-          const remainingAdvancing = allAdvancingFlat.filter(id => !placedSet.has(id));
-
-          let remIdx = 0;
-          for (let i = 0; i < r1Count; i++) {
-            if (elimSlotsA[i] === null && remIdx < remainingAdvancing.length) {
-              elimSlotsA[i] = remainingAdvancing[remIdx++];
-            }
-            if (elimSlotsB[i] === null && remIdx < remainingAdvancing.length) {
-              elimSlotsB[i] = remainingAdvancing[remIdx++];
-            }
-          }
-        }
-
-        // Create Round 1 of Knockout (sequence 2)
-        const r1ElimRound = roundRows[1];
-        slots['2'] = [];
-        for (let i = 0; i < r1Count; i++) {
-          const id = randomUUID();
-          matches.push({
-            id,
-            round_id: r1ElimRound.id,
-            division_id: divisionId,
-            team_a_id: elimSlotsA[i],
-            team_b_id: elimSlotsB[i],
-            winner_team_id: null,
-            status: 'upcoming',
-          });
-          slots['2'].push(id);
-        }
-
-        // Create remaining knockout stages (sequence 3, 4...)
-        let mCount = r1Count / 2;
-        for (let s = 1; s < elimStages; s++) {
-          const round = roundRows[s + 1];
-          if (!round) break;
-          const seq = String(s + 2);
-          slots[seq] = [];
-          for (let i = 0; i < mCount; i++) {
-            const id = randomUUID();
-            matches.push({
-              id, round_id: round.id, division_id: divisionId,
-              team_a_id: null, team_b_id: null, winner_team_id: null, status: 'upcoming',
-            });
-            slots[seq].push(id);
-          }
-          mCount /= 2;
-        }
+      if (knockout) {
+        matches.push(...knockout.matches);
+        Object.assign(slots, knockout.slots);
+        crossSlots = knockout.crossSlots;
       }
     } else {
       // Pure Elimination (No Pool Play): draw round-1 matches directly.
@@ -357,6 +593,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         : [];
       const topSeedSet = new Set(topSeedIds);
       const unseededIds = seedOrder.filter(id => !topSeedSet.has(id));
+
+      // Knockout field: pad to the next power of two.
+      let size = 2;
+      while (size < seedOrder.length) size *= 2;
+      const stages = Math.log2(size);
+
+      roundRows = Array.from({ length: stages }, (_, s) => ({
+        id: randomUUID(),
+        division_id: divisionId,
+        sequence: s + 1,
+        format: 'single',
+        name: stageName(size >> s),
+        scoring_rules: elimRules,
+      }));
 
       // Draw order: top seeds (shuffled — no rank among them), then the rest
       // (also shuffled). Nothing here privileges one top seed over another.
@@ -419,6 +669,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
+    const { error: rError } = await supabaseAdmin.from('rounds').insert(roundRows);
+    if (rError) return NextResponse.json({ error: `Failed to create rounds: ${rError.message}` }, { status: 500 });
+
     const { error: mError } = await supabaseAdmin.from('matches').insert(matches);
     if (mError) return NextResponse.json({ error: `Failed to create matches: ${mError.message}` }, { status: 500 });
   }
@@ -433,6 +686,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     attempts: body.generate ? prevAttempts + 1 : prevAttempts,
     topSeedIds,
     slots: body.generate ? slots : (prevDraw.slots ?? {}),
+    crossSlots: body.generate ? crossSlots : (prevDraw.crossSlots ?? {}),
   };
   const { error: sError } = await supabaseAdmin
     .from('divisions')

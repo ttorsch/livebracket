@@ -238,9 +238,19 @@ export interface DetailTeam {
   status: string;
 }
 
+// One knockout slot as the bracket crossing defines it: "whoever finishes
+// `rank` in pool `pool`". Pool play decides who that is, so until then the
+// slot has no team — it renders as "#1 Pool A".
+export interface CrossSlot {
+  pool: string; // pool name: 'A', 'B', ...
+  rank: number; // 1-based finishing position within the pool
+}
+
 // Organizer draw settings persisted on divisions.settings.draw.
 // `slots` records the generated bracket's match order per round sequence
 // (matches have no slot column, and render order defines the bracket tree).
+// `crossSlots` records the pool positions drawn into each first-round
+// knockout match, keyed by match id.
 export interface DrawConfig {
   pools: number;
   advance: number;
@@ -249,6 +259,7 @@ export interface DrawConfig {
   topSeedIds: string[];
   isLocked?: boolean;
   slots?: Record<string, string[]>;
+  crossSlots?: Record<string, { a: CrossSlot | null; b: CrossSlot | null }>;
 }
 
 export interface DetailDivision {
@@ -481,6 +492,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               pools: draw.pools ?? 4, advance: draw.advance ?? 2, crossing: draw.crossing ?? 'fivb',
               attempts: draw.attempts ?? 0, topSeedIds: draw.topSeedIds ?? [],
               isLocked: !!draw.isLocked,
+              crossSlots: draw.crossSlots ?? {},
             }
           : null,
         dedicatedCourts: typeof sched?.dedicatedCourts === 'number' ? sched.dedicatedCourts : null,

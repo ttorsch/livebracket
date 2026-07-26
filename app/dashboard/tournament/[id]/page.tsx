@@ -7,6 +7,7 @@ import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Trophy, Unlock, Users, 
 import styles from './page.module.css';
 import { Button } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
+import { assignPools, divisionPrefix, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
 
@@ -43,6 +44,7 @@ interface ViewRow {
 }
 
 interface ViewMatch {
+  no: string; // division-numbered, e.g. "M25" — continues through pool play
   live: boolean;
   hasRight: boolean;
   hasLeft: boolean;
@@ -74,23 +76,6 @@ function seedPlacement(size: number): number[] {
   return order;
 }
 
-const POOL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-/* Mirrors the server's serpentine `assignPools`: seed-ordered teams are
-   dealt into `poolsCount` pools, reversing direction every row so pool
-   strength stays balanced. Named pools reproduce what was actually saved. */
-function assignPools<T>(items: T[], poolsCount: number): { name: string; items: T[] }[] {
-  const out: T[][] = Array.from({ length: poolsCount }, () => []);
-  items.forEach((item, i) => {
-    const row = Math.floor(i / poolsCount);
-    const col = i % poolsCount;
-    out[row % 2 === 0 ? col : poolsCount - 1 - col].push(item);
-  });
-  return out
-    .map((teams, i) => ({ name: POOL_LETTERS[i] ?? String(i + 1), items: teams }))
-    .filter(p => p.items.length > 0);
-}
-
 function roundName(fieldSize: number): string {
   if (fieldSize === 2) return 'Final';
   if (fieldSize === 4) return 'Semifinals';
@@ -99,8 +84,9 @@ function roundName(fieldSize: number): string {
 }
 
 /* Projection: favorite (lower seed) advances everywhere; used until a
-   real draw has been generated for the division. */
-function projectBracket(teams: SeedTeam[]): BracketView | null {
+   real draw has been generated for the division. `startNo` continues the
+   division's numbering past any pool matches already drawn. */
+function projectBracket(teams: SeedTeam[], prefix: string, startNo: number): BracketView | null {
   if (teams.length < 2) return null;
   let size = 2;
   while (size < teams.length) size *= 2;
@@ -110,6 +96,7 @@ function projectBracket(teams: SeedTeam[]): BracketView | null {
 
   const totalRounds = Math.log2(size);
   const rounds: ViewRound[] = [];
+  let matchNo = startNo;
 
   for (let r = 0; r < totalRounds; r++) {
     const isFinal = r === totalRounds - 1;
@@ -131,6 +118,7 @@ function projectBracket(teams: SeedTeam[]): BracketView | null {
       });
 
       matches.push({
+        no: `${prefix}${matchNo++}`,
         live: false,
         hasRight: !isFinal,
         hasLeft: r > 0,
@@ -152,7 +140,7 @@ function projectBracket(teams: SeedTeam[]): BracketView | null {
    two and every slot is left blank (no teams, no byes) — the skeleton just
    shows the match numbers and each later slot's "Winner of M#" feed, ready
    to be populated one name at a time when the organizer draws. */
-function emptyBracket(teamCount: number): BracketView | null {
+function emptyBracket(teamCount: number, prefix: string, startNo: number): BracketView | null {
   if (teamCount < 2) return null;
   let size = 2;
   while (size < teamCount) size *= 2;
@@ -160,25 +148,26 @@ function emptyBracket(teamCount: number): BracketView | null {
   const totalRounds = Math.log2(size);
   const rounds: ViewRound[] = [];
   let matchCount = size / 2;
-  let cumulativeMatchNo = 1;
+  let cumulativeMatchNo = startNo;
 
   for (let r = 0; r < totalRounds; r++) {
     const isFinal = r === totalRounds - 1;
     const matches: ViewMatch[] = [];
-    const prevStartMatchNo = r > 0 ? cumulativeMatchNo - (matchCount * 2) : 1;
+    const prevStartMatchNo = r > 0 ? cumulativeMatchNo - (matchCount * 2) : startNo;
 
     for (let i = 0; i < matchCount; i++) {
-      const nameA = r === 0 ? `Winner of M${2 * i + 1}` : `Winner of M${prevStartMatchNo + 2 * i}`;
-      const nameB = r === 0 ? `Winner of M${2 * i + 2}` : `Winner of M${prevStartMatchNo + 2 * i + 1}`;
+      const feedA = r === 0 ? startNo + 2 * i : prevStartMatchNo + 2 * i;
+      const feedB = feedA + 1;
 
       const mkRow = (name: string): ViewRow => ({ seed: null, name, win: false, lost: false, live: false });
       matches.push({
+        no: `${prefix}${cumulativeMatchNo + i}`,
         live: false,
         hasRight: !isFinal,
         hasLeft: r > 0,
         hasSpine: !isFinal && i % 2 === 0,
-        rowA: mkRow(nameA),
-        rowB: mkRow(nameB),
+        rowA: mkRow(`Winner of ${prefix}${feedA}`),
+        rowB: mkRow(`Winner of ${prefix}${feedB}`),
       });
     }
     rounds.push({ name: roundName(matchCount * 2), matches });
@@ -189,25 +178,19 @@ function emptyBracket(teamCount: number): BracketView | null {
   return { rounds, champion: null, fromDb: false };
 }
 
-/* Real bracket: the division's single-elimination rounds from the DB. */
-function dbBracket(division: DetailDivision): BracketView | null {
+/* Real bracket: the division's single-elimination rounds from the DB. Numbers
+   and slot names come from the shared division labelling, so the bracket, the
+   schedule and the match list all call a match the same thing. */
+function dbBracket(division: DetailDivision, labels: Map<string, MatchLabel>): BracketView | null {
   const knockout = division.bracket.filter(r => (r.format === 'single' || r.format === 'double') && r.matches.length > 0);
   if (knockout.length === 0) return null;
 
   const seedOf = new Map(division.teamsList.map(t => [t.id, t.seed]));
   const total = knockout.length;
-  let cumulativeMatchNo = 1;
 
   const rounds: ViewRound[] = knockout.map((r, ri) => {
-    const prevStartMatchNo = ri > 0 ? cumulativeMatchNo - (knockout[ri - 1]?.matches.length || 0) : 1;
-
     const matches = r.matches.map((m, mi) => {
-      const bye = ri === 0 && m.status === 'done' && (m.teamAId === null) !== (m.teamBId === null);
-      const fallbackA = ri === 0 ? `Winner of M${2 * mi + 1}` : `Winner of M${prevStartMatchNo + 2 * mi}`;
-      const fallbackB = ri === 0 ? `Winner of M${2 * mi + 2}` : `Winner of M${prevStartMatchNo + 2 * mi + 1}`;
-
-      const nameA = (m.teamAName && m.teamAName !== 'TBD') ? m.teamAName : (bye ? 'BYE' : fallbackA);
-      const nameB = (m.teamBName && m.teamBName !== 'TBD') ? m.teamBName : (bye ? 'BYE' : fallbackB);
+      const label = labels.get(m.id);
 
       const mkRow = (id: string | null, name: string, winnerSide: boolean): ViewRow => ({
         seed: id ? seedOf.get(id) ?? null : null,
@@ -218,16 +201,16 @@ function dbBracket(division: DetailDivision): BracketView | null {
       });
 
       return {
+        no: label?.no ?? '',
         live: m.status === 'live',
         hasRight: ri < total - 1,
         hasLeft: ri > 0,
         hasSpine: ri < total - 1 && mi % 2 === 0,
-        rowA: mkRow(m.teamAId, nameA, m.status === 'done' && m.winner === 'A'),
-        rowB: mkRow(m.teamBId, nameB, m.status === 'done' && m.winner === 'B'),
+        rowA: mkRow(m.teamAId, label?.teamA ?? 'TBD', m.status === 'done' && m.winner === 'A'),
+        rowB: mkRow(m.teamBId, label?.teamB ?? 'TBD', m.status === 'done' && m.winner === 'B'),
       };
     });
 
-    cumulativeMatchNo += r.matches.length;
     return { name: r.round, matches };
   });
 
@@ -262,6 +245,8 @@ export default function OrganizerBracketPage() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false); // crossing config only
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [animDiv, setAnimDiv] = useState<string | null>(null); // division whose draw reveal is playing
   const [drawTick, setDrawTick] = useState(0); // remounts the pools grid so the reveal replays on every draw
 
@@ -406,13 +391,20 @@ export default function OrganizerBracketPage() {
 
   const bracket = useMemo<BracketView | null>(() => {
     if (!division) return null;
-    const db = dbBracket(division);
+    const db = dbBracket(division, labelDivisionMatches(division));
     if (db) return db;
     // Before a draw exists: with a preceding round robin, project from the
     // seeds; for pure single elimination show the full empty bracket sized
-    // to the confirmed-team count.
+    // to the confirmed-team count. Either way the numbering carries on from
+    // whatever pool matches are already drawn.
+    const prefix = divisionPrefix(division.label);
+    const poolMatches = division.bracket
+      .filter(r => r.format === 'round-robin')
+      .reduce((sum, r) => sum + r.matches.length, 0);
     const isRR = division.bracket.some(r => r.format === 'round-robin');
-    return isRR ? projectBracket(seeds) : emptyBracket(confirmedTeams.length);
+    return isRR
+      ? projectBracket(seeds, prefix, poolMatches + 1)
+      : emptyBracket(confirmedTeams.length, prefix, 1);
   }, [division, seeds, confirmedTeams]);
 
   const poolGroups = useMemo(() => {
@@ -487,6 +479,16 @@ export default function OrganizerBracketPage() {
   );
 
   const hasPoolResults = rankingPools.some(p => p.played);
+
+  /* What the advance count actually produces: a pool shorter than the count
+     sends fewer, and a field that isn't a power of two is padded with byes —
+     which go to the pool winners, as in a pure elimination draw. */
+  const advancing = useMemo(() => {
+    const teams = poolGroups.reduce((sum, p) => sum + Math.min(config.advance, p.teams.length), 0);
+    let bracketSize = 2;
+    while (bracketSize < teams) bracketSize *= 2;
+    return { teams, bracketSize, byes: teams >= 2 ? bracketSize - teams : 0 };
+  }, [poolGroups, config.advance]);
 
   // The Round 1 feature set (draw config, pool results) belongs to the
   // round-robin format; other formats get their own features later.
@@ -730,6 +732,37 @@ export default function OrganizerBracketPage() {
     }
   };
 
+  /* Crossing config is its own action: the pools have already been drawn and
+     stay untouched (no reseeding, no re-draw) — only the knockout bracket
+     that hangs off them is rebuilt for the new advance/crossing settings. */
+  const applyCrossing = async () => {
+    if (!division || applying) return;
+    setApplying(true);
+    setApplyError(null);
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'crossing',
+          pools: config.pools,
+          advance: config.advance,
+          crossing: config.crossing,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? `Apply failed (${res.status})`);
+      }
+      await load(division.id);
+      setBracketOpen(true);
+    } catch (err) {
+      setApplyError(err instanceof Error ? err.message : 'Failed to apply the crossing config');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const perPool = Math.max(1, Math.round(confirmedTeams.length / config.pools) || 1);
   const firstRoundMatches = bracket?.rounds[0]?.matches.length ?? 0;
   const colHeight = Math.max(firstRoundMatches * 95, 190);
@@ -739,29 +772,15 @@ export default function OrganizerBracketPage() {
   const seSize = seTeams >= 2 ? (() => { let s = 2; while (s < seTeams) s *= 2; return s; })() : 0;
   const seByes = seSize > 0 ? seSize - seTeams : 0;
 
-  // Sequential match numbers across the whole bracket (round by round), so a
-  // fed slot can point at the match it comes from ("Winner of M3").
-  const matchNumbers: number[][] = [];
-  if (bracket) {
-    let counter = 1;
-    bracket.rounds.forEach((round, r) => {
-      matchNumbers[r] = round.matches.map(() => counter++);
-    });
-  }
-
   // Winners are emphasized only for real, completed matches (from the DB) —
-  // never for projections. A fed slot with no team yet reads "Winner of M#"
-  // (its feeding match); an undrawn round-1 slot is left blank.
+  // never for projections.
   const rowClass = (row: ViewRow) => {
     const dimmed = row.name === 'BYE' || (row.lost && bracket?.fromDb);
     return `${styles.matchName} ${row.win && bracket?.fromDb ? styles.matchNameWin : ''} ${dimmed ? styles.matchNameLost : ''} ${row.live ? styles.matchNameLive : ''}`;
   };
 
-  const rowDisplay = (row: ViewRow, roundIdx: number, feedNo: number | undefined) => {
-    if (row.name === 'BYE') return 'BYE';
-    if (row.name !== 'TBD') return row.name;
-    return roundIdx > 0 && feedNo !== undefined ? `Winner of M${feedNo}` : '';
-  };
+  // A slot with nothing to say yet is left blank rather than reading "TBD".
+  const rowDisplay = (row: ViewRow) => (row.name === 'TBD' ? '' : row.name);
 
   return (
     <div className={styles.page}>
@@ -1440,7 +1459,8 @@ export default function OrganizerBracketPage() {
                               className={styles.numInput}
                             />
                             <span className={styles.fieldSummary}>
-                              {config.advance * poolGroups.length} teams advance
+                              {advancing.teams} teams advance
+                              {advancing.byes > 0 && ` · ${advancing.bracketSize}-team bracket · ${advancing.byes} ${advancing.byes === 1 ? 'bye' : 'byes'}`}
                             </span>
                           </div>
                         </div>
@@ -1464,12 +1484,12 @@ export default function OrganizerBracketPage() {
                             variant="primary"
                             size="medium"
                             fullWidth
-                            loading={saving}
-                            onClick={saveDraw}
+                            loading={applying}
+                            onClick={applyCrossing}
                           >
                             Apply Crossing Config
                           </Button>
-                          {saveError && <p className={styles.saveError}>{saveError}</p>}
+                          {applyError && <p className={styles.saveError}>{applyError}</p>}
                         </div>
                       </div>
                     </div>
@@ -1569,15 +1589,13 @@ export default function OrganizerBracketPage() {
                           <div className={styles.roundName}>{round.name}</div>
                           <div className={styles.roundMatches} style={{ height: colHeight }}>
                             {round.matches.map((m, mi) => {
-                              const feedA = ri > 0 ? matchNumbers[ri - 1]?.[mi * 2] : undefined;
-                              const feedB = ri > 0 ? matchNumbers[ri - 1]?.[mi * 2 + 1] : undefined;
                               // Round-1 names reveal one at a time on a re-draw.
                               const revealA = bracketAnim?.nameDelay.get(`${ri}-${mi}-A`);
                               const revealB = bracketAnim?.nameDelay.get(`${ri}-${mi}-B`);
                               return (
                                 <div key={mi} className={styles.matchSlot}>
                                   <div className={styles.matchCard}>
-                                  <span className={styles.matchNo}>M{matchNumbers[ri]?.[mi]}</span>
+                                  <span className={styles.matchNo}>{m.no}</span>
                                   {m.live && (
                                     <div className={styles.matchLiveRow}>
                                       <span className={styles.liveTag}>
@@ -1591,7 +1609,7 @@ export default function OrganizerBracketPage() {
                                       className={`${rowClass(m.rowA)} ${revealA !== undefined ? styles.nameReveal : ''}`}
                                       style={revealA !== undefined ? { animationDelay: `${revealA}s` } : undefined}
                                     >
-                                      {rowDisplay(m.rowA, ri, feedA)}
+                                      {rowDisplay(m.rowA)}
                                     </span>
                                   </div>
                                   <div className={styles.matchDivider} />
@@ -1600,7 +1618,7 @@ export default function OrganizerBracketPage() {
                                       className={`${rowClass(m.rowB)} ${revealB !== undefined ? styles.nameReveal : ''}`}
                                       style={revealB !== undefined ? { animationDelay: `${revealB}s` } : undefined}
                                     >
-                                      {rowDisplay(m.rowB, ri, feedB)}
+                                      {rowDisplay(m.rowB)}
                                     </span>
                                   </div>
                                 </div>
@@ -1612,22 +1630,6 @@ export default function OrganizerBracketPage() {
                           </div>
                         </div>
                       ))}
-                      <div className={styles.champCol}>
-                        <div className={styles.champLabel}>Champion</div>
-                        <div className={styles.champSlot} style={{ height: colHeight }}>
-                          <div className={styles.champCard}>
-                            <span className={styles.champTrophy}><Trophy size={30} /></span>
-                            <span className={styles.champEyebrow}>
-                              {bracket.fromDb
-                                ? (bracket.champion ? 'Champion' : 'Awaiting Final')
-                                : (bracket.champion ? 'Projected Winner' : 'Champion')}
-                            </span>
-                            <span className={styles.champName}>
-                              {bracket.champion ?? 'TBD'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 ) : (

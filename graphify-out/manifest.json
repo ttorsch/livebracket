@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/page.tsx": {
-    "mtime": 1784728438.7922623,
-    "ast_hash": "8795e0eebfc9372b55994a63017abde6",
+    "mtime": 1784822026.798684,
+    "ast_hash": "1c6d12e73990c420b236c9581a655985",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/create/page.tsx": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/.claude/settings.local.json": {
-    "mtime": 1784728139.7071595,
-    "ast_hash": "ecbae39de76f383a402aed3105e49e06",
+    "mtime": 1784794112.3427777,
+    "ast_hash": "b4c78e0f1591d3bd807996c8e6c126f0",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/livebracket-ds/index.ts": {
@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/setup/page.tsx": {
-    "mtime": 1784728409.501798,
-    "ast_hash": "1fa28af59b6f7030bf4be6eaf8e99318",
+    "mtime": 1784894467.36694,
+    "ast_hash": "ba0db697986e7491e9dc825651a05743",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/icon.svg": {
@@ -430,8 +430,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/page.tsx": {
-    "mtime": 1784093604.9328895,
-    "ast_hash": "5d3fe9baf41a3d11d96cffa5aff6fc62",
+    "mtime": 1785075344.7769008,
+    "ast_hash": "b06c10e7066ddd7d49227eeddebd33ad",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/api/organizer/route.ts": {
@@ -455,18 +455,18 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/route.ts": {
-    "mtime": 1783680802.6980724,
-    "ast_hash": "6285c4c5130bb220cb9071dcb5fa1809",
+    "mtime": 1784894382.511657,
+    "ast_hash": "44edda59a87003e1ea0231fd9a6ff15e",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/[divisionId]/route.ts": {
-    "mtime": 1784029950.7242234,
-    "ast_hash": "1877961a18c707f1520435eacbf3d5f9",
+    "mtime": 1784894365.6929832,
+    "ast_hash": "dbc457a7e7fb4bd1ab41446caa3bd7c5",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/[divisionId]/draw/route.ts": {
-    "mtime": 1784092113.3169367,
-    "ast_hash": "fa09fe2d96741204623b8d54e0c5d8a6",
+    "mtime": 1785074706.7072852,
+    "ast_hash": "37d70fa3fc8f320fee11d672ba467581",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/supabase/migrations/0001_init.sql": {
@@ -505,8 +505,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/lib/data.ts": {
-    "mtime": 1784045774.1671548,
-    "ast_hash": "08f910d8f5631362f80bf7455e653bb1",
+    "mtime": 1785074097.5813868,
+    "ast_hash": "501ff5fe3729b8417dcd6fc6c73915f2",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/lib/slug.ts": {
@@ -549,14 +549,29 @@
     "ast_hash": "59ec9c43d97bd4f883ae5f48431a3d3e",
     "semantic_hash": ""
   },
-  "/Users/torsmacair/livebracket/.tmp_2a_extract.txt": {
-    "mtime": 1784729245.493458,
-    "ast_hash": "3e83d6993874ce9503aa8d38e7b89f38",
-    "semantic_hash": ""
-  },
   "/Users/torsmacair/livebracket/Mobile page redesign directions_files/saved_resource.html": {
     "mtime": 1784729174.7590582,
     "ast_hash": "e0660e2eb94167b72ab733c875a38758",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/schedule/page.tsx": {
+    "mtime": 1785072643.2332397,
+    "ast_hash": "03bb90554952ebf3ce38769827947037",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/schedule/route.ts": {
+    "mtime": 1785071943.9586568,
+    "ast_hash": "e6c13d69794f1c60db372e43b91b785d",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/supabase/migrations/0007_schedule_config.sql": {
+    "mtime": 1784892020.2449539,
+    "ast_hash": "a38c68c716bf4713e3698e61cbb62e05",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/schedule/generate.ts": {
+    "mtime": 1785072150.9443471,
+    "ast_hash": "96c35e1193329cb7899b53a305027e3b",
     "semantic_hash": ""
   }
 }
