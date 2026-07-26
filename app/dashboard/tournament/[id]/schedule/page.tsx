@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import styles from './page.module.css';
-import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
+import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch, type ScheduleConfig } from '../../../../../lib/data';
 import {
   generateSchedule,
   autoDedicatedCourts,
@@ -89,6 +89,19 @@ function toHHMM(mins: number): string {
 
 // Vertical scale of the calendar grid: pixels per minute of match time.
 const PX_PER_MIN = 2.3;
+
+// A bye isn't played, so it is hidden from every view — and must not be handed
+// to the generator either, or it silently eats a court slot that shows up as a
+// gap in the schedule. One predicate so both uses can never drift apart.
+function isByeMatch(roundName: string, m: DetailMatch): boolean {
+  return (
+    m.teamAName?.toUpperCase() === 'BYE' ||
+    m.teamBName?.toUpperCase() === 'BYE' ||
+    m.teamAId === 'bye' ||
+    m.teamBId === 'bye' ||
+    (roundName.toLowerCase().includes('round of') && m.status === 'done' && (!m.teamAName || !m.teamBName))
+  );
+}
 
 export default function TournamentSchedulePage() {
   const params = useParams();
@@ -175,14 +188,16 @@ export default function TournamentSchedulePage() {
       gender: d.gender,
       dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
       matches: d.bracket.flatMap((r, rIdx) =>
-        r.matches.map(m => ({
-          id: m.id,
-          teamA: m.teamAId,
-          teamB: m.teamBId,
-          isPool: r.format === 'round-robin',
-          durationMinutes: r.durationMinutes, // per-round slot length declared in setup
-          roundIndex: rIdx,                   // bracket is setup-round order; 0 = opening round
-        })),
+        r.matches
+          .filter(m => !isByeMatch(r.round, m)) // a bye is never played — don't reserve a court for it
+          .map(m => ({
+            id: m.id,
+            teamA: m.teamAId,
+            teamB: m.teamBId,
+            isPool: r.format === 'round-robin',
+            durationMinutes: r.durationMinutes, // per-round slot length declared in setup
+            roundIndex: rIdx,                   // bracket is setup-round order; 0 = opening round
+          })),
       ),
     }));
     setPreview(generateSchedule(divs, config, detail.dayCount));
@@ -243,14 +258,7 @@ export default function TournamentSchedulePage() {
           const currentMatchNoNum = roundStartMatchNo + idx;
 
           // Rule 2: Don't put BYE matches in the schedule!
-          const isByeMatch =
-            m.teamAName?.toUpperCase() === 'BYE' ||
-            m.teamBName?.toUpperCase() === 'BYE' ||
-            m.teamAId === 'bye' ||
-            m.teamBId === 'bye' ||
-            (round.round.toLowerCase().includes('round of') && m.status === 'done' && (!m.teamAName || !m.teamBName));
-
-          if (isByeMatch) return;
+          if (isByeMatch(round.round, m)) return;
 
           // Rule 1: Replace TBD with Winner of M...
           let formattedTeamA = m.teamAName;
