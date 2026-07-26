@@ -964,6 +964,51 @@
   font-size: 13px;
   text-align: center;
 }
+/* Capacity vs demand summary in the generator panel */
+.capacityGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.capacityCard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: 10px;
+}
+.capacityTotal {
+  border-color: rgba(238, 122, 76, 0.45);
+  background: rgba(238, 122, 76, 0.05);
+}
+.capacityDay {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-500, #8A92A0);
+}
+.capacityValue {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink-900, #14181E);
+  line-height: 1.15;
+}
+.capacityMeta {
+  font-size: 11px;
+  color: var(--ink-500, #8A92A0);
+}
+.demandValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-800, #2C323D);
+  text-align: right;
+  white-space: nowrap;
+}
+
 .genHint {
   margin-top: 10px;
   font-size: 12px;

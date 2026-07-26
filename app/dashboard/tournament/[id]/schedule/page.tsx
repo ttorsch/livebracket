@@ -27,6 +27,7 @@ import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch, type ScheduleConfig } from '../../../../../lib/data';
 import {
   generateSchedule,
+  scheduleInventory,
   autoDedicatedCourts,
   type SchedulableDivision,
   type ScheduleResult,
@@ -78,6 +79,13 @@ function dayIndexOf(startDate: string, dateStr: string): number {
 function shortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+// Minutes as a duration, e.g. 510 -> "8h 30m".
+function hoursMinutes(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = Math.round(mins % 60);
+  return h === 0 ? `${m}m` : m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 // Minutes-since-midnight -> "HH:MM".
@@ -178,9 +186,10 @@ export default function TournamentSchedulePage() {
     setConfig(prev => (prev ? { ...prev, [key]: value } : prev));
   };
 
-  function handleGenerate() {
-    if (!detail || !config) return;
-    const divs: SchedulableDivision[] = detail.divisions.map(d => ({
+  // Everything the generator needs, derived from the loaded bracket.
+  const schedulableDivisions = useMemo<SchedulableDivision[]>(() => {
+    if (!detail) return [];
+    return detail.divisions.map(d => ({
       id: d.id,
       label: d.label,
       pools: d.drawConfig?.pools ?? 1,
@@ -200,7 +209,18 @@ export default function TournamentSchedulePage() {
           })),
       ),
     }));
-    setPreview(generateSchedule(divs, config, detail.dayCount));
+  }, [detail, overrides]);
+
+  // Court time on offer vs court time needed. Recomputed as the organizer edits
+  // the config, so they can see whether the event fits before generating.
+  const inventory = useMemo(() => {
+    if (!detail || !config) return null;
+    return scheduleInventory(schedulableDivisions, config, detail.dayCount);
+  }, [schedulableDivisions, config, detail]);
+
+  function handleGenerate() {
+    if (!detail || !config) return;
+    setPreview(generateSchedule(schedulableDivisions, config, detail.dayCount));
     setSaveMsg(null);
   }
 
@@ -701,6 +721,60 @@ export default function TournamentSchedulePage() {
               </label>
             </div>
 
+            {/* Step 1 & 2 of generating: what court time exists, and what has
+                to fit into it. Live, so editing the config above updates it. */}
+            {inventory && (
+              <div className={styles.genDivisions}>
+                <div className={styles.genSubhead}>Court time available vs needed</div>
+                <div className={styles.capacityGrid}>
+                  {inventory.capacity.map(c => (
+                    <div key={c.day} className={styles.capacityCard}>
+                      <span className={styles.capacityDay}>
+                        Day {c.day + 1}
+                        {detail ? ` · ${shortDate(addDaysUTC(detail.startDate, c.day))}` : ''}
+                      </span>
+                      <span className={styles.capacityValue}>{hoursMinutes(c.courtMinutes)}</span>
+                      <span className={styles.capacityMeta}>
+                        {config.courtCount} court{config.courtCount === 1 ? '' : 's'} × {hoursMinutes(c.playableMinutes)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className={`${styles.capacityCard} ${styles.capacityTotal}`}>
+                    <span className={styles.capacityDay}>Needed</span>
+                    <span className={styles.capacityValue}>{hoursMinutes(inventory.demandMinutes)}</span>
+                    <span className={styles.capacityMeta}>
+                      {inventory.matches} match{inventory.matches === 1 ? '' : 'es'} ·{' '}
+                      {inventory.demandMinutes <= inventory.supplyMinutes
+                        ? `${hoursMinutes(inventory.supplyMinutes - inventory.demandMinutes)} spare`
+                        : `${hoursMinutes(inventory.demandMinutes - inventory.supplyMinutes)} short`}
+                    </span>
+                  </div>
+                </div>
+                <p className={styles.genHint}>
+                  Court time is the whole venue: {hoursMinutes(inventory.supplyMinutes)} across {dayCount} day
+                  {dayCount === 1 ? '' : 's'}. Spare time doesn&apos;t guarantee a fit — a match still waits for its teams and
+                  for the round before it.
+                </p>
+              </div>
+            )}
+
+            {inventory && inventory.demand.length > 0 && (
+              <div className={styles.genDivisions}>
+                <div className={styles.genSubhead}>Matches to schedule</div>
+                <div className={styles.genDivGrid}>
+                  {inventory.demand.map(d => (
+                    <div key={d.divisionId} className={styles.genDivRow}>
+                      <span className={styles.genDivName}>{d.label}</span>
+                      <span className={styles.genDivMeta}>{d.netHeight != null ? `${d.netHeight}m net` : 'net n/a'}</span>
+                      <span className={styles.demandValue}>
+                        {d.matches} · {hoursMinutes(d.minutes)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className={styles.genDivisions}>
               <div className={styles.genSubhead}>Dedicated courts per division</div>
               <div className={styles.genDivGrid}>
@@ -754,7 +828,10 @@ export default function TournamentSchedulePage() {
                 {preview.assignments.length} matches placed · {preview.mode === 'wave' ? 'Rolling-wave' : 'Parallel'} mode
                 {' '}(V<sub>R</sub> {preview.venueRatio.toFixed(2)})
                 {' '}· {Math.floor(preview.dayCapacityMinutes / 60)}h {preview.dayCapacityMinutes % 60}m/court/day
-                {preview.pivots > 0 && <> · {preview.pivots} net pivot{preview.pivots === 1 ? '' : 's'}</>}
+                {preview.pivots > 0 && <> · {preview.pivots} net change{preview.pivots === 1 ? '' : 's'}</>}
+                {' '}· {preview.backToBack === 0
+                  ? 'no back-to-back'
+                  : `${preview.backToBack} back-to-back`}
                 {dayCount > 1 && (
                   preview.openingRoundSpill > 0 ? (
                     <span className={styles.previewWarn}>
