@@ -283,7 +283,12 @@ function prioritizeDivisions(divisions: SchedulableDivision[]): SchedulableDivis
 
 interface CourtTrack {
   name: string;
-  cursor: number;             // next free minute-of-day
+  // Occupied spans (absolute minutes), kept sorted and non-overlapping. A court
+  // has to be able to describe its gaps, not just when it was last used: team
+  // and round constraints routinely push a match past the court's last booking,
+  // and a single "next free minute" pointer would write off everything before it.
+  busy: { s: number; e: number }[];
+  until: number;              // end of the court's last booking (net changes follow it)
   height: number | null;      // net height currently set on this court
 }
 
@@ -349,7 +354,8 @@ export function generateSchedule(
 
   const courts: CourtTrack[] = Array.from({ length: courtCount }, (_, i) => ({
     name: `Court ${i + 1}`,
-    cursor: dayStart, // absolute timeline minute (day 0, dayStart)
+    busy: [],
+    until: dayStart, // absolute timeline minute (day 0, dayStart)
     height: null,
   }));
 
@@ -368,7 +374,7 @@ export function generateSchedule(
   /** Buffer a court that has to change net height, and record the pivot. */
   const pivotTo = (c: CourtTrack, height: number | null) => {
     if (c.height != null && height != null && c.height !== height) {
-      c.cursor += netBuffer;
+      c.until += netBuffer;
       pivots++;
     }
     if (height != null) c.height = height;
@@ -421,6 +427,29 @@ export function generateSchedule(
     }
   }
 
+  /** Earliest slot on court `c` at or after `from` — the first opening that
+   *  clears the day window, lunch, the daily cap and the court's own bookings.
+   *  Searching the gaps rather than only the tail is what lets a court be
+   *  filled in after a match had to be pushed late. */
+  function courtSlot(c: CourtTrack, from: number, mBlock: number, m: SchedulableMatch | undefined): DaySlot | null {
+    let cursor = from;
+    for (;;) {
+      const s = nextOpenSlot(cursor, mBlock, m);
+      if (!s) return null;
+      const clash = c.busy.find(b => s.abs < b.e && s.abs + mBlock > b.s);
+      if (!clash) return s;
+      cursor = clash.e; // strictly greater than s.abs, so this terminates
+    }
+  }
+
+  /** Record an occupied span, keeping `busy` sorted. */
+  function book(c: CourtTrack, s: number, e: number): void {
+    let i = c.busy.length;
+    while (i > 0 && c.busy[i - 1].s > s) i--;
+    c.busy.splice(i, 0, { s, e });
+    c.until = Math.max(c.until, e);
+  }
+
   /** Earliest absolute minute a match may start: after both its teams' previous
    *  matches, and after every earlier round in its division has finished — a
    *  round's teams aren't known until the round feeding it is complete, so a
@@ -437,39 +466,30 @@ export function generateSchedule(
     return floor;
   }
 
-  /** Place one match on the division's dedicated courts. With `rescue` set (an
-   *  opening-round match on a multi-day event) and those courts unable to host
-   *  it on day one, any court that still can is used instead: finishing the
-   *  first round on day one is worth more than keeping the division on its own
-   *  courts while others sit idle. */
-  function place(matchId: string, plan: DivPlan, rescue: boolean): void {
+  // Matches no pass could place yet. They get one more attempt over the whole
+  // venue once every division has been laid down; only then is the leftover
+  // court time genuinely spare rather than capacity another division still needs.
+  const unplaced: { matchId: string; plan: DivPlan }[] = [];
+
+  /** Try to place one match on `pool`. Returns false if nothing fits, leaving
+   *  the caller to decide whether that is final. */
+  function place(matchId: string, plan: DivPlan, pool: CourtTrack[]): boolean {
     const m = plan.byId.get(matchId);
     // Each match consumes its own declared length (per round), falling back to
     // the global block when a round didn't set one.
     const mBlock = Math.max(1, Math.trunc(m?.durationMinutes ?? block) || block);
     const floor = earliestStart(plan, m);
 
-    // Opening-round matches on a multi-day event may also use courts outside
-    // the division's own set, so the first round spreads over the venue and
-    // finishes on day one — but only courts already at the right net height,
-    // since churning nets across the whole venue costs more than it saves.
-    // Restricting the opening round to D_d and only spilling over once those
-    // courts are full does not work: by then the division's teams are committed
-    // late into the day and cannot be pulled back to a free court.
-    const pool = rescue
-      ? courts.filter(c => plan.chosen.includes(c) || pivotCost(c, plan.height) === 0)
-      : plan.chosen;
-
     let track: CourtTrack | undefined;
     let slot: DaySlot | null = null;
     let cost = 0;
     for (const c of pool) {
-      // A net-height change costs a buffer, which delays the slot — so it is
-      // already priced into the comparison below. This is re-checked per
-      // placement rather than only when the court is claimed: another division's
-      // opening round can land on any court and leave it at a different height.
+      // A net change happens after the court's last booking, so a pivot both
+      // costs a buffer and rules out filling any earlier gap on that court.
+      // Re-checked per placement rather than only when the court is claimed:
+      // another division can land on a court and leave it at a different height.
       const cCost = pivotCost(c, plan.height);
-      const s = nextOpenSlot(Math.max(c.cursor + cCost, floor), mBlock, m);
+      const s = courtSlot(c, cCost > 0 ? Math.max(c.until + cCost, floor) : floor, mBlock, m);
       if (!s) continue;
       // Earliest slot wins; ties go to the cheaper net change, then to a court
       // the division already owns so its matches stay clustered.
@@ -479,17 +499,13 @@ export function generateSchedule(
       if (better) { track = c; slot = s; cost = cCost; }
     }
 
-    if (!slot || !track) {
-      overflow.push({ matchId, divisionId: plan.div.id }); // past the final day
-      return;
-    }
-    if (cost > 0) { track.cursor += cost; pivots++; }
+    if (!slot || !track) return false;
+    if (cost > 0) { book(track, slot.abs - cost, slot.abs); pivots++; } // reserve the net change
     if (plan.height != null) track.height = plan.height;
-    if (rescue && slot.day > 0) openingRoundSpill++;
 
     const end = slot.abs + mBlock;
     assignments.push({ matchId, divisionId: plan.div.id, court: track.name, day: slot.day, time: toHHMM(slot.min) });
-    track.cursor = end;
+    book(track, slot.abs, end);
     for (const t of [m?.teamA, m?.teamB]) {
       if (!t) continue;
       teamFree.set(t, end);
@@ -498,6 +514,7 @@ export function generateSchedule(
     }
     const round = m?.roundIndex ?? 0;
     plan.roundEnd.set(round, Math.max(plan.roundEnd.get(round) ?? 0, end));
+    return true;
   }
 
   // Courts are claimed for every division before any match is placed. Claiming
@@ -547,18 +564,47 @@ export function generateSchedule(
   }
 
   // Pass 1 — every division's opening round (and, on a single-day event, all
-  // of its matches).
+  // of its matches). On a multi-day event the opening round may also use courts
+  // outside the division's own set that are already at the right net height, so
+  // the first round spreads over the venue and finishes on day one. Holding it
+  // to D_d and only spilling over once those courts fill does not work: by then
+  // the division's teams are committed late in the day and cannot be pulled back.
   for (const plan of plans) {
-    for (const id of opening.get(plan) ?? []) place(id, plan, openingFirst);
+    const pool = openingFirst
+      ? courts.filter(c => plan.chosen.includes(c) || pivotCost(c, plan.height) === 0)
+      : plan.chosen;
+    for (const id of opening.get(plan) ?? []) {
+      if (!place(id, plan, pool)) unplaced.push({ matchId: id, plan });
+    }
   }
 
   // Pass 2 — later rounds, backfilling whatever court time day one has left.
   for (const plan of plans) {
     if (plan.rest.length === 0) continue;
-    // Courts may have been handed to another division (or rescued to a different
-    // net height) during pass 1, so re-check the pivot before resuming.
+    // A court may have been borrowed by another division during pass 1, so
+    // re-check the pivot before resuming.
     for (const c of plan.chosen) pivotTo(c, plan.height);
-    for (const id of plan.rest) place(id, plan, false);
+    for (const id of plan.rest) {
+      if (!place(id, plan, plan.chosen)) unplaced.push({ matchId: id, plan });
+    }
+  }
+
+  // Pass 3 — anything still unplaced gets the run of the venue. Every division
+  // has had its turn, so borrowing here can only take court time nobody else
+  // wanted; a court standing idle while a match goes unscheduled is never the
+  // better outcome. Only what fails now is genuinely over-scheduled.
+  for (const { matchId, plan } of unplaced) {
+    if (!place(matchId, plan, courts)) {
+      overflow.push({ matchId, divisionId: plan.div.id });
+    }
+  }
+
+  // Opening-round matches that ended up past day one, however they got there.
+  if (openingFirst) {
+    const placedDay = new Map(assignments.map(a => [a.matchId, a.day]));
+    for (const [, ids] of opening) {
+      for (const id of ids) if ((placedDay.get(id) ?? 0) > 0) openingRoundSpill++;
+    }
   }
 
   return { assignments, overflow, dedicatedCourts, mode, venueRatio, pivots, dayCapacityMinutes, openingRoundSpill };
