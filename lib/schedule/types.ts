@@ -217,9 +217,14 @@ export type FeasibilityVerdict = 'fits' | 'tight' | 'overflow';
  *  rather than hidden — a schedule you can argue with beats one you can't. */
 export type Relaxation =
   | 'finalsOnLastDay'
+  /** Teams got less than the target gap between matches. */
   | 'restIsHard'
   | 'maxMatchesPerTeamPerDay'
-  | 'dayQuota';
+  | 'dayQuota'
+  /** The last resort: some teams played with no gap at all. Kept separate from
+   *  `restIsHard` because a short gap and no gap are different promises, and an
+   *  organizer needs to know which one broke. */
+  | 'backToBack';
 
 export function parseHHMM(v: string): number {
   const [h, m] = (v ?? '').split(':').map(Number);

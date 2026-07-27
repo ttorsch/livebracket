@@ -28,6 +28,7 @@ import { parseHHMM } from './types.ts';
 import { courtOpen, type Slot } from './grid.ts';
 import type { MatchNode } from './graph.ts';
 import {
+  feederEndOf,
   makeTeamTrack,
   placementCost,
   teamsOf,
@@ -59,8 +60,15 @@ const MAX_CANDIDATES_PER_SLOT = 96;
 interface Rules {
   /** Hold every division's last round for the final day. */
   finalsOnLastDay: boolean;
-  /** Never break the rest target. */
-  restIsHard: boolean;
+  /** Smallest gap, in minutes, a team may be given before playing again.
+   *
+   *  A number rather than a flag so the ladder can step *down* it instead of
+   *  falling off a cliff. Going straight from "a full slot of rest" to "no
+   *  constraint" means the matching packs every court solid the moment the
+   *  venue is tight, and teams end up playing back to back while court time
+   *  sits empty later in the day. The middle rung — any positive gap — keeps
+   *  the worst outcome away until it is genuinely unavoidable. */
+  minRestMinutes: number;
   /** Per-team matches-per-day ceiling; 0 = none. */
   dailyCap: number;
   /** Refuse to place a match before the day its plan targets. */
@@ -96,15 +104,16 @@ export function assignMatches(
   // by the ladder below being willing to give the rule up, not by pricing it.
   const base: Rules = {
     finalsOnLastDay: ctx.config.finalsOnLastDay,
-    restIsHard: true,
+    minRestMinutes: ctx.targetRestMinutes,
     dailyCap: Math.max(0, Math.trunc(ctx.config.maxMatchesPerTeamPerDay) || 0),
     dayFloor: true,
   };
 
-  // Weakest promise first. Holding finals for the last day is presentation;
-  // resting teams is comfort; the daily cap is a welfare rule; the day plan is
-  // only guidance. Placing every match matters more than all of them, so they
-  // are surrendered in that order and the caller is told which went.
+  // Weakest promise first, and the order is a judgement about what an organizer
+  // would actually trade. Holding finals for the last day is presentation. A
+  // full rest gap is comfort. The day plan is only guidance, and the daily cap
+  // a welfare rule. Sending a team straight back on court with no gap at all is
+  // the thing nobody wants, so it goes last — after every other lever is spent.
   const ladder: { rules: Rules; gave: Relaxation | null }[] = [{ rules: base, gave: null }];
 
   let rules = base;
@@ -114,11 +123,12 @@ export function assignMatches(
   };
 
   step({ finalsOnLastDay: false }, 'finalsOnLastDay');
-  // An organizer who declared rest non-negotiable gets exactly that: the rung
-  // that would trade it away is simply not built, and matches overflow instead.
-  if (!ctx.config.restIsHard) step({ restIsHard: false }, 'restIsHard');
-  if (base.dailyCap > 0) step({ dailyCap: 0 }, 'maxMatchesPerTeamPerDay');
+  // An organizer who declared rest non-negotiable gets exactly that: the rungs
+  // that would trade it away are simply not built, and matches overflow instead.
+  if (!ctx.config.restIsHard) step({ minRestMinutes: 1 }, 'restIsHard');
   step({ dayFloor: false }, 'dayQuota');
+  if (base.dailyCap > 0) step({ dailyCap: 0 }, 'maxMatchesPerTeamPerDay');
+  if (!ctx.config.restIsHard) step({ minRestMinutes: 0 }, 'backToBack');
 
   let best: AssignResult | null = null;
   const given: Relaxation[] = [];
@@ -299,6 +309,7 @@ function solve(
             option.startAbs,
             option.endAbs,
             option.netChange,
+            feederEndOf(node, id => endOf.get(id)),
             teams,
             ctx,
           ) - AGING_PER_SLOT * waited
@@ -337,10 +348,15 @@ function solve(
   /** Is this match allowed to start in this slot at all — before we even ask
    *  which court? Everything here is a hard constraint. */
   function isReady(node: MatchNode, slot: Slot, r: Rules): boolean {
-    // Dependencies: every feeder must be placed *and finished*.
+    // Dependencies: every feeder must be placed *and finished* — and the team
+    // that comes through it is owed rest just like a named one. Without the
+    // second half, a knockout bracket looks completely unconstrained (both
+    // sides are still TBD, so no team track exists) and the winner of a match
+    // gets sent straight back on court in the very next slot.
     for (const dep of node.deps) {
       const end = endOf.get(dep);
       if (end === undefined || end > slot.abs) return false;
+      if (slot.abs - end < r.minRestMinutes) return false;
     }
 
     for (const teamId of teamsOf(node)) {
@@ -348,9 +364,7 @@ function solve(
       if (!t) continue;
       if (t.lastEnd > slot.abs) return false; // already on court
       if (r.dailyCap > 0 && (t.dayCount.get(slot.day) ?? 0) >= r.dailyCap) return false;
-      if (r.restIsHard && t.lastEnd !== -Infinity && slot.abs - t.lastEnd < ctx.targetRestMinutes) {
-        return false;
-      }
+      if (t.lastEnd !== -Infinity && slot.abs - t.lastEnd < r.minRestMinutes) return false;
     }
 
     if (r.dayFloor) {

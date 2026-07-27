@@ -80,6 +80,38 @@ export function resolveWeights(config: ScheduleConfig): CostWeights {
   return { ...DEFAULT_WEIGHTS, ...(config.weights ?? {}) };
 }
 
+/** What a gap of `rest` minutes before a match costs.
+ *
+ *  Shared by the named-team case and the feeder case so both are charged
+ *  identically — a team is a team whether or not the draw has named it yet. */
+export function restCost(rest: number, ctx: SolverContext): number {
+  let cost = 0;
+  if (rest <= 0) cost += ctx.weights.backToBack;
+  const deficit = Math.max(0, ctx.targetRestMinutes - rest);
+  if (deficit > 0) cost += ctx.weights.restDeficit * (deficit / ctx.grid.blockMinutes);
+  return cost;
+}
+
+/** The latest finish among the matches feeding `node`.
+ *
+ *  A dependency edge is not only "A must finish before B". Whoever wins A
+ *  *plays in* B, so the edge carries a team across it — and that team is owed
+ *  the same rest as any other. Because a knockout match's sides are still TBD
+ *  when the schedule is generated, this is the only handle the scheduler has on
+ *  them: without it, a bracket of unnamed teams looks completely unconstrained
+ *  and the winner gets sent straight back on court. */
+export function feederEndOf(
+  node: MatchNode,
+  endOf: (matchId: string) => number | undefined,
+): number {
+  let latest = -Infinity;
+  for (const dep of node.deps) {
+    const end = endOf(dep);
+    if (end !== undefined) latest = Math.max(latest, end);
+  }
+  return latest;
+}
+
 /** Teams whose time this match consumes: the two playing, plus whoever is
  *  refereeing it. Referee duty is court time as far as rest is concerned, which
  *  is why it is folded in here rather than treated as a separate concept. */
@@ -102,6 +134,9 @@ export function placementCost(
   startAbs: number,
   endAbs: number,
   netChange: boolean,
+  /** Latest finish among the matches feeding this one, or -Infinity if none.
+   *  See restCost: this is a team constraint, not just a precedence one. */
+  feederEnd: number,
   teams: Map<string, TeamTrack>,
   ctx: SolverContext,
 ): number {
@@ -110,15 +145,21 @@ export function placementCost(
   let cost = 0;
 
   // ── Rest. The organizer's primary goal, so this dominates. ───────────────
+  //
+  // Measured to the slot boundary, never to `startAbs`. A net change delays the
+  // start by its buffer, and charging rest from the later time would hand the
+  // solver a way to *manufacture* rest by moving nets it had no reason to move.
+  // The buffer is court preparation, not recovery, and the grid is what the
+  // schedule promises anyway.
   for (const teamId of teamsOf(node)) {
     const track = teams.get(teamId);
     if (!track || track.lastEnd === -Infinity) continue; // hasn't played yet
-    const rest = startAbs - track.lastEnd;
-    if (rest <= 0) cost += w.backToBack;
-    const deficit = Math.max(0, ctx.targetRestMinutes - rest);
-    if (deficit > 0) cost += w.restDeficit * (deficit / block);
+    cost += restCost(slot.abs - track.lastEnd, ctx);
     if (track.lastCourt && track.lastCourt !== court.name) cost += w.courtChurn;
   }
+
+  // The same rest, owed to a team we cannot yet name.
+  if (feederEnd !== -Infinity) cost += restCost(slot.abs - feederEnd, ctx);
 
   // ── Net height. The buffer is already charged as real court time by the
   //    caller; this is the extra discouragement so nets move only when waiting
@@ -172,6 +213,10 @@ export interface ScheduleMetrics {
   courtChurn: number;
   /** Shortest gap any team got between two matches, in minutes. */
   tightestRestMinutes: number;
+  /** Shortest gap between a match and one it feeds — the rest the winner of
+   *  that match actually got. Reported separately because the teams involved
+   *  are unnamed at generation time and so never appear in the metric above. */
+  tightestFeederGapMinutes: number;
   averageRestMinutes: number;
   /** Σ over team-days of (last end − first start), in minutes. */
   venueSpanMinutes: number;
@@ -193,6 +238,7 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
 
   const teams = new Map<string, TeamTrack>();
   const courtHeight = new Map<number, number | null>();
+  const endById = new Map(placements.map(p => [p.matchId, p.endAbs]));
 
   const metrics: ScheduleMetrics = {
     totalCost: 0,
@@ -203,6 +249,7 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
     paceDeviationDays: 0,
     courtChurn: 0,
     tightestRestMinutes: Infinity,
+    tightestFeederGapMinutes: Infinity,
     averageRestMinutes: 0,
     venueSpanMinutes: 0,
     courtUtilisation: 0,
@@ -227,19 +274,14 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
         teams.set(teamId, track);
       }
       if (track.lastEnd !== -Infinity) {
-        const rest = p.startAbs - track.lastEnd;
+        const rest = p.slot.abs - track.lastEnd;
         restSamples++;
         restTotal += rest;
         metrics.tightestRestMinutes = Math.min(metrics.tightestRestMinutes, rest);
-        if (rest <= 0) {
-          metrics.backToBack++;
-          metrics.totalCost += w.backToBack;
-        }
+        if (rest <= 0) metrics.backToBack++;
         const deficit = Math.max(0, ctx.targetRestMinutes - rest);
-        if (deficit > 0) {
-          metrics.restDeficitSlots += deficit / block;
-          metrics.totalCost += w.restDeficit * (deficit / block);
-        }
+        if (deficit > 0) metrics.restDeficitSlots += deficit / block;
+        metrics.totalCost += restCost(rest, ctx);
         if (track.lastCourt && track.lastCourt !== courtName) {
           metrics.courtChurn++;
           metrics.totalCost += w.courtChurn;
@@ -252,6 +294,17 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
       const last = track.dayLast.get(p.slot.day);
       track.dayLast.set(p.slot.day, last === undefined ? p.endAbs : Math.max(last, p.endAbs));
       track.dayCount.set(p.slot.day, (track.dayCount.get(p.slot.day) ?? 0) + 1);
+    }
+
+    // The rest owed to whoever wins the matches feeding this one.
+    const feederEnd = feederEndOf(node, id => endById.get(id));
+    if (feederEnd !== -Infinity) {
+      const gap = p.slot.abs - feederEnd;
+      metrics.tightestFeederGapMinutes = Math.min(metrics.tightestFeederGapMinutes, gap);
+      if (gap <= 0) metrics.backToBack++;
+      const deficit = Math.max(0, ctx.targetRestMinutes - gap);
+      if (deficit > 0) metrics.restDeficitSlots += deficit / block;
+      metrics.totalCost += restCost(gap, ctx);
     }
 
     const prevHeight = courtHeight.get(p.courtIndex) ?? court?.netHeight ?? null;
@@ -290,6 +343,7 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
 
   metrics.averageRestMinutes = restSamples > 0 ? restTotal / restSamples : 0;
   if (!Number.isFinite(metrics.tightestRestMinutes)) metrics.tightestRestMinutes = 0;
+  if (!Number.isFinite(metrics.tightestFeederGapMinutes)) metrics.tightestFeederGapMinutes = 0;
 
   const usableBlocks = ctx.grid.slots.length * ctx.grid.courts.length;
   const usedBlocks = placements.reduce((s, p) => s + p.span, 0);

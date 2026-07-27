@@ -144,6 +144,22 @@ function assertSound(
   assert.equal(accounted, result.graph.nodes.size, `${label}: matches went missing`);
 }
 
+/** The gap between a match and the match it feeds — i.e. the rest the winner of
+ *  the feeder actually gets. Both sides of a knockout match are TBD when the
+ *  schedule is generated, so this rest is invisible to any team-based check;
+ *  it has to be measured through the dependency edge instead. */
+function tightestFeederGap(result: ReturnType<typeof generateSchedule>): number {
+  const byId = new Map(result.placements.map(p => [p.matchId, p]));
+  let worst = Infinity;
+  for (const p of result.placements) {
+    for (const dep of result.graph.nodes.get(p.matchId)!.deps) {
+      const feeder = byId.get(dep);
+      if (feeder) worst = Math.min(worst, p.startAbs - feeder.endAbs);
+    }
+  }
+  return Number.isFinite(worst) ? worst : Infinity;
+}
+
 // ── Graph ─────────────────────────────────────────────────────────────────
 
 describe('dependency graph', () => {
@@ -267,6 +283,48 @@ describe('generateSchedule', () => {
     assert.ok(
       result.metrics.tightestRestMinutes >= result.grid.blockMinutes,
       `tightest gap was ${result.metrics.tightestRestMinutes} min`,
+    );
+  });
+
+  it('rests the winner of a match before its next one, even though that team has no name yet', () => {
+    // Khao Lak Open 2026: two knockout divisions, three courts, two days. The
+    // schedule put "Winner of W2" on court at 09:45 when W2 itself ran
+    // 09:00–09:45. Both sides of a knockout match are TBD at generation time,
+    // so no team track exists and every team-based rest check passes happily —
+    // the constraint only exists along the dependency edge.
+    const knockout = (id: string, firstRound: number, netHeight: string): SchedulableDivision => {
+      const matches: SchedulableMatch[] = [];
+      let round = 0;
+      for (let size = firstRound; size >= 1; size /= 2) {
+        for (let i = 0; i < size; i++) {
+          matches.push({
+            id: `${id}-r${round}-${i}`,
+            teamA: round === 0 ? `${id}-t${2 * i + 1}` : null,
+            teamB: round === 0 ? `${id}-t${2 * i + 2}` : null,
+            isPool: false,
+            roundIndex: round,
+          });
+        }
+        round++;
+      }
+      return { id, label: id, pools: 2, netHeight, gender: id, matches };
+    };
+
+    const result = generateSchedule(
+      [knockout('Women', 8, '2.24m'), knockout('Men', 8, '2.43m')],
+      config({ courtCount: 3 }),
+      2,
+    );
+    assertSound(result, 'knockout rest');
+    assert.equal(result.overflow.length, 0);
+    assert.deepEqual(result.relaxations, []);
+    assert.ok(
+      tightestFeederGap(result) >= result.grid.blockMinutes,
+      `winner of a match got only ${tightestFeederGap(result)} min before playing again`,
+    );
+    assert.ok(
+      result.metrics.tightestFeederGapMinutes >= result.grid.blockMinutes,
+      'the metric reports the same gap the schedule actually has',
     );
   });
 
