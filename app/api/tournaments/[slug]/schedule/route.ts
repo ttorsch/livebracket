@@ -6,6 +6,12 @@ import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 // written back onto matches (PUT). The generator itself lives client-side in
 // lib/schedule/generate.ts; this route only validates and stores its output.
 
+interface CourtBody {
+  name?: unknown;
+  netHeight?: unknown;
+  isShowCourt?: unknown;
+}
+
 interface ConfigBody {
   config?: {
     startTime?: string;
@@ -16,12 +22,46 @@ interface ConfigBody {
     lunchEnd?: string;
     netBufferMinutes?: number;
     maxMatchesPerTeamPerDay?: number;
+    // Added with the rebuilt generator; all optional, all defaulted app-side.
+    courts?: CourtBody[];
+    minRestSlots?: number;
+    restIsHard?: boolean;
+    staggerLunch?: boolean;
+    finalsOnLastDay?: boolean;
+    dayPlan?: string;
+    repairIterations?: number;
+    weights?: Record<string, unknown>;
   };
   // dedicatedCourts null clears the override (falls back to auto).
   divisionOverrides?: { divisionId: string; dedicatedCourts: number | null }[];
 }
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DAY_PLANS = new Set(['parallel-daily', 'compress-division']);
+// Mirrors CostWeights in lib/schedule/types.ts. Listed explicitly so a client
+// cannot write arbitrary keys into the stored config blob.
+const WEIGHT_KEYS = [
+  'restDeficit', 'backToBack', 'netChange', 'venueSpan', 'paceDeviation',
+  'depthUrgency', 'showCourtMisuse', 'courtChurn', 'divisionSpread',
+] as const;
+
+/** The court roster, kept to sane shapes: a named court, an optional net height
+ *  in metres, and an optional show-court flag. */
+function cleanCourts(raw: CourtBody[]): Record<string, unknown>[] {
+  return raw
+    .slice(0, 64)
+    .map(c => {
+      const name = typeof c.name === 'string' ? c.name.trim().slice(0, 40) : '';
+      if (!name) return null;
+      const out: Record<string, unknown> = { name };
+      if (typeof c.netHeight === 'number' && Number.isFinite(c.netHeight)) {
+        out.netHeight = Math.max(0, Math.min(5, c.netHeight));
+      }
+      if (c.isShowCourt === true) out.isShowCourt = true;
+      return out;
+    })
+    .filter((c): c is Record<string, unknown> => c !== null);
+}
 
 function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -34,6 +74,26 @@ function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unkno
   if (typeof c.netBufferMinutes === 'number') out.netBufferMinutes = Math.max(0, Math.min(120, Math.trunc(c.netBufferMinutes)));
   // 0 stores "no cap", so this is clamped from 0 rather than 1.
   if (typeof c.maxMatchesPerTeamPerDay === 'number') out.maxMatchesPerTeamPerDay = Math.max(0, Math.min(50, Math.trunc(c.maxMatchesPerTeamPerDay)));
+
+  if (Array.isArray(c.courts)) out.courts = cleanCourts(c.courts);
+  // 0 is meaningful (no rest target at all), so this clamps from 0.
+  if (typeof c.minRestSlots === 'number') out.minRestSlots = Math.max(0, Math.min(12, Math.trunc(c.minRestSlots)));
+  if (typeof c.restIsHard === 'boolean') out.restIsHard = c.restIsHard;
+  if (typeof c.staggerLunch === 'boolean') out.staggerLunch = c.staggerLunch;
+  if (typeof c.finalsOnLastDay === 'boolean') out.finalsOnLastDay = c.finalsOnLastDay;
+  if (typeof c.dayPlan === 'string' && DAY_PLANS.has(c.dayPlan)) out.dayPlan = c.dayPlan;
+  // 0 disables the repair pass, so again clamped from 0.
+  if (typeof c.repairIterations === 'number') out.repairIterations = Math.max(0, Math.min(100_000, Math.trunc(c.repairIterations)));
+
+  if (c.weights && typeof c.weights === 'object') {
+    const weights: Record<string, number> = {};
+    for (const key of WEIGHT_KEYS) {
+      const v = (c.weights as Record<string, unknown>)[key];
+      if (typeof v === 'number' && Number.isFinite(v)) weights[key] = Math.max(0, Math.min(100_000, v));
+    }
+    if (Object.keys(weights).length > 0) out.weights = weights;
+  }
+
   return out;
 }
 
@@ -83,7 +143,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 interface AssignBody {
   // time is "HH:MM" (local wall-clock) or null to clear the match's schedule;
   // day is the 0-based offset from the tournament start date (default 0).
-  assignments: { matchId: string; court: string | null; time: string | null; day?: number }[];
+  // pinned marks a placement the organizer fixed by hand, which the generator
+  // must schedule around rather than overwrite on its next run.
+  assignments: {
+    matchId: string;
+    court: string | null;
+    time: string | null;
+    day?: number;
+    pinned?: boolean;
+  }[];
 }
 
 // Add `n` whole days to a 'YYYY-MM-DD' string, in UTC, returning 'YYYY-MM-DD'.
@@ -124,9 +192,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const day = Number.isFinite(a.day) ? Math.max(0, Math.trunc(a.day as number)) : 0;
     const scheduledTime =
       a.time && HHMM.test(a.time) ? `${addDaysUTC(startDate, day)}T${a.time}:00Z` : null;
+    // Generating publishes: the planned time is the promise, and the live
+    // projection starts out equal to it. Drift moves scheduled_time later;
+    // planned_time only ever changes on the next generate.
     const { error } = await supabaseAdmin
       .from('matches')
-      .update({ court: a.court || null, scheduled_time: scheduledTime })
+      .update({
+        court: a.court || null,
+        scheduled_time: scheduledTime,
+        planned_time: scheduledTime,
+        pinned: a.pinned === true,
+      })
       .eq('id', a.matchId);
     if (error) return NextResponse.json({ error: `Failed to save match ${a.matchId}: ${error.message}` }, { status: 500 });
     written++;

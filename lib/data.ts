@@ -1,22 +1,13 @@
 import { supabase } from './supabase';
-import { type ScheduleConfig, DEFAULT_SCHEDULE_CONFIG } from './schedule/generate';
+import { type ScheduleConfig, normaliseConfig } from './schedule/generate';
 
 export type { ScheduleConfig };
 
 // Merge a persisted tournaments.schedule_config blob over the defaults so
-// callers always get a fully-populated config (the column defaults to '{}').
+// callers always get a fully-populated config (the column defaults to '{}',
+// and older rows predate several of the fields).
 function readScheduleConfig(raw: unknown): ScheduleConfig {
-  const c = (raw ?? {}) as Partial<ScheduleConfig>;
-  return {
-    startTime: typeof c.startTime === 'string' ? c.startTime : DEFAULT_SCHEDULE_CONFIG.startTime,
-    endTime: typeof c.endTime === 'string' ? c.endTime : DEFAULT_SCHEDULE_CONFIG.endTime,
-    courtCount: typeof c.courtCount === 'number' ? c.courtCount : DEFAULT_SCHEDULE_CONFIG.courtCount,
-    blockMinutes: typeof c.blockMinutes === 'number' ? c.blockMinutes : DEFAULT_SCHEDULE_CONFIG.blockMinutes,
-    lunchStart: typeof c.lunchStart === 'string' ? c.lunchStart : DEFAULT_SCHEDULE_CONFIG.lunchStart,
-    lunchEnd: typeof c.lunchEnd === 'string' ? c.lunchEnd : DEFAULT_SCHEDULE_CONFIG.lunchEnd,
-    netBufferMinutes: typeof c.netBufferMinutes === 'number' ? c.netBufferMinutes : DEFAULT_SCHEDULE_CONFIG.netBufferMinutes,
-    maxMatchesPerTeamPerDay: typeof c.maxMatchesPerTeamPerDay === 'number' ? c.maxMatchesPerTeamPerDay : DEFAULT_SCHEDULE_CONFIG.maxMatchesPerTeamPerDay,
-  };
+  return normaliseConfig((raw ?? {}) as Partial<ScheduleConfig>);
 }
 
 export interface DashboardDivision {
