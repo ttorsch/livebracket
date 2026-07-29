@@ -21,6 +21,7 @@
 import { evaluate, type Placement, type ScheduleMetrics, type SolverContext } from './cost.ts';
 import { courtOpen } from './grid.ts';
 import { teamsOf } from './cost.ts';
+import { isExclusive, isGloballyOrdered, isSingleCourt, phaseOrder } from './staging.ts';
 
 export interface RepairResult {
   placements: Placement[];
@@ -146,6 +147,71 @@ function legal(placements: Placement[], ctx: SolverContext): boolean {
       const d = byId.get(dep);
       if (!d) continue;               // unplaced feeders are already an overflow
       if (d.endAbs > p.startAbs) return false;
+    }
+  }
+
+  // The medal-round programme holds. Without this the repair pass would happily
+  // move one semifinal to a cheaper slot and leave its twin behind, or drift a
+  // final off the show court — undoing the very things staging exists to
+  // guarantee, and calling it an improvement, because the cost function prices
+  // matches one at a time and knows nothing about a programme.
+  if (ctx.staging.enabled) {
+    const span = (wave: { matchIds: string[] }) => {
+      const placed = wave.matchIds.map(id => byId.get(id)).filter((p): p is Placement => !!p);
+      if (placed.length === 0) return null;
+      return {
+        placed,
+        start: Math.min(...placed.map(p => p.slot.abs)),
+        end: Math.max(...placed.map(p => p.endAbs)),
+      };
+    };
+
+    let finalsCourt: number | null = null;
+    for (const wave of ctx.staging.waves) {
+      const here = span(wave);
+      if (!here) continue;
+
+      // A wave starts together.
+      if (here.placed.some(p => p.slot.abs !== here.start)) return false;
+
+      // A wave this one explicitly follows finishes first.
+      for (const key of wave.after) {
+        const before = span(ctx.staging.waves.find(w => w.key === key) ?? { matchIds: [] });
+        if (before && before.end > here.start) return false;
+      }
+
+      for (const other of ctx.staging.waves) {
+        if (other.key === wave.key) continue;
+        const there = span(other);
+        if (!there) continue;
+        // Earlier phases finish before later ones begin — among the phases that
+        // are ordered against every division. Pool play is not.
+        if (
+          isGloballyOrdered(wave.phase) &&
+          isGloballyOrdered(other.phase) &&
+          phaseOrder(other.phase) < phaseOrder(wave.phase) &&
+          there.end > here.start
+        ) {
+          return false;
+        }
+        // Two waves of an exclusive phase never overlap.
+        if (
+          other.phase === wave.phase &&
+          isExclusive(wave.phase) &&
+          here.start < there.end &&
+          there.start < here.end
+        ) {
+          return false;
+        }
+      }
+
+      // Every wave of a single-court phase is on the same one court.
+      if (isSingleCourt(wave.phase)) {
+        for (const p of here.placed) {
+          if (finalsCourt === null) finalsCourt = p.courtIndex;
+          else if (p.courtIndex !== finalsCourt) return false;
+        }
+      }
     }
   }
 

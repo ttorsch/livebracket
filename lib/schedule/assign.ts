@@ -28,6 +28,14 @@ import { parseHHMM } from './types.ts';
 import { courtOpen, type Slot } from './grid.ts';
 import type { MatchNode } from './graph.ts';
 import {
+  isExclusive,
+  isGloballyOrdered,
+  isSingleCourt,
+  phaseOrder,
+  type StagePhase,
+  type StageWave,
+} from './staging.ts';
+import {
   feederEndOf,
   makeTeamTrack,
   placementCost,
@@ -58,8 +66,14 @@ const AGING_PER_SLOT = 90;
 const MAX_CANDIDATES_PER_SLOT = 96;
 
 interface Rules {
+  /** Divisions take the venue in turns during pool play instead of sharing it,
+   *  so a court is rigged to one net height and stays there. */
+  poolBlocks: boolean;
   /** Hold every division's last round for the final day. */
   finalsOnLastDay: boolean;
+  /** Keep each endgame round together: a division's semifinals go side by side
+   *  or not at all, and its play-off for 3rd finishes before its final starts. */
+  stageFinals: boolean;
   /** Smallest gap, in minutes, a team may be given before playing again.
    *
    *  A number rather than a flag so the ladder can step *down* it instead of
@@ -103,7 +117,9 @@ export function assignMatches(
   // a court sit idle for a slot so the players can recover. "Soft" is expressed
   // by the ladder below being willing to give the rule up, not by pricing it.
   const base: Rules = {
+    poolBlocks: ctx.staging.enabled,
     finalsOnLastDay: ctx.config.finalsOnLastDay,
+    stageFinals: ctx.staging.enabled,
     minRestMinutes: ctx.targetRestMinutes,
     dailyCap: Math.max(0, Math.trunc(ctx.config.maxMatchesPerTeamPerDay) || 0),
     dayFloor: true,
@@ -122,7 +138,15 @@ export function assignMatches(
     ladder.push({ rules, gave });
   };
 
+  // Sharing the venue between divisions costs net changes and nothing else, so
+  // it is the first thing given up — an annoyance beats a schedule that does
+  // not fit.
+  if (base.poolBlocks) step({ poolBlocks: false }, 'poolBlocks');
   step({ finalsOnLastDay: false }, 'finalsOnLastDay');
+  // Staging is given up early for the same reason as the rung above it: a
+  // semifinal played at an awkward time is a disappointment, a semifinal with
+  // nowhere to play at all is a broken tournament.
+  if (base.stageFinals) step({ stageFinals: false }, 'stageFinals');
   // An organizer who declared rest non-negotiable gets exactly that: the rungs
   // that would trade it away are simply not built, and matches overflow instead.
   if (!ctx.config.restIsHard) step({ minRestMinutes: 1 }, 'restIsHard');
@@ -150,6 +174,11 @@ function solve(
   rules: Rules,
 ): Omit<AssignResult, 'relaxations'> {
   const { graph, grid } = ctx;
+  // Two different units, deliberately. `step` is the grid's resolution and is
+  // what geometry is measured in — where a slot starts, how many slots a match
+  // occupies. `block` is the nominal match length and is what *judgement* is
+  // measured in — how long a match has been waiting, in match-lengths.
+  const step = grid.slotMinutes;
   const block = grid.blockMinutes;
 
   // busy[day][courtIndex][slotIndex] — the match occupying that block, if any.
@@ -179,6 +208,32 @@ function solve(
 
   const placements = new Map<string, Placement>();
   const endOf = new Map<string, number>();
+  /** The one court every final is played on, chosen by the first final placed. */
+  let sharedCourt: number | null = null;
+  /** The division currently part-way through its round robin, and the net
+   *  height it plays at. While one holds this, only divisions that play at the
+   *  same height may share the venue with it. */
+  let poolOccupier: string | null = null;
+  let occupierHeight: number | null = null;
+
+  /** Net height a division plays at, read off any of its matches. */
+  const heightOf = (divisionId: string): number | null => {
+    for (const node of graph.nodes.values()) {
+      if (node.divisionId === divisionId && node.netHeight != null) return node.netHeight;
+    }
+    return null;
+  };
+
+  /** May this match share the floor with whoever currently holds it?
+   *
+   *  Taking turns exists to stop the net moving, so it only has to apply to
+   *  divisions that would move it. Two divisions playing at the same height —
+   *  or either of them at no declared height — cost nothing to interleave, and
+   *  interleaving them is what fills the courts the first one cannot use. */
+  const mayShare = (node: MatchNode): boolean => {
+    if (poolOccupier === null || node.divisionId === poolOccupier) return true;
+    return occupierHeight == null || node.netHeight == null || node.netHeight === occupierHeight;
+  };
   const remaining = new Set(graph.order);
   const readySince = new Map<string, number>();
   const pinConflicts: PinConflict[] = [];
@@ -217,16 +272,16 @@ function solve(
       continue;
     }
     const startMin = parseHHMM(pin.time);
-    const index = Math.round((startMin - grid.dayStart) / block);
+    const index = Math.round((startMin - grid.dayStart) / step);
     const slot = grid.slots.find(s => s.day === pin.day && s.index === index);
-    if (!slot || startMin !== grid.dayStart + index * block) {
+    if (!slot || startMin !== grid.dayStart + index * step) {
       pinConflicts.push({
         matchId: pin.matchId,
         reason: `${pin.time} on day ${pin.day + 1} is not a slot on the grid`,
       });
       continue;
     }
-    const span = Math.max(1, Math.ceil(node.durationMinutes / block));
+    const span = Math.max(1, Math.ceil(node.durationMinutes / step));
     if (!courtOpen(grid, courtIndex, slot, span)) {
       pinConflicts.push({ matchId: pin.matchId, reason: `${pin.court} is on its lunch break, or the match runs past the end of the day` });
       continue;
@@ -270,6 +325,154 @@ function solve(
     }
     if (ready.length === 0) continue;
 
+    // While a division is part-way through its round robin the venue is its
+    // own. Letting another division borrow a court in the gaps is what puts two
+    // net heights on the floor at once and moves a net every time a court
+    // changes hands — the rotation would be tidy and the nets would not. The
+    // claim is released the moment its last pool match is placed.
+    if (poolOccupier !== null) {
+      const stillOwed = ctx.staging.waves.some(
+        w => w.phase === 'pool' && w.divisionId === poolOccupier && w.matchIds.some(id => remaining.has(id)),
+      );
+      if (!stillOwed) {
+        poolOccupier = null;
+        occupierHeight = null;
+      }
+    }
+
+    // ── The medal rounds, placed a wave at a time. ─────────────────────────
+    //
+    // Waves are settled here rather than left to the matching below, because
+    // the matching cannot be told "all of these or none of them". It optimises
+    // court by court, so given two semifinals and one spare court it takes one
+    // and leaves its twin for later — the exact stagger staging exists to
+    // prevent. So a wave is offered the free courts as a unit: it takes them
+    // all or it waits for a slot where it can.
+    const held = new Set<string>();
+    if (rules.stageFinals) {
+      const readyIds = new Set(ready.map(n => n.id));
+      const startable: { wave: StageWave; pending: string[] }[] = [];
+
+      for (const wave of ctx.staging.waves) {
+        const pending = wave.matchIds.filter(id => remaining.has(id));
+        if (pending.length === 0) continue;
+
+        const finished = (ids: string[]) =>
+          ids.every(id => {
+            const end = endOf.get(id);
+            return end !== undefined && end <= slot.abs;
+          });
+
+        // 1. Every wave of an earlier globally-ordered phase must be finished.
+        //    This is what puts all the semifinals in front of all the play-offs,
+        //    and all the play-offs in front of the first final. Pool play is
+        //    excluded: one division's round robin is nobody else's business, and
+        //    the knockout already waits on its own pools through the graph.
+        const earlierDone =
+          !isGloballyOrdered(wave.phase) ||
+          ctx.staging.waves.every(other => {
+            if (!isGloballyOrdered(other.phase)) return true;
+            if (phaseOrder(other.phase) >= phaseOrder(wave.phase)) return true;
+            return finished(other.matchIds);
+          });
+
+        // 2. Waves this one explicitly follows — the pool rotation's turns.
+        const ownTurn = wave.after.every(key => {
+          const previous = ctx.staging.waves.find(w => w.key === key);
+          return !previous || finished(previous.matchIds);
+        });
+
+        // 3. Divisions take the venue in turns during pool play rather than
+        //    sharing it. Sharing means two net heights alive at once and a net
+        //    moved every time a court changes hands; taking turns means each
+        //    division's round robin runs start to finish on courts rigged once.
+        //    A division may start only when no other division is mid-rotation.
+        const blockClear =
+          !rules.poolBlocks ||
+          wave.phase !== 'pool' ||
+          pending.every(id => mayShare(graph.nodes.get(id)!));
+
+        // 2. In an exclusive phase only one wave runs at a time, so any other
+        //    wave of this phase that has already started must be over.
+        const exclusiveClear =
+          !isExclusive(wave.phase) ||
+          ctx.staging.waves.every(other => {
+            if (other.key === wave.key || other.phase !== wave.phase) return true;
+            return other.matchIds.every(id => {
+              const end = endOf.get(id);
+              return end === undefined || end <= slot.abs;
+            });
+          });
+
+        if (earlierDone && ownTurn && blockClear && exclusiveClear && pending.every(id => readyIds.has(id))) {
+          startable.push({ wave, pending });
+        } else if (wave.phase !== 'pool') {
+          for (const id of pending) held.add(id);
+        }
+      }
+
+      // Ordering only matters between waves of the same exclusive phase — which
+      // division's semifinals go first. Whoever has been ready longest goes
+      // first, so a division that could have played does not sit and wait on
+      // one that could not; ties break on the key, so the answer is stable.
+      const waitedSince = (ids: string[]) =>
+        Math.min(...ids.map(id => readySince.get(id) ?? slot.abs));
+      startable.sort(
+        (a, b) =>
+          phaseOrder(a.wave.phase) - phaseOrder(b.wave.phase) ||
+          waitedSince(a.pending) - waitedSince(b.pending) ||
+          a.wave.order - b.wave.order ||
+          (a.wave.key < b.wave.key ? -1 : 1),
+      );
+
+      const placedPhases = new Set<StagePhase>();
+      for (const { wave, pending } of startable) {
+        // Only one wave per exclusive phase may be started in this slot, since
+        // two started together are two running at once.
+        if (isExclusive(wave.phase) && placedPhases.has(wave.phase)) {
+          for (const id of pending) held.add(id);
+          continue;
+        }
+
+        let open = freeCourts.filter(c => !busy[slot.day][c][slot.index]);
+        // Every final shares one court. The first final to be placed chooses
+        // it — by cost, so a show court wins when there is one — and every
+        // final after that waits for that same court to come free.
+        if (isSingleCourt(wave.phase) && sharedCourt !== null) {
+          open = open.filter(c => c === sharedCourt);
+        }
+        if (open.length < pending.length) {
+          // No room for the whole turn. A medal round waits for a slot where it
+          // fits; a pool turn just lets the matching take what it can, because
+          // an idle court costs the event more than a short gap costs a team.
+          if (wave.phase !== 'pool') for (const id of pending) held.add(id);
+          continue;
+        }
+        const nodes = pending.map(id => graph.nodes.get(id)!);
+        const matrix = nodes.map(node => open.map(c => costOf(node, c, slot)));
+        const matching = hungarian(matrix);
+        // A wave is only placed if every one of its matches found a court.
+        if (matching.some((col, r) => col < 0 || matrix[r][col] >= FORBIDDEN)) {
+          if (wave.phase !== 'pool') for (const id of pending) held.add(id);
+          continue;
+        }
+        if (rules.poolBlocks && wave.phase === 'pool' && !nodes.every(mayShare)) {
+          // Claimed since this slot's candidates were chosen — two divisions
+          // can both look startable before either has actually gone.
+          continue;
+        }
+        matching.forEach((col, r) => place(nodes[r], open[col], slot));
+        if (wave.phase === 'pool' && wave.divisionId && poolOccupier === null) {
+          poolOccupier = wave.divisionId;
+          occupierHeight = heightOf(wave.divisionId);
+        }
+        placedPhases.add(wave.phase);
+        if (isSingleCourt(wave.phase) && sharedCourt === null) {
+          sharedCourt = open[matching[0]];
+        }
+      }
+    }
+
     // Pre-rank so the matrix stays small: longest remaining chain first (it
     // gates the end of the event), then whoever has waited longest.
     ready.sort((a, b) => {
@@ -289,53 +492,30 @@ function solve(
     const claimed = new Set<string>();
     const candidates: MatchNode[] = [];
     for (const node of ready) {
+      if (held.has(node.id) || !remaining.has(node.id)) continue; // waiting on its round, or already placed with it
+      if (!mayShare(node)) continue; // another height has the floor
       const teamIds = teamsOf(node);
+      // `ready` was decided before this slot's turns were placed, so a team may
+      // have gone on court since. Re-check against what is actually committed —
+      // a stale entry here would put one team on two courts at once.
+      if (teamIds.some(t => (teams.get(t)?.lastEnd ?? -Infinity) > slot.abs)) continue;
       if (teamIds.some(t => claimed.has(t))) continue;
       for (const t of teamIds) claimed.add(t);
       candidates.push(node);
       if (candidates.length >= MAX_CANDIDATES_PER_SLOT) break;
     }
+    if (candidates.length === 0) continue;
 
-    const cost: number[][] = candidates.map(node =>
-      freeCourts.map(c => {
-        const option = optionFor(node, c, slot);
-        if (!option) return FORBIDDEN;
-        const waited = (slot.abs - (readySince.get(node.id) ?? slot.abs)) / block;
-        return (
-          placementCost(
-            node,
-            courts[c],
-            slot,
-            option.startAbs,
-            option.endAbs,
-            option.netChange,
-            feederEndOf(node, id => endOf.get(id)),
-            teams,
-            ctx,
-          ) - AGING_PER_SLOT * waited
-        );
-      }),
-    );
+    const openCourts = freeCourts.filter(c => !busy[slot.day][c][slot.index]);
+    if (openCourts.length === 0) continue;
+
+    const cost: number[][] = candidates.map(node => openCourts.map(c => costOf(node, c, slot)));
 
     const matching = hungarian(cost);
     for (let r = 0; r < matching.length; r++) {
       const col = matching[r];
       if (col < 0 || cost[r][col] >= FORBIDDEN) continue;
-      const node = candidates[r];
-      const courtIndex = freeCourts[col];
-      const option = optionFor(node, courtIndex, slot);
-      if (!option) continue;
-      occupy({
-        matchId: node.id,
-        courtIndex,
-        courtName: courts[courtIndex].name,
-        slot,
-        span: option.span,
-        startAbs: option.startAbs,
-        endAbs: option.endAbs,
-        netChange: option.netChange,
-        pinned: false,
-      });
+      place(candidates[r], openCourts[col], slot);
     }
   }
 
@@ -344,6 +524,45 @@ function solve(
     unplaced: [...remaining],
     pinConflicts,
   };
+
+  /** What putting `node` on this court in this slot would cost, FORBIDDEN when
+   *  it cannot go there at all. Shared by the staged-group placement and the
+   *  ordinary matching so both rank courts by exactly the same measure. */
+  function costOf(node: MatchNode, courtIndex: number, slot: Slot): number {
+    const option = optionFor(node, courtIndex, slot);
+    if (!option) return FORBIDDEN;
+    const waited = (slot.abs - (readySince.get(node.id) ?? slot.abs)) / block;
+    return (
+      placementCost(
+        node,
+        courts[courtIndex],
+        slot,
+        option.startAbs,
+        option.endAbs,
+        option.netChange,
+        feederEndOf(node, id => endOf.get(id)),
+        teams,
+        ctx,
+      ) - AGING_PER_SLOT * waited
+    );
+  }
+
+  /** Commit `node` to this court and slot. */
+  function place(node: MatchNode, courtIndex: number, slot: Slot): void {
+    const option = optionFor(node, courtIndex, slot);
+    if (!option) return;
+    occupy({
+      matchId: node.id,
+      courtIndex,
+      courtName: courts[courtIndex].name,
+      slot,
+      span: option.span,
+      startAbs: option.startAbs,
+      endAbs: option.endAbs,
+      netChange: option.netChange,
+      pinned: false,
+    });
+  }
 
   /** Is this match allowed to start in this slot at all — before we even ask
    *  which court? Everything here is a hard constraint. */
@@ -364,10 +583,24 @@ function solve(
       if (!t) continue;
       if (t.lastEnd > slot.abs) return false; // already on court
       if (r.dailyCap > 0 && (t.dayCount.get(slot.day) ?? 0) >= r.dailyCap) return false;
-      if (t.lastEnd !== -Infinity && slot.abs - t.lastEnd < r.minRestMinutes) return false;
+      // Rest is a hard filter in the knockout, where a tired team plays a match
+      // that ends someone's tournament. In pool play it is a price instead: a
+      // court left empty to protect a gap helps nobody, so the round robin
+      // fills the venue and the cost function — which charges a full slot of
+      // deficit and a heavy surcharge for a genuine back-to-back — makes sure
+      // the tired teams are the last ones picked rather than the first.
+      if (!node.isPool && t.lastEnd !== -Infinity && slot.abs - t.lastEnd < r.minRestMinutes) {
+        return false;
+      }
     }
 
-    if (r.dayFloor) {
+    // The day plan wants every division to advance a little every day. Taking
+    // the venue in turns wants one division's round robin finished before the
+    // next begins. Those are opposite instructions, so on pool play the turn
+    // wins and the pace plan stands aside — otherwise a division is told to
+    // wait for a later day while also holding the courts nobody else may use.
+    const paced = !(r.poolBlocks && ctx.staging.waveOf.get(node.id)?.phase === 'pool');
+    if (r.dayFloor && paced) {
       const target = ctx.plan.targetDay.get(node.id);
       if (target !== undefined && slot.day < target) return false;
     }
@@ -395,7 +628,7 @@ function solve(
     const netChange =
       node.netHeight != null && court.height != null && court.height !== node.netHeight;
     const buffer = netChange ? Math.max(0, Math.trunc(ctx.config.netBufferMinutes) || 0) : 0;
-    const span = Math.max(1, Math.ceil((buffer + node.durationMinutes) / block));
+    const span = Math.max(1, Math.ceil((buffer + node.durationMinutes) / step));
 
     if (!courtOpen(grid, courtIndex, slot, span)) return null;
     for (let k = 0; k < span; k++) {

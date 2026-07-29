@@ -46,6 +46,19 @@ export function isKnockoutRound(round: DetailRound): boolean {
   return round.format === 'single' || round.format === 'double';
 }
 
+/* The play-off for 3rd, identified by the edge that defines it: it is the one
+   match drawn from two *losers* rather than two winners. Reading it off
+   `loserFeeders` rather than off the round's name means nothing downstream
+   depends on how the round happens to be titled. */
+export function loserFeedersOf(div: DetailDivision): Record<string, [string, string]> {
+  return div.drawConfig?.loserFeeders ?? {};
+}
+
+export function isThirdPlaceRound(div: DetailDivision, round: DetailRound): boolean {
+  const feeders = loserFeedersOf(div);
+  return round.matches.length > 0 && round.matches.every(m => !!feeders[m.id]);
+}
+
 export interface MatchLabel {
   number: number;      // 25
   no: string;          // "M25"
@@ -91,6 +104,7 @@ function poolMembership(div: DetailDivision): Map<string, string> {
 export function labelDivisionMatches(div: DetailDivision): Map<string, MatchLabel> {
   const prefix = divisionPrefix(div.label);
   const crossSlots = div.drawConfig?.crossSlots ?? {};
+  const loserFeeders = loserFeedersOf(div);
   const poolOf = poolMembership(div);
   const opensKnockoutAt = div.bracket.findIndex(isKnockoutRound);
 
@@ -112,10 +126,20 @@ export function labelDivisionMatches(div: DetailDivision): Map<string, MatchLabe
       const cross = crossSlots[m.id];
       const bye = isBye(round, m, cross, ri === opensKnockoutAt);
 
+      // The 3rd-place play-off is drawn from the two beaten semifinalists, so
+      // its sides read "Loser of …" and come from an explicit edge rather than
+      // from the round before it — which, since the play-off is drawn last, is
+      // the final.
+      const losers = loserFeeders[m.id];
+
       const label = (name: string | null, slot: CrossSlot | null, side: 0 | 1): string => {
         if (name && name !== 'TBD' && name.trim() !== '') return name;
         if (slot) return crossLabel(slot);
         if (bye) return 'BYE';
+        if (losers) {
+          const no = numbers.get(losers[side] ?? '');
+          return no ? `Loser of ${prefix}${no}` : 'TBD';
+        }
         const feedNo = feeder ? numbers.get(feeder.matches[2 * mi + side]?.id ?? '') : undefined;
         return feedNo ? `Winner of ${prefix}${feedNo}` : 'TBD';
       };

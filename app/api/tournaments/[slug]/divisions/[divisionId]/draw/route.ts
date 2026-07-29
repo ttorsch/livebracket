@@ -27,6 +27,7 @@ interface DrawBody {
   generate?: boolean;
   topSeedIds?: string[]; // organizer-picked top seeds, in order (subset of seedOrder)
   mode?: 'draw' | 'crossing';
+  thirdPlace?: boolean; // play off for 3rd between the beaten semifinalists
 }
 
 interface MatchInsert {
@@ -323,6 +324,54 @@ interface KnockoutBuild {
   // Round-1 pool positions, per match id — what the bracket shows until the
   // pools have been played.
   crossSlots: Record<string, { a: CrossSlot | null; b: CrossSlot | null }>;
+  // Matches drawn from the *losers* of other matches, per match id. Only the
+  // 3rd-place play-off works this way, and it is the one edge in the whole
+  // bracket that a halving tree cannot express — every other match is fed by
+  // winners, which the round structure already implies.
+  loserFeeders: Record<string, [string, string]>;
+}
+
+/* The play-off for 3rd, appended as its own round after the final.
+ *
+ * It is last in sequence rather than sitting between the semifinals and the
+ * final because the bracket is drawn as a halving tree: a round of one match
+ * wedged in front of the final would have the tree connect the wrong matches.
+ * Being last keeps the tree honest and leaves the final's feeders untouched;
+ * the schedule decides when it is actually *played*, which is before the final.
+ *
+ * Needs a semifinal round to draw from, so a two-team knockout gets nothing. */
+function appendThirdPlace(opts: {
+  divisionId: string;
+  roundRows: RoundInsert[];
+  matches: MatchInsert[];
+  slots: Record<string, string[]>;
+  loserFeeders: Record<string, [string, string]>;
+  /** Sequence of the semifinal round — the round before the final. */
+  semiSequence: number;
+  /** Sequence to give the new round; must be free. */
+  sequence: number;
+  scoringRules: unknown;
+}): void {
+  const { divisionId, roundRows, matches, slots, loserFeeders, semiSequence, sequence, scoringRules } = opts;
+  const semis = slots[String(semiSequence)] ?? [];
+  if (semis.length !== 2) return;
+
+  const round: RoundInsert = {
+    id: randomUUID(),
+    division_id: divisionId,
+    sequence,
+    format: 'single',
+    name: '3rd Place',
+    scoring_rules: scoringRules,
+  };
+  const id = randomUUID();
+  roundRows.push(round);
+  matches.push({
+    id, round_id: round.id, division_id: divisionId,
+    team_a_id: null, team_b_id: null, winner_team_id: null, status: 'upcoming',
+  });
+  slots[String(sequence)] = [id];
+  loserFeeders[id] = [semis[0], semis[1]];
 }
 
 /* Builds the knockout stage that follows pool play: rounds sized to the teams
@@ -335,8 +384,9 @@ function buildKnockout(opts: {
   crossing: string;
   scoringRules: unknown;
   startSequence: number;
+  thirdPlace: boolean;
 }): KnockoutBuild {
-  const { divisionId, poolSizes, advance, crossing, scoringRules, startSequence } = opts;
+  const { divisionId, poolSizes, advance, crossing, scoringRules, startSequence, thirdPlace } = opts;
 
   const counts = poolSizes.map(size => Math.min(advance, size));
   const totalAdvancing = counts.reduce((sum, c) => sum + c, 0);
@@ -358,6 +408,7 @@ function buildKnockout(opts: {
   const matches: MatchInsert[] = [];
   const slots: Record<string, string[]> = {};
   const crossSlots: KnockoutBuild['crossSlots'] = {};
+  const loserFeeders: KnockoutBuild['loserFeeders'] = {};
 
   // The fixed crossing charts pair whole ranks against each other, so they
   // only answer a field that fills the bracket. Anything else (5 pools, 3 per
@@ -412,7 +463,16 @@ function buildKnockout(opts: {
     mCount /= 2;
   }
 
-  return { roundRows, matches, slots, crossSlots };
+  if (thirdPlace && elimStages >= 2) {
+    appendThirdPlace({
+      divisionId, roundRows, matches, slots, loserFeeders,
+      semiSequence: startSequence + elimStages - 2,
+      sequence: startSequence + elimStages,
+      scoringRules,
+    });
+  }
+
+  return { roundRows, matches, slots, crossSlots, loserFeeders };
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
@@ -422,6 +482,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const pools = Math.max(1, Math.min(8, Math.trunc(body.pools) || 1));
   const advance = Math.max(1, Math.min(4, Math.trunc(body.advance) || 1));
   const crossing = typeof body.crossing === 'string' ? body.crossing : 'fivb';
+  const wantsThirdPlace = body.thirdPlace === true;
 
   let division;
   try {
@@ -463,6 +524,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       crossing,
       scoringRules: elimRounds[0].scoring_rules ?? {},
       startSequence: poolRound.sequence + 1,
+      thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : prevDraw.thirdPlace === true,
     });
 
     const elimRoundIds = elimRounds.map(r => r.id);
@@ -489,8 +551,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       pools: poolCount,
       advance,
       crossing,
+      thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : prevDraw.thirdPlace === true,
       slots: nextSlots,
       crossSlots: knockout.crossSlots,
+      loserFeeders: knockout.loserFeeders,
     };
     const { error: sError } = await supabaseAdmin
       .from('divisions')
@@ -518,6 +582,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const slots: Record<string, string[]> = {};
   let crossSlots: KnockoutBuild['crossSlots'] = {};
+  let loserFeeders: KnockoutBuild['loserFeeders'] = {};
 
   // 2. Optionally regenerate rounds and matches.
   if (body.generate) {
@@ -550,6 +615,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             crossing,
             scoringRules: elimRules,
             startSequence: 2,
+            thirdPlace: wantsThirdPlace,
           })
         : null;
       roundRows = [poolRound, ...(knockout?.roundRows ?? [])];
@@ -572,6 +638,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         matches.push(...knockout.matches);
         Object.assign(slots, knockout.slots);
         crossSlots = knockout.crossSlots;
+        loserFeeders = knockout.loserFeeders;
       }
     } else {
       // Pure Elimination (No Pool Play): draw round-1 matches directly.
@@ -667,6 +734,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         }
         matchCount /= 2;
       }
+
+      if (wantsThirdPlace && stages >= 2) {
+        appendThirdPlace({
+          divisionId, roundRows, matches, slots, loserFeeders,
+          semiSequence: stages - 1,   // rounds are 1-based here; the final is `stages`
+          sequence: stages + 1,
+          scoringRules: elimRules,
+        });
+      }
     }
 
     const { error: rError } = await supabaseAdmin.from('rounds').insert(roundRows);
@@ -683,10 +759,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const topSeedIds = Array.isArray(body.topSeedIds) ? body.topSeedIds.filter(id => teamIdSet.has(id)) : (prevDraw.topSeedIds ?? []);
   const draw = {
     pools, advance, crossing,
+    thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : prevDraw.thirdPlace === true,
     attempts: body.generate ? prevAttempts + 1 : prevAttempts,
     topSeedIds,
     slots: body.generate ? slots : (prevDraw.slots ?? {}),
     crossSlots: body.generate ? crossSlots : (prevDraw.crossSlots ?? {}),
+    loserFeeders: body.generate ? loserFeeders : (prevDraw.loserFeeders ?? {}),
   };
   const { error: sError } = await supabaseAdmin
     .from('divisions')

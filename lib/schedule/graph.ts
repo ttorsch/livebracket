@@ -39,6 +39,10 @@ export interface MatchNode {
   teamB: string | null;
   refereeTeam: string | null;
   isPool: boolean;
+  /** Pool name for a round-robin match, null otherwise. */
+  pool: string | null;
+  /** The play-off for 3rd: same depth as the final, played before it. */
+  isThirdPlace: boolean;
   durationMinutes: number;
   roundIndex: number;
   /** Position of this match inside its division's round, in input order. */
@@ -116,7 +120,14 @@ function inferDeps(div: SchedulableDivision): Map<string, string[]> {
       continue;
     }
 
-    for (const [i, m] of round.matches.entries()) {
+    // The play-off for 3rd is drawn from two *losers*, so the halving rule
+    // below says nothing useful about it — and because it is drawn after the
+    // final, applying that rule anyway would have it wait on the final. Its
+    // edges can only come from the caller, via `dependsOn`.
+    const contenders = round.matches.filter(m => !m.isThirdPlace);
+    if (contenders.length === 0) continue;
+
+    for (const [i, m] of contenders.entries()) {
       if (!previousKnockout) {
         // First knockout round: seeded off the completed pool standings, so it
         // waits on all of pool play — not just on the pools its own teams came
@@ -133,7 +144,7 @@ function inferDeps(div: SchedulableDivision): Map<string, string[]> {
       // on the whole previous round, which is always correct if conservative.
       out.set(m.id, feeders.length > 0 ? feeders : previousKnockout.map(f => f.id));
     }
-    previousKnockout = round.matches;
+    previousKnockout = contenders;
   }
 
   return out;
@@ -163,6 +174,8 @@ export function buildGraph(
         teamB: m.teamB,
         refereeTeam: m.refereeTeam ?? null,
         isPool: m.isPool,
+        pool: m.pool ?? null,
+        isThirdPlace: !!m.isThirdPlace,
         durationMinutes: durationOf(m, blockMinutes),
         roundIndex: m.roundIndex ?? 0,
         indexInRound: indexInRound.get(m.id) ?? 0,

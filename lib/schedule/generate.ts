@@ -37,6 +37,7 @@ import { courtRoster, normaliseConfig, parseNetHeight, toHHMM } from './types.ts
 import { buildGraph, type MatchGraph } from './graph.ts';
 import { buildGrid, DAY_SPAN, type Grid } from './grid.ts';
 import { buildDayPlan, courtAffinity, type DayPlan } from './dayplan.ts';
+import { buildStaging } from './staging.ts';
 import {
   evaluate,
   resolveWeights,
@@ -55,9 +56,16 @@ export { scheduleInventory, type Inventory } from './inventory.ts';
 export { buildGraph, type MatchGraph, type MatchNode } from './graph.ts';
 export { buildGrid, type Grid, type Slot, DAY_SPAN } from './grid.ts';
 export { buildDayPlan, courtAffinity, type DayPlan } from './dayplan.ts';
+export { buildStaging, type StagePhase, type StageWave, type Staging } from './staging.ts';
 export { evaluate, type Placement, type ScheduleMetrics, type SolverContext } from './cost.ts';
 export { assignMatches, hungarian, type PinConflict } from './assign.ts';
 export { repair } from './repair.ts';
+export {
+  validateSchedule,
+  type EditedPlacement,
+  type ProblemKind,
+  type ScheduleProblem,
+} from './validate.ts';
 export {
   projectSchedule,
   absOf,
@@ -117,7 +125,13 @@ export function generateSchedule(
   options: GenerateOptions = {},
 ): ScheduleResult {
   const config = normaliseConfig(rawConfig);
-  const grid = buildGrid(config, days);
+  // The grid's resolution follows the lengths actually declared, so a
+  // 20-minute pool match books twenty minutes rather than a whole nominal block.
+  const grid = buildGrid(
+    config,
+    days,
+    divisions.flatMap(d => d.matches.map(m => m.durationMinutes ?? config.blockMinutes)),
+  );
   const graph = buildGraph(divisions, grid.blockMinutes);
 
   // Net height is a property of the division, but the solver only ever holds
@@ -131,7 +145,17 @@ export function generateSchedule(
   }
 
   const plan = buildDayPlan(graph, grid, config);
-  const affinity = courtAffinity(divisions, grid.courts);
+
+  // Staging is worked out before court affinity, because the pool rotation is
+  // what says how many courts a division actually occupies — and affinity
+  // handing it fewer than that is what makes a division spill onto its
+  // neighbour's courts and move a net every turn.
+  const staging = buildStaging(graph, grid.courts.length, config.stageFinals);
+  const affinity = courtAffinity(
+    divisions,
+    grid.courts,
+    new Map(staging.poolPlans.map(p => [p.divisionId, p.poolsAtOnce * p.perPool])),
+  );
 
   // Rig the nets before play starts.
   //
@@ -169,6 +193,7 @@ export function generateSchedule(
     config,
     weights: resolveWeights(config),
     affinity,
+    staging,
     targetRestMinutes: Math.max(0, config.minRestSlots) * grid.blockMinutes,
     maxTailMinutes,
   };

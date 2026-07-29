@@ -368,6 +368,17 @@
   gap: 4px;
 }
 
+/* Round + division sit together on the right of a card's top row. They wrap
+   rather than squeeze, so a long round name never crushes the time. */
+.badgeGroup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
 .divisionBadge {
   font-size: 11px;
   font-weight: 700;
@@ -376,6 +387,21 @@
   background: var(--cal-bg, var(--sand-300, #EAE5DD));
   color: var(--cal-accent, var(--ink-700, #3E4654));
   border: 1px solid var(--cal-border, transparent);
+}
+
+/* Quieter than the division badge: which round a match belongs to is context,
+   not the card's headline. */
+.roundBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--ink-600, #5A6270);
+  background: transparent;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  white-space: nowrap;
 }
 
 .matchTeams {
@@ -400,37 +426,169 @@
   color: var(--orange, #EE7A4C);
 }
 
-/* ── Timeline List View ──────────────────────────────────────── */
-.timelineFeed {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+/* ── Editing the grid by hand ─────────────────────────────────── */
+
+/* One target per court per row, mounted only during a drag or with the block
+   tool armed. Invisible until the pointer is over it — the grid should not
+   look like a form. */
+.calDropCell {
+  z-index: 1;
+  border-radius: 6px;
+  margin: 1px 3px;
+  transition: background 0.1s ease, box-shadow 0.1s ease;
+}
+.calDropCell:hover {
+  background: rgba(238, 122, 76, 0.14);
+  box-shadow: inset 0 0 0 1px var(--orange, #EE7A4C);
+}
+.calDropCellBlock {
+  cursor: cell;
+}
+.calDropCellBlock:hover {
+  background: rgba(90, 98, 112, 0.16);
+  box-shadow: inset 0 0 0 1px var(--ink-500, #8A92A0);
 }
 
-.timeSlotGroup {
+/* Court time taken off the board. Deliberately unlike a match card: hatched,
+   grey, and obviously not something anybody is playing. */
+.calBlockedSlot {
+  z-index: 2;
+  margin: 2px 3px;
+  padding: 4px 8px;
+  border: 1px dashed var(--ink-400, #A7AEBA);
+  border-radius: 8px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(90, 98, 112, 0.07),
+    rgba(90, 98, 112, 0.07) 6px,
+    rgba(90, 98, 112, 0.02) 6px,
+    rgba(90, 98, 112, 0.02) 12px
+  );
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
 }
-
-.timeSlotHeader {
-  font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 15px;
+.calBlockedSlot:hover {
+  border-color: var(--orange, #EE7A4C);
+  background: rgba(238, 122, 76, 0.08);
+}
+.calBlockedLabel {
+  font-size: 11px;
   font-weight: 700;
   color: var(--ink-700, #3E4654);
+}
+.calBlockedTime {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-500, #8A92A0);
+}
+
+.gridToolBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-600, #5A6270);
+  cursor: pointer;
+}
+.gridToolBtnOn {
+  background: var(--ink-800, #2C323D);
+  border-color: var(--ink-800, #2C323D);
+  color: #fff;
+}
+
+.editBar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(238, 122, 76, 0.08);
+  border: 1px solid rgba(238, 122, 76, 0.28);
+}
+.editBarFault {
+  background: rgba(214, 69, 69, 0.08);
+  border-color: rgba(214, 69, 69, 0.32);
+}
+.editBarText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--ink-700, #3E4654);
+}
+.editBarActions {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-
-.timelineGrid {
-  display: grid;
-  grid-template-columns: repeat(var(--match-count, 4), minmax(300px, 1fr));
-  gap: 14px;
-  overflow-x: auto;
-  padding-bottom: 12px;
-  scroll-snap-type: x mandatory;
+.editBarUndo {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-700, #3E4654);
+  cursor: pointer;
 }
+.editBarUndo:hover { border-color: var(--ink-600, #5A6270); }
+
+/* A card the organizer moved, and a card that is now breaking something. */
+.gridMatchCardEdited {
+  border-style: dashed;
+  box-shadow: 0 0 0 2px rgba(238, 122, 76, 0.18);
+}
+.gridMatchCardFault {
+  border-color: #D64545 !important;
+  background: rgba(214, 69, 69, 0.04);
+}
+.gridMatchCardDragging { opacity: 0.4; }
+
+.gridTimeInput {
+  width: 82px;
+  padding: 1px 4px;
+  border: 1px solid var(--orange, #EE7A4C);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--ink-900, #14181E);
+}
+
+/* What this card broke, in the organizer's words. */
+.gridFaults {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 5px 0 0;
+  border-top: 1px dashed rgba(214, 69, 69, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gridFaults li {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: #B33A3A;
+}
+.gridFaults svg { flex: none; margin-top: 1px; }
 
 /* ── Court calendar view (courts = X axis, time = Y axis) ────── */
 .calLegend {
@@ -635,7 +793,27 @@
   opacity: 0.8;
 }
 
+/* Calendar blocks are sized by match duration, so the round has to share the
+   top row rather than add a line: a short match has no spare height. */
+.gridMatchTags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.gridMatchRound {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-500, #8A92A0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 84px;
+}
+
 .gridMatchNo {
+  flex: none;
   font-size: 10px;
   font-weight: 700;
   color: var(--div-accent, #EE7A4C);
@@ -732,8 +910,11 @@
   margin: 4px 0 8px;
 }
 .calScroll {
-  overflow: auto;
-  max-height: 78vh;
+  /* Horizontal only. Vertical growth is the page's job: the calendar lays
+     itself out in full and the window scrolls, rather than trapping a second
+     scrollbar inside a short pane. A wide court roster still scrolls sideways
+     in here, so the page itself never scrolls horizontally. */
+  overflow-x: auto;
   border: 1px solid var(--sand-300, #EAE5DD);
   border-radius: 14px;
   background: var(--surface-card, #FFFFFF);
@@ -934,6 +1115,41 @@
 .genField input:focus {
   outline: none;
   border-color: var(--orange, #EE7A4C);
+}
+
+.genToggles {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.genToggle {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.genToggle input {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--orange, #EE7A4C);
+}
+.genToggle span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-600, #5A6270);
+}
+.genToggle strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-800, #2C323D);
+  margin-bottom: 2px;
 }
 
 .genDivisions { margin-top: 18px; }
@@ -1388,14 +1604,6 @@
     scroll-snap-type: x mandatory;
     /* Snap past the sticky time gutter so a court lands flush beside it. */
     scroll-padding-left: var(--cal-time-col);
-    /* Fit the calendar into the gap under the pinned control bar, so the page
-       and the calendar never fight over the same vertical scroll. The 68px is
-       this file's own trailing space (.main padding-bottom + .calDaySection
-       margin-bottom) — without allowing for it the page runs out of scroll
-       before the calendar clears the bar, hiding the sticky court headers. */
-    max-height: calc(100vh - var(--chrome-h, 138px) - 68px);
-    max-height: calc(100dvh - var(--chrome-h, 138px) - 68px);
-    min-height: 320px;
     border-radius: 12px;
   }
   .calCourtHeadCard {

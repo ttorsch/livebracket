@@ -11,7 +11,7 @@ interface DivisionBody {
   // Each round carries its own scoring rules (e.g. pool play to 21, the
   // elimination round after it best of 3) instead of one blob per division.
   // durationMinutes (per-round match length) is folded into scoring_rules on save.
-  rounds: { format: string; scoring: Record<string, unknown>; durationMinutes?: number }[];
+  rounds: { id?: string; format: string; scoring: Record<string, unknown>; durationMinutes?: number }[];
   rules: string;
   regFields: unknown[];
   allowMulti: boolean;
@@ -95,11 +95,83 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .single();
   if (dError) return NextResponse.json({ error: dError.message }, { status: 500 });
 
-  // Rounds have no independent identity worth preserving here — replace wholesale.
+  // ── Rounds ───────────────────────────────────────────────────────────────
+  //
+  // `body.rounds` is the organizer's *configuration* — "a round robin, then a
+  // single elimination" — which is not the same list as the `rounds` table.
+  // Once a draw runs, that table holds the bracket the configuration was
+  // expanded into: one row per knockout stage, with every match hanging off it
+  // by `round_id ... on delete cascade`. Replacing the table wholesale, which
+  // is what this used to do, therefore deleted the whole bracket and its
+  // schedule every time someone opened this dialog and pressed save.
+  //
+  // So the configuration is now recorded in its own right, and the table is
+  // only rebuilt when the configuration's *shape* changed. Otherwise the new
+  // scoring and match length are pushed onto the stages that were generated
+  // from each configured round — matched by format, exactly the way the draw
+  // assigns them in the first place — and no row is deleted.
+  const incoming = body.rounds ?? [];
+  const settings = (division.settings ?? {}) as Record<string, unknown>;
+
+  const { data: existingRounds, error: exError } = await supabaseAdmin
+    .from('rounds')
+    .select('id, sequence, format, name, scoring_rules')
+    .eq('division_id', divisionId)
+    .order('sequence', { ascending: true });
+  if (exError) return NextResponse.json({ error: exError.message }, { status: 500 });
+
+  const current = existingRounds ?? [];
+  const hasDraw = !!settings.draw;
+
+  // The configuration as it stood before this save, by the same three-step
+  // reckoning the setup page loads it with.
+  const storedConfig = settings.formatRounds as { format: string }[] | undefined;
+  const previousConfig =
+    Array.isArray(storedConfig) && storedConfig.length > 0
+      ? storedConfig
+      : hasDraw
+        ? current.filter((r, i) => i === 0 || current[i - 1].format !== r.format)
+        : current;
+
+  const sameShape =
+    previousConfig.length === incoming.length &&
+    incoming.every((r, i) => r.format === previousConfig[i].format);
+
+  const formatRounds = incoming.map(r => ({
+    format: r.format,
+    scoring: r.scoring,
+    durationMinutes: clampMinutes(r.durationMinutes),
+  }));
+  const rulesFor = (format: string) =>
+    formatRounds.find(r => r.format === format) ?? formatRounds[0];
+
+  if (sameShape && current.length > 0) {
+    // Push scoring and match length down onto every stage of the matching
+    // format. A configured elimination round governs all of Round of 16 …
+    // Final, which is the same rule the draw applies when it builds them.
+    const updated = [];
+    for (const row of current) {
+      const rules = rulesFor(row.format);
+      const { data, error } = await supabaseAdmin
+        .from('rounds')
+        .update({ scoring_rules: { ...rules.scoring, durationMinutes: rules.durationMinutes } })
+        .eq('id', row.id)
+        .select('id, sequence, format, name, scoring_rules')
+        .single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      updated.push(data);
+    }
+    await supabaseAdmin
+      .from('divisions')
+      .update({ settings: { ...settings, formatRounds } })
+      .eq('id', divisionId);
+    return NextResponse.json({ ...division, rounds: updated, bracketCleared: false });
+  }
+
   const { error: delError } = await supabaseAdmin.from('rounds').delete().eq('division_id', divisionId);
   if (delError) return NextResponse.json({ error: delError.message }, { status: 500 });
 
-  const roundRows = (body.rounds ?? []).map((r, i) => ({
+  const roundRows = incoming.map((r, i) => ({
     division_id: divisionId,
     sequence: i + 1,
     format: r.format,
@@ -111,7 +183,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     : { data: [], error: null };
   if (rError) return NextResponse.json({ error: rError.message }, { status: 500 });
 
-  return NextResponse.json({ ...division, rounds });
+  // The bracket went with the old rounds, so the draw that described it is now
+  // a description of nothing. Clearing it keeps the division honestly "not yet
+  // drawn" instead of leaving slot/crossing data pointing at deleted matches.
+  const { draw: _dropped, ...withoutDraw } = settings;
+  await supabaseAdmin
+    .from('divisions')
+    .update({ settings: { ...withoutDraw, formatRounds } })
+    .eq('id', divisionId);
+
+  return NextResponse.json({ ...division, rounds, bracketCleared: hasDraw });
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {

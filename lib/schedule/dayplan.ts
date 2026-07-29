@@ -138,6 +138,11 @@ function compressWindows(graph: MatchGraph, grid: Grid): Map<string, [number, nu
 export function courtAffinity(
   divisions: SchedulableDivision[],
   courts: CourtSpec[],
+  /** divisionId -> courts its pool rotation actually occupies. A division whose
+   *  round robin runs four matches at a time needs four courts of its own; give
+   *  it two and it spills onto its neighbour's every turn, moving a net each
+   *  time. The organizer's explicit override still wins over both. */
+  appetite: Map<string, number> = new Map(),
 ): Map<string, Set<string>> {
   const isMixed = (d: SchedulableDivision) => (d.gender ?? '').toLowerCase().includes('mix');
 
@@ -166,9 +171,28 @@ export function courtAffinity(
   const want = ordered.map(div =>
     Math.max(
       1,
-      Math.min(courts.length, Math.trunc(div.dedicatedCourts ?? autoDedicatedCourts(div.pools)) || 1),
+      Math.min(
+        courts.length,
+        Math.trunc(
+          div.dedicatedCourts ?? appetite.get(div.id) ?? autoDedicatedCourts(div.pools),
+        ) || 1,
+      ),
     ),
   );
+
+  // Appetites can add up to more than the venue — two divisions each wanting
+  // every court is a normal thing to want. Scale them back proportionally so
+  // the blocks below stay disjoint; a shared court belongs to nobody and ends
+  // up hosting every height, which is the churn this is here to prevent.
+  const total = want.reduce((s, n) => s + n, 0);
+  if (total > courts.length) {
+    let left = courts.length;
+    for (let i = 0; i < want.length; i++) {
+      const share = Math.max(1, Math.round((want[i] / total) * courts.length));
+      want[i] = Math.max(1, Math.min(share, left - (want.length - 1 - i)));
+      left -= want[i];
+    }
+  }
 
   // Hand out any court nobody asked for, to whichever division is carrying the
   // most matches per court it already has. Leaving courts unclaimed is what

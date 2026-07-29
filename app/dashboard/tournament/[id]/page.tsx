@@ -7,7 +7,7 @@ import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Trophy, Unlock, Users, 
 import styles from './page.module.css';
 import { Button } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
-import { assignPools, divisionPrefix, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
+import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
 
@@ -20,9 +20,10 @@ interface DrawSettings {
   pools: number;
   advance: number;
   crossing: string;
+  thirdPlace: boolean;
 }
 
-const DEFAULT_DRAW: DrawSettings = { pools: 4, advance: 2, crossing: 'fivb' };
+const DEFAULT_DRAW: DrawSettings = { pools: 4, advance: 2, crossing: 'fivb', thirdPlace: false };
 
 const FORMAT_LABELS: Record<string, string> = {
   'round-robin': 'Round Robin',
@@ -182,13 +183,19 @@ function emptyBracket(teamCount: number, prefix: string, startNo: number): Brack
    and slot names come from the shared division labelling, so the bracket, the
    schedule and the match list all call a match the same thing. */
 function dbBracket(division: DetailDivision, labels: Map<string, MatchLabel>): BracketView | null {
-  const knockout = division.bracket.filter(r => (r.format === 'single' || r.format === 'double') && r.matches.length > 0);
+  const allKnockout = division.bracket.filter(r => (r.format === 'single' || r.format === 'double') && r.matches.length > 0);
+  // The play-off for 3rd hangs off the semifinals, not off the round before it,
+  // so it is not part of the halving tree and must not be drawn into it — no
+  // connector runs to it, and the champion still comes out of the final.
+  const knockout = allKnockout.filter(r => !isThirdPlaceRound(division, r));
+  const thirdPlace = allKnockout.filter(r => isThirdPlaceRound(division, r));
   if (knockout.length === 0) return null;
 
   const seedOf = new Map(division.teamsList.map(t => [t.id, t.seed]));
   const total = knockout.length;
 
-  const rounds: ViewRound[] = knockout.map((r, ri) => {
+  const rounds: ViewRound[] = [...knockout, ...thirdPlace].map((r, ri) => {
+    const isTree = ri < total;
     const matches = r.matches.map((m, mi) => {
       const label = labels.get(m.id);
 
@@ -203,9 +210,9 @@ function dbBracket(division: DetailDivision, labels: Map<string, MatchLabel>): B
       return {
         no: label?.no ?? '',
         live: m.status === 'live',
-        hasRight: ri < total - 1,
-        hasLeft: ri > 0,
-        hasSpine: ri < total - 1 && mi % 2 === 0,
+        hasRight: isTree && ri < total - 1,
+        hasLeft: isTree && ri > 0,
+        hasSpine: isTree && ri < total - 1 && mi % 2 === 0,
         rowA: mkRow(m.teamAId, label?.teamA ?? 'TBD', m.status === 'done' && m.winner === 'A'),
         rowB: mkRow(m.teamBId, label?.teamB ?? 'TBD', m.status === 'done' && m.winner === 'B'),
       };
@@ -276,7 +283,12 @@ export default function OrganizerBracketPage() {
       const config: Record<string, DrawSettings> = {};
       data.divisions.forEach(d => {
         config[d.id] = d.drawConfig
-          ? { pools: d.drawConfig.pools, advance: d.drawConfig.advance, crossing: d.drawConfig.crossing }
+          ? {
+              pools: d.drawConfig.pools,
+              advance: d.drawConfig.advance,
+              crossing: d.drawConfig.crossing,
+              thirdPlace: !!d.drawConfig.thirdPlace,
+            }
           : { ...DEFAULT_DRAW };
       });
       // Keep whatever top seeds were already picked for a division across a
@@ -710,6 +722,7 @@ export default function OrganizerBracketPage() {
           pools: config.pools,
           advance: config.advance,
           crossing: config.crossing,
+          thirdPlace: config.thirdPlace,
           generate: true,
         }),
       });
@@ -748,6 +761,7 @@ export default function OrganizerBracketPage() {
           pools: config.pools,
           advance: config.advance,
           crossing: config.crossing,
+          thirdPlace: config.thirdPlace,
         }),
       });
       if (!res.ok) {
@@ -1478,6 +1492,20 @@ export default function OrganizerBracketPage() {
                             <span className={styles.selectChevron}><ChevronDown size={18} /></span>
                           </div>
                           <p className={styles.fieldNote}>Determines how pool finishers are seeded into the knockout round.</p>
+                        </div>
+                        <div>
+                          <label className={styles.fieldLabel} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={config.thirdPlace}
+                              onChange={e => setConfig({ thirdPlace: e.target.checked })}
+                              style={{ width: 16, height: 16, accentColor: 'var(--orange, #EE7A4C)' }}
+                            />
+                            Play off for 3rd place
+                          </label>
+                          <p className={styles.fieldNote}>
+                            Adds one match between the two beaten semifinalists. The schedule plays it before the final.
+                          </p>
                         </div>
                         <div className={styles.drawBtnWrap}>
                           <Button

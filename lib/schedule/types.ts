@@ -82,6 +82,23 @@ export const DEFAULT_WEIGHTS: CostWeights = {
   divisionSpread: 26,
 };
 
+/** A stretch of court time the organizer has taken off the board — a
+ *  ceremony, a presentation, a net repair, a longer break than lunch.
+ *
+ *  It is venue configuration rather than a placement, which is why it lives on
+ *  the config and survives regeneration: the generator schedules around a block
+ *  exactly as it schedules around lunch. A hand-moved *match*, by contrast, is
+ *  a one-off that the next generate is free to overwrite. */
+export interface BlockedPeriod {
+  /** Court name, or null for every court. */
+  court: string | null;
+  /** 0-based day offset, or null for every day. */
+  day: number | null;
+  start: string; // "HH:MM"
+  end: string;   // "HH:MM"
+  label?: string;
+}
+
 export interface ScheduleConfig {
   startTime: string;        // "HH:MM" 24h, day start
   endTime: string;          // "HH:MM" 24h, day end
@@ -106,8 +123,14 @@ export interface ScheduleConfig {
   /** Stagger lunch so courts break at slightly different times and the venue
    *  never fully stops. */
   staggerLunch: boolean;
+  /** Court time taken off the board by hand. */
+  blocks?: BlockedPeriod[];
   /** Hold every division's last round for the final day of a multi-day event. */
   finalsOnLastDay: boolean;
+  /** Run each division's semifinals, 3rd-place play-off and final as whole
+   *  rounds — side by side across courts, one division's round at a time —
+   *  instead of placing each of those matches independently. */
+  stageFinals: boolean;
   dayPlan: DayPlanStrategy;
   /** Upper bound on improvement swaps in the repair pass. 0 disables repair. */
   repairIterations: number;
@@ -128,6 +151,7 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   restIsHard: false,
   staggerLunch: true,
   finalsOnLastDay: true,
+  stageFinals: true,
   dayPlan: 'parallel-daily',
   repairIterations: 4000,
 };
@@ -151,6 +175,10 @@ export interface SchedulableMatch {
   teamA: string | null;      // team id (null for TBD / bye)
   teamB: string | null;
   isPool: boolean;           // true = pool-play (round-robin) match
+  /** Which pool a round-robin match belongs to ("A", "B", …). Pool play is
+   *  scheduled a pool at a time, so the scheduler has to know which pool a
+   *  match is in — it cannot work that out from the teams alone. */
+  pool?: string | null;
   durationMinutes?: number;  // this match's slot length; falls back to config.blockMinutes
   /** 0-based position of this match's round in the division's setup round
    *  list. Used to derive dependency edges when `dependsOn` is not given. */
@@ -158,6 +186,10 @@ export interface SchedulableMatch {
   /** Explicit feeder matches. When supplied it wins over anything the graph
    *  would infer from round structure. */
   dependsOn?: string[];
+  /** The play-off for 3rd. Sits at the same depth as the final — both are
+   *  drawn off the semifinals — but is played before it, which is the one thing
+   *  the dependency graph cannot work out on its own. */
+  isThirdPlace?: boolean;
   /** Referee duty. Modelled now, assigned by hand in this version — the cost
    *  function already treats it as court time against the team's rest, so
    *  turning on automatic assignment later does not reshape anything. */
@@ -216,7 +248,13 @@ export type FeasibilityVerdict = 'fits' | 'tight' | 'overflow';
 /** A constraint the solver had to give up on to place everything. Reported
  *  rather than hidden — a schedule you can argue with beats one you can't. */
 export type Relaxation =
+  /** Divisions had to share the venue during pool play instead of taking it in
+   *  turns, which means moving nets more often. */
+  | 'poolBlocks'
   | 'finalsOnLastDay'
+  /** The endgame had to be placed match-by-match: keeping a round together
+   *  left something with nowhere to go. */
+  | 'stageFinals'
   /** Teams got less than the target gap between matches. */
   | 'restIsHard'
   | 'maxMatchesPerTeamPerDay'

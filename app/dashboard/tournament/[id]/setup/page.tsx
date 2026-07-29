@@ -625,6 +625,22 @@ export default function OrganizerSetup() {
     setFormError(null);
   };
 
+  /* Would saving rebuild this division's bracket?
+   *
+   * The rounds in a drawn division are its bracket stages, and every match
+   * hangs off them. Changing the scoring or the match length is safe — those
+   * are edited in place. Adding, removing or re-ordering a round is not: there
+   * is no honest way to keep a bracket whose shape no longer matches, so it is
+   * rebuilt, and the matches go with it. The organizer should hear that before
+   * they press save, not after. */
+  const originalRounds = editingDivisionId
+    ? divisions.find(d => d.id === editingDivisionId)?.rounds ?? []
+    : [];
+  const rebuildsBracket =
+    originalRounds.length > 0 &&
+    (originalRounds.length !== rounds.length ||
+      rounds.some((r, i) => r.format !== originalRounds[i]?.format));
+
   // ── Tournament rounds builder ──────────────────────────────────
   const addRound = () => {
     setRounds([...rounds, { id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
@@ -1384,6 +1400,13 @@ export default function OrganizerSetup() {
                   Build the tournament one round at a time. Each round has its own format and
                   scoring — e.g. round robin to 21 points, then a best-of-3 elimination bracket.
                 </p>
+                {rebuildsBracket && (
+                  <div className={styles.modalFormError} style={{ marginTop: 8 }}>
+                    Adding, removing or re-ordering a round changes the shape of the bracket, so saving will
+                    rebuild it — every match already drawn for this division, and its saved schedule, will be
+                    deleted. Leave the rounds as they are to keep them.
+                  </div>
+                )}
                 <div className={styles.roundsList}>
                   {rounds.map((round, i) => (
                     <div key={round.id} className={styles.roundCard}>

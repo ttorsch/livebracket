@@ -14,6 +14,7 @@ import { DEFAULT_WEIGHTS } from './types.ts';
 import type { Grid, Slot } from './grid.ts';
 import type { MatchGraph, MatchNode } from './graph.ts';
 import type { DayPlan } from './dayplan.ts';
+import { ignoresCourtIdentity, type Staging } from './staging.ts';
 
 export interface Placement {
   matchId: string;
@@ -39,6 +40,8 @@ export interface SolverContext {
   weights: CostWeights;
   /** divisionId -> preferred court names. */
   affinity: Map<string, Set<string>>;
+  /** The endgame groups, and which matches belong to them. */
+  staging: Staging;
   /** Rest a team should get between matches, in minutes. */
   targetRestMinutes: number;
   /** Longest remaining chain in the whole event, for normalising urgency. */
@@ -144,6 +147,19 @@ export function placementCost(
   const block = ctx.grid.blockMinutes;
   let cost = 0;
 
+  // Court identity stops mattering once a division reaches its medal rounds.
+  // There are only a handful of matches left, they have to run side by side,
+  // and an organizer will happily re-rig a net to get both semifinals on
+  // adjacent courts — so neither "stay on your own courts" nor the extra
+  // discouragement on moving a net is charged for those. The buffer a net
+  // change costs in *minutes* is still charged, by the caller, as real court
+  // time: that one is physical and does not go away because the round matters.
+  //
+  // Pool play is the opposite case and is *not* exempt. It is most of the
+  // event, and a division wandering off its own courts during the round robin
+  // means moving a net every time it does.
+  const staged = ignoresCourtIdentity(ctx.staging.waveOf.get(node.id)?.phase ?? 'pool');
+
   // ── Rest. The organizer's primary goal, so this dominates. ───────────────
   //
   // Measured to the slot boundary, never to `startAbs`. A net change delays the
@@ -164,7 +180,7 @@ export function placementCost(
   // ── Net height. The buffer is already charged as real court time by the
   //    caller; this is the extra discouragement so nets move only when waiting
   //    for the right court would be worse. ─────────────────────────────────
-  if (netChange) cost += w.netChange;
+  if (netChange && !staged) cost += w.netChange;
 
   // ── Venue span: how much longer this makes each team's day. ──────────────
   for (const teamId of teamsOf(node)) {
@@ -194,7 +210,7 @@ export function placementCost(
   if (court.isShowCourt && node.depth > 0) {
     cost += w.showCourtMisuse * Math.min(node.depth, 3);
   }
-  const prefer = ctx.affinity.get(node.divisionId);
+  const prefer = staged ? null : ctx.affinity.get(node.divisionId);
   if (prefer && prefer.size > 0 && !prefer.has(court.name)) cost += w.divisionSpread;
 
   return cost;
@@ -307,10 +323,15 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
       metrics.totalCost += restCost(gap, ctx);
     }
 
+    // Mirrors placementCost: the endgame is exempt from both court-identity
+    // costs, and the two must agree or the repair pass would spend its budget
+    // undoing placements the solver deliberately made.
+    const staged = ignoresCourtIdentity(ctx.staging.waveOf.get(node.id)?.phase ?? 'pool');
+
     const prevHeight = courtHeight.get(p.courtIndex) ?? court?.netHeight ?? null;
     if (node.netHeight != null && prevHeight != null && prevHeight !== node.netHeight) {
       metrics.netChanges++;
-      metrics.totalCost += w.netChange;
+      if (!staged) metrics.totalCost += w.netChange;
     }
     if (node.netHeight != null) courtHeight.set(p.courtIndex, node.netHeight);
 
@@ -327,7 +348,7 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
     if (court?.isShowCourt && node.depth > 0) {
       metrics.totalCost += w.showCourtMisuse * Math.min(node.depth, 3);
     }
-    const prefer = ctx.affinity.get(node.divisionId);
+    const prefer = staged ? null : ctx.affinity.get(node.divisionId);
     if (prefer && prefer.size > 0 && !prefer.has(courtName)) metrics.totalCost += w.divisionSpread;
 
     metrics.finishAbs = Math.max(metrics.finishAbs, p.endAbs);

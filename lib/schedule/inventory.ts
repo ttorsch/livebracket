@@ -53,7 +53,11 @@ export function scheduleInventory(
   config: ScheduleConfig,
   days = 1,
 ): Inventory {
-  const grid = buildGrid(config, days);
+  const grid = buildGrid(
+    config,
+    days,
+    divisions.flatMap(d => d.matches.map(m => m.durationMinutes ?? config.blockMinutes)),
+  );
   const graph = buildGraph(divisions, grid.blockMinutes);
   const courtCount = grid.courts.length;
 

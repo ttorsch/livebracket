@@ -23,6 +23,9 @@ import {
   type ScheduleConfig,
 } from './generate.ts';
 import { DAY_SPAN } from './grid.ts';
+import { planPoolPlay } from './poolplay.ts';
+import { buildStaging } from './staging.ts';
+import { validateSchedule, type EditedPlacement } from './validate.ts';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
 
@@ -160,6 +163,31 @@ function tightestFeederGap(result: ReturnType<typeof generateSchedule>): number 
   return Number.isFinite(worst) ? worst : Infinity;
 }
 
+/** The same division, plus the play-off for 3rd: drawn last, fed by the two
+ *  losing semifinals, and flagged so the scheduler knows to run it before the
+ *  final rather than alongside it. Mirrors what the draw route now writes. */
+function withThirdPlace(div: SchedulableDivision): SchedulableDivision {
+  const semis = div.matches.filter(m => m.roundIndex === 2).map(m => m.id);
+  const final = div.matches.find(m => m.roundIndex === 3);
+  assert.equal(semis.length, 2, 'fixture should have two semifinals');
+  assert.ok(final, 'fixture should have a final');
+  return {
+    ...div,
+    matches: [
+      ...div.matches.map(m => (m.id === final.id ? { ...m, dependsOn: semis } : m)),
+      {
+        id: `${div.id}-3rd`,
+        teamA: null,
+        teamB: null,
+        isPool: false,
+        isThirdPlace: true,
+        roundIndex: 4,
+        dependsOn: semis,
+      },
+    ],
+  };
+}
+
 // ── Graph ─────────────────────────────────────────────────────────────────
 
 describe('dependency graph', () => {
@@ -272,18 +300,28 @@ describe('generateSchedule', () => {
     }
   });
 
-  it('gives teams rest instead of sending them straight back on court', () => {
-    // Six teams can only fill three courts at once, so packing every slot would
-    // mean everybody playing continuously. With room to breathe the solver
-    // should leave courts idle rather than do that.
+  it('still rests the knockout, where a short gap ends someone’s tournament', () => {
+    // Pool play now fills the courts and prices rest rather than protecting it
+    // absolutely — but the knockout does not. A tired team there plays a match
+    // that knocks somebody out, so rest stays a hard filter and a court is
+    // allowed to sit idle for it.
     const result = generateSchedule([makeDivision('m', 6)], config({ courtCount: 3 }), 2);
     assertSound(result, 'rest');
     assert.equal(result.overflow.length, 0);
-    assert.equal(result.metrics.backToBack, 0, 'nobody plays with no gap at all');
-    assert.ok(
-      result.metrics.tightestRestMinutes >= result.grid.blockMinutes,
-      `tightest gap was ${result.metrics.tightestRestMinutes} min`,
-    );
+
+    const byId = new Map(result.placements.map(p => [p.matchId, p]));
+    for (const p of result.placements) {
+      const node = result.graph.nodes.get(p.matchId)!;
+      if (node.isPool) continue;
+      for (const dep of node.deps) {
+        const feeder = byId.get(dep);
+        if (!feeder) continue;
+        assert.ok(
+          p.slot.abs - feeder.endAbs >= result.grid.blockMinutes,
+          `${p.matchId} followed ${dep} after only ${p.slot.abs - feeder.endAbs} min`,
+        );
+      }
+    }
   });
 
   it('rests the winner of a match before its next one, even though that team has no name yet', () => {
@@ -310,9 +348,12 @@ describe('generateSchedule', () => {
       return { id, label: id, pools: 2, netHeight, gender: id, matches };
     };
 
+    // Staging off: this is about the rest owed along a dependency edge, not
+    // about the medal-round programme, which would otherwise reshape the
+    // endgame and change what is being measured.
     const result = generateSchedule(
       [knockout('Women', 8, '2.24m'), knockout('Men', 8, '2.43m')],
-      config({ courtCount: 3 }),
+      config({ courtCount: 3, stageFinals: false }),
       2,
     );
     assertSound(result, 'knockout rest');
@@ -345,7 +386,11 @@ describe('generateSchedule', () => {
       makeDivision('men', 4, { netHeight: '2.43m', gender: 'Men' }),
       makeDivision('women', 4, { netHeight: '2.24m', gender: 'Women' }),
     ];
-    const packed = generateSchedule(divisions, config({ courtCount: 4 }), 2);
+    // Staging off: every final shares one court by design, so two divisions on
+    // different heights *must* re-rig it between them. That cost belongs to the
+    // programme and is asserted there; here the question is only whether court
+    // affinity keeps the nets still during the bulk of the event.
+    const packed = generateSchedule(divisions, config({ courtCount: 4, stageFinals: false }), 2);
     assertSound(packed, 'net heights');
     // Four courts and two heights: each division can own its own tracks, so the
     // nets should barely move.
@@ -560,6 +605,371 @@ describe('hungarian', () => {
     const assignment = hungarian([[5, 1, 9, 2]]);
     assert.equal(assignment.length, 1);
     assert.equal(assignment[0], 1, 'takes the cheapest court');
+  });
+});
+
+// ── Staged endgame ────────────────────────────────────────────────────────
+
+describe('medal-round programme', () => {
+  const divisions = () => [
+    makeDivision('w', 4, { netHeight: '2.24m', gender: 'Women' }),
+    makeDivision('m', 4, { netHeight: '2.43m', gender: 'Men' }),
+  ].map(withThirdPlace);
+
+  /** start/end of a division's matches at a round index. */
+  const span = (r: ReturnType<typeof generateSchedule>, ids: string[]) => {
+    const ps = r.placements.filter(p => ids.includes(p.matchId));
+    if (ps.length === 0) return null;
+    return {
+      n: ps.length,
+      start: Math.min(...ps.map(p => p.slot.abs)),
+      end: Math.max(...ps.map(p => p.endAbs)),
+      courts: new Set(ps.map(p => p.courtName)),
+    };
+  };
+  const semisOf = (d: string) => [`${d}-k2-0`, `${d}-k2-1`];
+  const thirdOf = (d: string) => [`${d}-3rd`];
+  const finalOf = (d: string) => [`${d}-k3-0`];
+
+  // Five waves run strictly one after another — two semifinal blocks, the
+  // play-offs, then two finals — and because every final shares one court, the
+  // net is re-rigged between them at a buffer's cost apiece. That is a long,
+  // narrow tail, so the fixture is given a long day rather than more courts:
+  // extra courts do not help a queue.
+  const run = (over = {}) => {
+    const r = generateSchedule(divisions(), config({ courtCount: 4, endTime: '20:00', ...over }), 2);
+    assert.deepEqual(r.relaxations, [], 'the programme should hold without relaxing anything');
+    assertSound(r, 'medal rounds');
+    return r;
+  };
+
+  it('runs one division\u2019s semifinals at a time, both matches side by side', () => {
+    const r = run();
+    const w = span(r, semisOf('w'))!;
+    const m = span(r, semisOf('m'))!;
+    assert.equal(w.n, 2, 'both women\u2019s semifinals placed');
+    assert.equal(m.n, 2, 'both men\u2019s semifinals placed');
+    assert.equal(
+      new Set(r.placements.filter(p => semisOf('w').includes(p.matchId)).map(p => p.slot.abs)).size,
+      1,
+      'women\u2019s semifinals should start in the same slot',
+    );
+    assert.ok(w.courts.size === 2 && m.courts.size === 2, 'each pair uses two courts');
+    // One division at a time: the two blocks must not overlap.
+    assert.ok(
+      w.end <= m.start || m.end <= w.start,
+      `semifinal blocks overlap: women ${w.start}-${w.end}, men ${m.start}-${m.end}`,
+    );
+  });
+
+  it('holds every 3rd-place play-off until every semifinal is done, then runs them together', () => {
+    const r = run();
+    const lastSemi = Math.max(span(r, semisOf('w'))!.end, span(r, semisOf('m'))!.end);
+    const w = span(r, thirdOf('w'))!;
+    const m = span(r, thirdOf('m'))!;
+    assert.ok(w.start >= lastSemi, 'women\u2019s play-off started before the semifinals finished');
+    assert.ok(m.start >= lastSemi, 'men\u2019s play-off started before the semifinals finished');
+    assert.equal(w.start, m.start, 'the play-offs should run at the same time');
+    assert.equal(new Set([...w.courts, ...m.courts]).size, 2, 'on two different courts');
+  });
+
+  it('plays every final one at a time on a single court, after the play-offs', () => {
+    const r = run();
+    const lastThird = Math.max(span(r, thirdOf('w'))!.end, span(r, thirdOf('m'))!.end);
+    const w = span(r, finalOf('w'))!;
+    const m = span(r, finalOf('m'))!;
+    assert.ok(w.start >= lastThird && m.start >= lastThird, 'a final started before the play-offs finished');
+    assert.equal(
+      new Set([...w.courts, ...m.courts]).size,
+      1,
+      `finals should share one court, got ${[...w.courts, ...m.courts].join(' + ')}`,
+    );
+    assert.ok(
+      w.end <= m.start || m.end <= w.start,
+      `finals overlap: women ${w.start}-${w.end}, men ${m.start}-${m.end}`,
+    );
+  });
+
+  it('is the staging that does it \u2014 switching it off breaks the programme', () => {
+    const loose = generateSchedule(divisions(), config({ courtCount: 4, endTime: '20:00', stageFinals: false }), 2);
+    assertSound(loose, 'unstaged');
+    const w = span(loose, finalOf('w'))!;
+    const m = span(loose, finalOf('m'))!;
+    const lastSemi = Math.max(span(loose, semisOf('w'))!.end, span(loose, semisOf('m'))!.end);
+    const thirdStart = Math.min(span(loose, thirdOf('w'))!.start, span(loose, thirdOf('m'))!.start);
+    const kept =
+      new Set([...w.courts, ...m.courts]).size === 1 && thirdStart >= lastSemi;
+    assert.ok(!kept, 'unstaged run happened to satisfy the programme \u2014 the tests above prove nothing');
+  });
+
+  it('drops the programme rather than deadlocking when the venue is too small', () => {
+    // One court cannot start a two-match semifinal wave, ever.
+    const r = generateSchedule(divisions(), config({ courtCount: 1 }), 6);
+    assertSound(r, 'single court');
+    assert.ok(r.placements.length > 0, 'a one-court event should still be scheduled');
+  });
+});
+
+// ── Grid resolution ───────────────────────────────────────────────────────
+
+describe('grid resolution', () => {
+  it('gives a 20-minute match twenty minutes, not a whole nominal block', () => {
+    const div = makeDivision('m', 4, { duration: 20 });
+    const result = generateSchedule([div], config({ courtCount: 2, blockMinutes: 45 }), 2);
+    assertSound(result, 'short matches');
+    assert.equal(result.grid.slotMinutes, 5, 'the grid should step in 5s for 20 and 45');
+
+    const pool = result.placements
+      .filter(p => result.graph.nodes.get(p.matchId)!.isPool)
+      .sort((a, b) => a.startAbs - b.startAbs);
+    for (const p of pool) {
+      assert.equal(p.endAbs - p.startAbs, 20, 'a 20-minute match should run 20 minutes');
+    }
+    // The next start is off the nominal 45-minute lattice entirely — which is
+    // the whole point. (It is 65 here: a 20-minute match plus the rest its
+    // teams are owed, which the old grid could only round up to 90.)
+    const gap = pool[2].startAbs - pool[0].startAbs;
+    assert.equal(gap % 5, 0, 'starts land on the 5-minute grid');
+    assert.notEqual(gap % 45, 0, 'and are no longer forced onto 45-minute boundaries');
+  });
+
+  it('leaves a single-length event exactly as it was', () => {
+    const result = generateSchedule([makeDivision('m', 4, { duration: 45 })], config(), 2);
+    assert.equal(result.grid.slotMinutes, 45, 'all-45 stays on a 45-minute grid');
+  });
+});
+
+// ── Pool-play rotation ────────────────────────────────────────────────────
+
+describe('pool-play rotation', () => {
+  /** A division of `pools` pools × `per` teams, full round robin in each. */
+  function pooled(id: string, pools: number, per: number, net?: string): SchedulableDivision {
+    const matches: SchedulableMatch[] = [];
+    for (let p = 0; p < pools; p++) {
+      const name = String.fromCharCode(65 + p);
+      const teams = Array.from({ length: per }, (_, i) => `${id}-${name}${i + 1}`);
+      for (let a = 0; a < per; a++) {
+        for (let b = a + 1; b < per; b++) {
+          matches.push({
+            id: `${id}-${name}-${a}${b}`,
+            teamA: teams[a],
+            teamB: teams[b],
+            isPool: true,
+            pool: name,
+            roundIndex: 0,
+            durationMinutes: 45,
+          });
+        }
+      }
+    }
+    return { id, label: id.toUpperCase(), pools, netHeight: net ?? null, gender: null, matches };
+  }
+
+  it('wants ⌊teams/2⌋ × pools ÷ 2 courts', () => {
+    const plan = (pools: number, per: number, courts: number) =>
+      planPoolPlay(
+        'd',
+        [...buildGraph([pooled('d', pools, per)], 45).nodes.values()].filter(n => n.isPool),
+        courts,
+      )!;
+
+    assert.equal(plan(4, 4, 4).optimalCourts, 4, '4 pools of 4 → 4 courts');
+    assert.equal(plan(2, 4, 4).optimalCourts, 2, '2 pools of 4 → 2 courts');
+    assert.equal(plan(4, 6, 6).optimalCourts, 6, '4 pools of 6 → 6 courts');
+    assert.equal(plan(4, 5, 4).optimalCourts, 4, '5 a pool → ⌊5/2⌋ = 2 each, one team rests');
+  });
+
+  it('plays half the pools at full capacity, then the other half', () => {
+    const plan = planPoolPlay(
+      'd',
+      [...buildGraph([pooled('d', 4, 4)], 45).nodes.values()].filter(n => n.isPool),
+      4,
+    )!;
+    assert.equal(plan.poolsAtOnce, 2, 'two pools at a time');
+    for (const wave of plan.waves) {
+      assert.equal(wave.length, 4, 'each turn fills all four courts');
+      assert.equal(new Set(wave.map(id => id.split('-')[1])).size, 2, 'two pools per turn');
+    }
+  });
+
+  it('narrows to whole pools when there are fewer courts than it wants', () => {
+    const plan = planPoolPlay(
+      'd',
+      [...buildGraph([pooled('d', 4, 4)], 45).nodes.values()].filter(n => n.isPool),
+      3,
+    )!;
+    assert.equal(plan.optimalCourts, 4, 'it still wants four');
+    assert.equal(plan.poolsAtOnce, 1, 'but runs one pool at a time on three courts');
+    for (const wave of plan.waves) assert.equal(wave.length, 2, 'two matches, one pool');
+  });
+
+  it('gives every team a rest between pool matches', () => {
+    const result = generateSchedule([pooled('d', 4, 4)], config({ courtCount: 4 }), 2);
+    assertSound(result, 'pool rotation');
+    assert.equal(result.backToBack, 0, 'no team should play back to back');
+    assert.ok(
+      result.metrics.tightestRestMinutes >= 45,
+      `tightest rest was ${result.metrics.tightestRestMinutes} min`,
+    );
+  });
+
+  it('uses the courts it has rather than leaving them bare', () => {
+    // Four pools of four on six courts. The rotation is comfortable at four, but
+    // two courts standing empty for the whole round robin is worse than a short
+    // gap, so it widens to fill them.
+    const result = generateSchedule([pooled('a', 4, 4, '2.43m')], config({ courtCount: 6 }), 2);
+    assertSound(result, 'wide rotation');
+
+    const bySlot = new Map<number, number>();
+    for (const p of result.placements) bySlot.set(p.slot.abs, (bySlot.get(p.slot.abs) ?? 0) + 1);
+    const busiest = Math.max(...bySlot.values());
+    assert.ok(busiest > 4, `only ${busiest} courts ever in use out of 6`);
+  });
+
+  it('lets one division finish its round robin before another starts, so nets stay put', () => {
+    // Two heights, so a court used by both divisions is re-rigged exactly once,
+    // when the venue changes hands. That handover is the floor — what taking
+    // turns buys is that it happens once per court instead of every turn.
+    const result = generateSchedule(
+      [pooled('a', 4, 4, '2.43m'), pooled('b', 2, 4, '2.24m')],
+      config({ courtCount: 4 }),
+      2,
+    );
+    assertSound(result, 'division blocks');
+
+    const byCourt = new Map<string, typeof result.placements>();
+    for (const p of [...result.placements].sort((x, y) => x.startAbs - y.startAbs)) {
+      const list = byCourt.get(p.courtName);
+      if (list) list.push(p);
+      else byCourt.set(p.courtName, [p]);
+    }
+    let flips = 0;
+    for (const ps of byCourt.values()) {
+      let height: number | null = null;
+      for (const p of ps) {
+        const h = result.graph.nodes.get(p.matchId)!.netHeight;
+        if (h == null) continue;
+        if (height != null && height !== h) flips++;
+        height = h;
+      }
+    }
+    assert.ok(
+      flips <= result.grid.courts.length,
+      `pool play should re-rig each court at most once, needed ${flips} changes over ${result.grid.courts.length} courts`,
+    );
+
+    // And the handover really is a handover: one division's round robin is over
+    // before the other's begins.
+    const window = (prefix: string) => {
+      const ps = result.placements.filter(p => p.matchId.startsWith(prefix));
+      return { start: Math.min(...ps.map(p => p.startAbs)), end: Math.max(...ps.map(p => p.endAbs)) };
+    };
+    const a = window('a-');
+    const b = window('b-');
+    assert.ok(
+      a.end <= b.start || b.end <= a.start,
+      `the two round robins overlap: a ${a.start}-${a.end}, b ${b.start}-${b.end}`,
+    );
+  });
+
+  it('schedules the division that exactly fills the venue first', () => {
+    // Four pools of four wants exactly four courts; two pools of four wants two.
+    // With four courts on offer the first is the one that can be dense *and*
+    // back-to-back free, so it should be planned before the other.
+    const graph = buildGraph([pooled('small', 2, 4), pooled('exact', 4, 4)], 45);
+    const staging = buildStaging(graph, 4, true);
+    assert.equal(
+      staging.poolPlans[0].divisionId,
+      'exact',
+      'the division whose optimum matches the venue should be planned first',
+    );
+  });
+});
+
+// ── Hand edits ────────────────────────────────────────────────────────────
+
+describe('validating a hand-edited schedule', () => {
+  const div = makeDivision('m', 4, { duration: 45 });
+  const graph = buildGraph([div], 45);
+  const grid = buildGrid(normaliseConfig({ courtCount: 2 }), 2, [45]);
+  const at = (matchId: string, court: string, startMin: number, day = 0): EditedPlacement =>
+    ({ matchId, court, day, startMin, durationMinutes: 45 });
+  const check = (ps: EditedPlacement[]) =>
+    validateSchedule(ps, graph, grid, { targetRestMinutes: 45 });
+
+  it('passes a sound arrangement silently', () => {
+    const problems = check([at('m-p0-1', 'Court 1', 540), at('m-p2-3', 'Court 2', 540)]);
+    assert.deepEqual(problems, [], `expected no problems, got ${JSON.stringify(problems)}`);
+  });
+
+  it('catches two matches put on one court at once', () => {
+    const problems = check([at('m-p0-1', 'Court 1', 540), at('m-p2-3', 'Court 1', 555)]);
+    const clash = problems.find(p => p.kind === 'courtClash');
+    assert.ok(clash, `expected a court clash, got ${JSON.stringify(problems)}`);
+    assert.match(clash.message, /Court 1 is still busy/);
+  });
+
+  it('catches a team dragged onto two courts at once', () => {
+    // Both matches involve m-t1.
+    const problems = check([at('m-p0-1', 'Court 1', 540), at('m-p0-2', 'Court 2', 555)]);
+    assert.ok(problems.some(p => p.kind === 'teamClash'), 'expected a team clash');
+  });
+
+  it('names the match a knockout is still waiting on', () => {
+    // The final dragged in front of a semifinal that feeds it.
+    const problems = check([at('m-k2-0', 'Court 1', 600), at('m-k3-0', 'Court 2', 540)]);
+    const dep = problems.find(p => p.kind === 'dependency');
+    assert.ok(dep, `expected a dependency problem, got ${JSON.stringify(problems)}`);
+    assert.equal(dep.matchId, 'm-k3-0');
+    assert.equal(dep.otherMatchId, 'm-k2-0');
+    assert.match(dep.message, /has not finished yet/);
+  });
+
+  it('reports a short gap without calling it impossible', () => {
+    const problems = check([at('m-p0-1', 'Court 1', 540), at('m-p0-2', 'Court 2', 585)]);
+    assert.ok(problems.some(p => p.kind === 'shortRest'), 'expected a short-rest problem');
+    assert.ok(!problems.some(p => p.kind === 'teamClash'), 'back to back is tight, not impossible');
+  });
+
+  it('catches a match dragged off the end of the day', () => {
+    const problems = check([at('m-p0-1', 'Court 1', 1050)]); // 17:30 + 45 = past 18:00
+    assert.ok(problems.some(p => p.kind === 'outsideDay'), 'expected an outside-day problem');
+  });
+
+  it('catches a match dropped on blocked-out time', () => {
+    const blockedGrid = buildGrid(
+      normaliseConfig({
+        courtCount: 2,
+        blocks: [{ court: 'Court 1', day: 0, start: '11:00', end: '11:30', label: 'net repair' }],
+      }),
+      2,
+      [45],
+    );
+    const problems = validateSchedule([at('m-p0-1', 'Court 1', 660)], graph, blockedGrid, {});
+    assert.ok(
+      problems.some(p => p.kind === 'blocked'),
+      `expected a blocked-time problem, got ${JSON.stringify(problems)}`,
+    );
+    // The same slot on the other court is fine — a block is per court.
+    assert.deepEqual(validateSchedule([at('m-p0-1', 'Court 2', 660)], graph, blockedGrid, {}), []);
+  });
+
+  it('keeps blocked time free when generating, too', () => {
+    const result = generateSchedule(
+      [makeDivision('m', 4)],
+      config({
+        courtCount: 2,
+        blocks: [{ court: null, day: null, start: '10:00', end: '12:00', label: 'ceremony' }],
+      }),
+      2,
+    );
+    assertSound(result, 'blocked');
+    for (const p of result.placements) {
+      const startOfDay = p.slot.day * DAY_SPAN;
+      const from = p.startAbs - startOfDay;
+      const to = p.endAbs - startOfDay;
+      assert.ok(to <= 600 || from >= 720, `${p.matchId} runs ${from}-${to}, inside the blocked window`);
+    }
   });
 });
 

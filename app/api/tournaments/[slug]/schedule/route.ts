@@ -28,6 +28,8 @@ interface ConfigBody {
     restIsHard?: boolean;
     staggerLunch?: boolean;
     finalsOnLastDay?: boolean;
+    stageFinals?: boolean;
+    blocks?: { court?: unknown; day?: unknown; start?: unknown; end?: unknown; label?: unknown }[];
     dayPlan?: string;
     repairIterations?: number;
     weights?: Record<string, unknown>;
@@ -63,6 +65,26 @@ function cleanCourts(raw: CourtBody[]): Record<string, unknown>[] {
     .filter((c): c is Record<string, unknown> => c !== null);
 }
 
+/** Court time taken off the board by hand. A null court or day means "every
+ *  one of them"; anything whose times don't parse, or that ends before it
+ *  starts, is dropped rather than stored as a block nobody can interpret. */
+function cleanBlocks(raw: unknown[]): Record<string, unknown>[] {
+  return raw
+    .slice(0, 200)
+    .map(item => {
+      const b = (item ?? {}) as Record<string, unknown>;
+      if (typeof b.start !== 'string' || !HHMM.test(b.start)) return null;
+      if (typeof b.end !== 'string' || !HHMM.test(b.end)) return null;
+      if (b.end <= b.start) return null;
+      const out: Record<string, unknown> = { start: b.start, end: b.end };
+      out.court = typeof b.court === 'string' && b.court.trim() ? b.court.trim().slice(0, 40) : null;
+      out.day = typeof b.day === 'number' && Number.isFinite(b.day) ? Math.max(0, Math.trunc(b.day)) : null;
+      if (typeof b.label === 'string' && b.label.trim()) out.label = b.label.trim().slice(0, 60);
+      return out;
+    })
+    .filter((b): b is Record<string, unknown> => b !== null);
+}
+
 function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (typeof c.startTime === 'string' && HHMM.test(c.startTime)) out.startTime = c.startTime;
@@ -81,6 +103,8 @@ function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unkno
   if (typeof c.restIsHard === 'boolean') out.restIsHard = c.restIsHard;
   if (typeof c.staggerLunch === 'boolean') out.staggerLunch = c.staggerLunch;
   if (typeof c.finalsOnLastDay === 'boolean') out.finalsOnLastDay = c.finalsOnLastDay;
+  if (typeof c.stageFinals === 'boolean') out.stageFinals = c.stageFinals;
+  if (Array.isArray(c.blocks)) out.blocks = cleanBlocks(c.blocks);
   if (typeof c.dayPlan === 'string' && DAY_PLANS.has(c.dayPlan)) out.dayPlan = c.dayPlan;
   // 0 disables the repair pass, so again clamped from 0.
   if (typeof c.repairIterations === 'number') out.repairIterations = Math.max(0, Math.min(100_000, Math.trunc(c.repairIterations)));

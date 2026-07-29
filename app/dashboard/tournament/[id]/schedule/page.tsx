@@ -6,11 +6,11 @@ import { useParams } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowLeft,
+  Ban,
   Calendar,
   ChevronDown,
   Clock,
   Grid,
-  List,
   MapPin,
   Printer,
   Save,
@@ -29,11 +29,17 @@ import {
   generateSchedule,
   scheduleInventory,
   autoDedicatedCourts,
+  buildGraph,
+  buildGrid,
+  validateSchedule,
   DEFAULT_MATCH_MINUTES,
+  type BlockedPeriod,
+  type EditedPlacement,
   type SchedulableDivision,
+  type ScheduleProblem,
   type ScheduleResult,
 } from '../../../../../lib/schedule/generate';
-import { labelDivisionMatches, type MatchLabel } from '../../../../../lib/divisionMatches';
+import { labelDivisionMatches, loserFeedersOf, type MatchLabel } from '../../../../../lib/divisionMatches';
 
 interface ScheduleMatch {
   id: string;
@@ -52,6 +58,7 @@ interface ScheduleMatch {
   date: string;          // 'YYYY-MM-DD' the match sits on ('' when unscheduled)
   dateLabel: string;     // e.g. "Sat, Jul 26" ('' when unscheduled)
   isPreview?: boolean;   // slot came from an unsaved generated preview
+  isEdited?: boolean;    // organizer moved this one by hand
   unscheduled?: boolean; // no court/time assigned
   overScheduled?: boolean; // couldn't fit in the tournament's days (preview overflow)
   durationMinutes: number; // match slot length, for sizing calendar blocks
@@ -98,6 +105,19 @@ function toHHMM(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// What a broken promise means in the organizer's language. The generator gives
+// up constraints in a fixed order when an event won't otherwise fit, and which
+// one it gave up is the most useful thing it can tell you — a schedule that
+// quietly stopped honouring a setting is worse than one that says so.
+const RELAXATION_TEXT: Record<string, string> = {
+  finalsOnLastDay: 'finals not all held for the last day',
+  stageFinals: 'knockout rounds not staged — no room to run them side by side',
+  restIsHard: 'some teams got less than the target rest',
+  maxMatchesPerTeamPerDay: 'the per-day match cap was exceeded',
+  dayQuota: 'divisions ran ahead of their day plan',
+  backToBack: 'some teams played with no gap at all',
+};
+
 // Vertical scale of the calendar grid: pixels per minute of match time.
 const PX_PER_MIN = 2.3;
 
@@ -111,7 +131,7 @@ export default function TournamentSchedulePage() {
   // Filters & Controls
   const [activeDivisionId, setActiveDivisionId] = useState<string>('all');
   const [activeDay, setActiveDay] = useState<number | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'court' | 'timeline' | 'grid'>('court');
+  const [viewMode, setViewMode] = useState<'court' | 'grid'>('court');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'done'>('all');
 
   // Generator: config, per-division D_d overrides, unsaved preview.
@@ -121,6 +141,30 @@ export default function TournamentSchedulePage() {
   const [preview, setPreview] = useState<ScheduleResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  /* Hand edits, layered over whatever the schedule currently is — the unsaved
+     preview if there is one, otherwise what is saved. They are deliberately
+     *not* pins: generating again starts from the solver's answer, not from
+     these. Keeping them separate from both sources is what lets the organizer
+     move things about, see what it broke, and still throw it all away. */
+  const [edits, setEdits] = useState<Map<string, { court: string; day: number; time: string }>>(new Map());
+  /** Clicking the grid drops a block rather than selecting a match. */
+  const [blockMode, setBlockMode] = useState(false);
+  /** Match being dragged, so the grid knows to show its drop targets. */
+  const [dragging, setDragging] = useState<string | null>(null);
+  /** Match whose time is being typed. */
+  const [editingTime, setEditingTime] = useState<string | null>(null);
+
+  /** Something on screen differs from what is stored — a hand move, a block,
+   *  or a config change — so there is something worth saving. */
+  const [dirty, setDirty] = useState(false);
+
+  const moveMatch = (matchId: string, court: string, day: number, time: string) => {
+    setEdits(prev => new Map(prev).set(matchId, { court, day, time }));
+    setDirty(true);
+    setSaveMsg(null);
+  };
+  const clearEdits = () => setEdits(new Map());
 
   // Height of the pinned control bar, published as --chrome-h. On mobile the
   // calendar sizes itself against this so it comes to rest exactly below the
@@ -187,27 +231,39 @@ export default function TournamentSchedulePage() {
   // Everything the generator needs, derived from the loaded bracket.
   const schedulableDivisions = useMemo<SchedulableDivision[]>(() => {
     if (!detail) return [];
-    return detail.divisions.map(d => ({
-      id: d.id,
-      label: d.label,
-      pools: d.drawConfig?.pools ?? 1,
-      netHeight: d.netHeight,
-      gender: d.gender,
-      dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
-      matches: d.bracket.flatMap((r, rIdx) =>
-        r.matches
-          // a bye is never played — don't reserve a court for it
-          .filter(m => !labelsByDivision.get(d.id)?.get(m.id)?.bye)
-          .map(m => ({
-            id: m.id,
-            teamA: m.teamAId,
-            teamB: m.teamBId,
-            isPool: r.format === 'round-robin',
-            durationMinutes: r.durationMinutes, // per-round slot length declared in setup
-            roundIndex: rIdx,                   // bracket is setup-round order; 0 = opening round
-          })),
-      ),
-    }));
+    return detail.divisions.map(d => {
+      // The play-off for 3rd is drawn from the two losing semifinals, and it is
+      // drawn *after* the final — so the round order the scheduler would
+      // otherwise infer its dependencies from is no help at all. Its feeders
+      // are stated outright; every other match's are inferred as before.
+      const losers = loserFeedersOf(d);
+
+      return {
+        id: d.id,
+        label: d.label,
+        pools: d.drawConfig?.pools ?? 1,
+        netHeight: d.netHeight,
+        gender: d.gender,
+        dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
+        matches: d.bracket.flatMap((r, rIdx) =>
+          r.matches
+            // a bye is never played — don't reserve a court for it
+            .filter(m => !labelsByDivision.get(d.id)?.get(m.id)?.bye)
+            .map(m => ({
+              id: m.id,
+              teamA: m.teamAId,
+              teamB: m.teamBId,
+              isPool: r.format === 'round-robin',
+              // Pool play is rotated a pool at a time, so the scheduler needs
+              // to know which pool a match is in — it cannot infer that.
+              pool: labelsByDivision.get(d.id)?.get(m.id)?.pool ?? null,
+              durationMinutes: r.durationMinutes, // per-round slot length declared in setup
+              roundIndex: rIdx,                   // bracket is setup-round order; 0 = opening round
+              ...(losers[m.id] ? { isThirdPlace: true, dependsOn: losers[m.id] } : {}),
+            })),
+        ),
+      };
+    });
   }, [detail, overrides, labelsByDivision]);
 
   // Division whose full match list is open in the modal (null = closed).
@@ -283,45 +339,10 @@ export default function TournamentSchedulePage() {
   function handleGenerate() {
     if (!detail || !config) return;
     setPreview(generateSchedule(schedulableDivisions, config, detail.dayCount));
+    // Hand moves describe the schedule that was on screen a moment ago, not
+    // this one, so they go with it.
+    clearEdits();
     setSaveMsg(null);
-  }
-
-  async function handleSave() {
-    if (!detail || !config || !preview) return;
-    setSaving(true);
-    setSaveMsg(null);
-    try {
-      const divisionOverrides = detail.divisions.map(d => ({
-        divisionId: d.id,
-        dedicatedCourts: overrides[d.id] ?? null,
-      }));
-      const patchRes = await fetch(`/api/tournaments/${slug}/schedule`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, divisionOverrides }),
-      });
-      if (!patchRes.ok) throw new Error((await patchRes.json().catch(() => ({}))).error || 'Failed to save config');
-
-      const assignments = [
-        ...preview.assignments.map(a => ({ matchId: a.matchId, court: a.court, time: a.time, day: a.day })),
-        ...preview.overflow.map(o => ({ matchId: o.matchId, court: null, time: null })),
-      ];
-      const putRes = await fetch(`/api/tournaments/${slug}/schedule`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignments }),
-      });
-      if (!putRes.ok) throw new Error((await putRes.json().catch(() => ({}))).error || 'Failed to save schedule');
-
-      const fresh = await getTournamentDetail(slug);
-      setDetail(fresh);
-      setPreview(null);
-      setSaveMsg('Schedule saved.');
-    } catch (e) {
-      setSaveMsg(e instanceof Error ? e.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
   }
 
   // Aggregate matches from all divisions. Byes are left out — never played —
@@ -338,22 +359,32 @@ export default function TournamentSchedulePage() {
           const label = labels.get(m.id);
           if (label?.bye) return;
 
+          // A hand edit wins over the preview, which wins over what is saved.
+          const ed = edits.get(m.id);
           const pv = previewMap.get(m.id);
-          const overScheduled = overflowIds.has(m.id);
-          const court = overScheduled ? 'Unscheduled' : (pv?.court ?? m.court ?? '');
-          const time = overScheduled ? '—' : (pv?.time ?? m.time ?? '');
+          const overScheduled = overflowIds.has(m.id) && !ed;
+          const court = overScheduled ? 'Unscheduled' : (ed?.court ?? pv?.court ?? m.court ?? '');
+          const time = overScheduled ? '—' : (ed?.time ?? pv?.time ?? m.time ?? '');
           const day = overScheduled
             ? -1
-            : pv
-              ? pv.day
-              : m.scheduledDate
-                ? dayIndexOf(detail.startDate, m.scheduledDate)
-                : -1;
+            : ed
+              ? ed.day
+              : pv
+                ? pv.day
+                : m.scheduledDate
+                  ? dayIndexOf(detail.startDate, m.scheduledDate)
+                  : -1;
           // The date a match is actually on, which is not always one of the
           // event's days: a schedule saved before the organizer moved the
           // dates still points at the old ones, and that should read as the
           // date it is rather than as "unscheduled".
-          const dateStr = overScheduled ? '' : pv ? addDaysUTC(detail.startDate, pv.day) : (m.scheduledDate || '');
+          const dateStr = overScheduled
+            ? ''
+            : ed
+              ? addDaysUTC(detail.startDate, ed.day)
+              : pv
+                ? addDaysUTC(detail.startDate, pv.day)
+                : (m.scheduledDate || '');
 
           list.push({
             id: m.id,
@@ -372,6 +403,7 @@ export default function TournamentSchedulePage() {
             date: dateStr,
             dateLabel: dateStr ? shortDate(dateStr) : '',
             isPreview: !!pv,
+            isEdited: !!ed,
             unscheduled: !court || court === 'Unscheduled' || !time || time === '—',
             overScheduled,
             durationMinutes: round.durationMinutes ?? 45,
@@ -381,9 +413,124 @@ export default function TournamentSchedulePage() {
     });
 
     return list;
-  }, [detail, previewMap, overflowIds, labelsByDivision]);
+  }, [detail, previewMap, overflowIds, labelsByDivision, edits]);
+
+  async function handleSave() {
+    if (!detail || !config) return;
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const divisionOverrides = detail.divisions.map(d => ({
+        divisionId: d.id,
+        dedicatedCourts: overrides[d.id] ?? null,
+      }));
+      const patchRes = await fetch(`/api/tournaments/${slug}/schedule`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config, divisionOverrides }),
+      });
+      if (!patchRes.ok) throw new Error((await patchRes.json().catch(() => ({}))).error || 'Failed to save config');
+
+      // Save exactly what is on screen. `allMatches` is already the merge of
+      // what is stored, the preview if there is one, and any hand moves on top
+      // — so reading it here is the only way the saved schedule and the
+      // schedule the organizer is looking at cannot disagree. It also means
+      // editing a *saved* schedule saves, which reading the preview could not.
+      const assignments = allMatches.map(m =>
+        m.unscheduled || m.overScheduled || m.day < 0
+          ? { matchId: m.id, court: null, time: null }
+          : { matchId: m.id, court: m.court, time: m.time, day: m.day },
+      );
+      const putRes = await fetch(`/api/tournaments/${slug}/schedule`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments }),
+      });
+      if (!putRes.ok) throw new Error((await putRes.json().catch(() => ({}))).error || 'Failed to save schedule');
+
+      const fresh = await getTournamentDetail(slug);
+      setDetail(fresh);
+      setPreview(null);
+      clearEdits();
+      setDirty(false);
+      setSaveMsg('Schedule saved.');
+    } catch (e) {
+      setSaveMsg(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const dayCount = detail?.dayCount ?? 1;
+
+  /* What the schedule on screen actually breaks.
+     Recomputed from the working placements rather than from the generator's
+     own report, because after a hand edit the generator's report describes a
+     schedule that no longer exists. */
+  const problems = useMemo<ScheduleProblem[]>(() => {
+    if (!detail || !config || schedulableDivisions.length === 0) return [];
+    const placed = allMatches.filter(m => !m.unscheduled && m.day >= 0 && /^\d{2}:\d{2}$/.test(m.time));
+    if (placed.length === 0) return [];
+
+    const graph = buildGraph(schedulableDivisions, config.blockMinutes);
+    const grid = buildGrid(
+      config,
+      detail.dayCount,
+      schedulableDivisions.flatMap(d => d.matches.map(m => m.durationMinutes ?? config.blockMinutes)),
+    );
+    const labelOf = (id: string) => {
+      for (const [, labels] of labelsByDivision) {
+        const l = labels.get(id);
+        if (l) return l.no;
+      }
+      return id;
+    };
+    const placements: EditedPlacement[] = placed.map(m => ({
+      matchId: m.id,
+      court: m.court,
+      day: m.day,
+      startMin: Number(m.time.slice(0, 2)) * 60 + Number(m.time.slice(3, 5)),
+      durationMinutes: m.durationMinutes,
+    }));
+    return validateSchedule(placements, graph, grid, {
+      targetRestMinutes: Math.max(0, config.minRestSlots) * config.blockMinutes,
+      label: labelOf,
+    });
+  }, [allMatches, schedulableDivisions, config, detail, labelsByDivision]);
+
+  const problemsByMatch = useMemo(() => {
+    const map = new Map<string, ScheduleProblem[]>();
+    for (const p of problems) {
+      const list = map.get(p.matchId);
+      if (list) list.push(p);
+      else map.set(p.matchId, [p]);
+    }
+    return map;
+  }, [problems]);
+
+  // ── Blocked periods ──────────────────────────────────────────────────────
+  const addBlock = (court: string, day: number, startMin: number) => {
+    if (!config) return;
+    const length = Math.max(5, Math.trunc(config.blockMinutes) || 45);
+    const next: BlockedPeriod = {
+      court,
+      day,
+      start: toHHMM(startMin),
+      end: toHHMM(startMin + length),
+      label: 'Blocked',
+    };
+    setConfigField('blocks', [...(config.blocks ?? []), next]);
+    setDirty(true);
+    setSaveMsg(null);
+  };
+
+  const removeBlock = (index: number) => {
+    if (!config) return;
+    setConfigField('blocks', (config.blocks ?? []).filter((_, i) => i !== index));
+    setDirty(true);
+    setSaveMsg(null);
+  };
+
 
   // Filtered matches
   const filteredMatches = useMemo(() => {
@@ -450,37 +597,6 @@ export default function TournamentSchedulePage() {
     () => new Set(filteredMatches.map(m => m.court)).size,
     [filteredMatches],
   );
-
-  // Group matches by day + scheduled time (so identical clock times on
-  // different days stay separate on a multi-day event).
-  const timeGroups = useMemo(() => {
-    const map = new Map<string, { day: number; date: string; time: string; dateLabel: string; matches: ScheduleMatch[] }>();
-    filteredMatches.forEach(m => {
-      const key = `${m.date} ${m.time}`;
-      if (!map.has(key)) map.set(key, { day: m.day, date: m.date, time: m.time, dateLabel: m.dateLabel, matches: [] });
-      map.get(key)!.matches.push(m);
-    });
-    return Array.from(map.values()).sort((a, b) => timeKey(a.day, a.time) - timeKey(b.day, b.time));
-  }, [filteredMatches]);
-
-  // The same time slots, gathered under the day they fall on.
-  const timelineSections = useMemo(() => {
-    const sections = new Map<string, typeof timeGroups>();
-    timeGroups.forEach(g => {
-      const key = splitByDay ? g.date : '';
-      const list = sections.get(key);
-      if (list) list.push(g);
-      else sections.set(key, [g]);
-    });
-    return Array.from(sections.entries())
-      .sort(([a], [b]) => byDate(a, b))
-      .map(([date, groups]) => ({
-        key: date || 'undated',
-        title: splitByDay ? sectionTitle(date) : null,
-        groups,
-      }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeGroups, splitByDay, detail, dayCount]);
 
   // Calendar grid: courts on the X axis (columns), time on the Y axis (rows) at
   // a fixed interval. Each match is a block sized by its duration; one section
@@ -572,7 +688,6 @@ export default function TournamentSchedulePage() {
       }
 
       // Time-axis labels only on full hours (every 60 minutes)
-      const labelEvery = Math.max(1, Math.round(60 / pitch));
       const labels: { slot: number; time: string }[] = [];
       for (let s = 0; s <= slots; s += 1) {
         const totalMin = startMin + s * pitch;
@@ -581,11 +696,28 @@ export default function TournamentSchedulePage() {
         }
       }
 
-      return { day: d.day, dateLabel: d.dateLabel, startMin, slots, blocks, labels, lunchBlock };
+      // Court time taken off the board by hand, mapped onto this day's rows.
+      // Kept beside the lunch banner rather than merged with it: lunch is a
+      // rule, a block is something the organizer put there and can take away.
+      const blocked = (config?.blocks ?? [])
+        .map((b, index) => ({ b, index }))
+        .filter(({ b }) => b.day == null || b.day === d.day)
+        .flatMap(({ b, index }) => {
+          const from = parseMin(b.start);
+          const to = parseMin(b.end);
+          if (from == null || to == null || to <= from) return [];
+          const startSlot = Math.round((from - startMin) / pitch);
+          const spanSlots = Math.max(1, Math.round((to - from) / pitch));
+          if (startSlot + spanSlots <= 0 || startSlot >= slots) return [];
+          const names = b.court == null ? courts.filter(c => c !== 'Unscheduled') : [b.court];
+          return names.map(court => ({ index, court, startSlot, spanSlots, label: b.label ?? 'Blocked', from: b.start, to: b.end }));
+        });
+
+      return { day: d.day, dateLabel: d.dateLabel, startMin, slots, blocks, labels, lunchBlock, blocked };
     });
 
     return { courts, days, pitch, divOrder, unscheduledCount: unscheduled.length };
-  }, [filteredMatches]);
+  }, [filteredMatches, config?.blocks, config?.lunchStart, config?.lunchEnd]);
 
   // Division -> color index (0..5). Taken from the tournament's own division
   // order, not from what is on screen, so a division keeps its color when the
@@ -711,14 +843,6 @@ export default function TournamentSchedulePage() {
               </button>
               <button
                 type="button"
-                className={`${styles.segBtn} ${viewMode === 'timeline' ? styles.segBtnActive : ''}`}
-                onClick={() => setViewMode('timeline')}
-              >
-                <List size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: '-1px' }} />
-                Timeline
-              </button>
-              <button
-                type="button"
                 className={`${styles.segBtn} ${viewMode === 'grid' ? styles.segBtnActive : ''}`}
                 onClick={() => setViewMode('grid')}
               >
@@ -820,6 +944,22 @@ export default function TournamentSchedulePage() {
                     setConfigField('maxMatchesPerTeamPerDay', e.target.value === '' || !Number.isFinite(n) || n < 1 ? 0 : Math.trunc(n));
                   }}
                 />
+              </label>
+            </div>
+
+            <div className={styles.genToggles}>
+              <label className={styles.genToggle}>
+                <input
+                  type="checkbox"
+                  checked={config.stageFinals}
+                  onChange={e => setConfigField('stageFinals', e.target.checked)}
+                />
+                <span>
+                  <strong>Stage the knockout rounds</strong>
+                  Run each division&apos;s semifinals, 3rd-place play-off and final as whole rounds — side by side across
+                  courts, one division at a time — so a round can&apos;t drift apart and each division&apos;s wait is the rest
+                  its finalists get. Off, every match is placed on its own.
+                </span>
               </label>
             </div>
 
@@ -955,6 +1095,12 @@ export default function TournamentSchedulePage() {
                     <AlertTriangle size={13} /> {preview.overflow.length} over-scheduled (won&apos;t fit in {dayCount} day{dayCount === 1 ? '' : 's'})
                   </span>
                 )}
+                {preview.relaxations.length > 0 && (
+                  <span className={styles.previewWarn}>
+                    <AlertTriangle size={13} /> To fit everything:{' '}
+                    {preview.relaxations.map(r => RELAXATION_TEXT[r] ?? r).join('; ')}
+                  </span>
+                )}
               </span>
             </div>
             <div className={styles.previewButtons}>
@@ -1010,65 +1156,10 @@ export default function TournamentSchedulePage() {
                               /* The block heading already says the date. */
                               : <><Clock size={13} /> {!splitByDay && dayCount > 1 && m.dateLabel ? `${m.dateLabel} · ` : ''}{m.time} · {m.matchNo}</>}
                           </span>
-                          <span className={styles.divisionBadge}>{m.divisionLabel}</span>
-                        </div>
-                        <div className={styles.matchTeams}>
-                          <div className={styles.teamRow}>
-                            <span>{m.teamA}</span>
-                            {m.scoreA && m.scoreA.length > 0 && (
-                              <span className={styles.teamScore}>{m.scoreA.join(' · ')}</span>
-                            )}
-                          </div>
-                          <div className={styles.teamRow}>
-                            <span>{m.teamB}</span>
-                            {m.scoreB && m.scoreB.length > 0 && (
-                              <span className={styles.teamScore}>{m.scoreB.join(' · ')}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            </section>
-            ))}
-          </div>
-        ) : viewMode === 'timeline' ? (
-          <div>
-            <h2 className={styles.sectionTitle}>
-              <List size={22} color="var(--orange, #EE7A4C)" />
-              Chronological Match Timeline
-            </h2>
-            {timelineSections.map(section => (
-            <section key={section.key} className={styles.daySection}>
-            {section.title && (
-              <div className={styles.dayHeading}>
-                <Calendar size={16} color="var(--orange, #EE7A4C)" />
-                <span>{section.title}</span>
-                <span className={styles.dayHeadingMeta}>
-                  {section.groups.reduce((sum, g) => sum + g.matches.length, 0)} matches
-                </span>
-              </div>
-            )}
-            <div className={styles.timelineFeed}>
-              {section.groups.map(group => (
-                <div key={`${group.day} ${group.time}`} className={styles.timeSlotGroup}>
-                  <div className={styles.timeSlotHeader}>
-                    <Clock size={16} color="var(--orange, #EE7A4C)" />
-                    {splitByDay ? '' : 'Scheduled Time: '}{group.time}
-                  </div>
-                  <div className={styles.timelineGrid} style={{ '--match-count': group.matches.length || 1 } as CSSProperties}>
-                    {group.matches.map(m => (
-                      <div
-                        key={m.id}
-                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''} ${m.overScheduled ? styles.matchItemOverflow : ''}`}
-                        data-div={divColorIndex.get(m.divisionLabel) ?? 0}
-                      >
-                        <div className={styles.matchItemTop}>
-                          <span className={styles.matchTime}>{m.overScheduled ? <><AlertTriangle size={13} /> Over-scheduled</> : m.court} · {m.matchNo}</span>
-                          <span className={styles.divisionBadge}>{m.divisionLabel}</span>
+                          <span className={styles.badgeGroup}>
+                            {m.roundName && <span className={styles.roundBadge}>{m.roundName}</span>}
+                            <span className={styles.divisionBadge}>{m.divisionLabel}</span>
+                          </span>
                         </div>
                         <div className={styles.matchTeams}>
                           <div className={styles.teamRow}>
@@ -1108,6 +1199,14 @@ export default function TournamentSchedulePage() {
                 </div>
               </div>
               <div className={styles.gridHeaderRight}>
+                <button
+                  type="button"
+                  className={`${styles.gridToolBtn} ${blockMode ? styles.gridToolBtnOn : ''}`}
+                  onClick={() => { setBlockMode(v => !v); setEditingTime(null); }}
+                  title="Click any empty slot to take that court time off the board"
+                >
+                  <Ban size={13} /> {blockMode ? 'Click a slot to block' : 'Block time'}
+                </button>
                 {calendar.divOrder.map(label => (
                   <span key={label} className={styles.calLegendItem}>
                     <span className={styles.calSwatch} data-div={divColorIndex.get(label) ?? 0} />
@@ -1117,6 +1216,44 @@ export default function TournamentSchedulePage() {
                 <span className={styles.pendingPill}>Result pending</span>
               </div>
             </div>
+
+            {(edits.size > 0 || problems.length > 0 || (!preview && dirty)) && (
+              <div className={`${styles.editBar} ${problems.length > 0 ? styles.editBarFault : ''}`}>
+                <span className={styles.editBarText}>
+                  {edits.size > 0 && (
+                    <>
+                      <strong>{edits.size}</strong> match{edits.size === 1 ? '' : 'es'} moved by hand
+                      {problems.length > 0 ? ' · ' : ''}
+                    </>
+                  )}
+                  {problems.length > 0 && (
+                    <>
+                      <AlertTriangle size={13} /> <strong>{problems.length}</strong> problem
+                      {problems.length === 1 ? '' : 's'} with this schedule
+                    </>
+                  )}
+                  {edits.size > 0 && problems.length === 0 && ' · nothing broken'}
+                </span>
+                <span className={styles.editBarActions}>
+                  {edits.size > 0 && (
+                    <button type="button" className={styles.editBarUndo} onClick={clearEdits} disabled={saving}>
+                      Undo all moves
+                    </button>
+                  )}
+                  {!preview && dirty && (
+                    <button type="button" className={styles.previewSave} onClick={handleSave} disabled={saving}>
+                      <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
+                    </button>
+                  )}
+                </span>
+              </div>
+            )}
+
+            <p className={styles.gridNote}>
+              Drag a match to another court or time, or click its time to type a new one. Hand moves are yours
+              alone — the next Generate starts again from the solver. Blocked time is part of the venue, so the
+              generator works around it and it survives regenerating.
+            </p>
 
             {calendar.courts.length === 0 ? (
               <p className={styles.gridNote}>No scheduled matches to show. Generate and save a schedule first.</p>
@@ -1166,6 +1303,58 @@ export default function TournamentSchedulePage() {
                         <div key={`ln${l.slot}`} className={styles.calGridLine} style={{ gridColumn: `2 / ${calendar.courts.length + 2}`, gridRow: l.slot + 2 } as CSSProperties} />
                       ))}
 
+                      {/* Drop targets.
+                          Only mounted while a drag is in progress or the block
+                          tool is armed — a cell per court per row is hundreds
+                          of nodes, and they are worth nothing the rest of the
+                          time. Each one knows its own court and slot, so the
+                          drop needs no pointer arithmetic and does not care
+                          that the rows are content-sized. */}
+                      {(dragging || blockMode) &&
+                        calendar.courts
+                          .filter(c => c !== 'Unscheduled')
+                          .map(court =>
+                            Array.from({ length: day.slots }, (_, slot) => {
+                              const startMin = day.startMin + slot * calendar.pitch;
+                              const ci = calendar.courts.indexOf(court);
+                              return (
+                                <div
+                                  key={`drop-${court}-${slot}`}
+                                  className={`${styles.calDropCell} ${blockMode ? styles.calDropCellBlock : ''}`}
+                                  style={{ gridColumn: ci + 2, gridRow: slot + 2 } as CSSProperties}
+                                  title={`${court} · ${toHHMM(startMin)}`}
+                                  onDragOver={e => { if (dragging) e.preventDefault(); }}
+                                  onDrop={e => {
+                                    e.preventDefault();
+                                    const id = e.dataTransfer.getData('text/plain') || dragging;
+                                    if (id) moveMatch(id, court, day.day, toHHMM(startMin));
+                                    setDragging(null);
+                                  }}
+                                  onClick={() => { if (blockMode) addBlock(court, day.day, startMin); }}
+                                />
+                              );
+                            }),
+                          )}
+
+                      {/* Court time the organizer has taken off the board. */}
+                      {day.blocked.map(b => {
+                        const ci = calendar.courts.indexOf(b.court);
+                        if (ci < 0) return null;
+                        return (
+                          <button
+                            key={`blk-${b.index}-${b.court}`}
+                            type="button"
+                            className={styles.calBlockedSlot}
+                            style={{ gridColumn: ci + 2, gridRow: `${b.startSlot + 2} / span ${b.spanSlots}` } as CSSProperties}
+                            onClick={() => removeBlock(b.index)}
+                            title={`${b.label} ${b.from}–${b.to} — click to remove`}
+                          >
+                            <span className={styles.calBlockedLabel}>{b.label}</span>
+                            <span className={styles.calBlockedTime}>{b.from}–{b.to}</span>
+                          </button>
+                        );
+                      })}
+
                       {/* Lunch Break Slot Banner */}
                       {day.lunchBlock && (
                         <div
@@ -1187,11 +1376,26 @@ export default function TournamentSchedulePage() {
                         const ci = calendar.courts.indexOf(b.court);
                         if (ci < 0) return null;
                         const divIdx = divColorIndex.get(b.m.divisionLabel) ?? 0;
+                        const faults = problemsByMatch.get(b.m.id) ?? [];
+                        const movable = b.court !== 'Unscheduled';
                         return (
                           <div
                             key={b.m.id}
-                            className={`${styles.gridMatchCard} ${b.m.status === 'live' ? styles.gridMatchCardLive : ''}`}
+                            className={[
+                              styles.gridMatchCard,
+                              b.m.status === 'live' ? styles.gridMatchCardLive : '',
+                              b.m.isEdited ? styles.gridMatchCardEdited : '',
+                              faults.length > 0 ? styles.gridMatchCardFault : '',
+                              dragging === b.m.id ? styles.gridMatchCardDragging : '',
+                            ].filter(Boolean).join(' ')}
                             data-div={divIdx}
+                            draggable={movable && !blockMode}
+                            onDragStart={e => {
+                              e.dataTransfer.setData('text/plain', b.m.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                              setDragging(b.m.id);
+                            }}
+                            onDragEnd={() => setDragging(null)}
                             style={{
                               gridColumn: ci + 2,
                               gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
@@ -1199,11 +1403,41 @@ export default function TournamentSchedulePage() {
                           >
                             <div className={styles.gridMatchTop}>
                               <div className={styles.gridMatchTimeWrap}>
-                                <span className={styles.gridMatchTime}>{b.m.time}</span>
+                                {editingTime === b.m.id ? (
+                                  <input
+                                    className={styles.gridTimeInput}
+                                    type="time"
+                                    defaultValue={b.m.time}
+                                    autoFocus
+                                    onBlur={e => {
+                                      const v = e.target.value;
+                                      if (/^\d{2}:\d{2}$/.test(v) && v !== b.m.time) {
+                                        moveMatch(b.m.id, b.m.court, b.m.day, v);
+                                      }
+                                      setEditingTime(null);
+                                    }}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                      if (e.key === 'Escape') setEditingTime(null);
+                                    }}
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className={styles.gridMatchTime}
+                                    onClick={() => { if (movable) setEditingTime(b.m.id); }}
+                                    title={movable ? 'Click to set a new time' : undefined}
+                                  >
+                                    {b.m.time}
+                                  </button>
+                                )}
                                 <span className={styles.gridMatchDot}>·</span>
                                 <span className={styles.gridMatchDuration}>{b.m.durationMinutes || 45} m</span>
                               </div>
-                              <span className={styles.gridMatchNo}>{b.m.matchNo}</span>
+                              <span className={styles.gridMatchTags}>
+                                {b.m.roundName && <span className={styles.gridMatchRound}>{b.m.roundName}</span>}
+                                <span className={styles.gridMatchNo}>{b.m.matchNo}</span>
+                              </span>
                             </div>
                             <div className={styles.gridTeamRow}>
                               <span className={styles.gridTeamName}>{b.m.teamA}</span>
@@ -1240,6 +1474,13 @@ export default function TournamentSchedulePage() {
                                 )}
                               </div>
                             </div>
+                            {faults.length > 0 && (
+                              <ul className={styles.gridFaults}>
+                                {faults.map((f, i) => (
+                                  <li key={i}><AlertTriangle size={11} /> {f.message}</li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
                         );
                       })}

@@ -83,7 +83,31 @@ export interface SetupDivisionRow {
   divisionTeamCap: number;
   regFields: unknown[];
   settings: Record<string, unknown>;
+  /** The rounds the *organizer* configured — "a round robin, then a single
+   *  elimination" — not the bracket the draw generated from them.
+   *
+   *  The two are not the same list and must not be confused. A draw expands one
+   *  configured elimination round into a stage per level (Round of 16,
+   *  Quarterfinals, Semifinals, Final), all of which live in the `rounds` table
+   *  because that is where matches hang from. Showing those back to the
+   *  organizer as their own setup is wrong: they never chose four elimination
+   *  rounds, and the count moves under them every time the draw settings
+   *  change. */
   rounds: SetupRoundRow[];
+}
+
+/** Collapse a generated bracket back to the rounds it was generated *from*.
+ *
+ *  The draw builds every knockout stage from one configured elimination round
+ *  and gives them all the same scoring, so a run of consecutive same-format
+ *  stages is exactly one configured round. Used only as a fallback for
+ *  divisions drawn before the configuration was recorded in its own right. */
+export function collapseToConfiguredRounds(rounds: SetupRoundRow[]): SetupRoundRow[] {
+  const out: SetupRoundRow[] = [];
+  for (const r of rounds) {
+    if (out.length === 0 || out[out.length - 1].format !== r.format) out.push(r);
+  }
+  return out;
 }
 
 interface SetupDivisionQueryRow {
@@ -108,23 +132,56 @@ export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[
   if (!data) return [];
 
   const divisions = (data as unknown as { divisions: SetupDivisionQueryRow[] }).divisions ?? [];
-  return divisions.map((d) => ({
-    id: d.id,
-    name: d.name,
-    formatTypeOnSand: d.format_type_on_sand,
-    registrationFee: d.registration_fee,
-    divisionTeamCap: d.division_team_cap,
-    regFields: d.reg_fields ?? [],
-    settings: d.settings ?? {},
-    rounds: [...(d.rounds ?? [])]
+  return divisions.map((d) => {
+    const settings = d.settings ?? {};
+    const stored = [...(d.rounds ?? [])]
       .sort((a, b) => a.sequence - b.sequence)
       .map((r) => {
         // durationMinutes rides inside scoring_rules; split it back out so the
         // setup page manages it as its own field and scoringRules stays pure.
         const { durationMinutes: _dm, ...scoringRules } = (r.scoring_rules ?? {}) as Record<string, unknown>;
         return { ...r, scoringRules, durationMinutes: readRoundMinutes(r.scoring_rules) };
-      }),
-  }));
+      });
+
+    // What the organizer configured, in three descending degrees of confidence:
+    // the configuration recorded in its own right; failing that, the stored
+    // rounds collapsed back out of the bracket they were expanded into; and
+    // failing *that* — no draw has run, so nothing has been expanded — the
+    // stored rounds exactly as they are. The last case matters: two elimination
+    // rounds configured back to back are two rounds, and collapsing them
+    // unconditionally would quietly merge them into one.
+    // Stored shape is what the setup dialog sends: a format, its scoring, and a
+    // match length. Nothing row-shaped, because it describes a configuration
+    // rather than a row.
+    const configured = (settings as {
+      formatRounds?: { format?: string; scoring?: Record<string, unknown>; durationMinutes?: number }[];
+    }).formatRounds;
+    const rounds = Array.isArray(configured) && configured.length > 0
+      // The row-shaped fields are filled in here rather than left undefined —
+      // an absent id in particular would collide as a React key.
+      ? configured.map((r, i): SetupRoundRow => ({
+          id: `cfg_${i}`,
+          sequence: i + 1,
+          format: String(r.format ?? ''),
+          name: '',
+          scoringRules: r.scoring ?? {},
+          durationMinutes: typeof r.durationMinutes === 'number' ? r.durationMinutes : DEFAULT_MATCH_MINUTES,
+        }))
+      : (settings as { draw?: unknown }).draw
+        ? collapseToConfiguredRounds(stored)
+        : stored;
+
+    return {
+      id: d.id,
+      name: d.name,
+      formatTypeOnSand: d.format_type_on_sand,
+      registrationFee: d.registration_fee,
+      divisionTeamCap: d.division_team_cap,
+      regFields: d.reg_fields ?? [],
+      settings,
+      rounds,
+    };
+  });
 }
 
 function formatDateRange(startDate: string, endDate: string | null, isOneDay: boolean): string {
@@ -251,6 +308,12 @@ export interface DrawConfig {
   isLocked?: boolean;
   slots?: Record<string, string[]>;
   crossSlots?: Record<string, { a: CrossSlot | null; b: CrossSlot | null }>;
+  /** Organizer wants a play-off for 3rd between the beaten semifinalists. */
+  thirdPlace?: boolean;
+  /** Matches drawn from the *losers* of two other matches, keyed by match id.
+   *  The 3rd-place play-off is the only one, and it is the single edge a
+   *  halving bracket cannot express — everything else is fed by winners. */
+  loserFeeders?: Record<string, [string, string]>;
 }
 
 export interface DetailDivision {
@@ -484,6 +547,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               attempts: draw.attempts ?? 0, topSeedIds: draw.topSeedIds ?? [],
               isLocked: !!draw.isLocked,
               crossSlots: draw.crossSlots ?? {},
+              thirdPlace: !!draw.thirdPlace,
+              loserFeeders: draw.loserFeeders ?? {},
             }
           : null,
         dedicatedCourts: typeof sched?.dedicatedCourts === 'number' ? sched.dedicatedCourts : null,

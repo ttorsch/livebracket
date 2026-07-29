@@ -44,6 +44,14 @@ function toSettings(body: DivisionBody) {
     waitlistCap: body.waitlistCap,
     confirmationMessage: body.confirmationMessage,
     confirmationImage: body.confirmationImage,
+    // The rounds the organizer configured, recorded separately from the
+    // `rounds` table because a draw later replaces that table's contents with
+    // the bracket those rounds expand into. See the PATCH route.
+    formatRounds: (body.rounds ?? []).map(r => ({
+      format: r.format,
+      scoring: r.scoring,
+      durationMinutes: clampMinutes(r.durationMinutes),
+    })),
   };
 }
 
