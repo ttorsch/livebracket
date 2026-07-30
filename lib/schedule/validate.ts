@@ -54,6 +54,10 @@ export interface ValidateOptions {
   /** How to name a match in a message. Defaults to the raw id, which is only
    *  useful in tests — the UI passes its own labels ("M14"). */
   label?: (matchId: string) => string;
+  /** How to name a team in a message. Defaults to the raw id for the same
+   *  reason — but a team id is a UUID, so a caller that does not supply this
+   *  puts a UUID in front of the organizer. The UI passes the team's name. */
+  teamLabel?: (teamId: string) => string;
 }
 
 const abs = (p: EditedPlacement) => p.day * DAY_SPAN + p.startMin;
@@ -74,6 +78,7 @@ export function validateSchedule(
   options: ValidateOptions = {},
 ): ScheduleProblem[] {
   const name = options.label ?? ((id: string) => id);
+  const teamName = options.teamLabel ?? ((id: string) => id);
   const rest = Math.max(0, options.targetRestMinutes ?? 0);
   const problems: ScheduleProblem[] = [];
   const byId = new Map(placements.map(p => [p.matchId, p]));
@@ -124,17 +129,21 @@ export function validateSchedule(
           matchId: current.matchId,
           otherMatchId: previous.matchId,
           kind: 'teamClash',
-          message: `${team} is already on court for ${name(previous.matchId)} until ${hhmm(endAbs(previous))}`,
+          message: `${teamName(team)} is already on court for ${name(previous.matchId)} until ${hhmm(endAbs(previous))}`,
         });
-      } else if (rest > 0 && gap < rest) {
+      } else if (gap === 0) {
+        // Only a genuine back-to-back is worth saying out loud.
+        //
+        // A gap merely shorter than the target is not a fault: pool play now
+        // fills the courts and prices rest rather than gating it, so a 20-minute
+        // turnaround between 20-minute matches is the *expected* shape of a
+        // round robin, not a mistake. Flagging it put a warning on half the
+        // cards and buried the problems that actually need looking at.
         problems.push({
           matchId: current.matchId,
           otherMatchId: previous.matchId,
           kind: 'shortRest',
-          message:
-            gap === 0
-              ? `${team} plays this straight after ${name(previous.matchId)} with no break`
-              : `${team} gets only ${gap} min after ${name(previous.matchId)}`,
+          message: `${teamName(team)} plays this straight after ${name(previous.matchId)} with no break`,
         });
       }
     }

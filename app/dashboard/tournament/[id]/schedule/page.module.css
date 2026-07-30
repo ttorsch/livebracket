@@ -557,7 +557,15 @@
   border-color: #D64545 !important;
   background: rgba(214, 69, 69, 0.04);
 }
-.gridMatchCardDragging { opacity: 0.4; }
+.gridMatchCardDragging { opacity: 0.4; cursor: grabbing; }
+
+/* A card you can pick up says so. Without this the cursor stays an arrow over
+   something that is in fact draggable, which is indistinguishable from a card
+   that is not — and the only hint left is a line of prose above the grid. The
+   attribute selector means the cursor tracks the real thing: a match in the
+   Unscheduled column is not draggable and correctly shows no grab. */
+.gridMatchCard[draggable='true'] { cursor: grab; }
+.gridMatchCard[draggable='true']:active { cursor: grabbing; }
 
 .gridTimeInput {
   width: 82px;
@@ -587,6 +595,11 @@
   font-size: 10.5px;
   line-height: 1.35;
   color: #B33A3A;
+  /* Wrap inside the column rather than widening it. Now that the courts share
+     the screen width, a long message that refused to break would be clipped
+     instead of pushing the grid — so it has to be allowed to wrap. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .gridFaults svg { flex: none; margin-top: 1px; }
 
@@ -928,9 +941,15 @@
 .calGrid {
   display: grid;
   position: relative;
-  width: max-content;
-  min-width: 100%;
-  grid-template-columns: var(--cal-time-col, 70px) repeat(var(--cal-courts, 1), minmax(var(--cal-court-col, 280px), 1fr));
+  /* On a wide screen every court shares the width: `minmax(0, 1fr)` rather than
+     a minimum column width, so four courts always fit and nothing a card
+     contains can push the grid past the viewport. It used to be `max-content`
+     with a 280px floor, which let one long line inside one card widen every
+     column and shove the last court off screen. Narrow screens override both of
+     these below, where a column *should* be wider than the screen so each court
+     can be swiped to in turn. */
+  width: 100%;
+  grid-template-columns: var(--cal-time-col, 70px) repeat(var(--cal-courts, 1), minmax(0, 1fr));
   grid-template-rows: auto repeat(var(--cal-rows, 1), auto);
 }
 /* Sticky court-header row (top) */
@@ -1584,6 +1603,15 @@
   .calScroll {
     --cal-time-col: 56px;
     --cal-court-col: 240px;
+  }
+  /* Below this width a court needs more room than the screen has, so the grid
+     goes back to being wider than its container and scrolls sideways. */
+  .calGrid {
+    width: max-content;
+    min-width: 100%;
+    grid-template-columns:
+      var(--cal-time-col, 56px)
+      repeat(var(--cal-courts, 1), minmax(var(--cal-court-col, 240px), 1fr));
   }
   .calTimeLabelCell { padding: 12px 8px 0 4px; font-size: 12px; }
   .calCourtHeadCard { padding: 8px 12px; }

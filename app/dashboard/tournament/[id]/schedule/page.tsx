@@ -492,9 +492,16 @@ export default function TournamentSchedulePage() {
       startMin: Number(m.time.slice(0, 2)) * 60 + Number(m.time.slice(3, 5)),
       durationMinutes: m.durationMinutes,
     }));
+    // Team ids are UUIDs, so a problem that names a team has to be handed the
+    // names or it reads as machine noise to the person meant to act on it.
+    const teamNames = new Map(
+      detail.divisions.flatMap(d => d.teamsList.map(t => [t.id, t.name] as const)),
+    );
+
     return validateSchedule(placements, graph, grid, {
       targetRestMinutes: Math.max(0, config.minRestSlots) * config.blockMinutes,
       label: labelOf,
+      teamLabel: id => teamNames.get(id) ?? id,
     });
   }, [allMatches, schedulableDivisions, config, detail, labelsByDivision]);
 
