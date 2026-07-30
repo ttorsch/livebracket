@@ -557,15 +557,157 @@
   border-color: #D64545 !important;
   background: rgba(214, 69, 69, 0.04);
 }
-.gridMatchCardDragging { opacity: 0.4; cursor: grabbing; }
+.gridMatchCardDragging { opacity: 0.35; }
 
 /* A card you can pick up says so. Without this the cursor stays an arrow over
    something that is in fact draggable, which is indistinguishable from a card
-   that is not — and the only hint left is a line of prose above the grid. The
-   attribute selector means the cursor tracks the real thing: a match in the
-   Unscheduled column is not draggable and correctly shows no grab. */
-.gridMatchCard[draggable='true'] { cursor: grab; }
-.gridMatchCard[draggable='true']:active { cursor: grabbing; }
+   that is not. `touch-action: none` is what lets a finger carry a card instead
+   of scrolling the page with it. */
+.gridMatchCard[data-movable='true'] {
+  cursor: grab;
+  touch-action: none;
+}
+.gridMatchCard[data-movable='true']:active { cursor: grabbing; }
+
+/* The card following the pointer. `pointer-events: none` is load-bearing: the
+   drop target is whatever is under the cursor, and a ghost that could be hit
+   would be the only thing ever under it. */
+.dragGhost {
+  position: fixed;
+  z-index: 400;
+  pointer-events: none;
+  transform: translate(12px, 12px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: var(--surface-card, #FFFFFF);
+  border: 2px solid var(--orange, #EE7A4C);
+  box-shadow: 0 10px 28px rgba(20, 24, 30, 0.18);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-800, #2C323D);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dragGhostNo {
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--orange, #EE7A4C);
+}
+
+/* ── Editing ─────────────────────────────────────────────────
+   The button that unlocks the schedule, and the tools that only exist once it
+   has been pressed. */
+.gridEditBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-700, #3E4654);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.gridEditBtn:hover { border-color: var(--orange, #EE7A4C); color: var(--orange, #EE7A4C); }
+.gridEditBtnOn {
+  background: var(--orange, #EE7A4C);
+  border-color: var(--orange, #EE7A4C);
+  color: #fff;
+}
+.gridEditBtnOn:hover { color: #fff; opacity: 0.92; }
+
+/* The handle that inserts buffer time in front of a match.
+   It hangs off the top edge of the card — the edge the buffer would go in at —
+   and stays hidden until the pointer is on that card, so a locked-looking grid
+   does not sprout controls the moment you move across it. */
+.cardBuffer {
+  position: absolute;
+  top: -11px;
+  left: 0;
+  right: 0;
+  z-index: 7;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.cardBufferBtn {
+  pointer-events: auto;
+  opacity: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: var(--orange, #EE7A4C);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(20, 24, 30, 0.22);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.gridMatchCard:hover .cardBufferBtn,
+.cardBufferBtn:focus-visible { opacity: 1; }
+.cardBufferBtn:hover { transform: scale(1.14); }
+/* No hover on a touch screen, so the handles are simply always there rather
+   than being unreachable. */
+@media (hover: none) {
+  .cardBufferBtn { opacity: 0.5; }
+}
+
+.seamPrompt {
+  pointer-events: auto;
+  position: relative;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+  border-radius: 8px;
+  background: #fff;
+  border: 2px solid var(--orange, #EE7A4C);
+  box-shadow: 0 6px 18px rgba(20, 24, 30, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-700, #3E4654);
+}
+.seamPrompt input {
+  width: 48px;
+  padding: 2px 4px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  border-radius: 5px;
+  font: inherit;
+  text-align: right;
+}
+.seamPrompt button {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--ink-600, #5A6270);
+  cursor: pointer;
+}
+.seamPrompt button:hover { color: var(--orange, #EE7A4C); }
+
+/* The cell the pointer is over. The plain :hover rule cannot do this job — with
+   a finger there is no hover, and the ghost is under the cursor anyway. */
+.calDropCellOver {
+  background: rgba(238, 122, 76, 0.18);
+  box-shadow: inset 0 0 0 2px var(--orange, #EE7A4C);
+}
 
 .gridTimeInput {
   width: 82px;
