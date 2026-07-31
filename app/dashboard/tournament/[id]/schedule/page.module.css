@@ -655,6 +655,54 @@
 }
 .gridMatchCard[data-movable='true']:active { cursor: grabbing; }
 
+/* The gap in front of a match — drop here and the match goes in at this one's
+   time, pushing it and everything below it down the court.
+   It lives inside the card's top edge rather than in the space between two
+   cards: the calendar has no reliable space between cards to put it in, and an
+   edge that belongs to a card is a target that stays put while the schedule
+   reflows underneath a finger. */
+.cardInsert {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  min-height: 14px;
+  max-height: 22px;
+  z-index: 8;
+  border-radius: 10px 10px 0 0;
+}
+
+.cardInsertOver {
+  background: rgba(238, 122, 76, 0.16);
+  box-shadow: inset 0 3px 0 0 var(--orange, #EE7A4C);
+}
+
+/* The bottom edge of the last card on a court: the end of its run. */
+.cardInsertEnd {
+  top: auto;
+  bottom: 0;
+  border-radius: 0 0 10px 10px;
+}
+
+.cardInsertEnd.cardInsertOver {
+  box-shadow: inset 0 -3px 0 0 var(--orange, #EE7A4C);
+}
+
+/* A match in the by-court list is picked up the same way a calendar block is,
+   and carries its own drop targets, so it needs to be a positioning parent. */
+.matchItem { position: relative; }
+
+.matchItem[data-movable='true'] {
+  cursor: grab;
+  touch-action: none;
+}
+.matchItem[data-movable='true']:active { cursor: grabbing; }
+.matchItemDragging { opacity: 0.35; }
+
+/* A section heading that shares its row with the edit switch. */
+.sectionTitleFlush { margin-bottom: 0; }
+
 /* The card following the pointer. `pointer-events: none` is load-bearing: the
    drop target is whatever is under the cursor, and a ghost that could be hit
    would be the only thing ever under it. */

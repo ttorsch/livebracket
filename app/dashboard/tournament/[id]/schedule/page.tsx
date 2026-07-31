@@ -26,6 +26,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
+import { planDrop, type DropTarget, type Placement } from '@/lib/schedule/dropPlan';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
 import {
@@ -106,6 +107,13 @@ function toHHMM(mins: number): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// "HH:MM" -> minutes since midnight. Null for anything else, which includes the
+// "—" an unscheduled match carries.
+function fromHHMM(time: string): number | null {
+  const x = /^(\d{2}):(\d{2})$/.exec(time);
+  return x ? Number(x[1]) * 60 + Number(x[2]) : null;
 }
 
 // What a broken promise means in the organizer's language. The generator gives
@@ -247,6 +255,11 @@ export default function TournamentSchedulePage() {
     drag.current = { id, x, y, started: false };
   };
 
+  /* The pointer listeners are bound once, so they would otherwise be holding
+     the first render's idea of where every match is. The drop reads the live
+     one through here, filled in below once the placements it needs exist. */
+  const dropRef = useRef<((matchId: string, court: string, day: number, target: DropTarget) => void) | null>(null);
+
   useEffect(() => {
     const cellUnder = (x: number, y: number) =>
       (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>('[data-drop-key]') ?? null;
@@ -270,9 +283,13 @@ export default function TournamentSchedulePage() {
       drag.current = null;
       if (d?.started) {
         const cell = cellUnder(e.clientX, e.clientY);
-        const { dropCourt, dropDay, dropTime } = cell?.dataset ?? {};
-        if (dropCourt && dropTime && dropDay !== undefined) {
-          moveMatch(d.id, dropCourt, Number(dropDay), dropTime);
+        const { dropCourt, dropDay, dropTime, dropBefore, dropAppend } = cell?.dataset ?? {};
+        if (dropCourt && dropDay !== undefined) {
+          const day = Number(dropDay);
+          const at = dropTime ? fromHHMM(dropTime) : null;
+          if (dropBefore) dropRef.current?.(d.id, dropCourt, day, { beforeId: dropBefore });
+          else if (dropAppend) dropRef.current?.(d.id, dropCourt, day, { append: true });
+          else if (at != null) dropRef.current?.(d.id, dropCourt, day, { time: at });
         }
       }
       setDragging(null);
@@ -912,6 +929,35 @@ export default function TournamentSchedulePage() {
     return { courts, days, pitch, divOrder, unscheduledCount: unscheduled.length };
   }, [filteredMatches, config?.blocks, config?.lunchStart, config?.lunchEnd]);
 
+  /* Applying a drop: turn what is on screen into placements, ask the planner
+     what has to move, and write the answer back as hand edits. The rules live
+     in lib/schedule/dropPlan.ts, where they can be reasoned about without a
+     pointer in hand. */
+  const dropMatch = (matchId: string, court: string, day: number, target: DropTarget) => {
+    const placements: Placement[] = allMatches.map(m => ({
+      id: m.id,
+      court: m.court,
+      day: m.day,
+      start: m.unscheduled ? null : fromHHMM(m.time),
+      durationMinutes: m.durationMinutes,
+    }));
+    const dayStart =
+      calendar.days.find(d => d.day === day)?.startMin ?? fromHHMM(config?.startTime ?? '') ?? 480;
+
+    const plan = planDrop(placements, matchId, court, day, target, dayStart);
+    if (plan.length === 0) return;
+
+    setEdits(prev => {
+      const next = new Map(prev);
+      for (const move of plan) next.set(move.id, { court: move.court, day: move.day, time: toHHMM(move.start) });
+      return next;
+    });
+    setDirty(true);
+    setSaveMsg(null);
+  };
+
+  useEffect(() => { dropRef.current = dropMatch; });
+
   // Division -> color index (0..5). Taken from the tournament's own division
   // order, not from what is on screen, so a division keeps its color when the
   // view is filtered down to it.
@@ -927,6 +973,75 @@ export default function TournamentSchedulePage() {
   const heroImage = 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=1600&q=80';
   const totalTeams = detail?.divisions.reduce((acc, d) => acc + d.filled, 0) ?? 0;
   const isLive = allMatches.some(m => m.status === 'live');
+
+  /* Editing belongs to the schedule, not to one way of looking at it, so the
+     switch and the state of the edits ride along with both views. */
+  const editToggle = (
+    <button
+      type="button"
+      className={`${styles.gridEditBtn} ${editMode ? styles.gridEditBtnOn : ''}`}
+      onClick={() => {
+        setEditMode(v => !v);
+        setBlockMode(false);
+        setEditingTime(null);
+        setInsertAt(null);
+      }}
+      title={
+        editMode
+          ? 'Lock the schedule so it cannot be changed by accident'
+          : 'Move matches, retime them, and insert buffer time'
+      }
+    >
+      {editMode ? <Check size={14} /> : <Pencil size={14} />}
+      {editMode ? 'Done editing' : 'Edit schedule'}
+    </button>
+  );
+
+  const editBar = (edits.size > 0 || problems.length > 0 || (!preview && dirty)) && (
+    <div className={`${styles.editBar} ${problems.length > 0 ? styles.editBarFault : ''}`}>
+      <span className={styles.editBarText}>
+        {edits.size > 0 && (
+          <>
+            <strong>{edits.size}</strong> match{edits.size === 1 ? '' : 'es'} moved by hand
+            {problems.length > 0 ? ' · ' : ''}
+          </>
+        )}
+        {problems.length > 0 && (
+          <>
+            <AlertTriangle size={13} /> <strong>{problems.length}</strong> problem
+            {problems.length === 1 ? '' : 's'} with this schedule
+          </>
+        )}
+        {edits.size > 0 && problems.length === 0 && ' · nothing broken'}
+      </span>
+      <span className={styles.editBarActions}>
+        {edits.size > 0 && (
+          <button type="button" className={styles.editBarUndo} onClick={clearEdits} disabled={saving}>
+            Undo all moves
+          </button>
+        )}
+        {!preview && dirty && (
+          <button type="button" className={styles.previewSave} onClick={handleSave} disabled={saving}>
+            <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        )}
+      </span>
+    </div>
+  );
+
+  /** A match the organizer can pick up: only in edit mode, only once it has a
+   *  court and a time to be moved away from, and never while the block tool is
+   *  armed and a press means "take this slot off the board". */
+  const canDrag = (m: ScheduleMatch) => editMode && !blockMode && !m.unscheduled && m.court !== 'Unscheduled';
+
+  /** The gap in front of a match, as a drop target. */
+  const insertKey = (m: ScheduleMatch) => `${m.day}|${m.court}|before|${m.id}`;
+  const insertBeforeProps = (m: ScheduleMatch) => ({
+    'data-drop-key': insertKey(m),
+    'data-drop-court': m.court,
+    'data-drop-day': m.day,
+    'data-drop-before': m.id,
+  });
 
   if (loading) {
     return (
@@ -1342,10 +1457,29 @@ export default function TournamentSchedulePage() {
       <main className={styles.main}>
         {viewMode === 'court' ? (
           <div>
-            <h2 className={styles.sectionTitle}>
-              <Grid size={22} color="var(--orange, #EE7A4C)" />
-              Court Match Schedules ({courtCount} Courts)
-            </h2>
+            <div className={styles.gridHeaderRow}>
+              <h2 className={`${styles.sectionTitle} ${styles.sectionTitleFlush}`}>
+                <Grid size={22} color="var(--orange, #EE7A4C)" />
+                Court Match Schedules ({courtCount} Courts)
+              </h2>
+              <div className={styles.gridHeaderRight}>{editToggle}</div>
+            </div>
+
+            {editBar}
+
+            <p className={styles.gridNote}>
+              {editMode ? (
+                <>
+                  Drag a match onto the top edge of another to slot it in front of it — on this court or any other.
+                  Everything below moves down by that match&apos;s length, and the court it came from closes up
+                  behind it. The bottom edge of a court&apos;s last match puts it at the end of that court. Hand
+                  moves are yours alone: the next Generate starts again from the solver.
+                </>
+              ) : (
+                <>The schedule is locked. Press <strong>Edit schedule</strong> to move matches between courts and times.</>
+              )}
+            </p>
+
             {courtSections.map(section => (
             <section key={section.key} className={styles.daySection}>
             {section.title && (
@@ -1365,12 +1499,39 @@ export default function TournamentSchedulePage() {
                     <span className={styles.courtCount}>{group.matches.length} matches</span>
                   </div>
                   <div className={styles.matchList}>
-                    {group.matches.map(m => (
+                    {group.matches.map((m, i) => (
                       <div
                         key={m.id}
-                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''} ${m.overScheduled ? styles.matchItemOverflow : ''}`}
+                        className={`${styles.matchItem} ${m.status === 'live' ? styles.matchItemLive : ''} ${m.isPreview ? styles.matchItemPreview : ''} ${m.unscheduled ? styles.matchItemUnscheduled : ''} ${m.overScheduled ? styles.matchItemOverflow : ''} ${dragging === m.id ? styles.matchItemDragging : ''}`}
                         data-div={divColorIndex.get(m.divisionLabel) ?? 0}
+                        data-movable={canDrag(m) ? 'true' : undefined}
+                        onPointerDown={e => {
+                          if (!canDrag(m)) return;
+                          if (e.pointerType === 'mouse' && e.button !== 0) return;
+                          if ((e.target as HTMLElement).closest('button,input,select,textarea')) return;
+                          beginDrag(m.id, e.clientX, e.clientY);
+                        }}
                       >
+                        {/* The gap in front of this match, and — on the last
+                            card — the end of the court's run. Both live inside
+                            the card: a target between two cards would reflow
+                            the list the moment it appeared, moving the cards
+                            out from under the finger carrying one. */}
+                        {dragging && dragging !== m.id && !m.unscheduled && (
+                          <div
+                            className={`${styles.cardInsert} ${hoverCell === insertKey(m) ? styles.cardInsertOver : ''}`}
+                            {...insertBeforeProps(m)}
+                          />
+                        )}
+                        {dragging && dragging !== m.id && i === group.matches.length - 1 && group.courtName !== 'Unscheduled' && (
+                          <div
+                            className={`${styles.cardInsert} ${styles.cardInsertEnd} ${hoverCell === `${m.day}|${m.court}|append` ? styles.cardInsertOver : ''}`}
+                            data-drop-key={`${m.day}|${m.court}|append`}
+                            data-drop-court={m.court}
+                            data-drop-day={m.day}
+                            data-drop-append="true"
+                          />
+                        )}
                         <div className={styles.matchItemTop}>
                           <span className={styles.matchTime}>
                             {m.overScheduled
@@ -1421,24 +1582,7 @@ export default function TournamentSchedulePage() {
                 </div>
               </div>
               <div className={styles.gridHeaderRight}>
-                <button
-                  type="button"
-                  className={`${styles.gridEditBtn} ${editMode ? styles.gridEditBtnOn : ''}`}
-                  onClick={() => {
-                    setEditMode(v => !v);
-                    setBlockMode(false);
-                    setEditingTime(null);
-                    setInsertAt(null);
-                  }}
-                  title={
-                    editMode
-                      ? 'Lock the schedule so it cannot be changed by accident'
-                      : 'Move matches, retime them, and insert buffer time'
-                  }
-                >
-                  {editMode ? <Check size={14} /> : <Pencil size={14} />}
-                  {editMode ? 'Done editing' : 'Edit schedule'}
-                </button>
+                {editToggle}
                 {editMode && (
                   <button
                     type="button"
@@ -1459,45 +1603,17 @@ export default function TournamentSchedulePage() {
               </div>
             </div>
 
-            {(edits.size > 0 || problems.length > 0 || (!preview && dirty)) && (
-              <div className={`${styles.editBar} ${problems.length > 0 ? styles.editBarFault : ''}`}>
-                <span className={styles.editBarText}>
-                  {edits.size > 0 && (
-                    <>
-                      <strong>{edits.size}</strong> match{edits.size === 1 ? '' : 'es'} moved by hand
-                      {problems.length > 0 ? ' · ' : ''}
-                    </>
-                  )}
-                  {problems.length > 0 && (
-                    <>
-                      <AlertTriangle size={13} /> <strong>{problems.length}</strong> problem
-                      {problems.length === 1 ? '' : 's'} with this schedule
-                    </>
-                  )}
-                  {edits.size > 0 && problems.length === 0 && ' · nothing broken'}
-                </span>
-                <span className={styles.editBarActions}>
-                  {edits.size > 0 && (
-                    <button type="button" className={styles.editBarUndo} onClick={clearEdits} disabled={saving}>
-                      Undo all moves
-                    </button>
-                  )}
-                  {!preview && dirty && (
-                    <button type="button" className={styles.previewSave} onClick={handleSave} disabled={saving}>
-                      <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
-                    </button>
-                  )}
-                </span>
-              </div>
-            )}
+            {editBar}
 
             <p className={styles.gridNote}>
               {editMode ? (
                 <>
-                  Drag a match to another court or time, click its time to type a new one, or use the <strong>+</strong>{' '}
-                  between two matches to open a gap — everything below it on that court moves down. Hand moves are
-                  yours alone: the next Generate starts again from the solver. Buffers and blocked time are part of
-                  the venue, so the generator works around them and they survive regenerating.
+                  Drag a match onto the top edge of another to slot it in front of it — everything below moves down
+                  by that match&apos;s length, and the court it left closes up behind it. Empty time still takes a
+                  match at exactly the hour you drop it on. Click a time to type a new one, or use the{' '}
+                  <strong>+</strong> between two matches to open a gap. Hand moves are yours alone: the next Generate
+                  starts again from the solver. Buffers and blocked time are part of the venue, so the generator works
+                  around them and they survive regenerating.
                 </>
               ) : (
                 <>The schedule is locked. Press <strong>Edit schedule</strong> to move matches, retime them, or add buffer time.</>
@@ -1662,6 +1778,21 @@ export default function TournamentSchedulePage() {
                               gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
                             } as CSSProperties}
                           >
+                            {/* The gap in front of this match. It is drawn
+                                inside the card's own top edge rather than
+                                floating between two cards, so it is a target
+                                you can actually hit with a finger and it
+                                cannot be covered by the card below. */}
+                            {dragging && dragging !== b.m.id && movable && (
+                              <div
+                                className={[
+                                  styles.cardInsert,
+                                  hoverCell === insertKey(b.m) ? styles.cardInsertOver : '',
+                                ].filter(Boolean).join(' ')}
+                                {...insertBeforeProps(b.m)}
+                              />
+                            )}
+
                             {/* Buffer goes in *before* this match, so the handle
                                 sits on the edge it would be inserted at. Hanging
                                 off the card's top rather than living between two
