@@ -248,6 +248,14 @@
   color: var(--ink-500, #8A92A0);
 }
 
+/* Division and view-mode filters ship as two twins: pill segments for wide
+   screens and a dropdown for narrow ones. Only one is ever visible — the pair
+   swaps at the tablet breakpoint, where a row of pills no longer fits without
+   sideways scrolling. The day selector keeps its segments at every width. */
+.mobileOnly {
+  display: none;
+}
+
 /* ── Main Layout Container ───────────────────────────────────── */
 .main {
   max-width: 1440px;
@@ -1724,6 +1732,21 @@
   .segBtn { flex: 0 0 auto; white-space: nowrap; }
   .selectWrap { flex: 0 0 auto; }
   .dayBar { padding: 0 12px 8px; }
+
+  /* Swap the division and view-mode pills for their dropdown twins. Declared
+     after .segmented so the hide wins on equal specificity. */
+  .pointerOnly { display: none; }
+  .mobileOnly { display: inline-flex; }
+
+  /* Dropdowns fill the bar: division across the full width, then view mode and
+     status splitting the row beneath it. */
+  .mobileSelectWide { width: 100%; }
+  .controlsGroup > .selectWrap { flex: 1 1 0; min-width: 0; }
+  .stickyBar .select {
+    width: 100%;
+    padding: 9px 30px 9px 14px;
+    text-overflow: ellipsis;
+  }
 
   .main { padding: 20px 16px 48px; }
   .sectionTitle { font-size: 18px; margin-bottom: 14px; }

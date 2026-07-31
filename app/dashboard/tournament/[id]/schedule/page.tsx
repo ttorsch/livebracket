@@ -1001,8 +1001,8 @@ export default function TournamentSchedulePage() {
       {/* ── Sticky Control Bar ───────────────────────────────── */}
       <div className={styles.stickyBar} ref={stickyRef}>
         <div className={styles.stickyInner}>
-          {/* Division Selector Tabs */}
-          <div className={styles.segmented}>
+          {/* Division Selector — pill tabs on desktop, dropdown on mobile */}
+          <div className={`${styles.segmented} ${styles.pointerOnly}`}>
             <button
               type="button"
               className={`${styles.segBtn} ${activeDivisionId === 'all' ? styles.segBtnActive : ''}`}
@@ -1021,11 +1021,25 @@ export default function TournamentSchedulePage() {
               </button>
             ))}
           </div>
+          <div className={`${styles.selectWrap} ${styles.mobileOnly} ${styles.mobileSelectWide}`}>
+            <select
+              className={styles.select}
+              aria-label="Filter by division"
+              value={activeDivisionId}
+              onChange={e => setActiveDivisionId(e.target.value)}
+            >
+              <option value="all">All Divisions</option>
+              {detail?.divisions.map(d => (
+                <option key={d.id} value={d.id}>{d.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className={styles.selectChevron} />
+          </div>
 
           {/* View Mode & Status Controls */}
           <div className={styles.controlsGroup}>
-            {/* View Mode Toggle */}
-            <div className={styles.segmented}>
+            {/* View Mode Toggle — pill tabs on desktop, dropdown on mobile */}
+            <div className={`${styles.segmented} ${styles.pointerOnly}`}>
               <button
                 type="button"
                 className={`${styles.segBtn} ${viewMode === 'court' ? styles.segBtnActive : ''}`}
@@ -1042,6 +1056,18 @@ export default function TournamentSchedulePage() {
                 <Table size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: '-1px' }} />
                 Grid
               </button>
+            </div>
+            <div className={`${styles.selectWrap} ${styles.mobileOnly}`}>
+              <select
+                className={styles.select}
+                aria-label="Schedule view"
+                value={viewMode}
+                onChange={e => setViewMode(e.target.value as 'court' | 'grid')}
+              >
+                <option value="court">By Court</option>
+                <option value="grid">Grid</option>
+              </select>
+              <ChevronDown size={14} className={styles.selectChevron} />
             </div>
 
             {/* Status Filter */}
