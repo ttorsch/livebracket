@@ -256,6 +256,84 @@
   display: none;
 }
 
+/* Mobile view switch — on is the grid, off is by-court. The track and thumb are
+   spans because a native checkbox can't be styled; the checkbox itself stays in
+   the DOM, visually hidden, so the control keeps its keyboard and switch
+   semantics and the label click target. */
+.viewSwitch {
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 8px 12px 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: var(--surface-card, #FFFFFF);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.viewSwitchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-800, #2C323D);
+  white-space: nowrap;
+}
+
+.viewSwitchInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  margin: 0;
+  opacity: 0;
+}
+
+.viewSwitchTrack {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--sand-300, #EAE5DD);
+  transition: background 0.18s ease;
+}
+
+.viewSwitchThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface-card, #FFFFFF);
+  box-shadow: 0 1px 3px rgba(20, 24, 30, 0.25);
+  transition: transform 0.18s ease;
+}
+
+.viewSwitchInput:checked ~ .viewSwitchTrack {
+  background: var(--orange, #EE7A4C);
+}
+
+.viewSwitchInput:checked ~ .viewSwitchTrack .viewSwitchThumb {
+  transform: translateX(16px);
+}
+
+.viewSwitchInput:focus-visible ~ .viewSwitchTrack {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewSwitchTrack,
+  .viewSwitchThumb {
+    transition: none;
+  }
+}
+
 /* ── Main Layout Container ───────────────────────────────────── */
 .main {
   max-width: 1440px;
@@ -1733,13 +1811,14 @@
   .selectWrap { flex: 0 0 auto; }
   .dayBar { padding: 0 12px 8px; }
 
-  /* Swap the division and view-mode pills for their dropdown twins. Declared
-     after .segmented so the hide wins on equal specificity. */
+  /* Swap the division pills for their dropdown twin and the view-mode pills for
+     the switch. Declared after .segmented so the hide wins on equal
+     specificity. */
   .pointerOnly { display: none; }
   .mobileOnly { display: inline-flex; }
 
-  /* Dropdowns fill the bar: division across the full width, then view mode and
-     status splitting the row beneath it. */
+  /* Division dropdown spans the bar; below it the view switch takes the width it
+     needs and the status dropdown absorbs the rest. */
   .mobileSelectWide { width: 100%; }
   .controlsGroup > .selectWrap { flex: 1 1 0; min-width: 0; }
   .stickyBar .select {

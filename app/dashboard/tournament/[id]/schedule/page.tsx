@@ -1057,18 +1057,21 @@ export default function TournamentSchedulePage() {
                 Grid
               </button>
             </div>
-            <div className={`${styles.selectWrap} ${styles.mobileOnly}`}>
-              <select
-                className={styles.select}
-                aria-label="Schedule view"
-                value={viewMode}
-                onChange={e => setViewMode(e.target.value as 'court' | 'grid')}
-              >
-                <option value="court">By Court</option>
-                <option value="grid">Grid</option>
-              </select>
-              <ChevronDown size={14} className={styles.selectChevron} />
-            </div>
+            <label className={`${styles.viewSwitch} ${styles.mobileOnly}`}>
+              <span className={styles.viewSwitchLabel}>
+                <Table size={14} /> Grid view
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                className={styles.viewSwitchInput}
+                checked={viewMode === 'grid'}
+                onChange={e => setViewMode(e.target.checked ? 'grid' : 'court')}
+              />
+              <span className={styles.viewSwitchTrack} aria-hidden="true">
+                <span className={styles.viewSwitchThumb} />
+              </span>
+            </label>
 
             {/* Status Filter */}
             <div className={styles.selectWrap}>
