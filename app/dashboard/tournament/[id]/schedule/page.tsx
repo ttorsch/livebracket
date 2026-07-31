@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -10,6 +10,9 @@ import {
   Check,
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
   Clock,
   Grid,
   MapPin,
@@ -225,6 +228,28 @@ export default function TournamentSchedulePage() {
   const [dragging, setDragging] = useState<string | null>(null);
   /** Match whose time is being typed. */
   const [editingTime, setEditingTime] = useState<string | null>(null);
+  /** Match the navigator is open on, on a narrow screen. */
+  const [navId, setNavId] = useState<string | null>(null);
+
+  /* A phone is not a small desk. Carrying a card across a calendar that shows
+     one court at a time means dragging to a court that is off screen, which no
+     amount of drag polish fixes — so below this width a match is tapped and
+     then walked, a slot at a time, with arrows. Held in state rather than left
+     to CSS because it decides behaviour, not just looks: a card that cannot be
+     dragged must not claim the touch that scrolls the calendar. */
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 860px)');
+    const sync = () => {
+      setCompact(mq.matches);
+      // Widening the window puts drag back; a navigator left open on a card
+      // nobody can see the arrows for would be a dead control.
+      if (!mq.matches) setNavId(null);
+    };
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   /** Something on screen differs from what is stored — a hand move, a block,
    *  or a config change — so there is something worth saving. */
@@ -958,6 +983,63 @@ export default function TournamentSchedulePage() {
 
   useEffect(() => { dropRef.current = dropMatch; });
 
+  /* The navigator: the same insertion the drag makes, one step at a time.
+   *
+   * Up and down walk the queue on the match's own court — each press puts it in
+   * front of its neighbour, which is a swap when the two are the same length
+   * and the right answer when they are not. Left and right cross to the next
+   * court and keep the hour the match already had, slotting in before the first
+   * match there that starts at or after it, because a match moved sideways is
+   * being moved to another court, not to another time of day. */
+  const courtOrder = calendar.courts.filter(c => c !== 'Unscheduled');
+
+  const runOnCourt = (court: string, day: number) =>
+    allMatches
+      .filter(m => m.court === court && m.day === day && !m.unscheduled && fromHHMM(m.time) != null)
+      .sort((a, b) => (fromHHMM(a.time) ?? 0) - (fromHHMM(b.time) ?? 0));
+
+  type NavDir = 'up' | 'down' | 'left' | 'right';
+
+  /** Which way this match can go from where it is. */
+  const navOptions = (m: ScheduleMatch) => {
+    const run = runOnCourt(m.court, m.day);
+    const i = run.findIndex(x => x.id === m.id);
+    const ci = courtOrder.indexOf(m.court);
+    return {
+      up: i > 0,
+      down: i >= 0 && i < run.length - 1,
+      left: ci > 0,
+      right: ci >= 0 && ci < courtOrder.length - 1,
+    };
+  };
+
+  const navMove = (m: ScheduleMatch, dir: NavDir) => {
+    const run = runOnCourt(m.court, m.day);
+    const i = run.findIndex(x => x.id === m.id);
+    if (i < 0) return;
+
+    if (dir === 'up') {
+      const before = run[i - 1];
+      if (before) dropMatch(m.id, m.court, m.day, { beforeId: before.id });
+      return;
+    }
+    if (dir === 'down') {
+      if (i >= run.length - 1) return;
+      // Past the next match means in front of the one after it — or, if the
+      // next match is the last, onto the end of the court.
+      const after = run[i + 2];
+      dropMatch(m.id, m.court, m.day, after ? { beforeId: after.id } : { append: true });
+      return;
+    }
+
+    const ci = courtOrder.indexOf(m.court);
+    const court = courtOrder[dir === 'left' ? ci - 1 : ci + 1];
+    if (ci < 0 || !court) return;
+    const start = fromHHMM(m.time) ?? 0;
+    const landing = runOnCourt(court, m.day).find(x => (fromHHMM(x.time) ?? 0) >= start);
+    dropMatch(m.id, court, m.day, landing ? { beforeId: landing.id } : { append: true });
+  };
+
   // Division -> color index (0..5). Taken from the tournament's own division
   // order, not from what is on screen, so a division keeps its color when the
   // view is filtered down to it.
@@ -985,6 +1067,7 @@ export default function TournamentSchedulePage() {
         setBlockMode(false);
         setEditingTime(null);
         setInsertAt(null);
+        setNavId(null);
       }}
       title={
         editMode
@@ -1587,7 +1670,7 @@ export default function TournamentSchedulePage() {
                   <button
                     type="button"
                     className={`${styles.gridToolBtn} ${blockMode ? styles.gridToolBtnOn : ''}`}
-                    onClick={() => { setBlockMode(v => !v); setEditingTime(null); }}
+                    onClick={() => { setBlockMode(v => !v); setEditingTime(null); setNavId(null); }}
                     title="Click any empty slot to take that court time off the board"
                   >
                     <Ban size={13} /> {blockMode ? 'Click a slot to block' : 'Block time'}
@@ -1606,7 +1689,14 @@ export default function TournamentSchedulePage() {
             {editBar}
 
             <p className={styles.gridNote}>
-              {editMode ? (
+              {editMode && compact ? (
+                <>
+                  Tap a match to pick it up, then walk it with the arrows: up and down its own court, left and right
+                  onto the next one. It goes in front of whatever it moves towards — everything below that moves down
+                  by the match&apos;s length, and the court it left closes up behind it. Tap the tick when it is where
+                  you want it.
+                </>
+              ) : editMode ? (
                 <>
                   Drag a match onto the top edge of another to slot it in front of it — everything below moves down
                   by that match&apos;s length, and the court it left closes up behind it. Empty time still takes a
@@ -1763,21 +1853,68 @@ export default function TournamentSchedulePage() {
                               b.m.isEdited ? styles.gridMatchCardEdited : '',
                               faults.length > 0 ? styles.gridMatchCardFault : '',
                               dragging === b.m.id ? styles.gridMatchCardDragging : '',
+                              navId === b.m.id ? styles.gridMatchCardPicked : '',
                             ].filter(Boolean).join(' ')}
                             data-div={divIdx}
-                            data-movable={editMode && movable && !blockMode ? 'true' : undefined}
+                            /* Only a card that is actually carried claims the
+                               touch: on a narrow screen the finger belongs to
+                               the calendar's sideways scroll, and the match is
+                               moved with the navigator instead. */
+                            data-movable={editMode && movable && !blockMode && !compact ? 'true' : undefined}
                             onPointerDown={e => {
-                              if (!editMode || !movable || blockMode) return;
+                              if (!editMode || !movable || blockMode || compact) return;
                               if (e.pointerType === 'mouse' && e.button !== 0) return;
                               // The time is a button; let a click on it be a click.
                               if ((e.target as HTMLElement).closest('button,input,select,textarea')) return;
                               beginDrag(b.m.id, e.clientX, e.clientY);
+                            }}
+                            onClick={e => {
+                              if (!editMode || !movable || blockMode || !compact) return;
+                              if ((e.target as HTMLElement).closest('button,input,select,textarea')) return;
+                              setNavId(id => (id === b.m.id ? null : b.m.id));
+                              setEditingTime(null);
                             }}
                             style={{
                               gridColumn: ci + 2,
                               gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
                             } as CSSProperties}
                           >
+                            {/* The navigator. Each arrow is one insertion:
+                                the match goes in front of the neighbour it
+                                moves towards, and the schedule closes up and
+                                opens out around it exactly as a drop does. */}
+                            {compact && editMode && !blockMode && movable && navId === b.m.id && (() => {
+                              const can = navOptions(b.m);
+                              const go = (dir: 'up' | 'down' | 'left' | 'right') => (e: ReactMouseEvent) => {
+                                e.stopPropagation();
+                                navMove(b.m, dir);
+                              };
+                              return (
+                                <div className={styles.navPad} onPointerDown={e => e.stopPropagation()}>
+                                  <button type="button" className={styles.navUp} onClick={go('up')} disabled={!can.up} aria-label="Move one slot earlier">
+                                    <ChevronUp size={16} />
+                                  </button>
+                                  <button type="button" className={styles.navLeft} onClick={go('left')} disabled={!can.left} aria-label="Move to the court on the left">
+                                    <ChevronLeft size={16} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.navDone}
+                                    onClick={e => { e.stopPropagation(); setNavId(null); }}
+                                    aria-label="Done moving this match"
+                                  >
+                                    <Check size={14} />
+                                  </button>
+                                  <button type="button" className={styles.navRight} onClick={go('right')} disabled={!can.right} aria-label="Move to the court on the right">
+                                    <ChevronRight size={16} />
+                                  </button>
+                                  <button type="button" className={styles.navDown} onClick={go('down')} disabled={!can.down} aria-label="Move one slot later">
+                                    <ChevronDown size={16} />
+                                  </button>
+                                </div>
+                              );
+                            })()}
+
                             {/* The gap in front of this match. It is drawn
                                 inside the card's own top edge rather than
                                 floating between two cards, so it is a target

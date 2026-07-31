@@ -678,6 +678,69 @@
   box-shadow: inset 0 3px 0 0 var(--orange, #EE7A4C);
 }
 
+/* The navigator, on the card it is moving.
+   A phone cannot carry a card to a court that is off screen, so the match is
+   tapped and then walked with arrows — up and down its own court, left and
+   right onto the next one. It floats over the card centre rather than sitting
+   in the layout: a short match's card has no room for it, and a pad that
+   changed size with the match would be a moving target between presses. */
+.navPad {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9;
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  grid-template-rows: repeat(3, 28px);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 6px 20px rgba(20, 24, 30, 0.22);
+}
+
+.navPad button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9px;
+  background: var(--sand-200, #F0EDE6);
+  color: var(--ink-800, #2C323D);
+  cursor: pointer;
+  padding: 0;
+}
+
+.navPad button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.navPad button:not(:disabled):active {
+  background: var(--orange, #EE7A4C);
+  color: #fff;
+}
+
+.navUp { grid-area: 1 / 2; }
+.navLeft { grid-area: 2 / 1; }
+.navDone { grid-area: 2 / 2; }
+.navRight { grid-area: 2 / 3; }
+.navDown { grid-area: 3 / 2; }
+
+.navDone {
+  background: var(--orange, #EE7A4C) !important;
+  color: #fff !important;
+}
+
+/* The card the navigator is open on. */
+.gridMatchCardPicked {
+  border-color: var(--orange, #EE7A4C);
+  box-shadow: 0 0 0 3px rgba(238, 122, 76, 0.22);
+}
+
 /* The bottom edge of the last card on a court: the end of its run. */
 .cardInsertEnd {
   top: auto;
@@ -1918,9 +1981,10 @@
      onto the next court header. */
   .calScroll {
     --cal-time-col: 44px;
-    /* viewport − page padding − border − time gutter − a sliver of the next
-       court, so the court in view is full-width and the swipe is discoverable */
-    --cal-court-col: calc(100vw - 96px);
+    /* 1.2 courts across: the width left over once the page padding, the border
+       and the time gutter are taken out, divided so a fifth of the next court
+       is always showing — enough to say the calendar carries on sideways. */
+    --cal-court-col: calc((100vw - 32px - 2px - var(--cal-time-col)) / 1.2);
     scroll-snap-type: x mandatory;
     /* Snap past the sticky time gutter so a court lands flush beside it. */
     scroll-padding-left: var(--cal-time-col);
