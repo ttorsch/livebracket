@@ -387,6 +387,10 @@
   overflow-x: auto;
   padding-bottom: 12px;
   scroll-snap-type: x mandatory;
+  /* Keep a sideways swipe in the courts rather than letting it chain to the
+     page or to the browser's back gesture, exactly as the calendar does. */
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .courtCard {
@@ -2004,6 +2008,15 @@
     scroll-snap-align: start;
     scroll-margin-left: 4px;
   }
+
+  /* The by-court view slides the same way: a whole court plus a fifth of the
+     next, and a swipe that comes to rest on a court rather than between two.
+     The column is stated rather than left at its 300px floor so the fraction
+     on show is the same one the calendar gives. */
+  .courtsGrid {
+    grid-template-columns: repeat(var(--court-count, 1), calc((100vw - 32px - 14px) / 1.2));
+  }
+  .courtCard { scroll-snap-align: start; }
 
   .calTimeLabelCell {
     padding: 12px 4px 0 4px;
