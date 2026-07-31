@@ -1960,14 +1960,24 @@
     --cal-court-col: 240px;
   }
   /* Below this width a court needs more room than the screen has, so the grid
-     goes back to being wider than its container and scrolls sideways. */
+     goes back to being wider than its container and scrolls sideways.
+     Its width is stated outright — a gutter plus one column per court — rather
+     than left as `max-content`. Under max-content sizing a column grows to fit
+     the longest line inside it, so a single long pair of team names widened
+     every court past the screen and the first court could not be seen whole,
+     which is the one thing this layout has to get right. */
   .calGrid {
-    width: max-content;
+    width: calc(var(--cal-time-col, 56px) + var(--cal-courts, 1) * var(--cal-court-col, 240px));
     min-width: 100%;
     grid-template-columns:
       var(--cal-time-col, 56px)
       repeat(var(--cal-courts, 1), minmax(var(--cal-court-col, 240px), 1fr));
   }
+
+  /* With the column width fixed, anything too long for it has to give: flex
+     items refuse to shrink below their content until told they may. */
+  .gridMatchTop > div { min-width: 0; }
+  .gridTeamName { min-width: 0; }
   .calTimeLabelCell { padding: 12px 8px 0 4px; font-size: 12px; }
   .calCourtHeadCard { padding: 8px 12px; }
   .calCourtHeadCard .courtName { font-size: 15px; }
