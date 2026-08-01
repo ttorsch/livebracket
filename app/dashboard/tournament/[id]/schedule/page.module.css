@@ -2,9 +2,9 @@
 
 .page {
   min-height: 100vh;
-  background-color: var(--surface-canvas, #F7F5F0);
+  background-color: var(--sand-100, #F5F1EA);
   color: var(--ink-900, #14181E);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-body, 'DM Sans', sans-serif);
 }
 
 /* ── Fixed Back Link ─────────────────────────────────────────── */
@@ -32,15 +32,17 @@
   background: rgba(20, 24, 30, 0.85);
 }
 
-/* ── Hero Banner ─────────────────────────────────────────────── */
+/* ── Header ──────────────────────────────────────────────────────
+   Flat ink, no photograph. A schedule is a working document — the organizer is
+   reading times off it, often at the venue on a phone in daylight — and a
+   header that spends 240px on a stock beach does that job no favours. The
+   solid panel gives the title the same contrast at every scroll position and
+   hands the vertical space back to the courts. */
 .hero {
   position: relative;
-  background-color: #14181E;
-  background-size: cover;
-  background-position: center;
-  padding: 64px 24px 40px;
+  background-color: var(--ink-900, #14181E);
+  padding: 56px 40px 24px;
   color: #FFFFFF;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .heroInner {
@@ -94,20 +96,20 @@
 }
 
 .heroTitle {
-  font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 38px;
-  font-weight: 800;
-  line-height: 1.15;
-  margin: 0 0 12px;
-  letter-spacing: -0.5px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
 }
 
 .heroMeta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  color: rgba(255, 255, 255, 0.75);
+  gap: 22px;
+  color: var(--text-on-ink-muted, rgba(255, 255, 255, 0.72));
   font-size: 14px;
 }
 
@@ -128,38 +130,42 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 9px 18px;
   border-radius: 999px;
-  background: var(--orange, #EE7A4C);
+  border: none;
+  background: var(--coral-500, #EB6F43);
   color: #FFFFFF;
+  font-family: inherit;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
+  cursor: pointer;
   text-decoration: none;
-  transition: transform 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
 
 .heroPrimaryBtn:hover {
-  transform: translateY(-1px);
-  background: #E06838;
+  background: var(--coral-600, #E44F1C);
 }
 
 .heroGhostBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 9px 18px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: none;
+  background: rgba(255, 255, 255, 0.10);
   color: #FFFFFF;
+  font-family: inherit;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s;
 }
 
 .heroGhostBtn:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.20);
 }
 
 /* ── Sticky Control Bar ───────────────────────────────────────── */
@@ -167,15 +173,14 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(247, 245, 240, 0.55);
+  background: rgba(245, 241, 234, 0.82);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
   will-change: transform, backdrop-filter;
-  border-bottom: 1px solid rgba(20, 24, 30, 0.08);
-  box-shadow: 0 4px 20px rgba(20, 24, 30, 0.05);
-  padding: 14px 24px;
+  border-bottom: 1px solid var(--sand-300, #E7E2D9);
+  padding: 14px 40px;
 }
 
 .stickyInner {
@@ -197,18 +202,18 @@
 
 .segmented {
   display: inline-flex;
-  padding: 3px;
+  gap: 4px;
+  padding: 4px;
   border-radius: 999px;
-  background: var(--sand-200, #F0EDE6);
-  border: 1px solid var(--sand-300, #EAE5DD);
+  background: rgba(118, 118, 128, 0.10);
 }
 
 .segBtn {
-  padding: 6px 14px;
+  padding: 7px 16px;
   border-radius: 999px;
   border: none;
   background: transparent;
-  color: var(--ink-600, #5A6270);
+  color: var(--ink-600, #3A414D);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -217,9 +222,10 @@
 }
 
 .segBtnActive {
-  background: var(--surface-card, #FFFFFF);
+  background: #FFFFFF;
   color: var(--ink-900, #14181E);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
 }
 
 .select {
@@ -341,15 +347,29 @@
   padding: 32px 24px 64px;
 }
 
-.sectionTitle {
-  font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* ── The editing hint ────────────────────────────────────────────
+   A rule of the room, not a caption: it sits in a card with a coral edge so it
+   reads as an instruction while the schedule is unlocked, and drops back to
+   quiet grey text once it is only saying the schedule is locked. */
+.hintBanner {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-500, #7A8294);
 }
+
+.hintBannerOn {
+  max-width: 960px;
+  padding: 14px 18px;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-left: 3px solid var(--coral-500, #EB6F43);
+  border-radius: 14px;
+  background: var(--surface-card, #FFFFFF);
+  font-size: 14px;
+  color: var(--ink-600, #3A414D);
+}
+
+.hintBannerOn strong { color: var(--coral-600, #E44F1C); }
 
 /* ── Day sections ─────────────────────────────────────────────
    A multi-day event viewed as a whole is shown one day at a time: each day
@@ -393,26 +413,27 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* A court is a column, not a card: a hairline under its name and the run of
+   matches below it, so what carries the eye down the page is the queue rather
+   than a box drawn around it. */
 .courtCard {
-  background: var(--surface-card, #FFFFFF);
-  border: 1px solid var(--sand-300, #EAE5DD);
-  border-radius: var(--radius-xl, 16px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 
 .courtHeader {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  padding-bottom: 12px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--sand-300, #EAE5DD);
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--sand-300, #E7E2D9);
 }
 
 .courtName {
-  font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 17px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 19px;
   font-weight: 700;
   color: var(--ink-900, #14181E);
 }
@@ -420,7 +441,18 @@
 .courtCount {
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink-500, #8A92A0);
+  color: var(--ink-500, #7A8294);
+  font-variant-numeric: tabular-nums;
+}
+
+/* When a court's last match ends. The one number an organizer standing at the
+   net actually wants from a column, and it is nowhere else on the page. */
+.courtEnds {
+  text-align: center;
+  padding-top: 2px;
+  font-size: 12px;
+  color: var(--ink-500, #7A8294);
+  font-variant-numeric: tabular-nums;
 }
 
 .matchList {
@@ -430,32 +462,73 @@
 }
 
 .matchItem {
-  padding: 16px 18px;
-  border-radius: 12px;
-  border: 1px solid var(--cal-border, var(--sand-300, #EAE5DD));
-  background: var(--cal-bg, var(--surface-canvas, #F7F5F0));
-  transition: border-color 0.15s, background 0.15s;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-left: 3px solid var(--cal-accent, var(--coral-500, #EB6F43));
+  background: var(--surface-card, #FFFFFF);
+  box-shadow: 0 2px 10px rgba(20, 31, 46, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .matchItemLive {
-  border-color: rgba(238, 122, 76, 0.4);
-  background: rgba(238, 122, 76, 0.06);
+  border-color: rgba(235, 111, 67, 0.45);
+  box-shadow: 0 0 0 1px rgba(235, 111, 67, 0.35), 0 2px 10px rgba(20, 31, 46, 0.05);
 }
 
 .matchItemTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
 .matchTime {
   font-size: 11px;
   font-weight: 500;
-  color: var(--ink-500, #8A92A0);
+  color: var(--ink-500, #7A8294);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.matchTime svg { flex: none; }
+
+/* The time is the one number on a card you can change by pointing at it, so it
+   is a control rather than a label — tinted like the rest of the line until
+   editing is on, then offering itself. */
+.matchTimeBtn {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--ink-900, #14181E);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 3px 6px;
+  cursor: default;
+}
+
+.matchTimeBtn[data-editable='true'] {
+  background: var(--sand-200, #EFEAE0);
+  cursor: text;
+}
+
+.matchTimeBtn[data-editable='true']:hover {
+  border-color: var(--coral-400, #F28864);
+  background: var(--coral-50, #FFFBFA);
+  color: var(--coral-600, #E44F1C);
+}
+
+.matchDuration {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500, #7A8294);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Round + division sit together on the right of a card's top row. They wrap
@@ -464,34 +537,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
 }
 
-.divisionBadge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--cal-bg, var(--sand-300, #EAE5DD));
-  color: var(--cal-accent, var(--ink-700, #3E4654));
-  border: 1px solid var(--cal-border, transparent);
-}
-
-/* Quieter than the division badge: which round a match belongs to is context,
-   not the card's headline. */
+/* Quieter than the match-number chip: which round a match belongs to is
+   context, not the card's headline — and it gives way first when the column
+   is narrow. */
 .roundBadge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 999px;
-  color: var(--ink-600, #5A6270);
-  background: transparent;
-  border: 1px solid var(--sand-300, #EAE5DD);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-500, #7A8294);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .matchTeams {
@@ -518,64 +578,113 @@
 
 /* ── Editing the grid by hand ─────────────────────────────────── */
 
-/* One target per court per row, mounted only during a drag or with the block
-   tool armed. Invisible until the pointer is over it — the grid should not
-   look like a form. */
+/* One target per court per row, mounted only while the block tool is armed.
+   Invisible until the pointer is over it — the grid should not look like a
+   form the rest of the time. */
 .calDropCell {
   z-index: 1;
   border-radius: 6px;
   margin: 1px 3px;
   transition: background 0.1s ease, box-shadow 0.1s ease;
 }
-.calDropCell:hover {
-  background: rgba(238, 122, 76, 0.14);
-  box-shadow: inset 0 0 0 1px var(--orange, #EE7A4C);
-}
 .calDropCellBlock {
   cursor: cell;
 }
 .calDropCellBlock:hover {
   background: rgba(90, 98, 112, 0.16);
-  box-shadow: inset 0 0 0 1px var(--ink-500, #8A92A0);
+  box-shadow: inset 0 0 0 1px var(--ink-500, #7A8294);
 }
 
-/* Court time taken off the board. Deliberately unlike a match card: hatched,
-   grey, and obviously not something anybody is playing. */
-.calBlockedSlot {
-  z-index: 2;
-  margin: 2px 3px;
-  padding: 4px 8px;
-  border: 1px dashed var(--ink-400, #A7AEBA);
-  border-radius: 8px;
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(90, 98, 112, 0.07),
-    rgba(90, 98, 112, 0.07) 6px,
-    rgba(90, 98, 112, 0.02) 6px,
-    rgba(90, 98, 112, 0.02) 12px
-  );
+/* ── Gaps in a court's run ───────────────────────────────────────
+   Buffer time and blocked time, drawn the same way in both views: hatched,
+   sand, and obviously not something anybody is playing. It is a row in the
+   queue rather than an annotation on it, because it takes court time exactly
+   as a match does — and it carries its own controls, so lengthening the gap
+   before the final is a press rather than a trip to the generator panel. */
+.gapStrip {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: flex-start;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--sand-400, #D9D4C9);
+  border-radius: 14px;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(217, 212, 201, 0.30) 0 6px,
+    transparent 6px 12px
+  );
   overflow: hidden;
-  cursor: pointer;
-  text-align: left;
 }
-.calBlockedSlot:hover {
-  border-color: var(--orange, #EE7A4C);
-  background: rgba(238, 122, 76, 0.08);
+
+/* In the calendar the strip has to fill the rows the gap spans, rather than
+   sizing itself to its own text. */
+.gapStripFill {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
 }
-.calBlockedLabel {
+
+.gapText {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gapLabel {
   font-size: 11px;
   font-weight: 700;
-  color: var(--ink-700, #3E4654);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-500, #7A8294);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.calBlockedTime {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--ink-500, #8A92A0);
+
+.gapMinutes {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900, #14181E);
+}
+
+.gapControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.gapControls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #D9D4C9);
+  background: #FFFFFF;
+  color: var(--ink-600, #3A414D);
+  cursor: pointer;
+  padding: 0;
+}
+
+.gapControls button:hover {
+  border-color: var(--coral-400, #F28864);
+  color: var(--coral-600, #E44F1C);
+}
+
+/* In the calendar the strip is positioned by the grid; the wrapper carries the
+   placement and the strip inside it does the drawing. */
+.calBlockedSlot {
+  z-index: 2;
+  display: flex;
+  margin: 2px 3px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .gridToolBtn {
@@ -647,75 +756,76 @@
   border-color: #D64545 !important;
   background: rgba(214, 69, 69, 0.04);
 }
-.gridMatchCardDragging { opacity: 0.35; }
+/* A card you can pick up says so — without this the cursor stays an arrow over
+   something that is in fact a control. */
+.gridMatchCard[data-pickable='true'],
+.matchItem[data-pickable='true'] { cursor: pointer; }
 
-/* A card you can pick up says so. Without this the cursor stays an arrow over
-   something that is in fact draggable, which is indistinguishable from a card
-   that is not. `touch-action: none` is what lets a finger carry a card instead
-   of scrolling the page with it. */
-.gridMatchCard[data-movable='true'] {
-  cursor: grab;
-  touch-action: none;
-}
-.gridMatchCard[data-movable='true']:active { cursor: grabbing; }
+/* Both views' cards are positioning parents: the navigator and the buffer
+   handle are drawn against their own edges. */
+.matchItem { position: relative; }
 
-/* The gap in front of a match — drop here and the match goes in at this one's
-   time, pushing it and everything below it down the court.
-   It lives inside the card's top edge rather than in the space between two
-   cards: the calendar has no reliable space between cards to put it in, and an
-   edge that belongs to a card is a target that stays put while the schedule
-   reflows underneath a finger. */
-.cardInsert {
+/* ── The navigator ───────────────────────────────────────────────
+   Drawn over the card it is moving. Frosting the card out is the point: with
+   fifty cards on screen it says without ambiguity which one is in hand, and it
+   gives four arrows a target size a finger can hit on a card that may only be
+   forty pixels tall. */
+.navOverlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 40%;
-  min-height: 14px;
-  max-height: 22px;
-  z-index: 8;
-  border-radius: 10px 10px 0 0;
-}
-
-.cardInsertOver {
-  background: rgba(238, 122, 76, 0.16);
-  box-shadow: inset 0 3px 0 0 var(--orange, #EE7A4C);
-}
-
-/* The navigator, on the card it is moving.
-   A phone cannot carry a card to a court that is off screen, so the match is
-   tapped and then walked with arrows — up and down its own court, left and
-   right onto the next one. It floats over the card centre rather than sitting
-   in the layout: a short match's card has no room for it, and a pad that
-   changed size with the match would be a moving target between presses. */
-.navPad {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
   z-index: 9;
-  display: grid;
-  grid-template-columns: repeat(3, 28px);
-  grid-template-rows: repeat(3, 28px);
-  gap: 2px;
-  padding: 3px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-  box-shadow: 0 6px 20px rgba(20, 24, 30, 0.22);
-}
-
-.navPad button {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  border-radius: 9px;
-  background: var(--sand-200, #F0EDE6);
-  color: var(--ink-800, #2C323D);
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  backdrop-filter: blur(6px) saturate(140%);
+  animation: navFade 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes navFade { from { opacity: 0 } to { opacity: 1 } }
+
+.navBar {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1.5px solid var(--glass-border, rgba(255, 255, 255, 0.35));
+  background: rgba(255, 255, 255, 0.90);
+  box-shadow: 0 16px 40px -18px rgba(20, 31, 46, 0.45);
+}
+
+.navPad {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  min-height: 46px;
+}
+
+.navPad button,
+.navCancel,
+.navSave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  background: #FFFFFF;
+  color: var(--ink-900, #14181E);
   cursor: pointer;
   padding: 0;
+}
+
+.navPad button:not(:disabled):hover {
+  border-color: var(--coral-400, #F28864);
+  color: var(--coral-600, #E44F1C);
 }
 
 .navPad button:disabled {
@@ -723,85 +833,48 @@
   cursor: default;
 }
 
-.navPad button:not(:disabled):active {
-  background: var(--orange, #EE7A4C);
-  color: #fff;
-}
+/* Left and right are full height: crossing to another court is a bigger move
+   than nudging a slot, and the shape says so. */
+.navLeft { grid-column: 1; grid-row: 1 / 3; }
+.navUp { grid-column: 2; grid-row: 1; width: 60%; justify-self: center; }
+.navDown { grid-column: 2; grid-row: 2; width: 60%; justify-self: center; }
+.navRight { grid-column: 3; grid-row: 1 / 3; }
 
-.navUp { grid-area: 1 / 2; }
-.navLeft { grid-area: 2 / 1; }
-.navDone { grid-area: 2 / 2; }
-.navRight { grid-area: 2 / 3; }
-.navDown { grid-area: 3 / 2; }
-
-.navDone {
-  background: var(--orange, #EE7A4C) !important;
-  color: #fff !important;
-}
-
-/* The card the navigator is open on. */
-.gridMatchCardPicked {
-  border-color: var(--orange, #EE7A4C);
-  box-shadow: 0 0 0 3px rgba(238, 122, 76, 0.22);
-}
-
-/* The bottom edge of the last card on a court: the end of its run. */
-.cardInsertEnd {
-  top: auto;
-  bottom: 0;
-  border-radius: 0 0 10px 10px;
-}
-
-.cardInsertEnd.cardInsertOver {
-  box-shadow: inset 0 -3px 0 0 var(--orange, #EE7A4C);
-}
-
-/* A match in the by-court list is picked up the same way a calendar block is,
-   and carries its own drop targets, so it needs to be a positioning parent. */
-.matchItem { position: relative; }
-
-.matchItem[data-movable='true'] {
-  cursor: grab;
-  touch-action: none;
-}
-.matchItem[data-movable='true']:active { cursor: grabbing; }
-.matchItemDragging { opacity: 0.35; }
-
-/* A section heading that shares its row with the edit switch. */
-.sectionTitleFlush { margin-bottom: 0; }
-
-/* The card following the pointer. `pointer-events: none` is load-bearing: the
-   drop target is whatever is under the cursor, and a ghost that could be hit
-   would be the only thing ever under it. */
-.dragGhost {
-  position: fixed;
-  z-index: 400;
-  pointer-events: none;
-  transform: translate(12px, 12px);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 280px;
-  padding: 7px 11px;
+.navCancel {
+  flex: 0 0 34px;
   border-radius: 10px;
-  background: var(--surface-card, #FFFFFF);
-  border: 2px solid var(--orange, #EE7A4C);
-  box-shadow: 0 10px 28px rgba(20, 24, 30, 0.18);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-800, #2C323D);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--ink-500, #7A8294);
 }
-.dragGhostNo {
-  flex: none;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 999px;
-  color: #fff;
-  background: var(--orange, #EE7A4C);
+
+.navCancel:hover {
+  border-color: var(--ink-500, #7A8294);
+  color: var(--ink-900, #14181E);
+}
+
+.navSave {
+  flex: 0 0 34px;
+  border: none;
+  border-radius: 10px;
+  background: var(--coral-500, #EB6F43);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(235, 111, 67, 0.40);
+}
+
+.navSave:hover { background: var(--coral-600, #E44F1C); }
+
+/* The card the navigator is open on, once the overlay is out of the way. */
+.gridMatchCardPicked,
+.matchItemPicked {
+  border-color: var(--coral-500, #EB6F43);
+  box-shadow: 0 8px 24px rgba(235, 111, 67, 0.28);
+}
+
+/* A by-court card the organizer moved, and one that is now breaking something.
+   Same vocabulary as the calendar's, so a fault reads the same in both. */
+.matchItemEdited { border-style: dashed; }
+.matchItemFault {
+  border-color: #D64545;
+  background: rgba(214, 69, 69, 0.04);
 }
 
 /* ── Editing ─────────────────────────────────────────────────
@@ -850,17 +923,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
   border: 2px solid #fff;
-  background: var(--orange, #EE7A4C);
+  background: var(--coral-500, #EB6F43);
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(20, 24, 30, 0.22);
+  box-shadow: 0 4px 12px rgba(235, 111, 67, 0.40);
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
+.cardBufferBtn:hover { background: var(--coral-600, #E44F1C); }
 .gridMatchCard:hover .cardBufferBtn,
+.matchItem:hover .cardBufferBtn,
 .cardBufferBtn:focus-visible { opacity: 1; }
 .cardBufferBtn:hover { transform: scale(1.14); }
 /* No hover on a touch screen, so the handles are simply always there rather
@@ -902,13 +977,6 @@
   cursor: pointer;
 }
 .seamPrompt button:hover { color: var(--orange, #EE7A4C); }
-
-/* The cell the pointer is over. The plain :hover rule cannot do this job — with
-   a finger there is no hover, and the ghost is under the cursor anyway. */
-.calDropCellOver {
-  background: rgba(238, 122, 76, 0.18);
-  box-shadow: inset 0 0 0 2px var(--orange, #EE7A4C);
-}
 
 .gridTimeInput {
   width: 82px;
@@ -969,13 +1037,13 @@
   border: 1px solid var(--cal-border);
 }
 
-/* ── Court Schedule Grid Design (Reference Image) ─────────── */
+/* ── The heading both views share ─────────────────────────────── */
 .gridHeaderRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 24px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
@@ -985,30 +1053,19 @@
   gap: 14px;
 }
 
-.gridHeaderIconBadge {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--coral, #F26749);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(242, 103, 73, 0.25);
-}
-
 .gridHeaderEyebrow {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--coral, #F26749);
-  margin-bottom: 2px;
+  letter-spacing: 0.10em;
+  color: var(--coral-500, #EB6F43);
+  margin-bottom: 4px;
 }
 
 .gridHeaderTitle {
-  font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 26px;
-  font-weight: 800;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--ink-900, #14181E);
   margin: 0;
   line-height: 1.1;
@@ -1017,18 +1074,8 @@
 .gridHeaderRight {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
-}
-
-.pendingPill {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-500, #8A92A0);
-  background: rgba(20, 24, 30, 0.04);
-  border: 1px dashed var(--sand-300, #EAE5DD);
-  padding: 4px 12px;
-  border-radius: 999px;
 }
 
 .calCourtHeadCard {
@@ -1036,7 +1083,7 @@
   top: 0;
   z-index: 5;
   background: var(--surface-card, #FFFFFF);
-  border: 1px solid var(--sand-300, #EAE5DD);
+  border: 1px solid var(--sand-300, #E7E2D9);
   border-radius: 12px;
   padding: 10px 16px;
   margin: 4px;
@@ -1097,23 +1144,33 @@
   box-shadow: 0 2px 8px rgba(20, 24, 30, 0.04);
 }
 
+/* The card is white with a hairline, and its division is said by the accent on
+   its leading edge and by the match-number chip — not by tinting the whole
+   card. Six tinted fills across four courts is a colour field; a white card
+   with one coloured edge is a schedule you can read. */
 .gridMatchCard {
   position: relative;
   background: var(--surface-card, #FFFFFF);
-  border: 2px solid var(--div-border, rgba(238, 122, 76, 0.45));
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-left: 3px solid var(--div-accent, #EB6F43);
   border-radius: 12px;
   padding: 7px 12px;
   margin: 3px 2px;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  box-shadow: 0 3px 10px rgba(20, 24, 30, 0.03);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 10px rgba(20, 31, 46, 0.05);
+  transition: box-shadow 0.15s ease;
 }
 
 .gridMatchCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(20, 24, 30, 0.08);
+  box-shadow: 0 6px 18px rgba(20, 24, 30, 0.10);
+}
+
+/* A match being played now, in either view. */
+.gridMatchCardLive {
+  border-color: rgba(235, 111, 67, 0.45);
+  box-shadow: 0 0 0 1px rgba(235, 111, 67, 0.35), 0 2px 10px rgba(20, 31, 46, 0.05);
 }
 
 
@@ -1168,14 +1225,17 @@
   max-width: 84px;
 }
 
+/* Filled rather than tinted: it is the card's one piece of division colour, so
+   it has to survive being three characters wide. */
 .gridMatchNo {
   flex: none;
-  font-size: 10px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 11px;
   font-weight: 700;
-  color: var(--div-accent, #EE7A4C);
-  background: var(--div-badge-bg, rgba(238, 122, 76, 0.12));
-  padding: 1px 6px;
-  border-radius: 999px;
+  color: #FFFFFF;
+  background: var(--div-accent, #EB6F43);
+  padding: 2px 7px;
+  border-radius: 6px;
 }
 
 .gridTeamRow {
@@ -1943,19 +2003,18 @@
   }
 
   .main { padding: 20px 16px 48px; }
-  .sectionTitle { font-size: 18px; margin-bottom: 14px; }
 
   .genInner { padding: 16px 16px 20px; }
   .previewInner { padding: 12px 16px; }
   .saveMsg { padding: 0 16px; }
 
-  /* Grid view header */
+  /* Section heading */
   .gridHeaderRow { gap: 12px; margin-bottom: 16px; }
-  .gridHeaderIconBadge { width: 36px; height: 36px; border-radius: 10px; }
-  .gridHeaderTitle { font-size: 20px; }
+  .gridHeaderTitle { font-size: 22px; }
+  .gridHeaderEyebrow { font-size: 11px; letter-spacing: 0.08em; }
   .gridHeaderRight { gap: 10px; }
   .calLegendItem { font-size: 11px; gap: 5px; }
-  .pendingPill { font-size: 11px; padding: 3px 10px; }
+  .hintBannerOn { padding: 12px 14px; font-size: 13px; }
 
   /* Grid view calendar — geometry is set on the scroll container so that both
      the track sizing and the snap padding read the same values. */
