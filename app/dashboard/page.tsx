@@ -703,7 +703,11 @@ function TournamentRow({
         aria-expanded={expanded}
       >
         <span className={styles.rowThumb} aria-hidden="true">
-          <span className={styles.rowThumbInitials}>{locationInitials(t.location)}</span>
+          {t.imageUrl ? (
+            <img src={t.imageUrl} alt="" className={styles.rowThumbImg} />
+          ) : (
+            <span className={styles.rowThumbInitials}>{locationInitials(t.location)}</span>
+          )}
         </span>
 
         <span className={styles.rowInfo}>

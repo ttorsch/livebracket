@@ -584,6 +584,11 @@
   font-size: 20px;
   letter-spacing: -0.02em;
 }
+.rowThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .rowInfo {
   flex: 1;
