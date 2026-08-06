@@ -1,0 +1,25 @@
+{
+  "projectId": "019e0fd3-6ffb-7bd1-99ec-e8763d10b0de",
+  "shape": "package",
+  "pkg": "livebracket-ds",
+  "globalName": "LiveBracketDS",
+  "cssEntry": "./tokens/_generated.sync.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "srcDir": ".",
+  "componentSrcMap": {
+    "Button": "buttons/Button.jsx",
+    "Badge": "data-display/Badge.jsx",
+    "Avatar": "data-display/Avatar.jsx",
+    "DateChip": "data-display/DateChip.jsx",
+    "DivisionRing": "data-display/DivisionRing.jsx",
+    "LiveIndicator": "data-display/LiveIndicator.jsx",
+    "PageControl": "data-display/PageControl.jsx",
+    "SearchField": "forms/SearchField.jsx",
+    "SegmentedControl": "forms/SegmentedControl.jsx",
+    "Icon": "icons/Icon.jsx",
+    "Card": "surfaces/Card.jsx",
+    "GlassCard": "surfaces/GlassCard.jsx",
+    "MatchCard": "bracket/MatchCard.jsx",
+    "Logo": "brand/Logo.jsx"
+  }
+}
