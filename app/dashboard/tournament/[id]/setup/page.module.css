@@ -2035,16 +2035,10 @@
 .desktop2aHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   padding-top: 16px;
   min-height: 44px;
   margin-bottom: 24px;
-}
-.desktop2aHeaderLeft {
-  display: flex;
-  align-items: center;
-  gap: 14px;
 }
 .desktop2aTitle {
   font-family: var(--font-heading);
@@ -2055,128 +2049,76 @@
   margin: 0;
   line-height: 44px;
 }
-.desktop2aEditBtn {
-  height: 44px;
-  padding: 0 22px;
-  border: none;
-  border-radius: 999px;
-  background: var(--orange, #EE7A4C);
-  color: #ffffff;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 700;
-  font-size: 14px;
-  box-shadow: 0 4px 12px rgba(238, 122, 76, 0.25);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: transform 0.15s, background 0.15s;
-}
-.desktop2aEditBtn:hover {
-  background: #E56A3C;
-  transform: translateY(-1px);
-}
 
-.desktop2aHero {
+.desktop2aHeaderCard {
   position: relative;
-  height: 220px;
-  border-radius: 24px;
-  overflow: hidden;
-  background: #14181E;
+  overflow: visible;
   margin-bottom: 24px;
-  box-shadow: 0 12px 32px -8px rgba(20, 31, 46, 0.15);
 }
-.desktop2aHeroBg {
+.desktop2aHeaderCardEditBtn {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
 }
-.desktop2aHeroOverlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(20, 24, 30, 0.88) 0%, rgba(20, 24, 30, 0.6) 45%, rgba(20, 24, 30, 0.15) 100%);
-}
-.desktop2aHeroContent {
-  position: absolute;
-  inset: 0;
+.desktop2aHeaderCardBody {
   display: flex;
-  align-items: center;
   gap: 24px;
-  padding: 0 32px;
-  z-index: 1;
+  padding: 20px;
+  padding-right: 64px;
 }
 .desktop2aPoster {
-  width: 116px;
-  height: 156px;
+  width: 140px;
+  aspect-ratio: 3 / 4;
   object-fit: cover;
-  border-radius: 14px;
+  border-radius: 16px;
   flex-shrink: 0;
-  box-shadow: 0 16px 34px -12px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 .desktop2aPosterPlaceholder {
-  width: 116px;
-  height: 156px;
-  border-radius: 14px;
+  width: 140px;
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1.5px dashed rgba(255, 255, 255, 0.25);
+  background: var(--surface-raised, #F3F3F3);
+  border: 1.5px dashed var(--border-hairline, #E7E2D9);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted, #7A8294);
 }
-.desktop2aHeroText {
-  color: #ffffff;
+.desktop2aHeaderTextCol {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
 }
-.desktop2aHeroTitle {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 32px;
-  line-height: 1.1;
+.desktop2aEventTitle {
+  font-family: var(--font-display, var(--font-heading));
+  font-size: 34px;
+  line-height: 40px;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: #ffffff;
+  color: var(--text-primary, #14181E);
   margin: 0;
 }
-.desktop2aHeroMeta {
+.desktop2aMetaCol {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.88);
+  flex-direction: column;
+  gap: 6px;
 }
 .desktop2aMetaItem {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  color: var(--text-secondary, #3A414D);
+  font-size: 14px;
+  line-height: 20px;
 }
 .desktop2aBadgeRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-.desktop2aBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-  backdrop-filter: blur(8px);
-}
-.desktop2aBadgeActive {
-  background: rgba(238, 122, 76, 0.9);
-  color: #ffffff;
+  gap: 8px;
 }
 
 .desktop2aGrid {

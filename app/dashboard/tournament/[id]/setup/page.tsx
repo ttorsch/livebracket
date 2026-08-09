@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow, getDivisionTeams, type RegisteredTeamRow } from '../../../../../lib/data';
+import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
 
 
 // ── Per-division registration schema types ───────────────────────
@@ -841,6 +842,7 @@ export default function OrganizerSetup() {
     : isDivisionFull
       ? (waitlistTeamsList.length > 0 ? 'Waitlist Open' : 'Registration Full')
       : 'Registration Open';
+  const eventBadgeVariant = eventBadgeLabel === 'Registration Full' ? 'status' : 'live';
 
   // Basic info card prefers the real DB row; falls back to the unsaved draft.
   const displayTitle = basicInfo?.title ?? tournamentInfo?.title ?? '';
@@ -911,23 +913,18 @@ export default function OrganizerSetup() {
           <div className={styles.desktopOnly}>
             {/* 2A Desktop Top Header */}
             <div className={styles.desktop2aHeader}>
-              <div className={styles.desktop2aHeaderLeft}>
-                <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
-              </div>
-              <button type="button" className={styles.desktop2aEditBtn} onClick={openBasicInfoEdit}>
-                <Pencil size={15} /> Edit Tournament
-              </button>
+              <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
             </div>
 
-            {/* 2A Desktop Full-Width Hero Poster Banner */}
-            <div className={styles.desktop2aHero}>
-              {basicInfo?.imageUrl ? (
-                <img src={basicInfo.imageUrl} alt="" className={styles.desktop2aHeroBg} />
-              ) : (
-                <div className={styles.desktop2aHeroBg} style={{ backgroundColor: '#14181E' }} />
-              )}
-              <div className={styles.desktop2aHeroOverlay} />
-              <div className={styles.desktop2aHeroContent}>
+            {/* 2A Desktop Header Card — poster thumbnail + tournament summary */}
+            <Card padding={0} radius="xl" className={styles.desktop2aHeaderCard}>
+              <div className={styles.desktop2aHeaderCardEditBtn}>
+                <Button variant="primary" size="medium" iconLeft={<Pencil size={15} />} onClick={openBasicInfoEdit}>
+                  Edit Tournament
+                </Button>
+              </div>
+
+              <div className={styles.desktop2aHeaderCardBody}>
                 <div
                   style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
                   onMouseEnter={() => setPosterHover(true)}
@@ -937,12 +934,12 @@ export default function OrganizerSetup() {
                     <img src={basicInfo.imageUrl} alt="" className={styles.desktop2aPoster} />
                   ) : (
                     <div className={styles.desktop2aPosterPlaceholder}>
-                      <ImagePlus size={32} opacity={0.6} />
+                      <ImagePlus size={28} opacity={0.6} />
                     </div>
                   )}
                   {posterHover && (
                     <div style={{
-                      position: 'absolute', inset: 0, borderRadius: 14,
+                      position: 'absolute', inset: 0, borderRadius: 16,
                       backgroundColor: 'rgba(0,0,0,0.65)',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
                       zIndex: 10
@@ -958,33 +955,36 @@ export default function OrganizerSetup() {
                   )}
                 </div>
 
-                <div className={styles.desktop2aHeroText}>
-                  <h2 className={styles.desktop2aHeroTitle}>{displayTitle || 'Untitled tournament'}</h2>
-                  <div className={styles.desktop2aHeroMeta}>
-                    <span className={styles.desktop2aMetaItem}>
-                      <Calendar size={16} opacity={0.8} />
+                <div className={styles.desktop2aHeaderTextCol}>
+                  {eventBadgeLabel && (
+                    <div className={styles.desktop2aBadgeRow}>
+                      <Badge variant={eventBadgeVariant}>{eventBadgeLabel}</Badge>
+                    </div>
+                  )}
+
+                  <h2 className={styles.desktop2aEventTitle}>{displayTitle || 'Untitled tournament'}</h2>
+
+                  <div className={styles.desktop2aMetaCol}>
+                    <div className={styles.desktop2aMetaItem}>
+                      <Icon name="calendar" size={16} />
                       <span>{startPill}{displayEnd && displayEnd !== displayStart ? ` – ${endPill}` : ''}</span>
-                    </span>
+                    </div>
                     {displayLocation && (
-                      <span className={styles.desktop2aMetaItem}>
-                        <MapPin size={16} opacity={0.8} />
+                      <div className={styles.desktop2aMetaItem}>
+                        <Icon name="location" size={16} />
                         <span>{displayLocation}</span>
-                      </span>
+                      </div>
                     )}
                   </div>
-                  <div className={styles.desktop2aBadgeRow}>
-                    {activeDivision && (
-                      <span className={styles.desktop2aBadge}>{activeDivision.formatTypeOnSand}</span>
-                    )}
-                    {eventBadgeLabel && (
-                      <span className={`${styles.desktop2aBadge} ${styles.desktop2aBadgeActive}`}>
-                        {eventBadgeLabel}
-                      </span>
-                    )}
-                  </div>
+
+                  {activeDivision && (
+                    <div className={styles.desktop2aBadgeRow}>
+                      <Badge variant="status">{activeDivision.formatTypeOnSand}</Badge>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Division Tabs & 2-Column Split Layout */}
             {divisionsLoading ? (
@@ -1085,7 +1085,7 @@ export default function OrganizerSetup() {
                                             <div className={styles.teamPlayers}>
                                               {t.players.map((p, pIdx) => (
                                                 <span key={p.id} className={styles.teamPlayer}>
-                                                  Player {pIdx + 1}: {p.email || '—'}
+                                                  Player {pIdx + 1}
                                                   {p.shirtSize && <span className={styles.teamPlayerSub}>Size {p.shirtSize}</span>}
                                                 </span>
                                               ))}
