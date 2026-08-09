@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
+import ScorekeeperQrPanel from './ScorekeeperQrPanel';
 import { Button, SearchField } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
@@ -62,9 +63,10 @@ function isCompleted(t: CardTournament): boolean {
 
 // Registration is open while live (phase 3); closed the day before (phase 4).
 function matchesFilter(t: CardTournament, key: StatusKey | null): boolean {
-  // Default (no filter selected): upcoming events only — drafts and
-  // completed tournaments stay hidden until their filter is chosen.
-  if (key === null) return !isCompleted(t) && phaseToStatus(t.phase) !== 'draft';
+  // Default (no filter selected): upcoming events only — completed
+  // tournaments stay hidden until their filter is chosen. Drafts show, so a
+  // freshly created tournament is visible immediately.
+  if (key === null) return !isCompleted(t);
   if (key === 'all') return true;
   if (key === 'draft') return phaseToStatus(t.phase) === 'draft';
   if (isCompleted(t)) return false;
@@ -197,7 +199,6 @@ export default function OrganizerDashboard() {
   const [tournaments, setTournaments] = useState<DashboardTournament[]>([]);
   const [organizer, setOrganizer] = useState<Organizer | null>(null);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -312,13 +313,6 @@ export default function OrganizerDashboard() {
   const visibleTournaments = tournaments
     .filter(t => !liveIds.has(t.id) && matchesFilter(t, statusFilter) && matchesQuery(t, query))
     .sort(byNearestEvent);
-
-  const copyLink = (id: string, url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
-    });
-  };
 
   return (
     <div className={styles.page}>
@@ -547,8 +541,6 @@ export default function OrganizerDashboard() {
                     onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                     qrOpen={qrOpen}
                     setQrOpen={setQrOpen}
-                    copiedId={copiedId}
-                    copyLink={copyLink}
                   />
                 ))}
               </div>
@@ -573,8 +565,6 @@ export default function OrganizerDashboard() {
                   onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                   qrOpen={null}
                   setQrOpen={() => {}}
-                  copiedId={null}
-                  copyLink={() => {}}
                   hideQr
                 />
               ))}
@@ -671,8 +661,6 @@ function TournamentRow({
   onToggle,
   qrOpen,
   setQrOpen,
-  copiedId,
-  copyLink,
   hideQr = false,
 }: {
   t: CardTournament;
@@ -680,8 +668,6 @@ function TournamentRow({
   onToggle: () => void;
   qrOpen: string | null;
   setQrOpen: (v: string | null) => void;
-  copiedId: string | null;
-  copyLink: (id: string, url: string) => void;
   hideQr?: boolean;
 }) {
   const pill = statusPill(t);
@@ -754,27 +740,7 @@ function TournamentRow({
       </div>
 
       {qrOpen === t.id && (
-        <div className={styles.qrPanel}>
-          <div className={styles.qrPanelHeader}>
-            <span>Scorekeeper QR code</span>
-            <button className={styles.qrClose} onClick={() => setQrOpen(null)}>×</button>
-          </div>
-          <div className={styles.qrCode}>
-            <div className={styles.qrPlaceholder}>
-              <QrCode size={80} color="rgba(20,24,30,0.5)" />
-              <p>Scan to open court scoring</p>
-            </div>
-          </div>
-          <div className={styles.qrLink}>
-            <span className={styles.qrUrl}>livebracket.klv.app/score/{t.id}</span>
-            <button
-              className={styles.copyBtn}
-              onClick={() => copyLink(t.id, `https://livebracket.klv.app/score/${t.id}`)}
-            >
-              {copiedId === t.id ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-        </div>
+        <ScorekeeperQrPanel slug={t.id} onClose={() => setQrOpen(null)} />
       )}
 
       {expanded && (

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, X, ImagePlus, Trash2 } from 'lucide-react';
 import styles from './create/page.module.css';
-import { slugify } from '../../lib/slug';
 
 interface Props {
   open: boolean;
@@ -35,7 +34,7 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
 
   const [submitted, setSubmitted] = useState(false);
   const [publishedSlug, setPublishedSlug] = useState('');
-  const [publishing, setPublishing] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'publish' | 'detail' | null>(null);
   const [publishError, setPublishError] = useState('');
 
   const canAdvance = !!title.trim() && !!location.trim() && !!startDate;
@@ -55,7 +54,7 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     setRegCloseTBA(true);
     setSubmitted(false);
     setPublishedSlug('');
-    setPublishing(false);
+    setPendingAction(null);
     setPublishError('');
   };
 
@@ -89,18 +88,6 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     ...extra,
   });
 
-  // Carry the entered info into the workspace as an unpublished draft.
-  const goToWorkspace = () => {
-    if (!canAdvance) return;
-    const slug = slugify(title);
-    try {
-      sessionStorage.setItem(`lb:draft:${slug}`, JSON.stringify(buildRecord()));
-    } catch {
-      /* sessionStorage unavailable — proceed without the handoff payload */
-    }
-    router.push(`/dashboard/tournament/${slug}/setup?new=1`);
-  };
-
   // Read the selected image into a local preview; actual upload happens on publish.
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,35 +96,63 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
     setImagePreview(URL.createObjectURL(file));
   };
 
-  // Publish straight away with a "Details coming soon" status (no setup needed).
-  const publishNow = async () => {
-    if (!canAdvance || publishing) return;
-    setPublishing(true);
+  // Upload the cover image (if any) and create the tournament row. Shared by
+  // "Publish" and "More detail" — both need a real DB row before this modal
+  // closes, so a tournament is never lost in local-only state.
+  const publishTournament = async (): Promise<string> => {
+    let imageUrl = '';
+    if (imageFile) {
+      const fd = new FormData();
+      fd.append('file', imageFile);
+      const upRes = await fetch('/api/tournaments/upload-image', { method: 'POST', body: fd });
+      const upBody = await upRes.json();
+      if (!upRes.ok) throw new Error(upBody.error || 'Image upload failed');
+      imageUrl = upBody.url;
+    }
+
+    const res = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, location, startDate, endDate, isOneDay, description, imageUrl }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Failed to publish tournament');
+    return body.slug as string;
+  };
+
+  // Publish, then go straight to the setup workspace to add divisions.
+  const goToWorkspace = async () => {
+    if (!canAdvance || pendingAction) return;
+    setPendingAction('detail');
     setPublishError('');
     try {
-      let imageUrl = '';
-      if (imageFile) {
-        const fd = new FormData();
-        fd.append('file', imageFile);
-        const upRes = await fetch('/api/tournaments/upload-image', { method: 'POST', body: fd });
-        const upBody = await upRes.json();
-        if (!upRes.ok) throw new Error(upBody.error || 'Image upload failed');
-        imageUrl = upBody.url;
+      const slug = await publishTournament();
+      try {
+        sessionStorage.setItem(`lb:draft:${slug}`, JSON.stringify(buildRecord()));
+      } catch {
+        /* sessionStorage unavailable — proceed without the handoff payload */
       }
+      router.push(`/dashboard/tournament/${slug}/setup?new=1`);
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : 'Failed to create tournament');
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
-      const res = await fetch('/api/tournaments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, location, startDate, endDate, isOneDay, description, imageUrl }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Failed to publish tournament');
-      setPublishedSlug(body.slug);
+  // Publish straight away with a "Details coming soon" status (no setup needed).
+  const publishNow = async () => {
+    if (!canAdvance || pendingAction) return;
+    setPendingAction('publish');
+    setPublishError('');
+    try {
+      const slug = await publishTournament();
+      setPublishedSlug(slug);
       setSubmitted(true);
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Failed to publish tournament');
     } finally {
-      setPublishing(false);
+      setPendingAction(null);
     }
   };
 
@@ -264,18 +279,18 @@ export default function CreateTournamentModal({ open, onClose }: Props) {
                 <button
                   type="button"
                   className={styles.btnOutline}
-                  disabled={!canAdvance}
+                  disabled={!canAdvance || pendingAction !== null}
                   onClick={goToWorkspace}
                 >
-                  More detail
+                  {pendingAction === 'detail' ? 'Creating…' : 'More detail'}
                 </button>
                 <button
                   type="button"
                   className={styles.btnPrimary}
-                  disabled={!canAdvance || publishing}
+                  disabled={!canAdvance || pendingAction !== null}
                   onClick={publishNow}
                 >
-                  {publishing ? 'Publishing…' : 'Publish'}
+                  {pendingAction === 'publish' ? 'Publishing…' : 'Publish'}
                 </button>
               </div>
             </div>

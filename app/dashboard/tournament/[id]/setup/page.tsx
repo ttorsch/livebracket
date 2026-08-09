@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { 
@@ -32,7 +32,10 @@ import {
   X,
   MapPin,
   Eye,
-  UploadCloud
+  UploadCloud,
+  UserPlus,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import styles from './page.module.css';
 import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow, getDivisionTeams, type RegisteredTeamRow } from '../../../../../lib/data';
@@ -215,6 +218,65 @@ const formatDateRange = (start?: string, end?: string): string => {
   return s;
 };
 
+// ── Team CSV import/export ────────────────────────────────────────
+// One row per team; every player gets a Name/Phone/Email column triple
+// (Player 1 Name, Player 1 Phone, Player 1 Email, Player 2 Name, ...).
+interface ImportPlayerRow { name: string; phone: string; email: string }
+interface ImportTeamRow { players: ImportPlayerRow[] }
+
+const parseCsvLine = (line: string): string[] => {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        cur += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      out.push(cur);
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  out.push(cur);
+  return out;
+};
+
+const csvField = (value: string): string => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+
+const buildTeamTemplateCsv = (rosterSize: number): string => {
+  const headers: string[] = [];
+  for (let i = 1; i <= rosterSize; i++) {
+    headers.push(`Player ${i} Name`, `Player ${i} Phone`, `Player ${i} Email`);
+  }
+  return headers.map(csvField).join(',') + '\r\n';
+};
+
+const parseTeamsCsv = (text: string): ImportTeamRow[] => {
+  const lines = text.split(/\r\n|\n|\r/).filter((l) => l.trim() !== '');
+  if (lines.length <= 1) return [];
+  const teams: ImportTeamRow[] = [];
+  for (const line of lines.slice(1)) {
+    const cells = parseCsvLine(line);
+    const players: ImportPlayerRow[] = [];
+    for (let i = 0; i < cells.length; i += 3) {
+      const name = (cells[i] ?? '').trim();
+      if (!name) continue;
+      players.push({ name, phone: (cells[i + 1] ?? '').trim(), email: (cells[i + 2] ?? '').trim() });
+    }
+    if (players.length > 0) teams.push({ players });
+  }
+  return teams;
+};
+
 export default function OrganizerSetup() {
   const params = useParams();
 
@@ -324,6 +386,23 @@ export default function OrganizerSetup() {
   const [registeredTeams, setRegisteredTeams] = useState<RegisteredTeamRow[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
   const [editingDivisionId, setEditingDivisionId] = useState<string | null>(null);
+
+  // Manual "Add Team" modal
+  const [showAddTeamModal, setShowAddTeamModal] = useState(false);
+  const [addTeamPlayers, setAddTeamPlayers] = useState<{ name: string; phone: string; email: string }[]>([]);
+  const [addTeamSaving, setAddTeamSaving] = useState(false);
+  const [addTeamError, setAddTeamError] = useState('');
+
+  // Full registration detail — index into registeredTeams so the modal can be
+  // paged up/down through the whole list without closing.
+  const [teamDetailIdx, setTeamDetailIdx] = useState<number | null>(null);
+
+  // CSV import (template download + upload)
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importSummary, setImportSummary] = useState<string | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // Modal Form Inputs — A. Basics & dynamic capacity
   const [divName, setDivName] = useState('');
@@ -826,7 +905,144 @@ export default function OrganizerSetup() {
     }
   };
 
+  // ── Registered teams: manual add + CSV import ────────────────────
+  const openAddTeamModal = () => {
+    if (!activeDivision) return;
+    const size = activeDivision.maxRosterSize || FORMAT_PLAYERS[activeDivision.formatTypeOnSand] || 2;
+    setAddTeamPlayers(Array.from({ length: size }, () => ({ name: '', phone: '', email: '' })));
+    setAddTeamError('');
+    setShowAddTeamModal(true);
+  };
 
+  const updateAddTeamPlayer = (idx: number, patch: Partial<{ name: string; phone: string; email: string }>) => {
+    setAddTeamPlayers(prev => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+  };
+
+  const submitAddTeam = async () => {
+    if (!activeDivision || addTeamSaving) return;
+    const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!tournamentId) return;
+
+    const players = addTeamPlayers.filter(p => p.name.trim());
+    if (players.length === 0) {
+      setAddTeamError('Add at least one player with a name.');
+      return;
+    }
+
+    setAddTeamSaving(true);
+    setAddTeamError('');
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/divisions/${activeDivision.id}/teams`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teams: [{ players }] }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Failed to add team');
+      setRegisteredTeams(await getDivisionTeams(tournamentId, activeDivision.id));
+      setShowAddTeamModal(false);
+    } catch (err) {
+      setAddTeamError(err instanceof Error ? err.message : 'Failed to add team');
+    } finally {
+      setAddTeamSaving(false);
+    }
+  };
+
+  const downloadTeamTemplate = () => {
+    if (!activeDivision) return;
+    const rosterSize = activeDivision.maxRosterSize || FORMAT_PLAYERS[activeDivision.formatTypeOnSand] || 2;
+    const csv = buildTeamTemplateCsv(rosterSize);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeDivision.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-team-import-template.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setShowImportMenu(false);
+  };
+
+  // Export every stored field for every registered team in this division.
+  const exportRegistrations = () => {
+    if (!activeDivision || registeredTeams.length === 0) return;
+    const maxPlayers = registeredTeams.reduce((m, t) => Math.max(m, t.players.length), 0);
+
+    const headers = ['No.', 'Team', 'Seed', 'Status', 'Payment'];
+    for (let i = 1; i <= maxPlayers; i++) {
+      headers.push(`Player ${i} Name`, `Player ${i} Phone`, `Player ${i} Email`, `Player ${i} Shirt Size`);
+    }
+
+    const confirmedRows = registeredTeams.filter(t => t.status !== 'waitlist');
+    const rows = registeredTeams.map((t) => {
+      const isWait = t.status === 'waitlist';
+      const num = isWait
+        ? registeredTeams.filter(x => x.status === 'waitlist').indexOf(t) + 1
+        : confirmedRows.indexOf(t) + 1;
+      const cells = [
+        String(num),
+        t.name,
+        t.seed == null ? '' : String(t.seed),
+        t.status,
+        t.paymentCleared ? 'Paid' : 'Unpaid',
+      ];
+      for (let i = 0; i < maxPlayers; i++) {
+        const p = t.players[i];
+        cells.push(p?.name ?? '', p?.phone ?? '', p?.email ?? '', p?.shirtSize ?? '');
+      }
+      return cells;
+    });
+
+    const csv = [headers, ...rows].map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n';
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeDivision.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-registrations.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !activeDivision) return;
+    const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!tournamentId) return;
+
+    setImporting(true);
+    setImportError('');
+    setImportSummary(null);
+    try {
+      const text = await file.text();
+      const teams = parseTeamsCsv(text);
+      if (teams.length === 0) {
+        throw new Error('No teams found in that file — check it matches the template.');
+      }
+      const res = await fetch(`/api/tournaments/${tournamentId}/divisions/${activeDivision.id}/teams`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teams }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Import failed');
+      const createdTeams = (body.created ?? []) as RegisteredTeamRow[];
+      const waitlisted = createdTeams.filter(t => t.status === 'waitlist').length;
+      const confirmed = createdTeams.length - waitlisted;
+      setImportSummary(
+        `Imported ${createdTeams.length} team${createdTeams.length === 1 ? '' : 's'}` +
+          (waitlisted ? ` (${confirmed} confirmed, ${waitlisted} waitlisted).` : '.')
+      );
+      setRegisteredTeams(await getDivisionTeams(tournamentId, activeDivision.id));
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // The division shown in the per-division setup panel (falls back to the first).
   const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
@@ -843,6 +1059,37 @@ export default function OrganizerSetup() {
       ? (waitlistTeamsList.length > 0 ? 'Waitlist Open' : 'Registration Full')
       : 'Registration Open';
   const eventBadgeVariant = eventBadgeLabel === 'Registration Full' ? 'status' : 'live';
+
+  // Registration-detail modal paging. The index is the position in
+  // registeredTeams, so ↑/↓ walks the confirmed list straight into the
+  // waitlist exactly as the table reads.
+  const teamDetail = teamDetailIdx != null ? registeredTeams[teamDetailIdx] ?? null : null;
+  const hasPrevTeam = teamDetailIdx != null && teamDetailIdx > 0;
+  const hasNextTeam = teamDetailIdx != null && teamDetailIdx < registeredTeams.length - 1;
+  const openTeamDetail = (team: RegisteredTeamRow) => {
+    const idx = registeredTeams.findIndex(t => t.id === team.id);
+    if (idx >= 0) setTeamDetailIdx(idx);
+  };
+  const stepTeamDetail = (delta: number) => {
+    setTeamDetailIdx(prev => {
+      if (prev == null) return prev;
+      const next = prev + delta;
+      return next >= 0 && next < registeredTeams.length ? next : prev;
+    });
+  };
+
+  // ↑/↓ page the open detail modal; Escape closes it.
+  useEffect(() => {
+    if (teamDetailIdx == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp') { e.preventDefault(); stepTeamDetail(-1); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); stepTeamDetail(1); }
+      else if (e.key === 'Escape') setTeamDetailIdx(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamDetailIdx, registeredTeams.length]);
 
   // Basic info card prefers the real DB row; falls back to the unsaved draft.
   const displayTitle = basicInfo?.title ?? tournamentInfo?.title ?? '';
@@ -977,11 +1224,6 @@ export default function OrganizerSetup() {
                     )}
                   </div>
 
-                  {activeDivision && (
-                    <div className={styles.desktop2aBadgeRow}>
-                      <Badge variant="status">{activeDivision.formatTypeOnSand}</Badge>
-                    </div>
-                  )}
                 </div>
               </div>
             </Card>
@@ -1034,8 +1276,47 @@ export default function OrganizerSetup() {
                               Manage teams registered for {activeDivision.name} ({registeredTeams.filter(t => t.status !== 'waitlist').length}/{activeDivision.divisionTeamCap})
                             </p>
                           </div>
+                          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                            <button type="button" className={styles.btnGhost} onClick={openAddTeamModal}>
+                              <UserPlus size={15} /> Add Team
+                            </button>
+                            <div style={{ position: 'relative' }}>
+                              <button type="button" className={styles.btnGhost} onClick={() => setShowImportMenu(v => !v)} disabled={importing}>
+                                <FileSpreadsheet size={15} /> {importing ? 'Importing…' : 'Import'} <ChevronDown size={14} />
+                              </button>
+                              {showImportMenu && (
+                                <>
+                                  <div className={styles.importMenuBackdrop} onClick={() => setShowImportMenu(false)} />
+                                  <div className={styles.importMenu}>
+                                    <button type="button" className={styles.importMenuItem} onClick={downloadTeamTemplate}>
+                                      <Download size={15} /> Download CSV template
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.importMenuItem}
+                                      onClick={() => { setShowImportMenu(false); importFileInputRef.current?.click(); }}
+                                    >
+                                      <UploadCloud size={15} /> Upload CSV file
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.btnGhost}
+                              onClick={exportRegistrations}
+                              disabled={registeredTeams.length === 0}
+                              title="Download every registration field as CSV"
+                            >
+                              <Download size={15} /> Export
+                            </button>
+                            <input ref={importFileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleImportFile} />
+                          </div>
                         </div>
                         <div className={styles.sectionBody}>
+                          {importError && <div className={styles.importErrorBanner}>{importError}</div>}
+                          {importSummary && !importError && <div className={styles.importSuccessBanner}>{importSummary}</div>}
                           {teamsLoading ? (
                             <p className={styles.summaryText}>Loading registered teams…</p>
                           ) : registeredTeams.length === 0 ? (
@@ -1045,9 +1326,8 @@ export default function OrganizerSetup() {
                               <thead>
                                 <tr>
                                   <th style={{ width: '60px' }}>No.</th>
-                                  <th>Team / Players</th>
-                                  <th style={{ width: '140px' }}>Captain Phone</th>
-                                  <th style={{ width: '120px' }}>Status</th>
+                                  <th>Players</th>
+                                  <th style={{ width: '150px' }}>Contact Number</th>
                                   <th style={{ width: '120px' }}>Payment</th>
                                 </tr>
                               </thead>
@@ -1063,7 +1343,7 @@ export default function OrganizerSetup() {
                                     <Fragment key={t.id}>
                                       {showWaitlistSeparator && (
                                         <tr key="waitlist-separator">
-                                          <td colSpan={5} style={{ padding: '24px 12px 12px', borderBottom: 'none' }}>
+                                          <td colSpan={4} style={{ padding: '24px 12px 12px', borderBottom: 'none' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                               <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#713F12', backgroundColor: '#FEF08A', padding: '4px 10px', borderRadius: '12px', fontFamily: "var(--font-ui, 'Inter', sans-serif)" }}>
                                                 Waiting List
@@ -1073,7 +1353,19 @@ export default function OrganizerSetup() {
                                           </td>
                                         </tr>
                                       )}
-                                      <tr>
+                                      <tr
+                                        className={styles.teamRowClickable}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => openTeamDetail(t)}
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            openTeamDetail(t);
+                                          }
+                                        }}
+                                        title="View full registration"
+                                      >
                                         <td style={{ fontWeight: 700, color: 'var(--orange, #EE7A4C)' }}>{displayIndex}</td>
                                         <td>
                                           <div className={styles.teamRowName}>
@@ -1081,24 +1373,9 @@ export default function OrganizerSetup() {
                                               ? t.players.map(p => p.name).join(' / ')
                                               : t.name}
                                           </div>
-                                          {t.players.length > 0 && (
-                                            <div className={styles.teamPlayers}>
-                                              {t.players.map((p, pIdx) => (
-                                                <span key={p.id} className={styles.teamPlayer}>
-                                                  Player {pIdx + 1}
-                                                  {p.shirtSize && <span className={styles.teamPlayerSub}>Size {p.shirtSize}</span>}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          )}
                                         </td>
                                         <td style={{ fontWeight: 500 }}>
                                           {t.players[0]?.phone || '—'}
-                                        </td>
-                                        <td>
-                                          <span className={`${styles.statusBadge} ${t.status === 'confirmed' ? styles.statusConfirmed : t.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
-                                            {t.status}
-                                          </span>
                                         </td>
                                         <td>
                                           <span className={t.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
@@ -1240,7 +1517,16 @@ export default function OrganizerSetup() {
                         ) : (
                           <>
                             {confirmedTeams.map((t, idx) => (
-                              <div key={t.id} className={styles.mobileTeamRow}>
+                              <div
+                                key={t.id}
+                                className={`${styles.mobileTeamRow} ${styles.teamRowClickable}`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => openTeamDetail(t)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTeamDetail(t); }
+                                }}
+                              >
                                 <span className={styles.mobileTeamRank}>{idx + 1}</span>
                                 <span className={styles.mobileTeamName}>
                                   {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
@@ -1258,7 +1544,16 @@ export default function OrganizerSetup() {
                                   Waiting List · {waitlistTeamsList.length}
                                 </div>
                                 {waitlistTeamsList.map((t, idx) => (
-                                  <div key={t.id} className={styles.mobileTeamRow}>
+                                  <div
+                                    key={t.id}
+                                    className={`${styles.mobileTeamRow} ${styles.teamRowClickable}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => openTeamDetail(t)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTeamDetail(t); }
+                                    }}
+                                  >
                                     <span className={`${styles.mobileTeamRank} ${styles.mobileTeamRankWaitlist}`}>{idx + 1}</span>
                                     <span className={styles.mobileTeamName}>
                                       {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
@@ -1959,6 +2254,140 @@ export default function OrganizerSetup() {
               <button className={styles.btnGhost} onClick={() => setShowPosterModal(false)}>Cancel</button>
               <button className={styles.btnActionPrimary} onClick={savePoster} disabled={!tempPoster || posterSaving}>
                 {posterSaving ? 'Saving…' : 'Save Image'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TEAM REGISTRATION DETAIL MODAL ────────────────────────── */}
+      {teamDetail && (
+        <div className={styles.modalOverlay} onClick={() => setTeamDetailIdx(null)}>
+          <div className={styles.detailDeck} onClick={e => e.stopPropagation()}>
+            {/* Cards still ahead in the list, peeking out behind the current one. */}
+            {hasNextTeam && <div className={`${styles.detailStackCard} ${styles.detailStackCard2}`} aria-hidden="true" />}
+            {hasNextTeam && <div className={`${styles.detailStackCard} ${styles.detailStackCard1}`} aria-hidden="true" />}
+
+            <div className={styles.modalContent} style={{ maxWidth: 520, position: 'relative', zIndex: 2 }}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3>Registration Details</h3>
+                <span className={styles.detailCounter}>
+                  {(teamDetailIdx ?? 0) + 1} of {registeredTeams.length}
+                </span>
+              </div>
+              <button className={styles.modalCloseBtn} onClick={() => setTeamDetailIdx(null)}><X size={18} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.detailTeamName}>
+                {teamDetail.players.length > 0
+                  ? teamDetail.players.map(p => p.name).join(' / ')
+                  : teamDetail.name}
+              </div>
+              <div className={styles.detailBadgeRow}>
+                <span className={`${styles.statusBadge} ${teamDetail.status === 'confirmed' ? styles.statusConfirmed : teamDetail.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
+                  {teamDetail.status}
+                </span>
+                <span className={teamDetail.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
+                  {teamDetail.paymentCleared ? 'Paid' : 'Unpaid'}
+                </span>
+                {teamDetail.seed != null && (
+                  <span className={styles.detailSeed}>Seed {teamDetail.seed}</span>
+                )}
+              </div>
+
+              {teamDetail.players.length === 0 ? (
+                <p className={styles.summaryText} style={{ marginTop: 16 }}>No player details recorded for this team.</p>
+              ) : (
+                teamDetail.players.map((p, idx) => (
+                  <div key={p.id} className={styles.detailPlayerCard}>
+                    <div className={styles.detailPlayerHeading}>Player {idx + 1}</div>
+                    <div className={styles.detailRow}><span>Name</span><strong>{p.name || '—'}</strong></div>
+                    <div className={styles.detailRow}><span>Contact number</span><strong>{p.phone || '—'}</strong></div>
+                    <div className={styles.detailRow}><span>Email</span><strong>{p.email || '—'}</strong></div>
+                    <div className={styles.detailRow}><span>Shirt size</span><strong>{p.shirtSize || '—'}</strong></div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.btnGhost} onClick={() => setTeamDetailIdx(null)}>Close</button>
+            </div>
+            </div>
+
+            {/* Up/down pager, sitting outside the card on the right. */}
+            <div className={styles.detailNav}>
+              <button
+                type="button"
+                className={styles.detailNavBtn}
+                onClick={() => stepTeamDetail(-1)}
+                disabled={!hasPrevTeam}
+                aria-label="Previous team"
+                title="Previous team (↑)"
+              >
+                <ChevronUp size={20} />
+              </button>
+              <button
+                type="button"
+                className={styles.detailNavBtn}
+                onClick={() => stepTeamDetail(1)}
+                disabled={!hasNextTeam}
+                aria-label="Next team"
+                title="Next team (↓)"
+              >
+                <ChevronDown size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADD TEAM MODAL ────────────────────────────────────────── */}
+      {showAddTeamModal && activeDivision && (
+        <div className={styles.modalOverlay} onClick={() => setShowAddTeamModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className={styles.modalHeader}>
+              <h3>Add Team — {activeDivision.name}</h3>
+              <button className={styles.modalCloseBtn} onClick={() => setShowAddTeamModal(false)}><X size={18} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              {addTeamError && <div className={styles.modalFormError}>{addTeamError}</div>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {addTeamPlayers.map((p, idx) => (
+                  <div key={idx}>
+                    <label className={styles.fieldLabel}>Player {idx + 1}{idx === 0 ? ' *' : ''}</label>
+                    <div className={styles.twoCol} style={{ gridTemplateColumns: '1.4fr 1fr', marginTop: 6 }}>
+                      <input
+                        className={styles.input}
+                        type="text"
+                        placeholder="Full name"
+                        value={p.name}
+                        onChange={e => updateAddTeamPlayer(idx, { name: e.target.value })}
+                      />
+                      <input
+                        className={styles.input}
+                        type="tel"
+                        placeholder="Phone"
+                        value={p.phone}
+                        onChange={e => updateAddTeamPlayer(idx, { phone: e.target.value })}
+                      />
+                    </div>
+                    <input
+                      className={styles.input}
+                      type="email"
+                      placeholder="Email (optional)"
+                      style={{ marginTop: 8, width: '100%' }}
+                      value={p.email}
+                      onChange={e => updateAddTeamPlayer(idx, { email: e.target.value })}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.btnGhost} onClick={() => setShowAddTeamModal(false)}>Cancel</button>
+              <button className={styles.btnActionPrimary} onClick={submitAddTeam} disabled={addTeamSaving}>
+                {addTeamSaving ? 'Adding…' : 'Add Team'}
               </button>
             </div>
           </div>

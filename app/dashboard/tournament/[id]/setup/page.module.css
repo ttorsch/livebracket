@@ -1170,6 +1170,239 @@
   margin-bottom: 16px;
 }
 
+/* ── Registered Teams: add / import ───────────────────────────── */
+.importMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.importMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1.5px solid rgba(20, 31, 46, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px -10px rgba(20, 31, 46, 0.25);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  z-index: 50;
+}
+.importMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-1, #14181E);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.importMenuItem:hover {
+  background: rgba(238, 122, 76, 0.08);
+  color: var(--orange, #EE7A4C);
+}
+.teamRowClickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.teamRowClickable:hover {
+  background: rgba(238, 122, 76, 0.06);
+}
+.teamRowClickable:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: -2px;
+}
+
+/* ── Registration detail modal: deck, stack & pager ───────────── */
+.detailDeck {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  /* card (520) + gap (14) + pager column (44) */
+  max-width: 578px;
+}
+.detailDeck > .modalContent {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+/* Ghost cards peeking out below the live one, so the modal reads as the
+   top of a stack you can page through. */
+.detailStackCard {
+  position: absolute;
+  left: 0;
+  right: 58px;
+  bottom: 0;
+  height: 90px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+.detailStackCard1 {
+  transform: translateY(11px) scale(0.965);
+  opacity: 0.75;
+  z-index: 1;
+  box-shadow: 0 18px 34px -18px rgba(20, 31, 46, 0.3);
+}
+.detailStackCard2 {
+  transform: translateY(21px) scale(0.93);
+  opacity: 0.45;
+  z-index: 0;
+  box-shadow: 0 18px 34px -18px rgba(20, 31, 46, 0.25);
+}
+
+.detailNav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  z-index: 3;
+}
+.detailNavBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s, color 0.15s, transform 0.15s, opacity 0.15s;
+}
+.detailNavBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.detailNavBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.detailCounter {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2, #7A8294);
+}
+
+@media (max-width: 640px) {
+  .detailDeck {
+    gap: 8px;
+  }
+  .detailStackCard {
+    right: 46px;
+  }
+  .detailNavBtn {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* ── Registration detail modal ────────────────────────────────── */
+.detailTeamName {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--ink-1, #14181E);
+}
+.detailBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.detailSeed {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(20, 31, 46, 0.06);
+  color: var(--ink-2, #3A414D);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+}
+.detailPlayerCard {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1.5px solid rgba(20, 31, 46, 0.08);
+  border-radius: 12px;
+  background: rgba(20, 31, 46, 0.02);
+}
+.detailPlayerHeading {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--orange, #EE7A4C);
+  margin-bottom: 10px;
+}
+.detailRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13.5px;
+}
+.detailRow + .detailRow {
+  border-top: 1px solid rgba(20, 31, 46, 0.06);
+}
+.detailRow span {
+  color: var(--ink-2, #7A8294);
+  flex-shrink: 0;
+}
+.detailRow strong {
+  color: var(--ink-1, #14181E);
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.importErrorBanner {
+  background: #FDF2F2;
+  border: 1px solid #FDE8E8;
+  color: #E02424;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+}
+.importSuccessBanner {
+  background: #F0FDF4;
+  border: 1px solid #DCFCE7;
+  color: #15803D;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .modalSectionTitle {
   font-family: var(--font-heading);
   font-weight: 800;
