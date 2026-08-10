@@ -809,89 +809,85 @@
   color: var(--text-muted, #7A8294);
   margin-bottom: 14px;
 }
-.qrCourtGroup { margin-bottom: 18px; }
-.qrCourtGroup:last-child { margin-bottom: 0; }
-.qrCourtName {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--coral-500, #EB6F43);
-  padding-bottom: 6px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--sand-300, #E7E2D9);
+/* ── Scorekeeper codes card (under the live court board) ───────── */
+.courtQrCard {
+  margin-top: 16px;
+  background: var(--sand-50, #fff);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-radius: var(--radius-xl, 24px);
+  padding: 20px;
 }
-.qrMatchRow {
+.courtQrHead {
   display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  background: #fff;
-  border-radius: 14px;
-  padding: 12px;
-  margin-bottom: 10px;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
-.qrMatchRow:last-child { margin-bottom: 0; }
-.qrMatchInfo {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.courtQrTitle {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink-900, #14181E);
 }
-.qrMatchTop {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.qrLiveTag {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #fff;
-  background: var(--red-live, #F16767);
-  padding: 2px 8px;
-  border-radius: var(--radius-pill, 999px);
-  flex-shrink: 0;
-}
-.qrMatchMeta {
-  font-size: 11.5px;
+.courtQrNote {
+  font-size: 12.5px;
   color: var(--text-muted, #7A8294);
 }
-.qrMatchTeams {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary, #14181E);
-  word-break: break-word;
-}
-.qrMatchRow .qrLink { margin-top: 4px; }
-
-.qrLink {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: #fff;
-  border-radius: var(--radius-pill, 999px);
-  padding: 8px 8px 8px 16px;
-}
-.qrUrl {
-  font-size: 13px;
-  color: var(--text-secondary, #3A414D);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.copyBtn {
-  border: none;
+.courtQrExport {
+  margin-left: auto;
+  border: 1px solid var(--ink-900, #14181E);
   background: var(--ink-900, #14181E);
   color: #fff;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   padding: 8px 16px;
   border-radius: var(--radius-pill, 999px);
   cursor: pointer;
   flex-shrink: 0;
+}
+.courtQrExport:disabled {
+  background: transparent;
+  color: var(--text-muted, #7A8294);
+  border-color: var(--sand-300, #E7E2D9);
+  cursor: progress;
+}
+
+/* ── Export-all-codes bar ─────────────────────────────────────── */
+.qrExportBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--sand-300, #E7E2D9);
+}
+.qrExportBtn {
+  border: 1px solid var(--ink-900, #14181E);
+  background: var(--ink-900, #14181E);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: var(--radius-pill, 999px);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.qrExportBtn:disabled {
+  background: transparent;
+  color: var(--text-muted, #7A8294);
+  border-color: var(--sand-300, #E7E2D9);
+  cursor: progress;
+}
+.qrExportNote {
+  font-size: 11.5px;
+  color: var(--text-muted, #7A8294);
+}
+.qrExportError {
+  font-size: 12px;
+  color: #E02424;
+  margin: -8px 0 14px;
 }
 
 /* ── Responsive ───────────────────────────────────────────────── */

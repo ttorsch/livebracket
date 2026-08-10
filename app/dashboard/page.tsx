@@ -9,6 +9,7 @@ import {
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
+import ScorekeeperQrCards, { useScorekeeperLinks, useQrPdfExport } from '../../components/ScorekeeperQrCards';
 import { Button, SearchField } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
@@ -442,6 +443,7 @@ export default function OrganizerDashboard() {
                   </div>
 
                   <CourtsTable detail={detail} />
+                  <CourtQrCard slug={t.id} />
                 </section>
               );
             })}
@@ -649,6 +651,41 @@ function CourtsTable({ detail }: { detail: TournamentDetail | null }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* ── Scorekeeper codes for the live tournament ──────────────────── */
+
+/* Sits under the court board, keyed by the same thing the board is keyed
+ * by: the court. The board says what's happening on each court; this says
+ * how to score it. Kept as its own card rather than a column on the board
+ * so the board stays a scannable text table.
+ *
+ * Renders nothing at all when there's no code to show — an empty card
+ * under a live board would just read as something broken. */
+function CourtQrCard({ slug }: { slug: string }) {
+  const { matches, loading, error } = useScorekeeperLinks(slug);
+  const { exportAll, exporting, error: exportError } = useQrPdfExport(slug);
+
+  if (loading) return <div className={styles.courtsEmpty}>Loading scorekeeper codes…</div>;
+  if (error || matches.length === 0) return null;
+
+  return (
+    <div className={styles.courtQrCard}>
+      <div className={styles.courtQrHead}>
+        <span className={styles.courtQrTitle}>Scorekeeper codes</span>
+        <span className={styles.courtQrNote}>
+          Next match on each court — anyone with a link can score it.
+        </span>
+        {/* The live tournament is filtered out of the list below, so this is
+            the only place its printable sheet can be reached. */}
+        <button className={styles.courtQrExport} onClick={exportAll} disabled={exporting}>
+          {exporting ? 'Building PDF…' : 'Export all (PDF)'}
+        </button>
+      </div>
+      {exportError && <p className={styles.qrExportError}>{exportError}</p>}
+      <ScorekeeperQrCards matches={matches} />
     </div>
   );
 }
