@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { MapPin, Calendar, Users, Trophy, Clock, ChevronRight } from 'lucide-react';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailMatch } from '../../../lib/data';
+import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
+
+// Spectators are watching a match happen; the bracket has to keep up.
+const LIVE_POLL_MS = 15000;
 
 type BracketMatch = DetailMatch;
 
@@ -126,7 +130,15 @@ export default function TournamentDetail() {
   const searchParams = useSearchParams();
   const slug = String(params.id);
 
-  const [tournament, setTournament] = useState<TournamentDetail | null>(null);
+  // The bracket as Postgres has it. Live scores are polled separately and
+  // folded in below, so a score moving on court doesn't mean refetching
+  // every division, round, team and voucher every 15 seconds.
+  const [baseTournament, setBaseTournament] = useState<TournamentDetail | null>(null);
+  const [liveScores, setLiveScores] = useState<LiveScoreMap>({});
+  const tournament = useMemo(
+    () => (baseTournament ? applyLiveScores(baseTournament, liveScores) : null),
+    [baseTournament, liveScores],
+  );
   const [activeDiv, setActiveDiv] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('bracket');
   const tabBarRef = useRef<HTMLDivElement>(null);
@@ -134,9 +146,19 @@ export default function TournamentDetail() {
 
   useEffect(() => {
     getTournamentDetail(slug).then((data) => {
-      setTournament(data);
+      setBaseTournament(data);
       if (data && data.divisions.length > 0) setActiveDiv(data.divisions[0].id);
     }).catch(console.error);
+  }, [slug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      fetchLiveScores(slug).then(scores => { if (!cancelled) setLiveScores(scores); });
+    };
+    load();
+    const timer = setInterval(load, LIVE_POLL_MS);
+    return () => { cancelled = true; clearInterval(timer); };
   }, [slug]);
 
   // Read Phase query param to test dynamic flows: 1 = Shell, 2 = Announced, 3 = Open, 4 = Closed/Logistics

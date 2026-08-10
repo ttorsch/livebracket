@@ -15,6 +15,7 @@ import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
   type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
 } from '../../lib/data';
+import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 
 interface Organizer {
   name: string;
@@ -295,8 +296,17 @@ export default function OrganizerDashboard() {
     if (liveTournaments.length === 0) return;
     let cancelled = false;
 
+    /* Postgres only carries finalized scores, so the court board would show
+     * dashes for a match in progress. Pull the live numbers alongside the
+     * detail and fold them in before the rows are built. */
     const load = () => {
-      Promise.all(liveTournaments.map(t => getTournamentDetail(t.id).catch(() => null)))
+      Promise.all(liveTournaments.map(async t => {
+        const [detail, live] = await Promise.all([
+          getTournamentDetail(t.id).catch(() => null),
+          fetchLiveScores(t.id),
+        ]);
+        return detail ? applyLiveScores(detail, live) : null;
+      }))
         .then(details => {
           if (cancelled) return;
           const map: Record<string, TournamentDetail> = {};
