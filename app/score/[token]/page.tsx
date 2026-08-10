@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Minus, Plus, RotateCcw, CheckCircle, AlertTriangle, CloudOff } from 'lucide-react';
+import { AlertTriangle, CheckCircle, RotateCw } from 'lucide-react';
 import styles from './page.module.css';
 
 interface SetScore { a: number; b: number }
@@ -20,6 +20,7 @@ interface ScorekeeperMatch {
   matchId: string;
   status: 'upcoming' | 'live' | 'done';
   court: string | null;
+  scheduledTime: string | null;
   tournamentSlug: string;
   tournamentTitle: string;
   divisionName: string;
@@ -31,6 +32,17 @@ interface ScorekeeperMatch {
   finalScoreA: number[] | null;
   finalScoreB: number[] | null;
 }
+
+/* Volleyball allows two timeouts per team per set. Tracked on this device
+ * only — they never reach Redis or Postgres, so a refresh clears them.
+ * That's deliberate: nothing downstream consumes a timeout count, and a
+ * referee who reloads mid-set is better served by a clean slate than by a
+ * half-remembered one. */
+const TIMEOUTS_PER_SET = 2;
+const TIMEOUT_SECONDS = 30;
+const TECH_TIMEOUT_SECONDS = 60;
+
+interface Overlay { kind: string; seconds: number }
 
 export default function ScorekeeperPage() {
   const params = useParams();
@@ -49,6 +61,10 @@ export default function ScorekeeperPage() {
   const [finalizeError, setFinalizeError] = useState('');
   const [syncFailed, setSyncFailed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+
+  const [timeouts, setTimeouts] = useState<[number, number]>([0, 0]);
+  const [overlay, setOverlay] = useState<Overlay | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   // Load the match this token unlocks, and resume any score already in flight
   // so a referee who closed the tab picks up exactly where they left off.
@@ -85,8 +101,23 @@ export default function ScorekeeperPage() {
     return () => clearInterval(id);
   }, [confirmed, match]);
 
-  /* Every scoring change pushes to the live endpoint (Redis). Debounced so a
-   * fast rally of taps sends one write, not six. */
+  // The overlay counts down for real rather than showing a frozen number —
+  // a referee holding the phone up is the only clock on the court.
+  useEffect(() => {
+    if (!overlay) return;
+    const id = setInterval(() => {
+      setSecondsLeft(s => {
+        if (s <= 1) { setOverlay(null); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [overlay]);
+
+  /* Every scoring change pushes to the live endpoint (Redis) so the public
+   * bracket and the organizer dashboard follow along. Debounced so a fast
+   * rally of taps sends one write rather than six — the last tap still
+   * lands, which is what "every point is saved" needs. */
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushLive = useCallback((nextSets: SetScore[], a: number, b: number) => {
     if (!token) return;
@@ -105,41 +136,64 @@ export default function ScorekeeperPage() {
     }, 400);
   }, [token]);
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  const formatClock = (s: number) => {
+    const total = Math.max(0, s);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    const p = (n: number) => String(n).padStart(2, '0');
+    return h > 0 ? `${h}:${p(m)}:${p(sec)}` : `${p(m)}:${p(sec)}`;
   };
 
+  /* Points move through functional updates, never through the value the
+   * closure captured. The whole panel is the tap target now, so two taps
+   * inside one React batch are realistic during a rally — reading `scoreA`
+   * directly would score them both as the same point and silently lose
+   * one. Losing a point is the worst thing this screen can do. */
   const addPoint = useCallback((team: 'A' | 'B') => {
-    const nextA = team === 'A' ? scoreA + 1 : scoreA;
-    const nextB = team === 'B' ? scoreB + 1 : scoreB;
-    setScoreA(nextA);
-    setScoreB(nextB);
-    pushLive(sets, nextA, nextB);
-  }, [scoreA, scoreB, sets, pushLive]);
+    if (team === 'A') setScoreA(s => s + 1);
+    else setScoreB(s => s + 1);
+  }, []);
 
   const removePoint = useCallback((team: 'A' | 'B') => {
-    const nextA = team === 'A' ? Math.max(0, scoreA - 1) : scoreA;
-    const nextB = team === 'B' ? Math.max(0, scoreB - 1) : scoreB;
-    setScoreA(nextA);
-    setScoreB(nextB);
-    pushLive(sets, nextA, nextB);
-  }, [scoreA, scoreB, sets, pushLive]);
+    if (team === 'A') setScoreA(s => Math.max(0, s - 1));
+    else setScoreB(s => Math.max(0, s - 1));
+  }, []);
+
+  /* One push per settled score, rather than one per handler. This is what
+   * makes "every point is saved" true even when several land in a batch:
+   * the effect sees the final numbers and sends those. */
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (!match || confirmed) return;
+    // The first run is the state that just came back from the server —
+    // echoing it straight back would flip the match to live before anyone
+    // has scored.
+    if (!hydrated.current) { hydrated.current = true; return; }
+    pushLive(sets, scoreA, scoreB);
+  }, [sets, scoreA, scoreB, match, confirmed, pushLive]);
 
   const completeSet = () => {
     if (scoreA === scoreB) return; // a drawn set can't be banked
-    const next = [...sets, { a: scoreA, b: scoreB }];
-    setSets(next);
+    setSets(prev => [...prev, { a: scoreA, b: scoreB }]);
     setScoreA(0);
     setScoreB(0);
-    pushLive(next, 0, 0);
+    setTimeouts([0, 0]); // timeouts replenish each set
   };
 
-  const resetSet = () => {
-    setScoreA(0);
-    setScoreB(0);
-    pushLive(sets, 0, 0);
+  const openOverlay = (kind: string, seconds: number) => {
+    setSecondsLeft(seconds);
+    setOverlay({ kind, seconds });
+  };
+
+  const takeTimeout = (side: 0 | 1, teamName: string) => {
+    if (timeouts[side] >= TIMEOUTS_PER_SET) return;
+    setTimeouts(t => {
+      const next: [number, number] = [t[0], t[1]];
+      next[side] = next[side] + 1;
+      return next;
+    });
+    openOverlay(`Timeout — ${teamName}`, TIMEOUT_SECONDS);
   };
 
   const submitFinal = async () => {
@@ -167,8 +221,8 @@ export default function ScorekeeperPage() {
   if (loading) {
     return (
       <div className={styles.page}>
-        <div className={styles.confirmedWrap}>
-          <p className={styles.confirmedSub}>Loading match…</p>
+        <div className={styles.stateWrap}>
+          <p className={styles.stateSub}>Loading match…</p>
         </div>
       </div>
     );
@@ -176,13 +230,11 @@ export default function ScorekeeperPage() {
 
   if (loadError || !match) {
     return (
-      <div className={styles.page} style={{ background: '#0E1722' }}>
-        <div className={styles.confirmedWrap}>
-          <div className={styles.confirmedIcon}>
-            <AlertTriangle size={48} color="#EE7A4C" />
-          </div>
-          <h2 className={styles.confirmedTitle}>Link not valid</h2>
-          <p className={styles.confirmedSub}>
+      <div className={styles.page}>
+        <div className={styles.stateWrap}>
+          <AlertTriangle size={44} color="var(--color-primary)" />
+          <h2 className={styles.stateTitle}>Link not valid</h2>
+          <p className={styles.stateSub}>
             {loadError || 'This scorekeeper link is not valid.'} Scan the QR code on your court again, or ask the
             organizer for a fresh link.
           </p>
@@ -196,30 +248,26 @@ export default function ScorekeeperPage() {
     a: sets.filter(s => s.a > s.b).length,
     b: sets.filter(s => s.b > s.a).length,
   };
+  // "Two sets wins it" for a best-of-three; derived so a best-of-five
+  // division needs three without a second code path.
   const setsToWin = Math.floor(match.rules.setsBestOf / 2) + 1;
   const currentSet = sets.length + 1;
-  // The deciding set is usually played to a lower target than the rest.
-  const isDecider = currentSet === match.rules.setsBestOf;
-  const target = isDecider ? match.rules.decidingSetPoints : match.rules.pointsPerSet;
   const matchOver = wins.a >= setsToWin || wins.b >= setsToWin;
-  const isSetPoint = !matchOver && (scoreA >= target - 1 || scoreB >= target - 1);
 
   if (confirmed) {
     return (
-      <div className={styles.page} style={{ background: '#0E1722' }}>
-        <div className={styles.confirmedWrap}>
-          <div className={styles.confirmedIcon}>
-            <CheckCircle size={48} color="#EE7A4C" />
-          </div>
-          <h2 className={styles.confirmedTitle}>Score submitted!</h2>
-          <p className={styles.confirmedSub}>The final score has been recorded and the bracket updated.</p>
-          <div className={styles.confirmedResult}>
+      <div className={styles.page}>
+        <div className={styles.stateWrap}>
+          <CheckCircle size={44} color="var(--color-primary)" />
+          <h2 className={styles.stateTitle}>Score submitted</h2>
+          <p className={styles.stateSub}>The final score has been recorded and the bracket updated.</p>
+          <div className={styles.stateResult}>
             <span>{match.teamA.name}</span>
-            <span className={styles.confirmedSets}>{wins.a} – {wins.b}</span>
+            <span className={styles.stateSets}>{wins.a} – {wins.b}</span>
             <span>{match.teamB.name}</span>
           </div>
           {sets.length > 0 && (
-            <div className={styles.setHistoryList} style={{ justifyContent: 'center', marginBottom: 20 }}>
+            <div className={styles.setChipRow}>
               {sets.map((s, i) => (
                 <span key={i} className={styles.setChip}>
                   Set {i + 1}: <strong>{s.a}</strong> – <strong>{s.b}</strong>
@@ -235,153 +283,223 @@ export default function ScorekeeperPage() {
     );
   }
 
+  const dateLabel = match.scheduledTime
+    ? new Date(match.scheduledTime).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    : '—';
+  const startLabel = match.scheduledTime
+    ? new Date(match.scheduledTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : '—';
+
+  /* One row per set in the match format: banked sets show their result,
+   * the set being played tracks the live score, the rest sit as dashes so
+   * the column doesn't reflow as the match goes on. */
+  const setRows = Array.from({ length: match.rules.setsBestOf }, (_, i) => {
+    const done = sets[i];
+    const isLive = i === sets.length && !matchOver;
+    const scoreClass = (mine: number, theirs: number) => {
+      if (done) return mine > theirs ? styles.setScoreWon : styles.setScoreDone;
+      return isLive ? styles.setScoreLive : '';
+    };
+    return {
+      n: i + 1,
+      a: done ? String(done.a) : isLive ? String(scoreA) : '–',
+      b: done ? String(done.b) : isLive ? String(scoreB) : '–',
+      isLive,
+      classA: scoreClass(done?.a ?? 0, done?.b ?? 0),
+      classB: scoreClass(done?.b ?? 0, done?.a ?? 0),
+    };
+  });
+
   return (
     <div className={styles.page}>
-      {/* ── Top bar ────────────────────────────────────────────── */}
-      <header className={styles.topBar}>
-        <Link href="/" className={styles.brand}>
-          <span className={styles.brandMark}>
-            <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
-  <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="722.713" y="462.822" width="129.386" height="35.9406" rx="15" fill="white" />
-  <rect x="593.327" y="489.178" width="129.386" height="35.9406" rx="15" fill="white" />
-  <rect x="557.386" y="416.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 557.386 416.099)" fill="white" />
-  <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
-  <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
-</svg>
+      {/* Portrait on a phone gets the rotate prompt — the board is drawn
+          for a device on its side and squeezing it helps nobody. */}
+      <div className={styles.rotateGate}>
+        <RotateCw size={52} className={styles.rotateIcon} />
+        <h2 className={styles.rotateTitle}>Turn your phone sideways</h2>
+        <p className={styles.rotateSub}>
+          The scoring board needs landscape. Rotate your phone to start scoring this match.
+        </p>
+      </div>
+
+      <div className={styles.shell}>
+        {/* ── Top bar ──────────────────────────────────────────── */}
+        <header className={styles.topBar}>
+          <span className={styles.liveTag}>
+            <span className={styles.liveDot} aria-hidden="true" />
+            Live
           </span>
-          Live Bracket
-        </Link>
-        <div className={styles.matchMeta}>
-          <span className={styles.matchRound}>{match.divisionName} · {match.roundName}</span>
-          <span className={styles.matchCourt}>{match.court ?? 'Court TBD'}</span>
-        </div>
-        <div className={styles.timer}>
-          {syncFailed ? <CloudOff size={14} color="#F16767" /> : <span className={styles.timerDot} />}
-          {formatTime(elapsed)}
-        </div>
-      </header>
+          <span className={styles.barDivider} aria-hidden="true" />
+          <span className={styles.barTitle}>
+            {match.tournamentTitle}{match.court ? ` — ${match.court}` : ''}
+          </span>
+          <span className={styles.barSpacer} />
+          <span className={`${styles.barStat} ${styles.barStatOptional}`}>
+            Date<b>{dateLabel}</b>
+          </span>
+          <span className={styles.barStat}>Start<b>{startLabel}</b></span>
+          <span className={`${styles.barStat} ${styles.barStatWide}`}>
+            Duration<b>{formatClock(elapsed)}</b>
+          </span>
+        </header>
 
-      {syncFailed && (
-        <div className={styles.matchPointBanner} style={{ background: 'rgba(241,103,103,0.9)' }}>
-          Not syncing — scores are safe on this device. Keep scoring; you can still submit the result.
-        </div>
-      )}
-
-      {/* ── Set history ────────────────────────────────────────── */}
-      {sets.length > 0 && (
-        <div className={styles.setHistory}>
-          <span className={styles.setHistoryLabel}>Completed sets</span>
-          <div className={styles.setHistoryList}>
-            {sets.map((s, i) => (
-              <span key={i} className={styles.setChip}>
-                Set {i + 1}: <strong>{s.a}</strong> – <strong>{s.b}</strong>
-              </span>
-            ))}
+        {syncFailed && (
+          <div className={styles.syncBanner}>
+            Not syncing — scores are safe on this device. Keep scoring; you can still submit the result.
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Score board ────────────────────────────────────────── */}
-      <div className={styles.scoreboard}>
-        <div className={styles.setIndicator}>
-          SET {currentSet} · TO {target}{isDecider ? ' (DECIDER)' : ''}
-        </div>
-        {isSetPoint && <div className={styles.matchPointBanner}>Set point!</div>}
-
-        <div className={styles.scoreGrid}>
+        {/* ── Board ────────────────────────────────────────────── */}
+        <div className={styles.board}>
           {/* Team A */}
-          <div className={styles.teamBlock}>
-            <div className={styles.teamName}>{match.teamA.name}</div>
-            <div className={styles.winsRow}>
-              {Array.from({ length: setsToWin }).map((_, i) => (
-                <div key={i} className={`${styles.winDot} ${i < wins.a ? styles.winDotFilled : ''}`} />
+          <div className={styles.teamPanel}>
+            <div className={styles.teamHead}>
+              <div className={styles.teamName}>{match.teamA.name}</div>
+              <div className={styles.setsWon}>Sets {wins.a}</div>
+              <div className={styles.toDots}>
+                {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
+                  <span key={i} className={`${styles.toDot} ${i < timeouts[0] ? styles.toDotUsed : ''}`} />
+                ))}
+              </div>
+            </div>
+            <div className={styles.scoreRow}>
+              <button
+                className={styles.scoreTap}
+                onClick={() => addPoint('A')}
+                aria-label={`Add a point to ${match.teamA.name}`}
+              >
+                <span className={styles.scoreNum}>{scoreA}</span>
+              </button>
+              <button
+                className={styles.minusStrip}
+                onClick={() => removePoint('A')}
+                disabled={scoreA === 0}
+                aria-label={`Remove a point from ${match.teamA.name}`}
+              >
+                <span className={styles.minusGlyph} aria-hidden="true" />
+              </button>
+            </div>
+            <div className={styles.tapHint}>Tap score to add a point</div>
+          </div>
+
+          {/* Sets + end set/match */}
+          <div className={styles.centerCol}>
+            <div className={styles.setsCard}>
+              <div className={styles.setsLabel}>Sets</div>
+              {setRows.map(row => (
+                <div key={row.n} className={`${styles.setRow} ${row.isLive ? styles.setRowLive : ''}`}>
+                  <span className={styles.setRowNum}>{row.n}</span>
+                  <span className={`${styles.setRowScore} ${styles.setRowScoreA} ${row.classA}`}>{row.a}</span>
+                  <span className={styles.setRowDash}>–</span>
+                  <span className={`${styles.setRowScore} ${row.classB}`}>{row.b}</span>
+                </div>
               ))}
             </div>
-            <div className={styles.scoreNum}>{scoreA}</div>
-            <div className={styles.btnRow}>
-              <button className={styles.minusBtn} onClick={() => removePoint('A')} aria-label={`Remove point from ${match.teamA.name}`}>
-                <Minus size={22} strokeWidth={3} />
+            {matchOver ? (
+              <button
+                className={`${styles.endBtn} ${styles.endMatchBtn}`}
+                onClick={() => setShowFinalize(true)}
+              >
+                End match
               </button>
-              <button className={styles.plusBtn} onClick={() => addPoint('A')} aria-label={`Add point to ${match.teamA.name}`}>
-                <Plus size={24} strokeWidth={3} />
+            ) : (
+              <button className={styles.endBtn} onClick={completeSet} disabled={scoreA === scoreB}>
+                {scoreA === scoreB ? 'Set is tied' : `End set ${currentSet}`}
               </button>
-            </div>
-          </div>
-
-          <div className={styles.vsCol}>
-            <span className={styles.vs}>VS</span>
-            <div className={styles.setsScore}>
-              <span>{wins.a}</span>
-              <span className={styles.setsScoreDash}>–</span>
-              <span>{wins.b}</span>
-            </div>
+            )}
           </div>
 
           {/* Team B */}
-          <div className={styles.teamBlock}>
-            <div className={styles.teamName}>{match.teamB.name}</div>
-            <div className={styles.winsRow}>
-              {Array.from({ length: setsToWin }).map((_, i) => (
-                <div key={i} className={`${styles.winDot} ${i < wins.b ? styles.winDotFilled : ''}`} />
-              ))}
+          <div className={styles.teamPanel}>
+            <div className={`${styles.teamHead} ${styles.teamHeadB}`}>
+              <div className={styles.toDots}>
+                {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
+                  <span key={i} className={`${styles.toDot} ${i < timeouts[1] ? styles.toDotUsed : ''}`} />
+                ))}
+              </div>
+              <div className={styles.setsWon}>Sets {wins.b}</div>
+              <div className={`${styles.teamName} ${styles.teamNameB}`}>{match.teamB.name}</div>
             </div>
-            <div className={styles.scoreNum}>{scoreB}</div>
-            <div className={styles.btnRow}>
-              <button className={styles.minusBtn} onClick={() => removePoint('B')} aria-label={`Remove point from ${match.teamB.name}`}>
-                <Minus size={22} strokeWidth={3} />
+            <div className={styles.scoreRow}>
+              <button
+                className={`${styles.minusStrip} ${styles.minusStripB}`}
+                onClick={() => removePoint('B')}
+                disabled={scoreB === 0}
+                aria-label={`Remove a point from ${match.teamB.name}`}
+              >
+                <span className={styles.minusGlyph} aria-hidden="true" />
               </button>
-              <button className={styles.plusBtn} onClick={() => addPoint('B')} aria-label={`Add point to ${match.teamB.name}`}>
-                <Plus size={24} strokeWidth={3} />
+              <button
+                className={styles.scoreTap}
+                onClick={() => addPoint('B')}
+                aria-label={`Add a point to ${match.teamB.name}`}
+              >
+                <span className={styles.scoreNum}>{scoreB}</span>
               </button>
             </div>
+            <div className={styles.tapHint}>Tap score to add a point</div>
           </div>
         </div>
-      </div>
 
-      {/* ── Actions ────────────────────────────────────────────── */}
-      <div className={styles.actions}>
-        {!matchOver && (
-          <button className={styles.completeSetBtn} onClick={completeSet} disabled={scoreA === scoreB}>
-            {scoreA === scoreB ? 'Set is tied' : `Complete set ${currentSet}`}
+        {/* ── Timeouts ─────────────────────────────────────────── */}
+        <div className={styles.bottomBar}>
+          <button
+            className={styles.timeoutBtn}
+            onClick={() => takeTimeout(0, match.teamA.name)}
+            disabled={timeouts[0] >= TIMEOUTS_PER_SET}
+          >
+            Timeout
+            <span className={styles.timeoutTeam}>{match.teamA.name}</span>
+            <span className={styles.timeoutCount}>{timeouts[0]}/{TIMEOUTS_PER_SET}</span>
           </button>
-        )}
-        {matchOver && !showFinalize && (
-          <button className={styles.finalizeBtn} onClick={() => setShowFinalize(true)}>
-            Finalize match result
+          <button
+            className={styles.techBtn}
+            onClick={() => openOverlay('Technical Timeout', TECH_TIMEOUT_SECONDS)}
+          >
+            Technical Timeout
+          </button>
+          <button
+            className={styles.timeoutBtn}
+            onClick={() => takeTimeout(1, match.teamB.name)}
+            disabled={timeouts[1] >= TIMEOUTS_PER_SET}
+          >
+            Timeout
+            <span className={styles.timeoutTeam}>{match.teamB.name}</span>
+            <span className={styles.timeoutCount}>{timeouts[1]}/{TIMEOUTS_PER_SET}</span>
+          </button>
+        </div>
+
+        {overlay && (
+          <button className={styles.overlay} onClick={() => setOverlay(null)}>
+            <div className={styles.overlayCard}>
+              <div className={styles.overlayKind}>{overlay.kind}</div>
+              <div className={styles.overlayValue}>{formatClock(secondsLeft)}</div>
+              <div className={styles.overlayNote}>Tap anywhere to resume</div>
+            </div>
           </button>
         )}
 
         {showFinalize && (
-          <div className={styles.finalizeCard}
-            style={{ backdropFilter: 'blur(18px) saturate(150%)', WebkitBackdropFilter: 'blur(18px) saturate(150%)' }}
-          >
-            <p className={styles.finalizeTitle}>Confirm final result?</p>
-            <div className={styles.finalizeResult}>
-              <span>{match.teamA.name}</span>
-              <span className={styles.finalizeScore}>{wins.a} – {wins.b}</span>
-              <span>{match.teamB.name}</span>
-            </div>
-            {finalizeError && (
-              <p className={styles.confirmedSub} style={{ color: '#F16767', marginBottom: 12 }}>{finalizeError}</p>
-            )}
-            <div className={styles.finalizeActions}>
-              <button className={styles.btnGhost} onClick={() => setShowFinalize(false)} disabled={finalizing}>
-                Cancel
-              </button>
-              <button className={styles.btnPrimary} onClick={submitFinal} disabled={finalizing}>
-                {finalizing ? 'Submitting…' : 'Confirm & submit'}
-              </button>
+          <div className={styles.confirmScrim}>
+            <div className={styles.finalizeCard}>
+              <p className={styles.finalizeTitle}>Confirm final result?</p>
+              <div className={styles.finalizeResult}>
+                <span>{match.teamA.name}</span>
+                <span className={styles.finalizeScore}>{wins.a} – {wins.b}</span>
+                <span>{match.teamB.name}</span>
+              </div>
+              {finalizeError && <p className={styles.finalizeError}>{finalizeError}</p>}
+              <div className={styles.finalizeActions}>
+                <button className={styles.btnGhost} onClick={() => setShowFinalize(false)} disabled={finalizing}>
+                  Cancel
+                </button>
+                <button className={styles.btnPrimary} onClick={submitFinal} disabled={finalizing}>
+                  {finalizing ? 'Submitting…' : 'Confirm & submit'}
+                </button>
+              </div>
             </div>
           </div>
         )}
-
-        <button className={styles.resetBtn} onClick={resetSet}>
-          <RotateCcw size={14} /> Reset set
-        </button>
       </div>
     </div>
   );
