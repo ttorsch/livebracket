@@ -28,6 +28,8 @@
   align-items: center;
   gap: 20px;
 }
+/* A button, not a decoration: 108px is enough to scan from a phone held
+   close, but an organizer showing it across a table wants it bigger. */
 .codeFrame {
   width: 108px;
   height: 108px;
@@ -40,6 +42,17 @@
   justify-content: center;
   padding: 8px;
   box-sizing: border-box;
+  cursor: zoom-in;
+  transition: border-color 160ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+              transform 160ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.codeFrame:hover {
+  border-color: var(--color-primary, #EB6F43);
+  transform: scale(1.03);
+}
+.codeFrame:focus-visible {
+  outline: 2px solid var(--color-primary, #EB6F43);
+  outline-offset: 3px;
 }
 .code {
   width: 100%;
@@ -86,6 +99,16 @@
   font-size: 14px;
   color: var(--text-secondary, #3A414D);
 }
+/* Sits under the division line; quieter than it, since when a match runs
+   is secondary to which match it is. */
+.schedule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-muted, #7A8294);
+}
 .metaDot {
   width: 3px;
   height: 3px;
@@ -108,6 +131,85 @@
   border-radius: 50%;
 }
 .openLink:focus-visible {
+  outline: 2px solid var(--color-primary, #EB6F43);
+  outline-offset: 2px;
+}
+
+/* ── Enlarged code ────────────────────────────────────────────── */
+/* Portalled to <body>, so it centres on the viewport rather than inside
+   the card — and can't be clipped by the card's overflow: hidden. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 30, 0.62);
+  backdrop-filter: blur(6px);
+  animation: lightboxIn 140ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+@keyframes lightboxIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.lightboxPanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: min(92vw, 420px);
+  padding: 28px;
+  border-radius: var(--radius-xl, 24px);
+  background: var(--surface-card, #fff);
+  box-shadow: var(--shadow-glass-deep, 0 30px 80px -30px rgba(8, 18, 35, 0.6));
+  text-align: center;
+}
+.lightboxCode {
+  width: min(70vw, 300px);
+  height: auto;
+  display: block;
+}
+.lightboxCourt {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary, #EB6F43);
+}
+.lightboxMatchup {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary, #14181E);
+  text-wrap: pretty;
+}
+.lightboxHint {
+  font-size: 13px;
+  color: var(--text-muted, #7A8294);
+}
+.lightboxClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--sand-100, #F5F1EA);
+  color: var(--text-primary, #14181E);
+  cursor: pointer;
+  transition: background 140ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.lightboxClose:hover { background: var(--sand-300, #E7E2D9); }
+.lightboxClose:focus-visible {
   outline: 2px solid var(--color-primary, #EB6F43);
   outline-offset: 2px;
 }

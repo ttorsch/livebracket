@@ -611,8 +611,8 @@
   border-radius: 14px;
   background: repeating-linear-gradient(
     135deg,
-    rgba(217, 212, 201, 0.30) 0 6px,
-    transparent 6px 12px
+    rgba(217, 212, 201, 0.35) 0 8px,
+    transparent 8px 16px
   );
   overflow: hidden;
 }
@@ -633,9 +633,9 @@
 }
 
 .gapLabel {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-500, #7A8294);
   white-space: nowrap;
@@ -1053,14 +1053,6 @@
   gap: 14px;
 }
 
-.gridHeaderEyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.10em;
-  color: var(--coral-500, #EB6F43);
-  margin-bottom: 4px;
-}
-
 .gridHeaderTitle {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
   font-size: 30px;
@@ -1078,19 +1070,81 @@
   flex-wrap: wrap;
 }
 
-.calCourtHeadCard {
+/* Court headers are dark cards, so the courts read as the fixed structure of
+   the day and the white match cards read as the things placed into it. */
+.calCourtHead {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--surface-card, #FFFFFF);
-  border: 1px solid var(--sand-300, #E7E2D9);
-  border-radius: 12px;
-  padding: 10px 16px;
-  margin: 4px;
+  background: var(--sand-100, #F5F1EA);
+  padding: 0 2px 12px;
+  box-sizing: border-box;
+}
+.calCourtHeadCard {
+  height: 96px;
+  box-sizing: border-box;
+  background: var(--ink-900, #14181E);
+  border-radius: 20px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 8px 20px rgba(20, 24, 30, 0.16);
+}
+.calCourtHeadTop {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 2px 8px rgba(20, 24, 30, 0.03);
+  gap: 10px;
+  min-width: 0;
+}
+.calCourtBadge {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.calCourtName {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.calCourtHeadBottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.calCourtProgress {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.calCourtProgressFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--coral-500, #EB6F43);
+  transition: width 240ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.calCourtPlayed {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
 }
 
 /* Full-height backing behind the hourly time labels, so courts scrolling
@@ -1099,7 +1153,7 @@
   position: sticky;
   left: 0;
   z-index: 3;
-  background: var(--surface-canvas, #F7F5F0);
+  background: var(--sand-100, #F5F1EA);
   border-right: 1px solid var(--sand-300, #EAE5DD);
   pointer-events: none;
 }
@@ -1108,13 +1162,47 @@
   position: sticky;
   left: 0;
   z-index: 4;
-  padding: 14px 10px 0 4px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-700, #3E4654);
-  background: var(--surface-canvas, #F7F5F0);
+  padding: 10px 8px 0 4px;
+  background: var(--sand-100, #F5F1EA);
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.calTimeText { flex: none; }
+.calTimeRule {
+  flex: 1;
+  height: 1px;
+  min-width: 8px;
+}
+.calTimeDot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--ink-900, #14181E);
+}
+
+/* The hour is the anchor of the axis; a match start between hours is a
+   reference point, and is set back so it doesn't compete with it. */
+.calTimeHour .calTimeText {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--ink-900, #14181E);
+}
+.calTimeHour .calTimeRule { background: var(--sand-400, #D9D4C9); }
+
+.calTimeMinor { opacity: 0.85; }
+.calTimeMinor .calTimeText {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-500, #8A92A0);
+}
+.calTimeMinor .calTimeRule { background: var(--sand-300, #EAE5DD); }
 
 .lunchBreakSlot {
   margin: 4px 6px;
@@ -1151,16 +1239,17 @@
 .gridMatchCard {
   position: relative;
   background: var(--surface-card, #FFFFFF);
-  border: 1px solid var(--sand-300, #E7E2D9);
-  border-left: 3px solid var(--div-accent, #EB6F43);
-  border-radius: 12px;
-  padding: 7px 12px;
-  margin: 3px 2px;
+  border: none;
+  border-left: 4px solid var(--div-accent, #EB6F43);
+  border-radius: 18px;
+  padding: 12px 16px 14px;
+  margin: 0 2px 10px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  box-shadow: 0 2px 10px rgba(20, 31, 46, 0.05);
-  transition: box-shadow 0.15s ease;
+  gap: 2px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(20, 24, 30, 0.06);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .gridMatchCard:hover {
@@ -1187,9 +1276,11 @@
 }
 
 .gridMatchTime {
-  font-size: 12px;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
   font-weight: 700;
-  color: var(--div-accent, #EE7A4C);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900, #14181E);
 }
 
 .gridMatchDot {
@@ -1200,10 +1291,9 @@
 }
 
 .gridMatchDuration {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--div-accent, #EE7A4C);
-  opacity: 0.8;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-500, #8A92A0);
 }
 
 /* Calendar blocks are sized by match duration, so the round has to share the
@@ -1216,7 +1306,7 @@
 }
 
 .gridMatchRound {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--ink-500, #8A92A0);
   white-space: nowrap;
@@ -1229,14 +1319,17 @@
    it has to survive being three characters wide. */
 .gridMatchNo {
   flex: none;
-  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
   font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.01em;
   color: #FFFFFF;
   background: var(--div-accent, #EB6F43);
-  padding: 2px 7px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
 }
+
+.gridTeamRowA { margin-top: auto; }
+.gridTeamRowB { margin-bottom: auto; }
 
 .gridTeamRow {
   display: flex;
@@ -1246,7 +1339,7 @@
 }
 
 .gridTeamName {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ink-900, #14181E);
   white-space: nowrap;
@@ -1262,9 +1355,9 @@
 }
 
 .gridScoreBadgeWin {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
+  width: 26px;
+  height: 22px;
+  border-radius: 6px;
   background: var(--div-accent, #EE7A4C);
   color: #FFFFFF;
   font-family: var(--font-display, 'Outfit', sans-serif);
@@ -1276,9 +1369,9 @@
 }
 
 .gridScoreBadge {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
+  width: 26px;
+  height: 22px;
+  border-radius: 6px;
   background: var(--sand-200, #F0EDE6);
   border: 1px solid var(--sand-300, #EAE5DD);
   color: var(--ink-800, #2C323D);
@@ -1291,31 +1384,33 @@
 }
 
 .gridScoreEmpty {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  border: 1px dashed var(--sand-300, #EAE5DD);
+  width: 26px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px dashed var(--sand-400, #D9D4C9);
   background: transparent;
 }
 
 .gridVsRow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: -1px 0;
+  gap: 10px;
+  margin: 7px 0;
+  min-height: 14px;
 }
 
 .gridVsLine {
   flex: 1;
   height: 1px;
-  background: var(--sand-200, #F0EDE6);
+  background: var(--sand-300, #EAE5DD);
 }
 
 .gridVsText {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-400, #A6ADB9);
-  text-transform: lowercase;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-500, #8A92A0);
+  text-transform: uppercase;
 }
 .calDaySection { margin-bottom: 20px; }
 .calDayHeading {
@@ -1331,9 +1426,11 @@
      scrollbar inside a short pane. A wide court roster still scrolls sideways
      in here, so the page itself never scrolls horizontally. */
   overflow-x: auto;
-  border: 1px solid var(--sand-300, #EAE5DD);
   border-radius: 14px;
-  background: var(--surface-card, #FFFFFF);
+  /* Sand, not white: the match cards are white, and on a white ground they
+     lose their edges. Same reason the court headers are ink. */
+  background: var(--sand-100, #F5F1EA);
+  padding: 0 12px 4px;
   /* Keep a horizontal swipe inside the calendar instead of chaining to the
      page (or to the browser's back gesture) once a court edge is reached. */
   overscroll-behavior-x: contain;
@@ -1352,24 +1449,56 @@
      these below, where a column *should* be wider than the screen so each court
      can be swiped to in turn. */
   width: 100%;
-  grid-template-columns: var(--cal-time-col, 70px) repeat(var(--cal-courts, 1), minmax(0, 1fr));
-  grid-template-rows: auto repeat(var(--cal-rows, 1), auto);
+  column-gap: 12px;
+  grid-template-columns: var(--cal-time-col, 96px) repeat(var(--cal-courts, 1), minmax(0, 1fr));
+  grid-template-rows: auto repeat(var(--cal-rows, 1), minmax(var(--cal-slot-h, 126px), auto));
 }
 /* Sticky court-header row (top) */
-.calCorner,
-.calCourtHead {
+/* The corner says which day the grid below belongs to, and sits above the
+   court cards — they share the sticky top row and come later in the DOM, so
+   without this they'd slide out over it. */
+.calCorner {
   position: sticky;
   top: 0;
-  z-index: 3;
-  background: var(--sand-100, #F4F1EA);
-  border-bottom: 1px solid var(--sand-300, #EAE5DD);
-}
-.calCorner {
   left: 0;
-  /* Above the court header cards, which share the sticky top row and would
-     otherwise slide out over the corner (they come later in the DOM). */
   z-index: 6;
+  background: var(--sand-100, #F4F1EA);
   border-right: 1px solid var(--sand-300, #EAE5DD);
+  padding: 0 10px 12px 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.calCornerDay {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--coral-500, #EB6F43);
+  line-height: 1.1;
+  margin-bottom: 3px;
+}
+.calCornerWeekday {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--ink-900, #14181E);
+}
+.calCornerDate {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-500, #8A92A0);
+  line-height: 1.2;
+}
+.calCornerCount {
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-500, #8A92A0);
 }
 .calCourtHead {
   padding: 10px 12px;
@@ -1468,10 +1597,14 @@
 }
 
 /* ── Day selector (multi-day) ────────────────────────────────── */
+/* Shares .stickyInner's geometry so the day pills line up under the
+   division pills. The horizontal inset comes from .stickyBar's padding —
+   repeating it here (and using a narrower max-width, which re-centred the
+   row) is what pushed this 130px to the right of the row above. */
 .dayBar {
-  max-width: 1240px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 0 40px 10px;
+  padding: 0 0 10px;
   display: flex;
   overflow-x: auto;
 }
@@ -2011,7 +2144,6 @@
   /* Section heading */
   .gridHeaderRow { gap: 12px; margin-bottom: 16px; }
   .gridHeaderTitle { font-size: 22px; }
-  .gridHeaderEyebrow { font-size: 11px; letter-spacing: 0.08em; }
   .gridHeaderRight { gap: 10px; }
   .calLegendItem { font-size: 11px; gap: 5px; }
   .hintBannerOn { padding: 12px 14px; font-size: 13px; }
@@ -2019,7 +2151,7 @@
   /* Grid view calendar — geometry is set on the scroll container so that both
      the track sizing and the snap padding read the same values. */
   .calScroll {
-    --cal-time-col: 56px;
+    --cal-time-col: 78px;
     --cal-court-col: 240px;
   }
   /* Below this width a court needs more room than the screen has, so the grid
@@ -2041,9 +2173,11 @@
      items refuse to shrink below their content until told they may. */
   .gridMatchTop > div { min-width: 0; }
   .gridTeamName { min-width: 0; }
-  .calTimeLabelCell { padding: 12px 8px 0 4px; font-size: 12px; }
-  .calCourtHeadCard { padding: 8px 12px; }
-  .calCourtHeadCard .courtName { font-size: 15px; }
+  .calTimeLabelCell { padding: 10px 6px 0 4px; }
+  .calTimeHour .calTimeText { font-size: 15px; }
+  .calCourtHeadCard { height: 84px; padding: 10px 14px; border-radius: 16px; }
+  .calCourtName { font-size: 17px; }
+  .calCornerDay { font-size: 18px; }
   .lunchBreakContent { padding: 5px 12px; font-size: 11px; letter-spacing: 0.02em; }
 }
 
@@ -2053,7 +2187,7 @@
      gutter, page padding and a sliver of the next court) and each swipe snaps
      onto the next court header. */
   .calScroll {
-    --cal-time-col: 44px;
+    --cal-time-col: 68px;
     /* 1.2 courts across: the width left over once the page padding, the border
        and the time gutter are taken out, divided so a fifth of the next court
        is always showing — enough to say the calendar carries on sideways. */
@@ -2094,7 +2228,6 @@
 
   .heroTitle { font-size: 22px; }
   .gridHeaderTitle { font-size: 18px; }
-  .gridHeaderEyebrow { font-size: 10px; }
 }
 
 /* Lift-on-hover is a pointer affordance; on touch it sticks after a tap. */

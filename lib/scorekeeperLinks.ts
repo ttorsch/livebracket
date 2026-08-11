@@ -13,6 +13,7 @@ export interface ScorekeeperLinkRow {
   token: string;
   court: string | null;
   time: string | null;
+  day: number | null;   // 1-based day of the event, null if unscheduled
   status: 'upcoming' | 'live' | 'done';
   division: string;
   round: string;
@@ -22,11 +23,30 @@ export interface ScorekeeperLinkRow {
 
 export const UNASSIGNED_COURT = 'Court not assigned';
 
+/* Scheduled times are stored as UTC instants whose wall clock equals the
+ * organizer's intended local time (see the schedule save route), so both
+ * labels below read them in UTC — exactly as lib/data.ts renders the
+ * schedule. Formatting them in the viewer's zone, which is what this used
+ * to do, put a different clock on the QR card than on the schedule the
+ * organizer built. */
+
+/** Just the clock, matching the schedule grid: "09:00". */
+export const clockLabel = (iso: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+};
+
+/** Date and clock, for the printed sheet — it spans every day of the event,
+ *  so a bare time there wouldn't say which day. */
 export const timeLabel = (iso: string | null) => {
   if (!iso) return 'Unscheduled';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return 'Unscheduled';
-  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+  });
 };
 
 /* Courts sort the way they're numbered, not the way they're spelled, so

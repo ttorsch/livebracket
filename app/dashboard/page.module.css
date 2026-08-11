@@ -286,6 +286,20 @@
   text-decoration: none;
   transition: background 0.15s ease, transform 0.15s ease;
 }
+/* Visible to screen readers only — used to say "opens in a new tab" on the
+   hero links, which is otherwise unannounced. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .heroGhostBtn:hover {
   background: rgba(255, 255, 255, 0.20);
   transform: translateY(-1px);

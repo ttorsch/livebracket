@@ -456,11 +456,26 @@ export default function OrganizerDashboard() {
                         <span><MapPin size={16} /> {t.location}</span>
                       </div>
                       <div className={styles.heroActions}>
-                        <Link href={`/dashboard/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
+                        {/* New tab on purpose: on event day an organizer keeps
+                            the live board up and dips into the bracket or the
+                            schedule, rather than navigating away from it. */}
+                        <Link
+                          href={`/dashboard/tournament/${t.id}`}
+                          className={styles.heroPrimaryBtn}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Trophy size={16} /> Open Bracket
+                          <span className={styles.srOnly}>(opens in a new tab)</span>
                         </Link>
-                        <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.heroGhostBtn}>
+                        <Link
+                          href={`/dashboard/tournament/${t.id}/schedule`}
+                          className={styles.heroPrimaryBtn}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Calendar size={16} /> Schedule
+                          <span className={styles.srOnly}>(opens in a new tab)</span>
                         </Link>
                         <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
                           <Settings size={16} /> Manage Setup

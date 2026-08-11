@@ -107,6 +107,20 @@ function hoursMinutes(mins: number): string {
 }
 
 // Minutes-since-midnight -> "HH:MM".
+/* Pixels per minute on the calendar's Y axis. This is what makes the grid a
+   timeline rather than a table: every row is `pitch` minutes tall, so a card
+   spanning a 45-minute match is visibly longer than a 20-minute one, and a
+   gap on court looks like the gap it is. */
+const PX_PER_MIN = 6.3;
+
+/* The digit for a court's badge. Courts are named "Court 3" by the generator,
+   but an organizer can rename one, so fall back to its first character rather
+   than rendering an empty circle. */
+function courtNumber(court: string): string {
+  const digits = court.match(/\d+/);
+  return digits ? digits[0] : court.trim().charAt(0).toUpperCase();
+}
+
 function toHHMM(mins: number): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
@@ -857,12 +871,6 @@ export default function TournamentSchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredMatches, splitByDay, detail, dayCount, config?.blocks]);
 
-  // Distinct courts across the whole view, for the section heading.
-  const courtCount = useMemo(
-    () => new Set(filteredMatches.map(m => m.court)).size,
-    [filteredMatches],
-  );
-
   // Calendar grid: courts on the X axis (columns), time on the Y axis (rows) at
   // a fixed interval. Each match is a block sized by its duration; one section
   // per day; blocks are tinted by division. `pitch` is the row granularity in
@@ -952,14 +960,23 @@ export default function TournamentSchedulePage() {
         }
       }
 
-      // Time-axis labels only on full hours (every 60 minutes)
-      const labels: { slot: number; time: string }[] = [];
+      /* Time-axis labels: every full hour, plus the start of each row that
+       * actually has a match on it. Hours anchor the axis; the match starts
+       * are what an organizer is really reading off it, and on a 20-minute
+       * pitch they'd otherwise fall in unlabelled gaps. The two are drawn
+       * differently — see isHour. */
+      const labelSlots = new Map<number, boolean>(); // slot → isHour
       for (let s = 0; s <= slots; s += 1) {
-        const totalMin = startMin + s * pitch;
-        if (totalMin % 60 === 0) {
-          labels.push({ slot: s, time: toHHMM(totalMin) });
+        if ((startMin + s * pitch) % 60 === 0) labelSlots.set(s, true);
+      }
+      for (const b of blocks) {
+        if (b.startSlot >= 0 && b.startSlot <= slots && !labelSlots.has(b.startSlot)) {
+          labelSlots.set(b.startSlot, false);
         }
       }
+      const labels = [...labelSlots.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([slot, isHour]) => ({ slot, isHour, time: toHHMM(startMin + slot * pitch) }));
 
       // Court time taken off the board by hand, mapped onto this day's rows.
       // Kept beside the lunch banner rather than merged with it: lunch is a
@@ -1226,13 +1243,12 @@ export default function TournamentSchedulePage() {
   /* One heading for both views: a coral eyebrow saying which event and which
      slice of it you are looking at, the view's own name under it, and the
      editing tools and division key on the right. */
-  const scheduleHeader = (title: string, meta: string, tools?: ReactNode) => (
+  /* No eyebrow: the tournament name, location and court count are all in
+     the page header a few rows up, so repeating them here was noise. */
+  const scheduleHeader = (title: string, tools?: ReactNode) => (
     <div className={styles.gridHeaderRow}>
       <div className={styles.gridHeaderLeft}>
         <div>
-          <div className={styles.gridHeaderEyebrow}>
-            {[detail?.title, detail?.location, meta].filter(Boolean).join(' · ').toUpperCase()}
-          </div>
           <h2 className={styles.gridHeaderTitle}>{title}</h2>
         </div>
       </div>
@@ -1673,7 +1689,7 @@ export default function TournamentSchedulePage() {
       <main className={styles.main}>
         {viewMode === 'court' ? (
           <div>
-            {scheduleHeader('Court Schedule', `${courtCount} court${courtCount === 1 ? '' : 's'}`)}
+            {scheduleHeader('Court Schedule')}
 
             {editBar}
 
@@ -1847,7 +1863,6 @@ export default function TournamentSchedulePage() {
           <div>
             {scheduleHeader(
               'Court Schedule',
-              `${calendar.courts.filter(c => c !== 'Unscheduled').length} courts`,
               editMode ? (
                 <button
                   type="button"
@@ -1876,18 +1891,46 @@ export default function TournamentSchedulePage() {
                       style={{
                         '--cal-courts': calendar.courts.length,
                         '--cal-rows': day.slots,
+                        // Rows are minutes made visible — see PX_PER_MIN.
+                        '--cal-slot-h': `${calendar.pitch * PX_PER_MIN}px`,
                       } as CSSProperties}
                     >
-                      {/* Top-left corner cell */}
-                      <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties} />
+                      {/* Top-left corner: which day this grid is, and how much
+                          of the event sits under it. */}
+                      <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties}>
+                        <span className={styles.calCornerDay}>Day {day.day + 1}</span>
+                        {day.dateLabel && (
+                          <>
+                            <span className={styles.calCornerWeekday}>{day.dateLabel.split(',')[0]}</span>
+                            <span className={styles.calCornerDate}>
+                              {day.dateLabel.split(',').slice(1).join(',').trim() || day.dateLabel}
+                            </span>
+                          </>
+                        )}
+                        <span className={styles.calCornerCount}>{day.blocks.length} matches</span>
+                      </div>
 
                       {/* Top Sticky Court Headers */}
                       {calendar.courts.map((court, ci) => {
-                        const count = filteredMatches.filter(m => m.court === court).length;
+                        const onCourt = filteredMatches.filter(m => m.court === court);
+                        const played = onCourt.filter(m => m.status === 'done').length;
+                        const pct = onCourt.length > 0 ? Math.round((played / onCourt.length) * 100) : 0;
                         return (
-                          <div key={court} className={styles.calCourtHeadCard} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
-                            <span className={styles.courtName}>{court}</span>
-                            <span className={styles.courtCount}>{count} matches</span>
+                          <div key={court} className={styles.calCourtHead} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
+                            <div className={styles.calCourtHeadCard}>
+                              <div className={styles.calCourtHeadTop}>
+                                <span className={styles.calCourtBadge}>{courtNumber(court)}</span>
+                                <span className={styles.calCourtName}>{court}</span>
+                              </div>
+                              <div className={styles.calCourtHeadBottom}>
+                                <span className={styles.calCourtProgress}>
+                                  <span className={styles.calCourtProgressFill} style={{ width: `${pct}%` }} />
+                                </span>
+                                <span className={styles.calCourtPlayed}>
+                                  {played}/{onCourt.length} played
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
@@ -1900,10 +1943,19 @@ export default function TournamentSchedulePage() {
                         style={{ gridColumn: 1, gridRow: `2 / span ${Math.max(1, day.slots)}` } as CSSProperties}
                       />
 
-                      {/* Y-axis Left Sticky Time Labels */}
+                      {/* Y-axis Left Sticky Time Labels. Hours are set in the
+                          display face with a rule and a dot; match starts in
+                          between are quieter, so the hour still reads as the
+                          anchor. */}
                       {day.labels.map(l => (
-                        <div key={`t${l.slot}`} className={styles.calTimeLabelCell} style={{ gridColumn: 1, gridRow: l.slot + 2 } as CSSProperties}>
-                          <span>{l.time}</span>
+                        <div
+                          key={`t${l.slot}`}
+                          className={`${styles.calTimeLabelCell} ${l.isHour ? styles.calTimeHour : styles.calTimeMinor}`}
+                          style={{ gridColumn: 1, gridRow: l.slot + 2 } as CSSProperties}
+                        >
+                          <span className={styles.calTimeText}>{l.time}</span>
+                          <span className={styles.calTimeRule} aria-hidden="true" />
+                          {l.isHour && <span className={styles.calTimeDot} aria-hidden="true" />}
                         </div>
                       ))}
 
@@ -2080,7 +2132,7 @@ export default function TournamentSchedulePage() {
                                 <span className={styles.gridMatchNo}>{b.m.matchNo}</span>
                               </span>
                             </div>
-                            <div className={styles.gridTeamRow}>
+                            <div className={`${styles.gridTeamRow} ${styles.gridTeamRowA}`}>
                               <span className={styles.gridTeamName}>{b.m.teamA}</span>
                               <div className={styles.gridScores}>
                                 {b.m.scoreA && b.m.scoreA.length > 0 ? (
@@ -2100,7 +2152,7 @@ export default function TournamentSchedulePage() {
                               <span className={styles.gridVsText}>vs</span>
                               <span className={styles.gridVsLine} />
                             </div>
-                            <div className={styles.gridTeamRow}>
+                            <div className={`${styles.gridTeamRow} ${styles.gridTeamRowB}`}>
                               <span className={styles.gridTeamName}>{b.m.teamB}</span>
                               <div className={styles.gridScores}>
                                 {b.m.scoreB && b.m.scoreB.length > 0 ? (
