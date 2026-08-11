@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import QrCodeImage from './QrCodeImage';
+import { Badge, Button } from './livebracket-ds';
 import { nextPerCourt, timeLabel, type ScorekeeperLinkRow } from '../lib/scorekeeperLinks';
 import styles from './ScorekeeperQrCards.module.css';
 
@@ -80,7 +81,8 @@ export function useQrPdfExport(slug: string) {
   return { exportAll, exporting, error };
 }
 
-/** A grid of cards — the next match on each court, one card per court. */
+/** One row per court — the next match on that court, its code, and the two
+ *  ways to hand it to a referee: copy the link, or open the screen. */
 export default function ScorekeeperQrCards({ matches }: { matches: ScorekeeperLinkRow[] }) {
   const [copied, setCopied] = useState<string | null>(null);
   // Only ever rendered client-side, so window is there — a lazy initializer
@@ -93,35 +95,66 @@ export default function ScorekeeperQrCards({ matches }: { matches: ScorekeeperLi
       setCopied(matchId);
       setTimeout(() => setCopied(c => (c === matchId ? null : c)), 1600);
     } catch {
-      /* clipboard blocked — the URL is on screen to copy by hand */
+      /* clipboard blocked — the code itself is on screen to scan instead */
     }
   };
 
   return (
-    <div className={styles.grid}>
+    <div className={styles.rows}>
       {nextPerCourt(matches).map(([court, m]) => {
         const url = `${origin}/score/${m.token}`;
+        const isCopied = copied === m.matchId;
         return (
-          <div key={court} className={styles.card}>
-            <div className={styles.head}>
-              <span className={styles.court}>{court}</span>
-              {m.status === 'live'
-                ? <span className={styles.liveTag}>Live</span>
-                : <span className={styles.nextTag}>Up next</span>}
+          <div key={court} className={styles.row}>
+            <div className={styles.identity}>
+              <div className={styles.codeFrame}>
+                <QrCodeImage
+                  value={url}
+                  size={108}
+                  className={styles.code}
+                  alt={`Scorekeeper QR for ${m.teamA} vs ${m.teamB}`}
+                />
+              </div>
+              <div className={styles.courtCol}>
+                <span className={styles.court}>{court}</span>
+                <div>
+                  <Badge variant={m.status === 'live' ? 'live' : 'status'}>
+                    {m.status === 'live' ? 'Live' : 'Up next'}
+                  </Badge>
+                </div>
+              </div>
             </div>
-            <QrCodeImage
-              value={url}
-              size={172}
-              className={styles.code}
-              alt={`Scorekeeper QR for ${m.teamA} vs ${m.teamB}`}
-            />
-            <div className={styles.teams}>{m.teamA} vs {m.teamB}</div>
-            <div className={styles.meta}>{m.division} · {m.round}</div>
-            <div className={styles.meta}>{timeLabel(m.time)}</div>
-            <div className={styles.token}>/score/{m.token.slice(0, 12)}…</div>
-            <button className={styles.copy} onClick={() => copy(m.matchId, url)}>
-              {copied === m.matchId ? 'Copied!' : 'Copy link'}
-            </button>
+
+            <div className={styles.detail}>
+              <span className={styles.matchup}>{m.teamA} vs {m.teamB}</span>
+              <span className={styles.meta}>
+                <span>{m.division} · {m.round}</span>
+                <span className={styles.metaDot} aria-hidden="true" />
+                <span>{timeLabel(m.time)}</span>
+              </span>
+            </div>
+
+            <div className={styles.actions}>
+              <Button
+                variant="general"
+                size="small"
+                onClick={() => copy(m.matchId, url)}
+                aria-label={`Copy the scoring link for ${court}`}
+              >
+                {isCopied ? 'Copied' : 'Copy link'}
+              </Button>
+              {/* Opens in a new tab on purpose: the organizer is mid-task on
+                  this page, and the scoring screen is a separate job. */}
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.openLink}
+                aria-label={`Open the scoring screen for ${court}`}
+              >
+                <Button variant="arrow" size="small" tabIndex={-1} />
+              </a>
+            </div>
           </div>
         );
       })}

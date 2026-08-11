@@ -15,6 +15,31 @@ import { formatTeamName } from './teamName';
 export const liveKey = (matchId: string) => `live:match:${matchId}`;
 export const liveTournamentKey = (slug: string) => `live:tournament:${slug}`;
 
+/* Give a match in flight a clock origin if it doesn't have one.
+ *
+ * `startedAt` is stamped on the first point, so a match already being
+ * scored when the clock shipped has no origin — and its board would read
+ * "--:--" until the match ended. Rather than wait for that, the first read
+ * stamps one.
+ *
+ * The duration then understates by however long the match had already been
+ * running. That is the honest degradation: a clock counting up from now,
+ * rather than a confidently wrong number derived from the schedule. Matches
+ * that start from here on are exact.
+ *
+ * Written back with keepTtl so the key's existing expiry is untouched, and
+ * a failed write just means the next read tries again. */
+export async function ensureStartedAt(matchId: string, live: LiveScore): Promise<LiveScore> {
+  if (live.startedAt) return live;
+  const stamped = { ...live, startedAt: Date.now() };
+  try {
+    await redis.set(liveKey(matchId), stamped, { keepTtl: true });
+  } catch {
+    /* Non-fatal: the board shows a clock from this read either way. */
+  }
+  return stamped;
+}
+
 // Live state survives a referee closing the tab mid-match, so it carries
 // everything needed to redraw the screen exactly as they left it.
 export interface LiveScore {
@@ -126,6 +151,7 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
   let live: LiveScore | null = null;
   try {
     live = (await redis.get<LiveScore>(liveKey(row.id))) ?? null;
+    if (live) live = await ensureStartedAt(row.id, live);
   } catch {
     // Redis being unreachable must not lock a referee out of the screen —
     // they can still score from zero and finalize to Postgres.

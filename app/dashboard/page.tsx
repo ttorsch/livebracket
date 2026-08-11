@@ -18,6 +18,7 @@ import {
 import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 import { joinTeamName } from '../../lib/teamName';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
+import { nextPerCourt } from '../../lib/scorekeeperLinks';
 
 interface Organizer {
   name: string;
@@ -432,7 +433,6 @@ export default function OrganizerDashboard() {
             {/* Featured live hero + courts table */}
             {liveTournaments.map(t => {
               const detail = liveDetails[t.id] ?? null;
-              const liveRow = detail ? buildCourtRows(detail).find(r => r.hasLive) ?? null : null;
               return (
                 <section key={t.id} className={styles.liveSection}>
                   <div className={styles.hero}>
@@ -441,28 +441,20 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className={styles.heroScrim} aria-hidden="true" />
                     <div className={styles.heroContent}>
+                      {/* The hero identifies the tournament and nothing more —
+                          what's actually on court is the board's job, right
+                          below, where it isn't competing with the artwork. */}
                       <div className={styles.heroTopRow}>
                         <span className={styles.livePill}>
                           <span className={styles.livePillDot} aria-hidden="true" />
-                          Live now{liveRow ? ` · ${liveRow.division} · ${liveRow.court}` : ''}
+                          Live now
                         </span>
                       </div>
                       <h2 className={styles.heroTitle}>{t.title}</h2>
-                      {liveRow && (
-                        <p className={styles.heroMatchup}>{liveRow.teamA} vs {liveRow.teamB}</p>
-                      )}
                       <div className={styles.heroMeta}>
                         <span><Calendar size={16} /> {t.date}</span>
                         <span><MapPin size={16} /> {t.location}</span>
                       </div>
-                      {liveRow && liveRow.scoreA !== null && (
-                        <div className={styles.heroScorePill}>
-                          {[
-                            ...liveRow.sets.filter(Boolean).map(s => `${s!.a}–${s!.b}`),
-                            `${liveRow.scoreA}–${liveRow.scoreB}`,
-                          ].join(' · ')}
-                        </div>
-                      )}
                       <div className={styles.heroActions}>
                         <Link href={`/dashboard/tournament/${t.id}`} className={styles.heroPrimaryBtn}>
                           <Trophy size={16} /> Open Bracket
@@ -761,26 +753,73 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
 function CourtQrCard({ slug }: { slug: string }) {
   const { matches, loading, error } = useScorekeeperLinks(slug);
   const { exportAll, exporting, error: exportError } = useQrPdfExport(slug);
+  // Starts collapsed: the court board above is what an organizer came to
+  // read, and the codes are a thing you go and get when you need one.
+  const [open, setOpen] = useState(false);
 
-  if (loading) return <div className={styles.courtsEmpty}>Loading scorekeeper codes…</div>;
+  if (loading) return <div className={styles.courtsEmpty}>Loading scorekeeper QR…</div>;
   if (error || matches.length === 0) return null;
 
+  // Rows are one per court, not one per match — count what's actually shown.
+  const courtCount = nextPerCourt(matches).length;
+
   return (
-    <div className={styles.courtQrCard}>
+    <section className={styles.courtQrCard}>
       <div className={styles.courtQrHead}>
-        <span className={styles.courtQrTitle}>Scorekeeper codes</span>
-        <span className={styles.courtQrNote}>
-          Next match on each court — anyone with a link can score it.
-        </span>
-        {/* The live tournament is filtered out of the list below, so this is
-            the only place its printable sheet can be reached. */}
-        <button className={styles.courtQrExport} onClick={exportAll} disabled={exporting}>
-          {exporting ? 'Building PDF…' : 'Export all (PDF)'}
-        </button>
+        <div className={styles.courtQrHeadText}>
+          <h3 className={styles.courtQrTitle}>Scorekeeper QR</h3>
+          <p className={styles.courtQrNote}>
+            Next match on each court. Anyone with the link can enter scores — share it only
+            with your scorekeeper.
+          </p>
+        </div>
+        <div className={styles.courtQrActions}>
+          {/* The live tournament is filtered out of the list below, so this is
+              the only place its printable sheet can be reached. */}
+          <Button variant="primary" size="small" onClick={exportAll} disabled={exporting}>
+            {exporting ? 'Building PDF…' : 'Export all (PDF)'}
+          </Button>
+          <Button
+            variant="primary"
+            size="small"
+            onClick={() => setOpen(v => !v)}
+            aria-expanded={open}
+            aria-label={open ? 'Collapse scorekeeper QR' : 'Expand scorekeeper QR'}
+            style={{ width: 36, height: 36, padding: 0 }}
+          >
+            <span className={`${styles.courtQrChevron} ${open ? styles.courtQrChevronOpen : ''}`}>
+              <ChevronDown size={18} />
+            </span>
+          </Button>
+        </div>
       </div>
-      {exportError && <p className={styles.qrExportError}>{exportError}</p>}
-      <ScorekeeperQrCards matches={matches} />
-    </div>
+
+      {!open && (
+        <div className={styles.courtQrSummary}>
+          <span className={styles.courtQrCount}>
+            {courtCount} {courtCount === 1 ? 'court' : 'courts'}
+          </span>
+          <span className={styles.courtQrDot} aria-hidden="true" />
+          <span>One code per match — regenerated for each new pairing.</span>
+        </div>
+      )}
+
+      {open && (
+        <>
+          {exportError && <p className={styles.qrExportError}>{exportError}</p>}
+          <div className={styles.courtQrRows}>
+            <ScorekeeperQrCards matches={matches} />
+          </div>
+          <div className={styles.courtQrFoot}>
+            <Bell size={16} aria-hidden="true" />
+            <span>
+              Each code is unique to one match. Codes rotate when a match ends — reprint
+              after the round.
+            </span>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

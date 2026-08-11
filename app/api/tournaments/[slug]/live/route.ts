@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { redis } from '../../../../../lib/redis';
-import { liveKey, type LiveScore } from '../../../../../lib/scorekeeper';
+import { liveKey, ensureStartedAt, type LiveScore } from '../../../../../lib/scorekeeper';
 
 /* In-progress scores for every match still being played in a tournament.
  *
@@ -56,8 +56,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       startedAt: number | null;
     }
   > = {};
-  ids.forEach((id, i) => {
-    const v = values[i];
+  // Backfill a clock origin for anything still running from before the match
+  // clock existed; a no-op for every key written since.
+  const stamped = await Promise.all(
+    ids.map((id, i) => (values[i] ? ensureStartedAt(id, values[i]!) : null))
+  );
+
+  stamped.forEach((v, i) => {
+    const id = ids[i];
     if (!v) return;
     // lastScorer and startedAt post-date the first live keys, so anything
     // written before they existed reads as null rather than undefined.

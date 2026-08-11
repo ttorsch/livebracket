@@ -1,95 +1,134 @@
-/* One card per court, so four courts read across instead of stacking into
-   a column of near-identical rows. 184px is the narrowest a card can be and
-   still hold a scannable code. */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
-  gap: 12px;
-}
+/* One row per court: code and court on the left, the match in the middle,
+   the two ways to hand it over on the right. Rows rather than cards because
+   the useful comparison here is down the list — which court, which match —
+   not across a grid of near-identical tiles.
 
-.card {
+   Shared by the dashboard's Scorekeeper codes card and the per-tournament
+   QR panel, which is a much narrower container; hence the reflow below. */
+.rows {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  background: #fff;
-  border: 1px solid var(--sand-300, #E7E2D9);
-  border-radius: 14px;
-  padding: 14px;
 }
 
-.head {
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 28px;
+  padding: 20px 36px;
+  border-bottom: 1px solid var(--border-hairline, #E7E2D9);
+  transition: background 160ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.row:last-child { border-bottom: none; }
+.row:hover { background: var(--sand-100, #F5F1EA); }
+
+/* ── Code + court ─────────────────────────────────────────────── */
+.identity {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 20px;
+}
+.codeFrame {
+  width: 108px;
+  height: 108px;
+  flex: none;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.code {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.courtCol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 92px;
+  flex: none;
 }
 .court {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--coral-500, #EB6F43);
-}
-
-.liveTag,
-.nextTag {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill, 999px);
-  flex-shrink: 0;
-}
-.liveTag {
-  color: #fff;
-  background: var(--red-live, #F16767);
-}
-.nextTag {
-  color: var(--coral-500, #EB6F43);
-  background: var(--sand-100, #F5F1EA);
-  border: 1px solid var(--sand-300, #E7E2D9);
-}
-
-/* The code is the point of the card, so it takes the full card width and
-   grows with it — capped so a wide grid doesn't blow it up. It's generated
-   at 2x, so scaling up to the cap stays sharp. */
-.code {
-  align-self: center;
-  margin-bottom: 12px;
-  width: 100%;
-  max-width: 172px;
-  height: auto;
-}
-
-.teams {
-  font-size: 14px;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1.35;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary, #EB6F43);
+}
+
+/* ── The match ────────────────────────────────────────────────── */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.matchup {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   color: var(--text-primary, #14181E);
-  word-break: break-word;
+  text-wrap: pretty;
 }
 .meta {
-  font-size: 11.5px;
-  color: var(--text-muted, #7A8294);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--text-secondary, #3A414D);
 }
-.token {
-  font-size: 11px;
-  color: var(--text-muted, #7A8294);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.metaDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--sand-400, #D9D4C9);
+  flex: none;
 }
 
-.copy {
-  margin-top: 12px;
-  border: none;
-  background: var(--ink-900, #14181E);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 9px 16px;
-  border-radius: var(--radius-pill, 999px);
-  cursor: pointer;
+/* ── Hand it over ─────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* The arrow is a real link so it opens in a tab, middle-clicks, and shows a
+   URL on hover; the Button inside is the visual, kept out of the tab order
+   so the anchor is the single stop. */
+.openLink {
+  display: inline-flex;
+  border-radius: 50%;
+}
+.openLink:focus-visible {
+  outline: 2px solid var(--color-primary, #EB6F43);
+  outline-offset: 2px;
+}
+
+/* ── Narrow containers ────────────────────────────────────────── */
+/* The QR panel is a ~360px modal, far below the three-column row's natural
+   width. Actions drop under the match, then the code stacks above it. */
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px 20px;
+    padding: 18px 20px;
+  }
+  .actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .matchup { font-size: 17px; }
+}
+@media (max-width: 460px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .identity { gap: 16px; }
+  .actions { grid-column: auto; }
 }

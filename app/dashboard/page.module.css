@@ -226,30 +226,6 @@
   letter-spacing: -0.01em;
   margin: 0 0 6px;
 }
-.heroMatchup {
-  font-size: 15px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0 0 10px;
-}
-.heroScorePill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  width: fit-content;
-  margin-top: 14px;
-  padding: 10px 18px;
-  border-radius: var(--radius-pill, 999px);
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #fff;
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-weight: 700;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
 .heroMeta {
   display: flex;
   align-items: center;
@@ -281,6 +257,12 @@
   transition: background 0.15s ease, transform 0.15s ease;
 }
 .heroPrimaryBtn:hover { background: var(--coral-600, #D95F35); transform: translateY(-1px); }
+/* Frosted glass over the hero photo, built from the design system's own
+   glass tokens rather than a second set of magic rgba values — the same
+   fill, blur and rim GlassCard uses in its dark tone.
+
+   The rim is an inset shadow, not a border, so it sits inside the pill and
+   doesn't fight the 1px border on the blur edge. */
 .heroGhostBtn {
   display: inline-flex;
   align-items: center;
@@ -288,16 +270,35 @@
   padding: 0 22px;
   height: 44px;
   border-radius: var(--radius-pill, 999px);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border-dark, rgba(255, 255, 255, 0.12));
+  background: var(--glass-fill-dark, rgba(20, 24, 30, 0.40));
+  /* Standard property only, and a literal value: Lightning CSS emits the
+     -webkit- prefix itself, and authoring both here made it keep only the
+     Safari-prefixed one — which Chrome ignores, so the blur silently
+     vanished. Value tracks --glass-blur (tokens/spacing.css) by hand,
+     since a var() also defeats the prefixer. */
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: var(--glass-rim, inset 0 0 0 1.5px rgba(255, 255, 255, 0.35));
   color: #fff;
   font-family: var(--font-text, 'DM Sans', sans-serif);
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
-.heroGhostBtn:hover { background: rgba(255, 255, 255, 0.18); }
+.heroGhostBtn:hover {
+  background: rgba(255, 255, 255, 0.20);
+  transform: translateY(-1px);
+}
+
+/* Without backdrop-filter the fill alone is too dark to read as glass, so
+   fall back to the flat translucent pill this used to be. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .heroGhostBtn {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+}
 
 /* ── Live courts board ────────────────────────────────────────── */
 .courtsHeader {
@@ -971,41 +972,101 @@
   margin-bottom: 14px;
 }
 /* ── Scorekeeper codes card (under the live court board) ───────── */
+/* Rows run edge to edge, so the padding lives on the header, summary and
+   footer rather than on the card — a hovered row highlights the full width
+   the way the design draws it. */
 .courtQrCard {
-  margin-top: 16px;
-  background: var(--sand-50, #fff);
-  border: 1px solid var(--sand-300, #E7E2D9);
-  border-radius: var(--radius-xl, 24px);
-  padding: 20px;
+  margin-top: 20px;
+  background: var(--surface-card, #fff);
+  border-radius: 34px;
+  box-shadow: var(--shadow-card, 0 8px 40px rgba(0, 0, 0, 0.12));
+  overflow: hidden;
 }
 .courtQrHead {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: flex-end;
+  justify-content: space-between;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  gap: 16px 32px;
+  padding: 32px 36px 24px;
+}
+.courtQrHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .courtQrTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 26px;
   font-weight: 700;
-  font-size: 16px;
-  color: var(--ink-900, #14181E);
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #14181E);
+  margin: 0;
 }
 .courtQrNote {
-  font-size: 12.5px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-muted, #7A8294);
+  max-width: 46ch;
+  text-wrap: pretty;
+  margin: 0;
+}
+.courtQrActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.courtQrChevron {
+  display: flex;
+  transition: transform 160ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.courtQrChevronOpen { transform: rotate(180deg); }
+
+/* Collapsed, the card still has to say what it's hiding. */
+.courtQrSummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 36px 28px;
+  font-size: 14px;
   color: var(--text-muted, #7A8294);
 }
-.courtQrExport {
-  margin-left: auto;
-  border: 1px solid var(--ink-900, #14181E);
-  background: var(--ink-900, #14181E);
-  color: #fff;
-  font-size: 12.5px;
+.courtQrCount {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  padding: 8px 16px;
-  border-radius: var(--radius-pill, 999px);
-  cursor: pointer;
-  flex-shrink: 0;
+  color: var(--text-primary, #14181E);
+}
+.courtQrDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--sand-400, #D9D4C9);
+  flex: none;
+}
+
+.courtQrRows { border-top: 1px solid var(--border-hairline, #E7E2D9); }
+
+.courtQrFoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 36px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted, #7A8294);
+  border-top: 1px solid var(--border-hairline, #E7E2D9);
+}
+.courtQrFoot svg { flex: none; }
+
+@media (max-width: 720px) {
+  .courtQrCard { border-radius: 24px; }
+  .courtQrHead { padding: 22px 20px 18px; }
+  .courtQrTitle { font-size: 21px; }
+  .courtQrNote { font-size: 14px; }
+  .courtQrSummary { padding: 0 20px 20px; }
+  .courtQrFoot { padding: 16px 20px; align-items: flex-start; }
 }
 .courtQrExport:disabled {
   background: transparent;
