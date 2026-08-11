@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle, RotateCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 import styles from './page.module.css';
 
 interface SetScore { a: number; b: number }
@@ -312,16 +312,8 @@ export default function ScorekeeperPage() {
 
   return (
     <div className={styles.page}>
-      {/* Portrait on a phone gets the rotate prompt — the board is drawn
-          for a device on its side and squeezing it helps nobody. */}
-      <div className={styles.rotateGate}>
-        <RotateCw size={52} className={styles.rotateIcon} />
-        <h2 className={styles.rotateTitle}>Turn your phone sideways</h2>
-        <p className={styles.rotateSub}>
-          The scoring board needs landscape. Rotate your phone to start scoring this match.
-        </p>
-      </div>
-
+      {/* The board is always the landscape layout — in portrait the CSS
+          counter-rotates it so scoring never waits on the device turning. */}
       <div className={styles.shell}>
         {/* ── Top bar ──────────────────────────────────────────── */}
         <header className={styles.topBar}>

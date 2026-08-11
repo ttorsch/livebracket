@@ -15,10 +15,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* The board is drawn for a phone on its side. Portrait on a touch device
-   gets the rotate prompt instead — a squeezed three-column board is worse
-   than asking for two seconds of rotation. Pointer-coarse keeps a narrow
-   desktop window out of it. */
+/* The board is drawn for a phone on its side. Rather than block portrait
+   behind a "rotate me" prompt — which strands anyone with rotation locked —
+   we counter-rotate the board so it is always the landscape layout and
+   always tappable; the ref just tilts the phone. Pointer-coarse keeps a
+   narrow desktop window out of it. */
 .shell {
   height: 100%;
   display: flex;
@@ -28,41 +29,21 @@
   box-sizing: border-box;
   position: relative;
 }
-.rotateGate { display: none; }
 
 @media (orientation: portrait) and (pointer: coarse) {
-  .shell { display: none; }
-  .rotateGate {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    padding: 32px;
-    text-align: center;
+  /* Axes swap, then rotate about the top-left corner and slide the board
+     back across the viewport it just rotated out of. The page has no text
+     inputs, modals or scroll containers, so none of the usual hazards of
+     rendering under a rotated ancestor apply here. */
+  .shell {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100dvh;
+    height: 100dvw;
+    transform-origin: top left;
+    transform: translateX(100dvw) rotate(90deg);
   }
-}
-.rotateIcon {
-  color: var(--color-primary);
-  animation: rotateHint 2.4s var(--ease-standard) infinite;
-}
-@keyframes rotateHint {
-  0%, 55%, 100% { transform: rotate(0deg); }
-  70%, 90% { transform: rotate(-90deg); }
-}
-.rotateTitle {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0;
-}
-.rotateSub {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
-  max-width: 26ch;
-  line-height: 1.5;
 }
 
 /* ── Top bar ──────────────────────────────────────────────────── */
