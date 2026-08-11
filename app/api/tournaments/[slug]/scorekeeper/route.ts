@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
+import { formatTeamName } from '../../../../../lib/teamName';
 
 /* Organizer-side listing of scorekeeper links, one per match, so the
  * dashboard can render a real QR for each court.
@@ -62,8 +63,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     status: m.status,
     division: m.rounds?.divisions?.name ?? '',
     round: m.rounds?.name ?? '',
-    teamA: m.team_a?.name ?? 'TBD',
-    teamB: m.team_b?.name ?? 'TBD',
+    teamA: formatTeamName(m.team_a?.name) || 'TBD',
+    teamB: formatTeamName(m.team_b?.name) || 'TBD',
   }));
 
   // Live first (someone needs that link right now), then by kickoff, then by

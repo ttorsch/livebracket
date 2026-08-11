@@ -16,6 +16,7 @@ import {
   type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
 } from '../../lib/data';
 import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
+import { joinTeamName } from '../../lib/teamName';
 
 interface Organizer {
   name: string;
@@ -112,7 +113,6 @@ const SET_COLUMNS = 3;
 interface SetScore {
   a: number;
   b: number;
-  isLive: boolean;
 }
 
 interface CourtRow {
@@ -120,13 +120,17 @@ interface CourtRow {
   division: string;
   teamA: string;
   teamB: string;
-  sets: (SetScore | null)[];
+  scoreA: number | null;         // points in the set currently on court
+  scoreB: number | null;
+  lastScorer: 'a' | 'b' | null;  // side that won the most recent point
+  sets: (SetScore | null)[];     // finished sets, padded to SET_COLUMNS
   hasLive: boolean;
   upNext: string | null;
+  upNextTime: string | null;
 }
 
 function playerNames(players: DetailMatchPlayer[]): string {
-  return players.map(p => p.name).filter(Boolean).join(' / ') || 'TBD';
+  return joinTeamName(players.map(p => p.name)) || 'TBD';
 }
 
 function buildCourtRows(detail: TournamentDetail): CourtRow[] {
@@ -157,27 +161,36 @@ function buildCourtRows(detail: TournamentDetail): CourtRow[] {
     // Skip the match currently shown as live from the queue
     const next = entry.upcoming[0];
     const upNext = next
-      ? `${playerNames(next.teamA)} vs ${playerNames(next.teamB)}${next.time ? ` · ${next.time}` : ''}`
+      ? `${playerNames(next.teamA)} vs ${playerNames(next.teamB)}`
       : null;
+    const upNextTime = next?.time || null;
 
     if (entry.live) {
       const m = entry.live;
       const a = m.scoreA ?? [];
       const b = m.scoreB ?? [];
+      /* applyLiveScores appends the set on court to the finished ones, so
+       * the last entry is the running score and everything before it is a
+       * result. The card shows those separately — big numbers for the set
+       * being played, chips for the ones already won. */
       const setCount = Math.max(a.length, b.length);
+      const finished = Math.max(setCount - 1, 0);
       const sets: (SetScore | null)[] = [];
       for (let i = 0; i < SET_COLUMNS; i++) {
-        if (i >= setCount) { sets.push(null); continue; }
-        sets.push({ a: a[i] ?? 0, b: b[i] ?? 0, isLive: i === setCount - 1 });
+        sets.push(i < finished ? { a: a[i] ?? 0, b: b[i] ?? 0 } : null);
       }
       rows.push({
         court,
         division: m.division,
         teamA: playerNames(m.teamA),
         teamB: playerNames(m.teamB),
+        scoreA: setCount ? a[setCount - 1] ?? 0 : 0,
+        scoreB: setCount ? b[setCount - 1] ?? 0 : 0,
+        lastScorer: m.lastScorer ?? null,
         sets,
         hasLive: true,
         upNext,
+        upNextTime,
       });
     } else if (next) {
       rows.push({
@@ -185,9 +198,13 @@ function buildCourtRows(detail: TournamentDetail): CourtRow[] {
         division: next.division,
         teamA: '',
         teamB: '',
+        scoreA: null,
+        scoreB: null,
+        lastScorer: null,
         sets: Array(SET_COLUMNS).fill(null),
         hasLive: false,
         upNext,
+        upNextTime,
       });
     }
   }
@@ -433,9 +450,12 @@ export default function OrganizerDashboard() {
                         <span><Calendar size={16} /> {t.date}</span>
                         <span><MapPin size={16} /> {t.location}</span>
                       </div>
-                      {liveRow && liveRow.sets.some(Boolean) && (
+                      {liveRow && liveRow.scoreA !== null && (
                         <div className={styles.heroScorePill}>
-                          {liveRow.sets.filter(Boolean).map(s => `${s!.a}–${s!.b}`).join(' · ')}
+                          {[
+                            ...liveRow.sets.filter(Boolean).map(s => `${s!.a}–${s!.b}`),
+                            `${liveRow.scoreA}–${liveRow.scoreB}`,
+                          ].join(' · ')}
                         </div>
                       )}
                       <div className={styles.heroActions}>
@@ -452,7 +472,7 @@ export default function OrganizerDashboard() {
                     </div>
                   </div>
 
-                  <CourtsTable detail={detail} />
+                  <CourtCards detail={detail} />
                   <CourtQrCard slug={t.id} />
                 </section>
               );
@@ -601,8 +621,9 @@ export default function OrganizerDashboard() {
 
 /* ── Live courts table ──────────────────────────────────────────── */
 
-function CourtsTable({ detail }: { detail: TournamentDetail | null }) {
+function CourtCards({ detail }: { detail: TournamentDetail | null }) {
   const rows = useMemo(() => (detail ? buildCourtRows(detail) : []), [detail]);
+  const liveCount = rows.filter(r => r.hasLive).length;
 
   if (!detail) {
     return <div className={styles.courtsEmpty}>Loading court activity…</div>;
@@ -612,56 +633,96 @@ function CourtsTable({ detail }: { detail: TournamentDetail | null }) {
   }
 
   return (
-    <div className={styles.courtsCard}>
-      <div className={styles.courtsScroll}>
-        <table className={styles.courtsTable}>
-          <thead>
-            <tr>
-              <th>Court</th>
-              <th>Now playing</th>
-              {Array.from({ length: SET_COLUMNS }, (_, i) => (
-                <th key={i}>Set {i + 1}</th>
-              ))}
-              <th>Up next</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.court} className={r.hasLive ? '' : styles.courtRowIdle}>
-                <td className={styles.courtName}>
-                  {r.hasLive && <span className={styles.courtLiveDot} aria-hidden="true" />}
-                  {r.court}
-                </td>
-                <td>
-                  {r.hasLive ? (
-                    <div className={styles.courtPlayers}>
-                      <span>{r.teamA}</span>
-                      <span className={styles.courtVs}>vs</span>
-                      <span>{r.teamB}</span>
-                      <span className={styles.courtDivision}>{r.division}</span>
-                    </div>
-                  ) : (
-                    <span className={styles.courtIdleLabel}>Court free</span>
-                  )}
-                </td>
-                {r.sets.map((set, i) => (
-                  <td key={i}>
-                    {set ? (
-                      <span className={set.isLive ? styles.courtLiveScore : styles.courtSets}>
-                        {set.a}–{set.b}
-                      </span>
-                    ) : (
-                      <span className={styles.courtSets}>—</span>
-                    )}
-                  </td>
-                ))}
-                <td className={styles.courtUpNext}>{r.upNext ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <>
+      <div className={styles.courtsHeader}>
+        <h2 className={styles.courtsHeading}>Court Activity</h2>
+        {liveCount > 0 && (
+          <span className={styles.courtsLiveCount}>
+            <span className={styles.courtsLiveCountDot} aria-hidden="true" />
+            {liveCount} {liveCount === 1 ? 'Match' : 'Matches'} Live
+          </span>
+        )}
       </div>
-    </div>
+
+      <div className={styles.courtsGrid}>
+        {rows.map(r => {
+          /* The accent marks whoever won the last point rather than whoever
+           * leads — on a board that refreshes every few seconds, where the
+           * score just moved is the thing worth spotting. */
+          const scoredA = r.lastScorer === 'a';
+          const scoredB = r.lastScorer === 'b';
+          return (
+            <article key={r.court} className={styles.courtCard}>
+              <div className={styles.courtCardHead}>
+                <span className={`${styles.courtCardName} ${r.hasLive ? '' : styles.courtCardNameIdle}`}>
+                  {r.court}
+                </span>
+                {r.hasLive ? (
+                  <span className={styles.courtBadgeLive}>
+                    <span className={styles.courtBadgeLiveDot} aria-hidden="true" />
+                    Live
+                  </span>
+                ) : (
+                  <span className={styles.courtBadgeFree}>Free</span>
+                )}
+              </div>
+
+              {r.hasLive ? (
+                <div className={styles.courtBoard}>
+                  <div className={styles.courtBoardHead}>
+                    <span className={styles.courtBoardLabel}>Now playing</span>
+                    <span className={styles.courtBoardDivision}>{r.division}</span>
+                  </div>
+
+                  <div className={styles.courtTeamRow}>
+                    <span className={`${styles.courtTeamName} ${scoredA ? styles.courtTeamScored : ''}`}>
+                      {r.teamA}
+                    </span>
+                    <span className={`${styles.courtTeamScore} ${scoredA ? styles.courtTeamScored : ''}`}>
+                      {r.scoreA}
+                    </span>
+                  </div>
+                  <div className={styles.courtBoardDivider} aria-hidden="true" />
+                  <div className={styles.courtTeamRow}>
+                    <span className={`${styles.courtTeamName} ${scoredB ? styles.courtTeamScored : ''}`}>
+                      {r.teamB}
+                    </span>
+                    <span className={`${styles.courtTeamScore} ${scoredB ? styles.courtTeamScored : ''}`}>
+                      {r.scoreB}
+                    </span>
+                  </div>
+
+                  <div className={styles.courtSetRow}>
+                    {r.sets.map((set, i) => (
+                      <div key={i} className={`${styles.courtSetChip} ${set ? '' : styles.courtSetChipEmpty}`}>
+                        <span className={styles.courtSetLabel}>Set {i + 1}</span>
+                        <span className={`${styles.courtSetValue} ${set ? '' : styles.courtSetValueEmpty}`}>
+                          {set ? `${set.a}–${set.b}` : '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.courtFree}>
+                  <span className={styles.courtFreeTitle}>Court free</span>
+                  <span className={styles.courtFreeNext}>
+                    {r.upNextTime ? `Next match at ${r.upNextTime}` : 'Nothing scheduled yet'}
+                  </span>
+                </div>
+              )}
+
+              <div className={styles.courtNext}>
+                <span className={styles.courtNextLabel}>
+                  Up next{r.upNextTime ? ` · ${r.upNextTime}` : ''}
+                </span>
+                <span className={styles.courtNextValue}>{r.upNext ?? 'Nothing queued'}</span>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

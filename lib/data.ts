@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { formatTeamName } from './teamName';
 import { type ScheduleConfig, normaliseConfig } from './schedule/generate';
 
 export type { ScheduleConfig };
@@ -268,6 +269,9 @@ export interface DetailMatch {
   teamBName: string | null;
   scoreA?: number[];
   scoreB?: number[];
+  // Only set for a match in progress: the side that won the most recent
+  // point, folded in from Redis by applyLiveScores.
+  lastScorer?: 'a' | 'b' | null;
   winner?: 'A' | 'B';
   status: 'live' | 'upcoming' | 'done';
 }
@@ -517,7 +521,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         filled: d.teams.filter((team) => team.status !== 'waitlist').length,
         teamsList: [...d.teams]
           .sort((a, b) => a.seed - b.seed)
-          .map((team) => ({ id: team.id, name: team.name, seed: team.seed, status: team.status })),
+          .map((team) => ({ id: team.id, name: formatTeamName(team.name), seed: team.seed, status: team.status })),
         bracket: [...d.rounds]
           .sort((a, b) => a.sequence - b.sequence)
           .map((r) => ({
@@ -533,8 +537,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               teamB: teamNameToPlayers(m.team_b?.name ?? 'TBD'),
               teamAId: m.team_a_id ?? null,
               teamBId: m.team_b_id ?? null,
-              teamAName: m.team_a?.name ?? null,
-              teamBName: m.team_b?.name ?? null,
+              teamAName: formatTeamName(m.team_a?.name ?? null),
+              teamBName: formatTeamName(m.team_b?.name ?? null),
               scoreA: m.score_a ?? undefined,
               scoreB: m.score_b ?? undefined,
               winner: m.winner_team_id && m.winner_team_id === m.team_a_id ? 'A' : m.winner_team_id && m.winner_team_id === m.team_b_id ? 'B' : undefined,
@@ -600,7 +604,7 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
 
   return (data as any[]).map((t) => ({
     id: t.id,
-    name: t.name,
+    name: formatTeamName(t.name),
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,

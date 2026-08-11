@@ -299,101 +299,256 @@
 }
 .heroGhostBtn:hover { background: rgba(255, 255, 255, 0.18); }
 
-/* ── Live courts table ────────────────────────────────────────── */
-.courtsCard {
-  margin-top: 16px;
-  background: var(--sand-50, #fff);
-  border: 1px solid var(--sand-300, #E7E2D9);
-  border-radius: var(--radius-xl, 24px);
-  overflow: hidden;
-}
-.courtsScroll { overflow-x: auto; }
-.courtsTable {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 720px;
-}
-.courtsTable th {
-  font-family: var(--font-text, 'DM Sans', sans-serif);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted, #7A8294);
-  text-align: left;
-  padding: 14px 20px 10px;
-  border-bottom: 1px solid var(--sand-300, #E7E2D9);
-  white-space: nowrap;
-}
-.courtsTable td {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--sand-200, #EFEAE0);
-  font-size: 14px;
-  color: var(--ink-900, #14181E);
-  vertical-align: middle;
-}
-.courtsTable tbody tr:last-child td { border-bottom: none; }
-
-.courtName {
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-weight: 700;
-  white-space: nowrap;
-}
-.courtLiveDot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--red-live, #F16767);
-  margin-right: 8px;
-  animation: lbPulse 1.8s infinite;
-}
-.courtPlayers {
+/* ── Live courts board ────────────────────────────────────────── */
+.courtsHeader {
   display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 24px 0 20px;
+}
+/* Held on one line so a narrow pane wraps the live-count pill underneath
+   rather than breaking the heading in half around it. */
+.courtsHeading {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: var(--text-h2-size, 28px);
+  line-height: var(--text-h2-line, 34px);
+  letter-spacing: var(--text-h2-tracking, -0.01em);
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+  white-space: nowrap;
+  margin: 0;
+}
+.courtsLiveCount {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--surface-card, #fff);
+  box-shadow: var(--shadow-card, 0 8px 40px rgba(0, 0, 0, 0.12));
+  font-size: var(--text-caption-size, 12px);
+  font-weight: 700;
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  color: var(--status-live, #F16767);
+  white-space: nowrap;
 }
-.courtVs {
-  font-size: 12px;
+.courtsLiveCountDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-live, #F16767);
+  animation: lbPulse 1.8s ease-out infinite;
+}
+
+/* The design is a fixed four-across grid. The track floor is whichever is
+   larger of 240px and a quarter of the row, which caps the count at four
+   however wide the pane gets — plain auto-fill would keep adding columns
+   and leave the four cards short of the right edge — while still dropping
+   to 3/2/1 once a quarter-row would be narrower than 240px. */
+.courtsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(240px, (100% - 60px) / 4), 1fr));
+  gap: 20px;
+}
+.courtCard {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card, #fff);
+  border-radius: var(--radius-xl, 24px);
+  box-shadow: var(--shadow-card, 0 8px 40px rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+  min-height: 340px;
+}
+.courtCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px 20px 14px;
+}
+.courtCardName {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: var(--text-h3-size, 20px);
+  line-height: var(--text-h3-line, 26px);
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+}
+.courtCardNameIdle { color: var(--text-muted, #7A8294); }
+
+.courtBadgeLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-micro-size, 10px);
+  line-height: var(--text-micro-line, 14px);
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--status-live, #F16767);
+}
+.courtBadgeLiveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-live, #F16767);
+  animation: lbPulse 1.8s ease-out infinite;
+}
+.courtBadgeFree {
+  font-size: var(--text-micro-size, 10px);
+  line-height: var(--text-micro-line, 14px);
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
   font-weight: 700;
   color: var(--text-muted, #7A8294);
-  text-transform: uppercase;
 }
-.courtDivision {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--coral-500, #EB6F43);
-  background: rgba(235, 111, 67, 0.12);
-  padding: 3px 10px;
-  border-radius: var(--radius-pill, 999px);
-  white-space: nowrap;
-}
-.courtSets {
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary, #3A414D);
-  white-space: nowrap;
-}
-.courtLiveScore {
-  display: inline-block;
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: 16px;
-  color: #fff;
+
+/* ── Dark scoreboard on a live court ──────────────────────────── */
+.courtBoard {
+  margin: 0 12px;
+  padding: 16px 16px 14px;
+  border-radius: var(--radius-lg, 20px);
   background: var(--ink-900, #14181E);
-  padding: 4px 12px;
-  border-radius: 10px;
+}
+.courtBoardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.courtBoardLabel {
+  font-size: var(--text-micro-size, 10px);
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+.courtBoardDivision {
+  padding: 3px 9px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-primary-soft, rgba(235, 111, 67, 0.20));
+  color: var(--coral-300, #F8A288);
+  font-size: var(--text-micro-size, 10px);
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  font-weight: 700;
   white-space: nowrap;
 }
-.courtUpNext {
-  font-size: 13px;
-  color: var(--text-secondary, #3A414D);
+.courtTeamRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
-.courtRowIdle td { color: var(--text-muted, #7A8294); }
-.courtIdleLabel { font-style: italic; color: var(--text-muted, #7A8294); }
+.courtTeamName {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: var(--text-body-size, 14px);
+  line-height: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+.courtTeamScore {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 34px;
+  line-height: 36px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+/* Marks the side that won the most recent point, not the side that leads —
+   the board is a live feed, so the useful signal is where the last tap
+   landed. Applied to both the name and the number of that team. */
+.courtTeamScored { color: var(--color-primary, #EB6F43); }
+
+.courtBoardDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 12px 0;
+}
+.courtSetRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+}
+.courtSetChip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 0 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.10);
+}
+.courtSetChipEmpty { background: rgba(255, 255, 255, 0.04); }
+.courtSetLabel {
+  font-size: 9px;
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+}
+.courtSetValue {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: var(--text-body-size, 14px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.courtSetValueEmpty { color: rgba(255, 255, 255, 0.35); }
+
+/* ── Idle court ───────────────────────────────────────────────── */
+.courtFree {
+  margin: 0 12px;
+  padding: 24px 16px;
+  border-radius: var(--radius-lg, 20px);
+  border: 1px dashed var(--sand-400, #D9D4C9);
+  background: var(--sand-100, #F5F1EA);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 158px;
+}
+.courtFreeTitle {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: var(--text-h3-size, 20px);
+  font-weight: 700;
+  color: var(--text-muted, #7A8294);
+}
+.courtFreeNext {
+  font-size: var(--text-caption-size, 12px);
+  color: var(--text-muted, #7A8294);
+  text-align: center;
+}
+
+/* ── Up next footer ───────────────────────────────────────────── */
+.courtNext {
+  margin-top: auto;
+  padding: 16px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.courtNextLabel {
+  font-size: var(--text-micro-size, 10px);
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-muted, #7A8294);
+}
+.courtNextValue {
+  font-size: var(--text-body-size, 14px);
+  line-height: 19px;
+  font-weight: 500;
+  color: var(--text-secondary, #3A414D);
+  text-wrap: pretty;
+}
+
 .courtsEmpty {
   margin-top: 16px;
   padding: 26px;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
+import { joinTeamName, formatTeamName } from '../../../../../../../lib/teamName';
 
 interface ImportPlayer {
   name: string;
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const paymentCleared = !willWaitlist;
     if (!willWaitlist) confirmedCount++;
 
-    const teamName = t.players.map((p) => p.name.trim()).join(' / ');
+    const teamName = joinTeamName(t.players.map((p) => p.name));
     const { data: teamRow, error: teamError } = await supabaseAdmin
       .from('teams')
       .insert({ division_id: divisionId, name: teamName, status, payment_cleared: paymentCleared })
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const teams = (created ?? []).map((t: any) => ({
     id: t.id,
-    name: t.name,
+    name: formatTeamName(t.name),
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,

@@ -17,6 +17,7 @@ export interface LiveMatchScore {
   sets: { a: number; b: number }[];
   a: number;
   b: number;
+  lastScorer?: 'a' | 'b' | null;
 }
 
 export type LiveScoreMap = Record<string, LiveMatchScore>;
@@ -60,6 +61,7 @@ export function applyLiveScores(detail: TournamentDetail, live: LiveScoreMap): T
             // playing rather than as having no score at all.
             scoreA: [...l.sets.map(s => s.a), l.a],
             scoreB: [...l.sets.map(s => s.b), l.b],
+            lastScorer: l.lastScorer ?? null,
             status: 'live' as const,
           };
         }),

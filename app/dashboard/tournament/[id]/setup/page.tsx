@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow, getDivisionTeams, type RegisteredTeamRow } from '../../../../../lib/data';
+import { joinTeamName } from '../../../../../lib/teamName';
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
 
 
@@ -1370,7 +1371,7 @@ export default function OrganizerSetup() {
                                         <td>
                                           <div className={styles.teamRowName}>
                                             {t.players.length > 0
-                                              ? t.players.map(p => p.name).join(' / ')
+                                              ? joinTeamName(t.players.map(p => p.name))
                                               : t.name}
                                           </div>
                                         </td>
@@ -1529,7 +1530,7 @@ export default function OrganizerSetup() {
                               >
                                 <span className={styles.mobileTeamRank}>{idx + 1}</span>
                                 <span className={styles.mobileTeamName}>
-                                  {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
+                                  {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
                                 </span>
                                 <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
                                   {t.paymentCleared ? 'Paid' : 'Unpaid'}
@@ -1556,7 +1557,7 @@ export default function OrganizerSetup() {
                                   >
                                     <span className={`${styles.mobileTeamRank} ${styles.mobileTeamRankWaitlist}`}>{idx + 1}</span>
                                     <span className={styles.mobileTeamName}>
-                                      {t.players.length > 0 ? t.players.map(p => p.name).join(' / ') : t.name}
+                                      {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
                                     </span>
                                     <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
                                       {t.paymentCleared ? 'Paid' : 'Unpaid'}
@@ -2281,7 +2282,7 @@ export default function OrganizerSetup() {
             <div className={styles.modalBody}>
               <div className={styles.detailTeamName}>
                 {teamDetail.players.length > 0
-                  ? teamDetail.players.map(p => p.name).join(' / ')
+                  ? joinTeamName(teamDetail.players.map(p => p.name))
                   : teamDetail.name}
               </div>
               <div className={styles.detailBadgeRow}>

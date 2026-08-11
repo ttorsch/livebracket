@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../lib/supabaseAdmin';
+import { formatTeamName } from '../../../../../../lib/teamName';
 
 interface DivisionBody {
   name: string;
@@ -230,7 +231,7 @@ export async function GET(
 
   const teams = (data ?? []).map((t) => ({
     id: t.id,
-    name: t.name,
+    name: formatTeamName(t.name),
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,

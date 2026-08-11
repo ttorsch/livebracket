@@ -46,11 +46,16 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ scores: {}, degraded: true });
   }
 
-  const scores: Record<string, { sets: { a: number; b: number }[]; a: number; b: number }> = {};
+  const scores: Record<
+    string,
+    { sets: { a: number; b: number }[]; a: number; b: number; lastScorer: 'a' | 'b' | null }
+  > = {};
   ids.forEach((id, i) => {
     const v = values[i];
     if (!v) return;
-    scores[id] = { sets: v.sets ?? [], a: v.a ?? 0, b: v.b ?? 0 };
+    // lastScorer post-dates the first live keys, so anything written before
+    // it existed reads as "nobody has scored yet" rather than undefined.
+    scores[id] = { sets: v.sets ?? [], a: v.a ?? 0, b: v.b ?? 0, lastScorer: v.lastScorer ?? null };
   });
 
   return NextResponse.json({ scores });

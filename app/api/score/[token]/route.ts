@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { redis } from '../../../../lib/redis';
 import { resolveScorekeeperToken, liveKey, type LiveScore } from '../../../../lib/scorekeeper';
+import { deriveLastScorer } from '../../../../lib/lastScorer';
 
 // Live state is worthless once the event is over; expiring it keeps Redis
 // from accumulating a key per match forever.
@@ -48,11 +49,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const sets = Array.isArray(body.sets) ? body.sets : [];
   const clamp = (n: unknown) => (typeof n === 'number' && n >= 0 && n < 1000 ? Math.trunc(n) : 0);
 
-  const live: LiveScore = {
-    matchId: match.matchId,
+  const next = {
     sets: sets.map(s => ({ a: clamp(s?.a), b: clamp(s?.b) })),
     a: clamp(body.a),
     b: clamp(body.b),
+  };
+
+  const live: LiveScore = {
+    matchId: match.matchId,
+    ...next,
+    // resolveScorekeeperToken already read the prior state out of Redis, so
+    // the diff costs no extra round trip.
+    lastScorer: deriveLastScorer(match.live, next),
     updatedAt: Date.now(),
   };
 

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabaseAdmin';
 import { redis } from './redis';
+import { formatTeamName } from './teamName';
 
 /* ── Live score state ─────────────────────────────────────────────
  *
@@ -18,10 +19,11 @@ export const liveTournamentKey = (slug: string) => `live:tournament:${slug}`;
 // everything needed to redraw the screen exactly as they left it.
 export interface LiveScore {
   matchId: string;
-  sets: { a: number; b: number }[]; // completed sets
-  a: number;                        // current set, team A
-  b: number;                        // current set, team B
-  updatedAt: number;                // epoch ms
+  sets: { a: number; b: number }[];  // completed sets
+  a: number;                         // current set, team A
+  b: number;                         // current set, team B
+  lastScorer: 'a' | 'b' | null;      // side that won the most recent point
+  updatedAt: number;                 // epoch ms
 }
 
 export interface ScoringRules {
@@ -138,8 +140,8 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
     tournamentTitle: tournament?.title ?? '',
     divisionName: division?.name ?? '',
     roundName: round?.name ?? '',
-    teamA: { id: row.team_a?.id ?? null, name: row.team_a?.name ?? 'TBD' },
-    teamB: { id: row.team_b?.id ?? null, name: row.team_b?.name ?? 'TBD' },
+    teamA: { id: row.team_a?.id ?? null, name: formatTeamName(row.team_a?.name) || 'TBD' },
+    teamB: { id: row.team_b?.id ?? null, name: formatTeamName(row.team_b?.name) || 'TBD' },
     rules,
     live,
     finalScoreA: row.score_a,
