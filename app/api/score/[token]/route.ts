@@ -61,6 +61,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // resolveScorekeeperToken already read the prior state out of Redis, so
     // the diff costs no extra round trip.
     lastScorer: deriveLastScorer(match.live, next),
+    /* The match clock starts on the first point and never moves again, so
+     * the scorekeeper and the dashboard show the same elapsed time and a
+     * referee reloading the tab doesn't restart it. A match already in
+     * flight when this field shipped has no origin to recover, so it takes
+     * one from here — its clock starts at zero rather than being wrong. */
+    startedAt: match.live?.startedAt ?? Date.now(),
     updatedAt: Date.now(),
   };
 

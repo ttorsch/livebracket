@@ -419,11 +419,17 @@
   gap: 10px;
   margin-bottom: 12px;
 }
-.courtBoardLabel {
+/* Replaces the design's "Now playing" label: same slot, same weight, but
+   carrying the running match clock. Tabular figures so the digits don't
+   shuffle the icon sideways every second. */
+.courtBoardClock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--text-micro-size, 10px);
   letter-spacing: var(--text-micro-tracking, 0.08em);
-  text-transform: uppercase;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.55);
 }
 .courtBoardDivision {

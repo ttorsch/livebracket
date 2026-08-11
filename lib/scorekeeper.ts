@@ -23,6 +23,7 @@ export interface LiveScore {
   a: number;                         // current set, team A
   b: number;                         // current set, team B
   lastScorer: 'a' | 'b' | null;      // side that won the most recent point
+  startedAt: number;                 // epoch ms of the first point — match clock origin
   updatedAt: number;                 // epoch ms
 }
 

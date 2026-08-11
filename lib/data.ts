@@ -269,9 +269,11 @@ export interface DetailMatch {
   teamBName: string | null;
   scoreA?: number[];
   scoreB?: number[];
-  // Only set for a match in progress: the side that won the most recent
-  // point, folded in from Redis by applyLiveScores.
+  // Only set for a match in progress, folded in from Redis by
+  // applyLiveScores: the side that won the most recent point, and the epoch
+  // ms the match clock runs from.
   lastScorer?: 'a' | 'b' | null;
+  startedAt?: number | null;
   winner?: 'A' | 'B';
   status: 'live' | 'upcoming' | 'done';
 }

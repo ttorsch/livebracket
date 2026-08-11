@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown, Home,
+  Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown, Home, Clock,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
@@ -17,6 +17,7 @@ import {
 } from '../../lib/data';
 import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 import { joinTeamName } from '../../lib/teamName';
+import { elapsedSeconds, formatClock } from '../../lib/matchClock';
 
 interface Organizer {
   name: string;
@@ -123,6 +124,7 @@ interface CourtRow {
   scoreA: number | null;         // points in the set currently on court
   scoreB: number | null;
   lastScorer: 'a' | 'b' | null;  // side that won the most recent point
+  startedAt: number | null;      // epoch ms the match clock runs from
   sets: (SetScore | null)[];     // finished sets, padded to SET_COLUMNS
   hasLive: boolean;
   upNext: string | null;
@@ -132,6 +134,7 @@ interface CourtRow {
 function playerNames(players: DetailMatchPlayer[]): string {
   return joinTeamName(players.map(p => p.name)) || 'TBD';
 }
+
 
 function buildCourtRows(detail: TournamentDetail): CourtRow[] {
   type TaggedMatch = DetailMatch & { division: string };
@@ -187,6 +190,7 @@ function buildCourtRows(detail: TournamentDetail): CourtRow[] {
         scoreA: setCount ? a[setCount - 1] ?? 0 : 0,
         scoreB: setCount ? b[setCount - 1] ?? 0 : 0,
         lastScorer: m.lastScorer ?? null,
+        startedAt: m.startedAt ?? null,
         sets,
         hasLive: true,
         upNext,
@@ -201,6 +205,7 @@ function buildCourtRows(detail: TournamentDetail): CourtRow[] {
         scoreA: null,
         scoreB: null,
         lastScorer: null,
+        startedAt: null,
         sets: Array(SET_COLUMNS).fill(null),
         hasLive: false,
         upNext,
@@ -625,6 +630,16 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
   const rows = useMemo(() => (detail ? buildCourtRows(detail) : []), [detail]);
   const liveCount = rows.filter(r => r.hasLive).length;
 
+  /* The board polls every 15s, but a duration has to move every second to
+   * read as running. Ticking `now` is enough — the origin is fixed. */
+  const anyRunning = rows.some(r => r.startedAt !== null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!anyRunning) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [anyRunning]);
+
   if (!detail) {
     return <div className={styles.courtsEmpty}>Loading court activity…</div>;
   }
@@ -670,7 +685,15 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
               {r.hasLive ? (
                 <div className={styles.courtBoard}>
                   <div className={styles.courtBoardHead}>
-                    <span className={styles.courtBoardLabel}>Now playing</span>
+                    <span className={styles.courtBoardClock}>
+                      <Clock size={12} aria-hidden="true" />
+                      {/* Null until the first point — the clock starts when
+                          play does, not when the match was scheduled. */}
+                      {(() => {
+                        const secs = elapsedSeconds(r.startedAt, now);
+                        return secs === null ? '--:--' : formatClock(secs);
+                      })()}
+                    </span>
                     <span className={styles.courtBoardDivision}>{r.division}</span>
                   </div>
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 import styles from './page.module.css';
+import { elapsedSeconds, formatClock } from '../../../lib/matchClock';
 
 interface SetScore { a: number; b: number }
 
@@ -60,7 +61,13 @@ export default function ScorekeeperPage() {
   const [finalizing, setFinalizing] = useState(false);
   const [finalizeError, setFinalizeError] = useState('');
   const [syncFailed, setSyncFailed] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  /* The match clock runs from the first point, stamped into the live state
+   * server-side — not from when this tab opened. So a referee who reloads
+   * mid-match keeps the real elapsed time, and the organizer's court board
+   * shows the same number. Null until the first point lands. */
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const elapsed = elapsedSeconds(startedAt, now) ?? 0;
 
   const [timeouts, setTimeouts] = useState<[number, number]>([0, 0]);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
@@ -82,6 +89,7 @@ export default function ScorekeeperPage() {
           setSets(body.live.sets ?? []);
           setScoreA(body.live.a ?? 0);
           setScoreB(body.live.b ?? 0);
+          setStartedAt(body.live.startedAt ?? null);
         } else if (body.status === 'done' && body.finalScoreA) {
           setSets((body.finalScoreA as number[]).map((a, i) => ({ a, b: body.finalScoreB?.[i] ?? 0 })));
         }
@@ -97,7 +105,7 @@ export default function ScorekeeperPage() {
 
   useEffect(() => {
     if (confirmed || !match) return;
-    const id = setInterval(() => setElapsed(s => s + 1), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [confirmed, match]);
 
@@ -130,20 +138,18 @@ export default function ScorekeeperPage() {
           body: JSON.stringify({ sets: nextSets, a, b }),
         });
         setSyncFailed(!res.ok);
+        // The first point is what starts the clock, and the server owns that
+        // instant — so pick it up from the reply rather than reloading.
+        if (res.ok) {
+          const body = await res.json().catch(() => null);
+          const stamp = body?.live?.startedAt;
+          if (typeof stamp === 'number') setStartedAt(prev => prev ?? stamp);
+        }
       } catch {
         setSyncFailed(true);
       }
     }, 400);
   }, [token]);
-
-  const formatClock = (s: number) => {
-    const total = Math.max(0, s);
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const sec = total % 60;
-    const p = (n: number) => String(n).padStart(2, '0');
-    return h > 0 ? `${h}:${p(m)}:${p(sec)}` : `${p(m)}:${p(sec)}`;
-  };
 
   /* Points move through functional updates, never through the value the
    * closure captured. The whole panel is the tap target now, so two taps
