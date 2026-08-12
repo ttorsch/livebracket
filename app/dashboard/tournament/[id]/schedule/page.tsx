@@ -110,8 +110,14 @@ function hoursMinutes(mins: number): string {
 /* Pixels per minute on the calendar's Y axis. This is what makes the grid a
    timeline rather than a table: every row is `pitch` minutes tall, so a card
    spanning a 45-minute match is visibly longer than a 20-minute one, and a
-   gap on court looks like the gap it is. */
-const PX_PER_MIN = 6.3;
+   gap on court looks like the gap it is.
+
+   The floor is set by the card, not by taste: the shortest match still has to
+   fit a time, two team names and their score slots. Drop this below what that
+   content needs and the shortest rows quietly stretch to fit, which breaks
+   the proportion between a short match and a long one — the one thing the
+   timeline is for. Re-measure it if the card's type scale changes. */
+const PX_PER_MIN = 7.3;
 
 /* The digit for a court's badge. Courts are named "Court 3" by the generator,
    but an organizer can rename one, so fall back to its first character rather
@@ -2113,18 +2119,22 @@ export default function TournamentSchedulePage() {
                                       if (e.key === 'Escape') setEditingTime(null);
                                     }}
                                   />
-                                ) : (
+                                ) : movable ? (
                                   <button
                                     type="button"
                                     className={styles.gridMatchTime}
-                                    onClick={() => { if (movable) setEditingTime(b.m.id); }}
-                                    title={movable ? 'Click to set a new time' : undefined}
-                                    data-editable={movable ? 'true' : undefined}
+                                    onClick={() => setEditingTime(b.m.id)}
+                                    title="Click to set a new time"
+                                    data-editable="true"
                                   >
                                     {b.m.time}
                                   </button>
+                                ) : (
+                                  /* Locked, so the time is just the time — a
+                                     button here would draw a control the
+                                     organizer can't use. */
+                                  <span className={styles.gridMatchTime}>{b.m.time}</span>
                                 )}
-                                <span className={styles.gridMatchDot}>·</span>
                                 <span className={styles.gridMatchDuration}>{b.m.durationMinutes || 45} m</span>
                               </div>
                               <span className={styles.gridMatchTags}>
