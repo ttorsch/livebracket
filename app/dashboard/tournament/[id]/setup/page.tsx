@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { 
   Check, 
   ChevronRight, 
@@ -39,6 +39,9 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow, getDivisionTeams, type RegisteredTeamRow } from '../../../../../lib/data';
+import {
+  PHASE, PHASE_LABEL, selectablePhases, registrationCloseDefault, type Phase,
+} from '../../../../../lib/tournamentLifecycle';
 import { joinTeamName } from '../../../../../lib/teamName';
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
 
@@ -98,6 +101,7 @@ interface SetupDivision {
   // B. Staggered timing & fees
   registrationFee: number;          // flat per-team-slot, can be 0
   registrationOpenDate: string;     // datetime-local string, staggered windows
+  registrationCloseDate: string;    // 'YYYY-MM-DD'; when this division stops taking teams
   // C. Rules & formats
   rounds: TournamentRound[];        // ordered tournament rounds, each with its own format + scoring
   rules: string;
@@ -172,6 +176,7 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
     maxRosterSize: typeof settings.maxRosterSize === 'number' ? settings.maxRosterSize : FORMAT_PLAYERS[formatTypeOnSand] ?? 2,
     registrationFee: row.registrationFee,
     registrationOpenDate: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
+    registrationCloseDate: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
     rounds: row.rounds.map((r) => ({
       id: r.id,
       format: r.format as RoundFormat,
@@ -280,6 +285,7 @@ const parseTeamsCsv = (text: string): ImportTeamRow[] => {
 
 export default function OrganizerSetup() {
   const params = useParams();
+  const router = useRouter();
 
   // Active Map Phase: 1 = Initial Shell, 2 = Rules Announced, 3 = Live Reg, 4 = Logistics (Day Before)
   const [activePhase, setActivePhase] = useState<1 | 2 | 3 | 4>(1);
@@ -296,6 +302,10 @@ export default function OrganizerSetup() {
   // Real tournament basic info from the database (title, location, dates, description).
   // Present once the tournament has actually been published (has a DB row).
   const [basicInfo, setBasicInfo] = useState<TournamentBasicInfo | null>(null);
+
+  // Status is edited in the Basic Info form; this tracks that save.
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [editPhase, setEditPhase] = useState<Phase>(PHASE.draft);
   const [showBasicInfoEdit, setShowBasicInfoEdit] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editLocation, setEditLocation] = useState('');
@@ -413,6 +423,7 @@ export default function OrganizerSetup() {
   // B. Staggered timing & fees
   const [regFee, setRegFee] = useState(800);
   const [regOpenDate, setRegOpenDate] = useState('');
+  const [regCloseDate, setRegCloseDate] = useState('');
   const [isOpenImmediately, setIsOpenImmediately] = useState(true);
   // C. Rules & formats — each round carries its own scoring rules (a round
   // robin round might go to 21 points while the elimination round after it
@@ -467,6 +478,7 @@ export default function OrganizerSetup() {
     setMaxRoster(FORMAT_PLAYERS['2v2']);
     setRegFee(800);
     setRegOpenDate('');
+    setRegCloseDate(registrationCloseDefault(basicInfo?.startDate));
     setIsOpenImmediately(true);
     setRounds([{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
     setDivRules('Standard FIVB Beach Volleyball rules apply.');
@@ -496,6 +508,9 @@ export default function OrganizerSetup() {
     setMaxRoster(d.maxRosterSize);
     setRegFee(d.registrationFee);
     setRegOpenDate(d.registrationOpenDate);
+    // Falls back to the default rather than showing an empty date on a
+    // division saved before this field existed.
+    setRegCloseDate(d.registrationCloseDate || registrationCloseDefault(basicInfo?.startDate));
     setIsOpenImmediately(!d.registrationOpenDate);
     setRounds(d.rounds.length ? d.rounds : [{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
     setDivRules(d.rules);
@@ -624,6 +639,7 @@ export default function OrganizerSetup() {
       setEditEndDate(basicInfo.endDate ?? basicInfo.startDate);
       setEditIsOneDay(basicInfo.isOneDay);
       setEditDescription(basicInfo.description ?? '');
+      setEditPhase(basicInfo.phase as Phase);
     } else {
       setEditTitle(tournamentInfo?.title ?? '');
       setEditLocation(tournamentInfo?.location ?? '');
@@ -673,17 +689,40 @@ export default function OrganizerSetup() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed to save changes');
-      setBasicInfo({
+
+      /* Status lives behind its own endpoint, which checks the move against
+         the tournament's real phase and its divisions. Only called when the
+         field actually changed, so saving the form untouched is never a
+         status change. */
+      let savedPhase = body.phase;
+      if (basicInfo && editPhase !== basicInfo.phase) {
+        setStatusBusy(true);
+        const sRes = await fetch(`/api/tournaments/${Array.isArray(params.id) ? params.id[0] : params.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phase: editPhase }),
+        });
+        const sBody = await sRes.json();
+        setStatusBusy(false);
+        if (!sRes.ok) throw new Error(sBody.error || 'Could not change the status');
+        savedPhase = sBody.phase;
+      }
+
+      // This PATCH saves details only; it can't retire a tournament, so the
+      // lifecycle flags carry over from what's already loaded.
+      setBasicInfo(prev => ({
         slug: body.slug,
         title: body.title,
         location: body.location,
         startDate: body.start_date,
         endDate: body.end_date,
         isOneDay: body.is_one_day,
-        phase: body.phase,
+        phase: savedPhase,
         description: body.description,
         imageUrl: body.image_url,
-      });
+        archived: prev?.archived ?? false,
+        cancelled: prev?.cancelled ?? false,
+      }));
       setShowBasicInfoEdit(false);
     } catch (err) {
       setBasicInfoError(err instanceof Error ? err.message : 'Failed to save changes');
@@ -802,6 +841,7 @@ export default function OrganizerSetup() {
       maxRosterSize: maxRoster,
       registrationFee: regFee,
       registrationOpenDate: regOpenDate,
+      registrationCloseDate: regCloseDate,
       rounds,
       rules: divRules,
       regFields,
@@ -1573,6 +1613,7 @@ export default function OrganizerSetup() {
                   )}
                 </div>
               </div>
+
             </main>
 
       {/* ── CREATE DIVISION MODAL ─────────────────────────────────── */}
@@ -1881,6 +1922,21 @@ export default function OrganizerSetup() {
                   {isOpenImmediately
                     ? 'Registration is open immediately.'
                     : 'Staggered window for this division only.'}
+                </span>
+              </div>
+
+              {/* ── Registration Close Date ──────────────────────── */}
+              <div className={styles.fieldGroup} style={{ marginTop: 14 }}>
+                <label className={styles.fieldLabel}>Registration closes</label>
+                <input
+                  type="date"
+                  className={styles.input}
+                  value={regCloseDate}
+                  onChange={e => setRegCloseDate(e.target.value)}
+                />
+                <span className={styles.fieldHint} style={{ marginTop: 6 }}>
+                  Defaults to a week before the tournament. After this date the division stops
+                  taking new teams.
                 </span>
               </div>
 
@@ -2204,6 +2260,25 @@ export default function OrganizerSetup() {
                     onChange={e => setEditEndDate(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Draft or Announced — that is the whole tournament-level
+                  decision. Registration is derived from division dates. */}
+              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
+                <label className={styles.fieldLabel}>Status</label>
+                <select
+                  className={styles.select}
+                  value={editPhase}
+                  onChange={e => setEditPhase(Number(e.target.value) as Phase)}
+                >
+                  {selectablePhases((basicInfo?.phase ?? PHASE.draft) as Phase).map(p => (
+                    <option key={p} value={p}>{PHASE_LABEL[p]}</option>
+                  ))}
+                </select>
+                <p className={styles.fieldHint}>
+                  Announced makes the tournament public. When teams can register is set per
+                  division, by its own open and close dates.
+                </p>
               </div>
 
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>

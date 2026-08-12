@@ -26,6 +26,7 @@ export interface DashboardTournament {
   location: string;
   phase: number;
   imageUrl: string | null;
+  cancelled: boolean;
   divisions: DashboardDivision[];
 }
 
@@ -39,12 +40,14 @@ export interface TournamentBasicInfo {
   phase: number;
   description: string | null;
   imageUrl: string | null;
+  archived: boolean;
+  cancelled: boolean;
 }
 
 export async function getTournamentBasicInfo(slug: string): Promise<TournamentBasicInfo | null> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('slug, title, location, start_date, end_date, is_one_day, phase, description, image_url')
+    .select('slug, title, location, start_date, end_date, is_one_day, phase, description, image_url, archived_at, cancelled_at')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -61,6 +64,8 @@ export async function getTournamentBasicInfo(slug: string): Promise<TournamentBa
     phase: data.phase,
     description: data.description,
     imageUrl: data.image_url,
+    archived: !!data.archived_at,
+    cancelled: !!data.cancelled_at,
   };
 }
 
@@ -216,13 +221,17 @@ interface TournamentRow {
   is_one_day: boolean;
   phase: number;
   image_url: string | null;
+  cancelled_at: string | null;
   divisions: DivisionRow[];
 }
 
 export async function getDashboardTournaments(): Promise<DashboardTournament[]> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('slug, title, location, start_date, end_date, is_one_day, phase, image_url, divisions(name, division_team_cap, teams(status))')
+    .select('slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, divisions(name, division_team_cap, teams(status))')
+    // Archived events are gone from every list by definition; cancelled ones
+    // stay, because the organizer still has to see what they called off.
+    .is('archived_at', null)
     .order('start_date', { ascending: true });
 
   if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
@@ -236,6 +245,7 @@ export async function getDashboardTournaments(): Promise<DashboardTournament[]> 
     location: t.location,
     phase: t.phase,
     imageUrl: t.image_url,
+    cancelled: !!t.cancelled_at,
     divisions: t.divisions.map((d) => ({
       name: d.name,
       cap: d.division_team_cap,
@@ -333,6 +343,10 @@ export interface DetailDivision {
   dedicatedCourts: number | null; // D_d override from settings.schedule (null = auto)
   netHeight: string | null;       // settings.netHeight (free text, e.g. "2.24m")
   gender: string | null;          // settings.genderEligibility (e.g. "Men" / "Mixed")
+  // Registration is decided per division by these two, not by a switch on
+  // the tournament — see lib/tournamentLifecycle.
+  registrationOpens: string;      // datetime-local, '' = as soon as public
+  registrationCloses: string;     // 'YYYY-MM-DD', '' = never closes
 }
 
 export interface DetailVoucher {
@@ -351,6 +365,8 @@ export interface TournamentDetail {
   endDate: string;
   dayCount: number; // number of days the tournament spans (>= 1)
   phase: number;
+  archived: boolean;
+  cancelled: boolean;
   description: string | null;
   scheduleConfig: ScheduleConfig;
   divisions: DetailDivision[];
@@ -458,6 +474,8 @@ interface TournamentDetailRow {
   is_one_day: boolean;
   phase: number;
   description: string | null;
+  archived_at: string | null;
+  cancelled_at: string | null;
   schedule_config?: Record<string, unknown> | null; // absent when migration 0007 not yet applied
   divisions: DetailDivisionRow[];
   vouchers: VoucherRow[];
@@ -483,7 +501,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         )
       ),
       vouchers ( id, code, discount_type, discount_value )`;
-  const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description';
+  const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description, archived_at, cancelled_at';
 
   const runQuery = (withScheduleConfig: boolean) =>
     supabase
@@ -510,12 +528,17 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     endDate: row.end_date ?? row.start_date,
     dayCount: row.is_one_day || !row.end_date ? 1 : Math.max(1, diffDaysUTC(row.start_date, row.end_date) + 1),
     phase: row.phase,
+    archived: !!row.archived_at,
+    cancelled: !!row.cancelled_at,
     description: row.description,
     scheduleConfig: readScheduleConfig(row.schedule_config),
     divisions: row.divisions.map((d) => {
       const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;
       const sched = (d.settings as { schedule?: { dedicatedCourts?: number } } | null)?.schedule;
-      const settings = (d.settings ?? {}) as { netHeight?: unknown; genderEligibility?: unknown };
+      const settings = (d.settings ?? {}) as {
+        netHeight?: unknown; genderEligibility?: unknown;
+        registrationOpenDate?: unknown; registrationCloseDate?: unknown;
+      };
       return {
         id: d.id,
         label: d.name,
@@ -560,6 +583,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         dedicatedCourts: typeof sched?.dedicatedCourts === 'number' ? sched.dedicatedCourts : null,
         netHeight: typeof settings.netHeight === 'string' ? settings.netHeight : null,
         gender: typeof settings.genderEligibility === 'string' ? settings.genderEligibility : null,
+        registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
+        registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
       };
     }),
     vouchers: row.vouchers.map((v) => ({

@@ -2,11 +2,18 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { MapPin, Calendar, Users, Trophy, Clock, ChevronRight } from 'lucide-react';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailMatch } from '../../../lib/data';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
+import { registrationState, nextOpening, isPublic, type Phase } from '../../../lib/tournamentLifecycle';
+
+/* "Opens 26 Sep" — UTC to match how the rest of the app reads scheduled
+   dates, so the badge can't say a different day than the schedule does. */
+function formatOpensAt(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
 
 // Spectators are watching a match happen; the bracket has to keep up.
 const LIVE_POLL_MS = 15000;
@@ -127,7 +134,6 @@ function BracketMatchCard({ match }: { match: BracketMatch }) {
 /* ── Main page ────────────────────────────────────────────────── */
 export default function TournamentDetail() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const slug = String(params.id);
 
   // The bracket as Postgres has it. Live scores are polled separately and
@@ -161,9 +167,14 @@ export default function TournamentDetail() {
     return () => { cancelled = true; clearInterval(timer); };
   }, [slug]);
 
-  // Read Phase query param to test dynamic flows: 1 = Shell, 2 = Announced, 3 = Open, 4 = Closed/Logistics
-  const phaseParam = searchParams.get('phase');
-  const phase = phaseParam ? parseInt(phaseParam) : (tournament?.phase ?? 3);
+  /* Registration is not a tournament-level switch: it is read back off the
+     divisions' own open and close dates. The phase only says whether the
+     event is public at all.
+
+     The old ?phase= override is gone with it — it let anyone put a working
+     "Register team" button on a draft tournament by editing the URL. */
+  const regState = tournament ? registrationState(tournament.divisions) : null;
+  const opensAt = tournament ? nextOpening(tournament.divisions) : null;
 
   // Watchlist Star Button State
   const [starred, setStarred] = useState(false);
@@ -203,6 +214,25 @@ export default function TournamentDetail() {
     );
   }
 
+  /* Draft means nobody but the organizer sees it, and archived means it has
+     been taken off the board — both were reachable by direct link until the
+     status became a real switch, since the page only ever used phase to pick
+     a button label. Cancelled is deliberately *not* here: a cancelled event
+     stays up so the teams who registered find out. */
+  if (!isPublic(tournament.phase as Phase) || tournament.archived) {
+    return (
+      <div className={styles.page}>
+        <Nav />
+        <div className={styles.container} style={{ padding: '160px 0', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 22, marginBottom: 8 }}>This tournament isn&apos;t published</h1>
+          <p style={{ color: 'var(--muted, #7A8294)' }}>
+            The organizer hasn&apos;t made it public yet. Check back soon.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const activeDivision = tournament.divisions.find((d) => d.id === activeDiv) ?? null;
   const courtCount = new Set(
     tournament.divisions.flatMap((d) => d.bracket.flatMap((r) => r.matches.map((m) => m.court))).filter(Boolean)
@@ -236,20 +266,22 @@ export default function TournamentDetail() {
             </Link>
 
             <div className={styles.heroBadgeRow}>
-              {phase === 1 && (
+              {regState === null && (
                 <span className={styles.upcomingBadge}>Save the Date</span>
               )}
-              {phase === 2 && (
-                <span className={styles.upcomingBadge}>Registration Opens Soon</span>
+              {regState === 'opens-soon' && (
+                <span className={styles.upcomingBadge}>
+                  {opensAt ? `Registration opens ${formatOpensAt(opensAt)}` : 'Registration Opens Soon'}
+                </span>
               )}
-              {phase === 3 && (
+              {regState === 'open' && (
                 <span className={styles.liveBadge}>
                   <span className={styles.liveDot} />
                   Registration Open
                 </span>
               )}
-              {phase === 4 && (
-                <span className={styles.finishedBadge}>Logistics Seeding</span>
+              {regState === 'closed' && (
+                <span className={styles.finishedBadge}>Registration Closed</span>
               )}
               <span className={styles.formatBadge}>Single Elimination</span>
             </div>
@@ -274,17 +306,17 @@ export default function TournamentDetail() {
             </div>
 
             <div className={styles.heroActions}>
-              {phase === 1 && (
+              {regState === null && (
                 <button className={styles.heroDisabled} disabled>
                   Registration Date Pending
                 </button>
               )}
-              {phase === 2 && (
+              {regState === 'opens-soon' && (
                 <button className={styles.heroDisabled} disabled>
-                  Registration Opens Soon
+                  {opensAt ? `Opens ${formatOpensAt(opensAt)}` : 'Registration Opens Soon'}
                 </button>
               )}
-              {phase === 3 && (
+              {regState === 'open' && (
                 <Link
                   href={`/tournament/${params.id}/register`}
                   className={styles.heroPrimary}
@@ -293,7 +325,7 @@ export default function TournamentDetail() {
                   <ChevronRight size={16} />
                 </Link>
               )}
-              {phase === 4 && (
+              {regState === 'closed' && (
                 <button className={styles.heroDisabled} disabled>
                   Registration Closed
                 </button>
