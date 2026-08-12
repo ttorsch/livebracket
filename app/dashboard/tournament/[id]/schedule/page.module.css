@@ -1242,11 +1242,11 @@
   border: none;
   border-left: 4px solid var(--div-accent, #EB6F43);
   border-radius: 18px;
-  padding: 12px 16px 14px;
+  padding: 14px 18px 16px;
   margin: 0 2px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(20, 24, 30, 0.06);
   transition: box-shadow 0.15s ease, transform 0.15s ease;
@@ -1267,6 +1267,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .gridMatchTimeWrap {
@@ -1345,7 +1347,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  min-height: 28px;
 }
 
 .gridTeamName {
@@ -1404,8 +1407,8 @@
 .gridVsRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 7px 0;
+  gap: 12px;
+  margin: 10px 0;
   min-height: 14px;
 }
 

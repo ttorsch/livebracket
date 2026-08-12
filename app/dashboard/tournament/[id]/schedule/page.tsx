@@ -117,7 +117,7 @@ function hoursMinutes(mins: number): string {
    content needs and the shortest rows quietly stretch to fit, which breaks
    the proportion between a short match and a long one — the one thing the
    timeline is for. Re-measure it if the card's type scale changes. */
-const PX_PER_MIN = 7.3;
+const PX_PER_MIN = 8.1;
 
 /* The digit for a court's badge. Courts are named "Court 3" by the generator,
    but an organizer can rename one, so fall back to its first character rather
@@ -886,7 +886,13 @@ export default function TournamentSchedulePage() {
     const parseMin = (t: string) => { const x = /^(\d{2}):(\d{2})$/.exec(t); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
     const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
 
-    const scheduled = filteredMatches.filter(m => !m.unscheduled && m.day >= 0 && m.time !== '—');
+    /* Anything with a real date and a real time belongs on the grid — keyed
+     * off the date, not off whether the day index lands inside the event's
+     * declared range. A schedule saved before the organizer moved the
+     * tournament's dates has negative day indices, and filtering on
+     * `day >= 0` silently emptied the whole view while the By Court list
+     * (which groups by the actual date) went on showing every match. */
+    const scheduled = filteredMatches.filter(m => !m.unscheduled && m.date !== '' && m.time !== '—');
     const unscheduled = filteredMatches.filter(m => m.unscheduled || m.court === 'Unscheduled');
 
     const scheduledCourts = [...new Set(scheduled.map(m => m.court))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -1904,7 +1910,13 @@ export default function TournamentSchedulePage() {
                       {/* Top-left corner: which day this grid is, and how much
                           of the event sits under it. */}
                       <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties}>
-                        <span className={styles.calCornerDay}>Day {day.day + 1}</span>
+                        {/* Only a day *of the event* gets a number. A schedule
+                            still sitting on dates the organizer has since moved
+                            away from is shown by its date alone, the same way
+                            the By Court headings read it. */}
+                        {day.day >= 0 && day.day < dayCount && (
+                          <span className={styles.calCornerDay}>Day {day.day + 1}</span>
+                        )}
                         {day.dateLabel && (
                           <>
                             <span className={styles.calCornerWeekday}>{day.dateLabel.split(',')[0]}</span>
