@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { canDelete, type Phase } from '../../../../lib/tournamentLifecycle';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -37,4 +38,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     description: data.description,
     image_url: data.image_url,
   });
+}
+
+/* A draft has never been public and nobody has registered, so unlike
+ * archive/cancel it just goes away — checked against the phase read here,
+ * not trusted from the client, same reasoning as the status route.
+ */
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+
+  const { data: current, error: readError } = await supabaseAdmin
+    .from('tournaments')
+    .select('slug, phase')
+    .eq('slug', slug)
+    .maybeSingle();
+  if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
+  if (!current) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+
+  if (!canDelete(current.phase as Phase)) {
+    return NextResponse.json(
+      { error: 'Only a draft tournament can be deleted — archive or cancel it instead.' },
+      { status: 409 },
+    );
+  }
+
+  const { error } = await supabaseAdmin
+    .from('tournaments')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('slug', slug);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }

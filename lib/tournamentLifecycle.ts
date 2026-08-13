@@ -1,10 +1,11 @@
 /* ── A tournament's lifecycle ─────────────────────────────────────
  *
- * Two independent things, deliberately not folded into one column:
+ * Three independent things, deliberately not folded into one column:
  *
  *   phase        where the event is: draft → announced → open → closed
  *   archived_at  hidden from every list; only for events nobody committed to
  *   cancelled_at called off; stays visible so registered players find out
+ *   deleted_at   gone, no restore UI — only for drafts nobody has seen yet
  *
  * Which retirement an organizer gets is decided by the phase, and that rule
  * lives here rather than in the dialog that renders it — the API has to
@@ -150,4 +151,16 @@ export const RETIREMENT_COPY: Record<Retirement, { label: string; blurb: string;
       'Marks it CANCELLED. It stays on the public page so registered teams find out, and its bracket and results are kept.',
     confirmHint: 'Registered teams will see this tournament as cancelled. Type its name to confirm.',
   },
+};
+
+/** A draft has never been public and nobody has registered for it, so unlike
+ *  archive/cancel it can just be gone — no restore UI, unlike archived_at. */
+export function canDelete(phase: Phase): boolean {
+  return phase === PHASE.draft;
+}
+
+export const DELETE_COPY = {
+  label: 'Delete tournament',
+  blurb: 'Permanently removes this draft. It has never been public and nobody has registered — there is nothing to preserve.',
+  confirmHint: 'This cannot be undone. Type its name to confirm.',
 };

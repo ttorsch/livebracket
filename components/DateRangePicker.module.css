@@ -1,0 +1,204 @@
+/* ── Tournament date range picker ─────────────────────────────────
+   A white card of two months, with the chosen span drawn as one band:
+   round ends, square middle. The band is what makes a range read as a
+   range rather than as two independent dates. */
+
+.wrap {
+  position: relative;
+  display: block;
+}
+
+/* Matches the height and shape of the form's text inputs so it sits in a
+   field row without looking like a different kind of control. */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line, #E7E2D9);
+  background: #fff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  color: var(--ink-1, #14181E);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+.trigger:hover { border-color: var(--orange, #EE7A4C); }
+.trigger:focus-visible {
+  outline: none;
+  border-color: var(--orange, #EE7A4C);
+  box-shadow: 0 0 0 3px rgba(238, 122, 76, 0.18);
+}
+.triggerIcon { color: var(--muted, #7A8294); flex: none; }
+.triggerValue { font-weight: 600; }
+.triggerPlaceholder { color: var(--muted, #7A8294); }
+
+/* ── The calendar card ────────────────────────────────────────── */
+.panel {
+  /* Fixed and portalled to <body>; the coordinates come from the trigger's
+     rect at open time, so a scrolling modal can't clip it. */
+  position: fixed;
+  z-index: 1200;
+  padding: 22px 24px 18px;
+  border-radius: 22px;
+  background: #fff;
+  border: 1px solid var(--line, #E7E2D9);
+  box-shadow: 0 24px 60px rgba(20, 31, 46, 0.18);
+}
+
+/* The arrows sit on the same line as the month names, which are inside the
+   month columns — so this row is an overlay rather than a flow item. */
+.panelHead {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.nav {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-1, #14181E);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.nav:hover { background: var(--sand-100, #F5F1EA); }
+.nav:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 1px;
+}
+
+.months {
+  display: flex;
+  gap: 34px;
+}
+.month { width: 238px; }
+
+.monthName {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+  margin-bottom: 12px;
+}
+
+.weekRow,
+.dayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.weekRow { margin-bottom: 4px; }
+.weekday {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2, #3A414D);
+}
+
+.blank { height: 38px; }
+
+/* Each day is a full-width cell so the range band is continuous; the
+   circle is drawn by border-radius on the cell itself. */
+.day {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.day:hover:not(:disabled):not(.dayEdge) { background: var(--sand-100, #F5F1EA); }
+.day:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: -2px;
+}
+
+.dayDisabled {
+  color: var(--sand-400, #C9C3B6);
+  cursor: default;
+}
+
+/* The days between the two ends: a flat tint, square so they butt together
+   into one strip. */
+.dayInRange {
+  background: rgba(238, 122, 76, 0.14);
+  border-radius: 0;
+}
+
+.dayEdge {
+  background: var(--orange, #EE7A4C);
+  color: #fff;
+}
+/* Square the inner side of each end so the circle meets the band flush. */
+.dayEdgeStart { border-radius: 999px 0 0 999px; }
+.dayEdgeEnd { border-radius: 0 999px 999px 0; }
+
+/* ── Footer ───────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+}
+.clear {
+  border: none;
+  background: transparent;
+  padding: 6px 2px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-1, #14181E);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.clear:hover { color: var(--orange-600, #E0623A); }
+
+.apply {
+  padding: 12px 26px;
+  border: none;
+  border-radius: 999px;
+  background: var(--orange, #EE7A4C);
+  color: #fff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.apply:hover:not(:disabled) { background: var(--orange-600, #E0623A); }
+.apply:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* One month at a time once two won't fit. */
+@media (max-width: 640px) {
+  .panel { padding: 18px 16px 14px; }
+  .months { gap: 0; }
+  .month:last-child { display: none; }
+  .month { width: 260px; }
+}

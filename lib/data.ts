@@ -47,12 +47,13 @@ export interface TournamentBasicInfo {
 export async function getTournamentBasicInfo(slug: string): Promise<TournamentBasicInfo | null> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('slug, title, location, start_date, end_date, is_one_day, phase, description, image_url, archived_at, cancelled_at')
+    .select('slug, title, location, start_date, end_date, is_one_day, phase, description, image_url, archived_at, cancelled_at, deleted_at')
     .eq('slug', slug)
     .maybeSingle();
 
   if (error) throw new Error(`Failed to load tournament: ${error.message}`);
-  if (!data) return null;
+  // Deleted has no restore UI, unlike archived — it reads as gone, not hidden.
+  if (!data || data.deleted_at) return null;
 
   return {
     slug: data.slug,
@@ -229,9 +230,11 @@ export async function getDashboardTournaments(): Promise<DashboardTournament[]> 
   const { data, error } = await supabase
     .from('tournaments')
     .select('slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, divisions(name, division_team_cap, teams(status))')
-    // Archived events are gone from every list by definition; cancelled ones
-    // stay, because the organizer still has to see what they called off.
+    // Archived and deleted events are gone from every list by definition;
+    // cancelled ones stay, because the organizer still has to see what they
+    // called off.
     .is('archived_at', null)
+    .is('deleted_at', null)
     .order('start_date', { ascending: true });
 
   if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
@@ -476,6 +479,7 @@ interface TournamentDetailRow {
   description: string | null;
   archived_at: string | null;
   cancelled_at: string | null;
+  deleted_at: string | null;
   schedule_config?: Record<string, unknown> | null; // absent when migration 0007 not yet applied
   divisions: DetailDivisionRow[];
   vouchers: VoucherRow[];
@@ -501,7 +505,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         )
       ),
       vouchers ( id, code, discount_type, discount_value )`;
-  const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description, archived_at, cancelled_at';
+  const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description, archived_at, cancelled_at, deleted_at';
 
   const runQuery = (withScheduleConfig: boolean) =>
     supabase
@@ -518,6 +522,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
   if (error) throw new Error(`Failed to load tournament: ${error.message}`);
   if (!data) return null;
   const row = data as unknown as TournamentDetailRow;
+  // Deleted has no restore UI, unlike archived — it reads as gone, not hidden.
+  if (row.deleted_at) return null;
 
   return {
     slug: row.slug,

@@ -38,9 +38,10 @@ import {
   Download
 } from 'lucide-react';
 import styles from './page.module.css';
+import DateRangePicker from '../../../../../components/DateRangePicker';
 import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow, getDivisionTeams, type RegisteredTeamRow } from '../../../../../lib/data';
 import {
-  PHASE, PHASE_LABEL, selectablePhases, registrationCloseDefault, type Phase,
+  PHASE, PHASE_LABEL, registrationCloseDefault, canDelete, DELETE_COPY, type Phase,
 } from '../../../../../lib/tournamentLifecycle';
 import { joinTeamName } from '../../../../../lib/teamName';
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
@@ -311,10 +312,13 @@ export default function OrganizerSetup() {
   const [editLocation, setEditLocation] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
-  const [editIsOneDay, setEditIsOneDay] = useState(false);
   const [editDescription, setEditDescription] = useState('');
   const [basicInfoSaving, setBasicInfoSaving] = useState(false);
   const [basicInfoError, setBasicInfoError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [posterSaving, setPosterSaving] = useState(false);
@@ -637,7 +641,6 @@ export default function OrganizerSetup() {
       setEditLocation(basicInfo.location);
       setEditStartDate(basicInfo.startDate);
       setEditEndDate(basicInfo.endDate ?? basicInfo.startDate);
-      setEditIsOneDay(basicInfo.isOneDay);
       setEditDescription(basicInfo.description ?? '');
       setEditPhase(basicInfo.phase as Phase);
     } else {
@@ -645,10 +648,12 @@ export default function OrganizerSetup() {
       setEditLocation(tournamentInfo?.location ?? '');
       setEditStartDate(tournamentInfo?.startDate ?? '');
       setEditEndDate(tournamentInfo?.endDate ?? tournamentInfo?.startDate ?? '');
-      setEditIsOneDay(false);
       setEditDescription('');
     }
     setBasicInfoError('');
+    setShowDeleteConfirm(false);
+    setDeleteConfirmText('');
+    setDeleteError('');
     setShowBasicInfoEdit(true);
   };
 
@@ -666,7 +671,7 @@ export default function OrganizerSetup() {
         title: editTitle,
         location: editLocation,
         startDate: editStartDate,
-        endDate: editIsOneDay ? editStartDate : editEndDate,
+        endDate: editEndDate,
       });
       setShowBasicInfoEdit(false);
       return;
@@ -683,7 +688,7 @@ export default function OrganizerSetup() {
           location: editLocation,
           startDate: editStartDate,
           endDate: editEndDate,
-          isOneDay: editIsOneDay,
+          isOneDay: editStartDate === editEndDate,
           description: editDescription,
         }),
       });
@@ -728,6 +733,26 @@ export default function OrganizerSetup() {
       setBasicInfoError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
       setBasicInfoSaving(false);
+    }
+  };
+
+  const deleteTournament = async () => {
+    if (!basicInfo || deleteConfirmText.trim() !== basicInfo.title) return;
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!id) return;
+
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await fetch(`/api/tournaments/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to delete tournament');
+      }
+      router.push('/dashboard');
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete tournament');
+      setDeleting(false);
     }
   };
 
@@ -1180,6 +1205,11 @@ export default function OrganizerSetup() {
                     <span>{displayLocation}</span>
                   </div>
                 )}
+                {basicInfo && (
+                  <span className={styles.statusPill} data-phase={basicInfo.phase} style={{ marginTop: 4 }}>
+                    {PHASE_LABEL[basicInfo.phase as Phase] ?? 'Draft'}
+                  </span>
+                )}
                 {eventBadgeLabel && (
                   <span
                     className={`${styles.mobileEventBadge} ${
@@ -1244,9 +1274,14 @@ export default function OrganizerSetup() {
                 </div>
 
                 <div className={styles.desktop2aHeaderTextCol}>
-                  {eventBadgeLabel && (
+                  {(basicInfo || eventBadgeLabel) && (
                     <div className={styles.desktop2aBadgeRow}>
-                      <Badge variant={eventBadgeVariant}>{eventBadgeLabel}</Badge>
+                      {basicInfo && (
+                        <span className={styles.statusPill} data-phase={basicInfo.phase}>
+                          {PHASE_LABEL[basicInfo.phase as Phase] ?? 'Draft'}
+                        </span>
+                      )}
+                      {eventBadgeLabel && <Badge variant={eventBadgeVariant}>{eventBadgeLabel}</Badge>}
                     </div>
                   )}
 
@@ -2221,64 +2256,18 @@ export default function OrganizerSetup() {
                 <input className={styles.input} type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} />
               </div>
 
-              <div className={styles.twoCol} style={{ marginTop: 12 }}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Start date *</label>
-                  <input
-                    className={styles.input}
-                    type="date"
-                    value={editStartDate}
-                    onChange={e => {
-                      setEditStartDate(e.target.value);
-                      if (editIsOneDay) setEditEndDate(e.target.value);
-                    }}
-                  />
-                  <label className={styles.switchRow}>
-                    <span className={styles.switch}>
-                      <input
-                        type="checkbox"
-                        role="switch"
-                        checked={editIsOneDay}
-                        onChange={e => {
-                          const checked = e.target.checked;
-                          setEditIsOneDay(checked);
-                          if (checked && editStartDate) setEditEndDate(editStartDate);
-                        }}
-                      />
-                      <span className={styles.switchTrack}><span className={styles.switchThumb} /></span>
-                    </span>
-                    <span className={styles.switchText}>One-Day Tournament</span>
-                  </label>
-                </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>End date</label>
-                  <input
-                    className={styles.input}
-                    type="date"
-                    disabled={editIsOneDay}
-                    value={editIsOneDay ? editStartDate : editEndDate}
-                    onChange={e => setEditEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Draft or Announced — that is the whole tournament-level
-                  decision. Registration is derived from division dates. */}
+              {/* One control for both dates: a tournament's span is one
+                  decision, and two date inputs couldn't show it. */}
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
-                <label className={styles.fieldLabel}>Status</label>
-                <select
-                  className={styles.select}
-                  value={editPhase}
-                  onChange={e => setEditPhase(Number(e.target.value) as Phase)}
-                >
-                  {selectablePhases((basicInfo?.phase ?? PHASE.draft) as Phase).map(p => (
-                    <option key={p} value={p}>{PHASE_LABEL[p]}</option>
-                  ))}
-                </select>
-                <p className={styles.fieldHint}>
-                  Announced makes the tournament public. When teams can register is set per
-                  division, by its own open and close dates.
-                </p>
+                <label className={styles.fieldLabel}>Tournament dates *</label>
+                <DateRangePicker
+                  start={editStartDate}
+                  end={editEndDate}
+                  onChange={(s, e) => {
+                    setEditStartDate(s);
+                    setEditEndDate(e);
+                  }}
+                />
               </div>
 
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
@@ -2291,6 +2280,82 @@ export default function OrganizerSetup() {
                   onChange={e => setEditDescription(e.target.value)}
                 />
               </div>
+
+              {/* Draft or Announced — that is the whole tournament-level
+                  decision. Registration is derived from division dates. */}
+              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
+                <label className={styles.switchRow}>
+                  <span className={styles.switch}>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={editPhase >= PHASE.announced}
+                      onChange={e => setEditPhase(e.target.checked ? PHASE.announced : PHASE.draft)}
+                    />
+                    <span className={styles.switchTrack}><span className={styles.switchThumb} /></span>
+                  </span>
+                  <span className={styles.switchText}>Announce tournament</span>
+                </label>
+                <p className={styles.fieldHint}>
+                  Announced makes the tournament public. When teams can register is set per
+                  division, by its own open and close dates.
+                </p>
+              </div>
+
+              {/* Only a draft can be deleted outright — nothing has been
+                  public and nobody has registered. Anything past that gets
+                  archived or cancelled instead, which keep the row around. */}
+              {basicInfo && canDelete(basicInfo.phase as Phase) && (
+                <div className={styles.statusRowDanger} style={{ marginTop: 16 }}>
+                  <div className={styles.statusRow} style={{ border: 'none', padding: 0 }}>
+                    <div>
+                      <span className={styles.statusRowLabel}>{DELETE_COPY.label}</span>
+                      <span className={styles.statusRowBlurb}>{DELETE_COPY.blurb}</span>
+                    </div>
+                    {!showDeleteConfirm && (
+                      <button
+                        type="button"
+                        className={styles.btnDanger}
+                        onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteError(''); }}
+                      >
+                        <Trash2 size={15} /> Delete tournament
+                      </button>
+                    )}
+                  </div>
+                  {showDeleteConfirm && (
+                    <div style={{ marginTop: 10 }}>
+                      {deleteError && <div className={styles.modalFormError}>{deleteError}</div>}
+                      <p className={styles.fieldHint} style={{ marginTop: 0 }}>
+                        {DELETE_COPY.confirmHint} Type <strong>{basicInfo.title}</strong> below.
+                      </p>
+                      <input
+                        className={styles.input}
+                        type="text"
+                        value={deleteConfirmText}
+                        onChange={e => setDeleteConfirmText(e.target.value)}
+                        placeholder={basicInfo.title}
+                      />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        <button
+                          type="button"
+                          className={styles.btnGhost}
+                          onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError(''); }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.btnDanger}
+                          onClick={deleteTournament}
+                          disabled={deleting || deleteConfirmText.trim() !== basicInfo.title}
+                        >
+                          {deleting ? 'Deleting…' : 'Confirm Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className={styles.modalFooter}>
               <button className={styles.btnGhost} onClick={() => setShowBasicInfoEdit(false)}>Cancel</button>
