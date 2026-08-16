@@ -18,6 +18,7 @@
 
 import type { CourtSpec, DayPlanStrategy, ScheduleConfig, SchedulableDivision } from './types.ts';
 import { autoDedicatedCourts, parseNetHeight } from './types.ts';
+import { isOpenToAnyone } from '../divisionEligibility.ts';
 import type { Grid } from './grid.ts';
 import type { MatchGraph } from './graph.ts';
 
@@ -144,7 +145,9 @@ export function courtAffinity(
    *  time. The organizer's explicit override still wins over both. */
   appetite: Map<string, number> = new Map(),
 ): Map<string, Set<string>> {
-  const isMixed = (d: SchedulableDivision) => (d.gender ?? '').toLowerCase().includes('mix');
+  // "Mixed" is now spelled "Anyone", and legacy rows still carry the old
+  // word — isOpenToAnyone reads both. See lib/divisionEligibility.
+  const isMixed = (d: SchedulableDivision) => isOpenToAnyone(d.gender);
 
   const groups = new Map<string, SchedulableDivision[]>();
   for (const d of divisions) {

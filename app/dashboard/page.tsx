@@ -36,9 +36,9 @@ function isLiveNow(t: CardTournament): boolean {
 /* Map tournament phase → filter status */
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'open', label: 'Open' },
-  { key: 'closed', label: 'Closed' },
   { key: 'announced', label: 'Announced' },
+  { key: 'open', label: 'Registration open' },
+  { key: 'closed', label: 'Registration closed' },
   { key: 'draft', label: 'Draft' },
 ] as const;
 
@@ -54,8 +54,8 @@ function phaseToStatus(phase: number): 'coming-up' | 'announced' | 'draft' {
 }
 
 function statusPill(t: CardTournament): { label: string; cls: string } {
-  if (t.phase === 3) return { label: 'Open', cls: styles.pillOpen };
-  if (t.phase === 4) return { label: 'Closed', cls: styles.pillClosed };
+  if (t.phase === 3) return { label: 'Registration open', cls: styles.pillOpen };
+  if (t.phase === 4) return { label: 'Registration closed', cls: styles.pillClosed };
   if (t.phase === 2) return { label: 'Announced', cls: styles.pillAnnounced };
   return { label: 'Draft', cls: styles.pillDraft };
 }

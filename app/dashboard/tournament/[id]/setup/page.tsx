@@ -24,7 +24,6 @@ import {
   ArrowDown,
   Trash,
   Clock,
-  Layers,
   Award,
   ChevronDown,
   ChevronUp,
@@ -35,15 +34,25 @@ import {
   UploadCloud,
   UserPlus,
   FileSpreadsheet,
-  Download
+  Download,
+  Search,
+  Link2
 } from 'lucide-react';
 import styles from './page.module.css';
 import DateRangePicker from '../../../../../components/DateRangePicker';
-import { getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow, getDivisionTeams, type RegisteredTeamRow } from '../../../../../lib/data';
 import {
-  PHASE, PHASE_LABEL, registrationCloseDefault, canDelete, DELETE_COPY, type Phase,
+  getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow,
+  getDivisionTeams, type RegisteredTeamRow, getSetupOverview, type SetupOverview,
+} from '../../../../../lib/data';
+import { computeReadiness, type ReadinessItem } from '../../../../../lib/setupReadiness';
+import {
+  PHASE, PHASE_LABEL, registrationCloseDefault, canDelete, DELETE_COPY, isPublic, type Phase,
 } from '../../../../../lib/tournamentLifecycle';
 import { joinTeamName } from '../../../../../lib/teamName';
+import {
+  DIVISION_GENDERS, AGE_LIMITS, ageLimitLabel, normalizeGender, normalizeAgeLimit,
+  type DivisionGender, type AgeLimit,
+} from '../../../../../lib/divisionEligibility';
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
 
 
@@ -99,6 +108,8 @@ interface SetupDivision {
   divisionTeamCap: number;          // flips public button to "Waitlist Full"
   formatTypeOnSand: OnSandFormat;   // dictates the scoring engine
   maxRosterSize: number;            // defaults to format, allows alternates
+  genderEligibility: DivisionGender; // who the division is for
+  ageLimit: AgeLimit;               // youth cap, or '' for no limit
   // B. Staggered timing & fees
   registrationFee: number;          // flat per-team-slot, can be 0
   registrationOpenDate: string;     // datetime-local string, staggered windows
@@ -110,7 +121,6 @@ interface SetupDivision {
   regFields: RegField[];
   // Advanced options (recommended)
   allowMulti: boolean;
-  genderEligibility: string;
   prizePool: string;
   netHeight: string;
   minTeams: number;
@@ -175,6 +185,8 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
     divisionTeamCap: row.divisionTeamCap,
     formatTypeOnSand,
     maxRosterSize: typeof settings.maxRosterSize === 'number' ? settings.maxRosterSize : FORMAT_PLAYERS[formatTypeOnSand] ?? 2,
+    genderEligibility: normalizeGender(settings.genderEligibility),
+    ageLimit: normalizeAgeLimit(settings.ageLimit),
     registrationFee: row.registrationFee,
     registrationOpenDate: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
     registrationCloseDate: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
@@ -189,7 +201,6 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
     rules: typeof settings.rules === 'string' ? settings.rules : 'Standard FIVB Beach Volleyball rules apply.',
     regFields: (row.regFields as RegField[]) ?? makeBaseFields(),
     allowMulti: typeof settings.allowMulti === 'boolean' ? settings.allowMulti : true,
-    genderEligibility: typeof settings.genderEligibility === 'string' ? settings.genderEligibility : 'Open',
     prizePool: typeof settings.prizePool === 'string' ? settings.prizePool : '',
     netHeight: typeof settings.netHeight === 'string' ? settings.netHeight : '2.24m',
     minTeams: typeof settings.minTeams === 'number' ? settings.minTeams : 4,
@@ -201,6 +212,93 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
 
 // Create Division modal is split into three navigable steps.
 const MODAL_STEPS = ['Basics & Fee', 'Format & Rules', 'Registration'];
+
+/* The teams table's segmented filter. "Waitlist" is a status rather than a
+ * payment state, which is why this is one control and not two. */
+const TEAM_FILTERS = ['All', 'Paid', 'Unpaid', 'Waitlist'] as const;
+type TeamFilter = (typeof TEAM_FILTERS)[number];
+
+/* One row of the registered-teams table.
+ *
+ * The row itself opens the full registration; the payment chip, Move Up and
+ * the remove button are actions in their own right, so each stops the click
+ * from reaching the row behind it. */
+function TeamRow({
+  team, index, waitlisted = false, busy,
+  onOpen, onTogglePayment, onPromote, onRemove,
+}: {
+  team: RegisteredTeamRow;
+  index: number;
+  waitlisted?: boolean;
+  busy: boolean;
+  onOpen: () => void;
+  onTogglePayment?: () => void;
+  onPromote?: () => void;
+  onRemove: () => void;
+}) {
+  const stop = (fn?: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fn?.();
+  };
+
+  return (
+    <tr
+      className={`${styles.teamRowClickable} ${busy ? styles.teamRowBusy : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); }
+      }}
+      title="View full registration"
+    >
+      <td className={waitlisted ? styles.teamRowNoWait : styles.teamRowNo}>{index}</td>
+      <td>
+        <div className={styles.teamRowName}>
+          {team.players.length > 0 ? joinTeamName(team.players.map(p => p.name)) : team.name}
+        </div>
+      </td>
+      <td style={{ fontWeight: 500 }}>{team.players[0]?.phone || '—'}</td>
+      <td>
+        {onTogglePayment ? (
+          <button
+            type="button"
+            className={team.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}
+            onClick={stop(onTogglePayment)}
+            disabled={busy}
+            title={team.paymentCleared ? 'Mark unpaid' : 'Mark paid'}
+          >
+            {team.paymentCleared ? 'Paid' : 'Unpaid'}
+          </button>
+        ) : (
+          <span className={styles.badgeWaitlisted}>Unpaid</span>
+        )}
+      </td>
+      <td className={styles.teamRowActions}>
+        {onPromote && (
+          <button
+            type="button"
+            className={styles.moveUpBtn}
+            onClick={stop(onPromote)}
+            disabled={busy}
+          >
+            Move Up
+          </button>
+        )}
+        <button
+          type="button"
+          className={styles.rowRemoveBtn}
+          onClick={stop(onRemove)}
+          disabled={busy}
+          aria-label={`Remove ${team.name}`}
+          title="Remove team"
+        >
+          <X size={16} />
+        </button>
+      </td>
+    </tr>
+  );
+}
 
 const safeFormatDate = (d?: string, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }): string => {
   if (!d) return '';
@@ -320,68 +418,13 @@ export default function OrganizerSetup() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [posterSaving, setPosterSaving] = useState(false);
-  const [posterHover, setPosterHover] = useState(false);
-  const [showPosterModal, setShowPosterModal] = useState(false);
-  const [tempPoster, setTempPoster] = useState('');
 
-  const handlePosterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = () => setTempPoster(typeof reader.result === 'string' ? reader.result : '');
-    reader.readAsDataURL(file);
-  };
-
-  const savePoster = async () => {
-    if (!selectedFile || !basicInfo) return;
-    setPosterSaving(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      // 1. Upload to Supabase Storage via our API route
-      const uploadRes = await fetch('/api/tournaments/upload-image', {
-        method: 'POST',
-        body: formData,
-      });
-      const uploadBody = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadBody.error || 'Failed to upload image');
-
-      const imageUrl = uploadBody.url;
-
-      const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
-      const updateRes = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: basicInfo.title,
-          location: basicInfo.location,
-          startDate: basicInfo.startDate,
-          endDate: basicInfo.endDate,
-          isOneDay: basicInfo.isOneDay,
-          description: basicInfo.description,
-          imageUrl,
-        }),
-      });
-      const updateBody = await updateRes.json();
-      if (!updateRes.ok) throw new Error(updateBody.error || 'Failed to save tournament changes');
-
-      // 3. Update local state
-      setBasicInfo({
-        ...basicInfo,
-        imageUrl,
-      });
-      setShowPosterModal(false);
-      setSelectedFile(null);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save image');
-    } finally {
-      setPosterSaving(false);
-    }
-  };
+  /* Cover image inside the Edit Basic Info form. The file is held until the
+     form is saved rather than uploaded on selection, so cancelling out of
+     the dialog doesn't leave an orphan in storage. */
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState('');
+  const [editImageRemoved, setEditImageRemoved] = useState(false);
 
   // Phase 1 States: Division Modal & List
   const [showModal, setShowModal] = useState(false);
@@ -445,9 +488,32 @@ export default function OrganizerSetup() {
   // Validation
   const [formError, setFormError] = useState<string | null>(null);
 
+  /* Whole-tournament counts behind the readiness checklist and the division
+   * cards. The teams table only ever loads one division; these are every
+   * division at once, so they are refetched whenever a write lands. */
+  const [overview, setOverview] = useState<SetupOverview | null>(null);
+  const [overviewTick, setOverviewTick] = useState(0);
+  const refreshOverview = () => setOverviewTick(t => t + 1);
+
+  // Teams table controls (1A)
+  const [teamQuery, setTeamQuery] = useState('');
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>('All');
+  /** id of the team whose row action is in flight — disables just that row. */
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+  const [capBusy, setCapBusy] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<RegisteredTeamRow | null>(null);
+
+  /** Poster lightbox — clicking the cover shows it full size. */
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [liveLinkCopied, setLiveLinkCopied] = useState(false);
+
+  // Who the division is for (step 1, alongside cap and format)
+  const [genderEligibility, setGenderEligibility] = useState<DivisionGender>('Anyone');
+  const [ageLimit, setAgeLimit] = useState<AgeLimit>('');
+
   // Recommended/Missing Fields Inputs (Advanced Options)
   const [allowMulti, setAllowMulti] = useState(true);
-  const [genderEligibility, setGenderEligibility] = useState('Women');
   const [prizePool, setPrizePool] = useState('');
   const [netHeight, setNetHeight] = useState('2.24m');
   const [minTeams, setMinTeams] = useState(4);
@@ -490,8 +556,9 @@ export default function OrganizerSetup() {
     setConfirmationMessage('');
     setConfirmationImage('');
     setFormError(null);
+    setGenderEligibility('Anyone');
+    setAgeLimit('');
     setAllowMulti(true);
-    setGenderEligibility('Women');
     setPrizePool('');
     setNetHeight('2.24m');
     setMinTeams(4);
@@ -521,8 +588,9 @@ export default function OrganizerSetup() {
     setRegFields(d.regFields);
     setConfirmationMessage(d.confirmationMessage);
     setConfirmationImage(d.confirmationImage);
-    setAllowMulti(d.allowMulti);
     setGenderEligibility(d.genderEligibility);
+    setAgeLimit(d.ageLimit);
+    setAllowMulti(d.allowMulti);
     setPrizePool(d.prizePool);
     setNetHeight(d.netHeight);
     setMinTeams(d.minTeams);
@@ -635,6 +703,17 @@ export default function OrganizerSetup() {
       .finally(() => setTeamsLoading(false));
   }, [activeDivisionId, params.id]);
 
+  // Whole-tournament counts for the readiness card and the division cards.
+  useEffect(() => {
+    const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!tournamentId) return;
+    let cancelled = false;
+    getSetupOverview(tournamentId)
+      .then(o => { if (!cancelled) setOverview(o); })
+      .catch(console.error);
+    return () => { cancelled = true; };
+  }, [params.id, overviewTick]);
+
   const openBasicInfoEdit = () => {
     if (basicInfo) {
       setEditTitle(basicInfo.title);
@@ -650,6 +729,9 @@ export default function OrganizerSetup() {
       setEditEndDate(tournamentInfo?.endDate ?? tournamentInfo?.startDate ?? '');
       setEditDescription('');
     }
+    setEditImageFile(null);
+    setEditImagePreview('');
+    setEditImageRemoved(false);
     setBasicInfoError('');
     setShowDeleteConfirm(false);
     setDeleteConfirmText('');
@@ -680,6 +762,21 @@ export default function OrganizerSetup() {
     setBasicInfoSaving(true);
     setBasicInfoError('');
     try {
+      /* Upload first: the PATCH wants a URL, and a failed upload should stop
+         the save rather than quietly keep the old picture. `undefined` means
+         "leave whatever is there" — only an explicit remove sends ''. */
+      let imageUrl: string | undefined;
+      if (editImageFile) {
+        const fd = new FormData();
+        fd.append('file', editImageFile);
+        const up = await fetch('/api/tournaments/upload-image', { method: 'POST', body: fd });
+        const upBody = await up.json();
+        if (!up.ok) throw new Error(upBody.error || 'Could not upload the image');
+        imageUrl = upBody.url;
+      } else if (editImageRemoved) {
+        imageUrl = '';
+      }
+
       const res = await fetch(`/api/tournaments/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -690,6 +787,7 @@ export default function OrganizerSetup() {
           endDate: editEndDate,
           isOneDay: editStartDate === editEndDate,
           description: editDescription,
+          ...(imageUrl !== undefined ? { imageUrl } : {}),
         }),
       });
       const body = await res.json();
@@ -864,6 +962,8 @@ export default function OrganizerSetup() {
       divisionTeamCap: divCap,
       formatTypeOnSand: formatType,
       maxRosterSize: maxRoster,
+      genderEligibility,
+      ageLimit,
       registrationFee: regFee,
       registrationOpenDate: regOpenDate,
       registrationCloseDate: regCloseDate,
@@ -871,7 +971,6 @@ export default function OrganizerSetup() {
       rules: divRules,
       regFields,
       allowMulti,
-      genderEligibility,
       prizePool,
       netHeight,
       minTeams,
@@ -1110,6 +1209,123 @@ export default function OrganizerSetup() {
     }
   };
 
+  /* ── Per-row team actions ───────────────────────────────────────
+   *
+   * Each one writes first and re-reads the row the API hands back, rather
+   * than guessing locally: promotion and removal both have consequences
+   * (a waitlisted team moving into a freed seat) that only the server
+   * knows the outcome of.
+   */
+  const teamUrl = (teamId: string) => {
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
+    return `/api/tournaments/${id}/divisions/${activeDivisionId}/teams/${teamId}`;
+  };
+
+  const applyTeam = (team: RegisteredTeamRow) =>
+    setRegisteredTeams(prev => prev.map(t => (t.id === team.id ? team : t)));
+
+  const runRowAction = async (teamId: string, run: () => Promise<void>) => {
+    setRowBusy(teamId);
+    setRowError(null);
+    try {
+      await run();
+      refreshOverview();
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : 'That did not work');
+    } finally {
+      setRowBusy(null);
+    }
+  };
+
+  const toggleTeamPayment = (team: RegisteredTeamRow) =>
+    runRowAction(team.id, async () => {
+      const res = await fetch(teamUrl(team.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentCleared: !team.paymentCleared }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Could not update payment');
+      applyTeam(json.team);
+    });
+
+  const promoteTeam = (team: RegisteredTeamRow) =>
+    runRowAction(team.id, async () => {
+      const res = await fetch(teamUrl(team.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promote: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Could not move that team up');
+      applyTeam(json.team);
+    });
+
+  // Removing a seated team frees a seat, and the API moves the first
+  // waitlisted team into it — so the response, not the click, decides what
+  // the list looks like afterwards.
+  const removeTeam = (team: RegisteredTeamRow) =>
+    runRowAction(team.id, async () => {
+      const res = await fetch(teamUrl(team.id), { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Could not remove that team');
+      setRegisteredTeams(prev =>
+        prev
+          .filter(t => t.id !== json.deletedId)
+          .map(t => (json.promoted && t.id === json.promoted.id ? json.promoted : t)),
+      );
+      if (json.warning) setRowError(json.warning);
+      setConfirmRemove(null);
+    });
+
+  /** The division as the divisions API expects it back — used to push a
+   *  single changed field without inventing a partial-update endpoint. */
+  const divisionPayload = (d: SetupDivision) => ({
+    name: d.name,
+    divisionTeamCap: d.divisionTeamCap,
+    formatTypeOnSand: d.formatTypeOnSand,
+    maxRosterSize: d.maxRosterSize,
+    genderEligibility: d.genderEligibility,
+    ageLimit: d.ageLimit,
+    registrationFee: d.registrationFee,
+    registrationOpenDate: d.registrationOpenDate,
+    registrationCloseDate: d.registrationCloseDate,
+    rounds: d.rounds,
+    rules: d.rules,
+    regFields: d.regFields,
+    allowMulti: d.allowMulti,
+    prizePool: d.prizePool,
+    netHeight: d.netHeight,
+    minTeams: d.minTeams,
+    waitlistCap: d.waitlistCap,
+    confirmationMessage: d.confirmationMessage,
+    confirmationImage: d.confirmationImage,
+  });
+
+  // Promotion is allowed to overfill a division; this is the way back out —
+  // raise the cap to match what is actually registered.
+  const raiseCapTo = async (division: SetupDivision, cap: number) => {
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!id) return;
+    setCapBusy(true);
+    setRowError(null);
+    try {
+      const res = await fetch(`/api/tournaments/${id}/divisions/${division.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...divisionPayload(division), divisionTeamCap: cap }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Could not raise the cap');
+      setDivisions(prev => prev.map(d => (d.id === division.id ? { ...d, divisionTeamCap: cap } : d)));
+      refreshOverview();
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : 'Could not raise the cap');
+    } finally {
+      setCapBusy(false);
+    }
+  };
+
   // The division shown in the per-division setup panel (falls back to the first).
   const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
 
@@ -1144,6 +1360,14 @@ export default function OrganizerSetup() {
     });
   };
 
+  // Escape closes the cover lightbox, like every other overlay here.
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen]);
+
   // ↑/↓ page the open detail modal; Escape closes it.
   useEffect(() => {
     if (teamDetailIdx == null) return;
@@ -1166,6 +1390,101 @@ export default function OrganizerSetup() {
   const formatPillDate = (d?: string) => safeFormatDate(d);
   const startPill = formatPillDate(displayStart);
   const endPill = displayEnd ? formatPillDate(displayEnd) : startPill;
+  const dateLabel = `${startPill}${displayEnd && displayEnd !== displayStart ? ` – ${endPill}` : ''}`;
+
+  /* ── 1A: readiness, division cards, filtered rows ───────────────
+   *
+   * The overview is a separate fetch, so everything below has to read
+   * sensibly before it lands: no overview means no counts, which the
+   * checklist renders as outstanding rather than as done.
+   */
+  const slug = Array.isArray(params.id) ? params.id[0] : params.id ?? '';
+
+  const readiness = computeReadiness(
+    {
+      title: displayTitle,
+      location: displayLocation ?? '',
+      startDate: displayStart ?? '',
+      dateLabel,
+      divisions: (overview?.divisions ?? []).map(d => ({
+        name: d.name,
+        cap: d.cap,
+        confirmed: d.confirmed,
+        unpaid: d.unpaid,
+        drawLocked: d.drawLocked,
+      })),
+      courtCount: overview?.courtCount ?? 0,
+      totalMatches: overview?.totalMatches ?? 0,
+      placedMatches: overview?.placedMatches ?? 0,
+      firstMatchLabel: overview?.firstMatchLabel ?? null,
+    },
+    slug,
+  );
+
+  const onReadinessAction = (item: ReadinessItem) => {
+    if (item.actionHref) router.push(item.actionHref);
+    else openBasicInfoEdit();
+  };
+
+  const copyLiveLink = () => {
+    if (typeof window === 'undefined') return;
+    navigator.clipboard.writeText(`${window.location.origin}/tournament/${slug}`).then(
+      () => {
+        setLiveLinkCopied(true);
+        window.setTimeout(() => setLiveLinkCopied(false), 2000);
+      },
+      () => setRowError('Could not copy the link'),
+    );
+  };
+
+  // Seats across the whole event, for the figure in the header card.
+  const seatTotals = (overview?.divisions ?? []).reduce(
+    (acc, d) => ({ filled: acc.filled + d.confirmed, cap: acc.cap + d.cap }),
+    { filled: 0, cap: 0 },
+  );
+
+  /** One card per division: counts come from the overview so every card is
+   *  populated, not just the one whose teams happen to be loaded. */
+  const divisionCards = divisions.map(d => {
+    const sum = overview?.divisions.find(o => o.id === d.id);
+    const confirmed = sum?.confirmed ?? 0;
+    const waitlisted = sum?.waitlisted ?? 0;
+    const seatsOpen = Math.max(0, d.divisionTeamCap - confirmed);
+    return {
+      id: d.id,
+      name: d.name,
+      count: `${confirmed}/${d.divisionTeamCap}`,
+      meta: `${d.formatTypeOnSand} · ${d.registrationFee === 0 ? 'Free' : `${d.registrationFee} THB`}`,
+      stateLabel: seatsOpen === 0 ? 'Full' : `${seatsOpen} seat${seatsOpen === 1 ? '' : 's'} open`,
+      stateFull: seatsOpen === 0,
+      waitLabel: waitlisted > 0 ? `${waitlisted} on waiting list` : 'No waiting list',
+      active: activeDivision?.id === d.id,
+    };
+  });
+
+  // Search matches a player's name or phone; the segmented control narrows
+  // by payment or waiting-list status. Both apply to the loaded division.
+  const matchesTeamQuery = (t: RegisteredTeamRow) => {
+    const q = teamQuery.trim().toLowerCase();
+    if (!q) return true;
+    if (t.name.toLowerCase().includes(q)) return true;
+    return t.players.some(
+      p => p.name.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q),
+    );
+  };
+  const matchesTeamFilter = (t: RegisteredTeamRow) => {
+    if (teamFilter === 'All') return true;
+    if (teamFilter === 'Waitlist') return t.status === 'waitlist';
+    if (teamFilter === 'Paid') return t.status !== 'waitlist' && t.paymentCleared;
+    return t.status !== 'waitlist' && !t.paymentCleared;
+  };
+  const visibleConfirmed = confirmedTeams.filter(t => matchesTeamQuery(t) && matchesTeamFilter(t));
+  const visibleWaitlist = waitlistTeamsList.filter(t => matchesTeamQuery(t) && matchesTeamFilter(t));
+  const noTeamsMatch =
+    registeredTeams.length > 0 && visibleConfirmed.length === 0 && visibleWaitlist.length === 0;
+
+  const unpaidCount = confirmedTeams.filter(t => !t.paymentCleared).length;
+  const overCap = !!activeDivision && confirmedTeams.length > activeDivision.divisionTeamCap;
 
   return (
     <div className={styles.page}>
@@ -1189,7 +1508,14 @@ export default function OrganizerSetup() {
             </div>
             <div className={styles.mobileEventCard}>
               {basicInfo?.imageUrl ? (
-                <img src={basicInfo.imageUrl} alt="" className={styles.mobileEventLogo} />
+                <button
+                  type="button"
+                  className={styles.mobilePosterButton}
+                  onClick={() => setLightboxOpen(true)}
+                  aria-label="View cover image full size"
+                >
+                  <img src={basicInfo.imageUrl} alt="" className={styles.mobileEventLogo} />
+                </button>
               ) : (
                 <div className={styles.mobileEventLogo} />
               )}
@@ -1229,49 +1555,53 @@ export default function OrganizerSetup() {
 
           {/* ── Basic Info & Setup Workspace (Design 2A Desktop View) ── */}
           <div className={styles.desktopOnly}>
-            {/* 2A Desktop Top Header */}
-            <div className={styles.desktop2aHeader}>
-              <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
-            </div>
-
-            {/* 2A Desktop Header Card — poster thumbnail + tournament summary */}
-            <Card padding={0} radius="xl" className={styles.desktop2aHeaderCard}>
-              <div className={styles.desktop2aHeaderCardEditBtn}>
+            {/* 1A header: eyebrow + title on the left, actions on the right */}
+            <div className={styles.setupHeaderRow}>
+              <div>
+                <p className={styles.setupEyebrow}>Organizer</p>
+                <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
+              </div>
+              <div className={styles.setupHeaderActions}>
+                {/* Only a public tournament has a link worth copying. */}
+                {basicInfo && isPublic(basicInfo.phase as Phase) && (
+                  <Button
+                    variant="general"
+                    size="medium"
+                    iconLeft={<Link2 size={15} />}
+                    onClick={copyLiveLink}
+                  >
+                    {liveLinkCopied ? 'Link copied' : 'Copy Live Link'}
+                  </Button>
+                )}
                 <Button variant="primary" size="medium" iconLeft={<Pencil size={15} />} onClick={openBasicInfoEdit}>
                   Edit Tournament
                 </Button>
               </div>
+            </div>
 
+            {/* 1A Header Card — poster, summary, and the event's seat total */}
+            <Card padding={0} radius="xl" className={styles.desktop2aHeaderCard}>
               <div className={styles.desktop2aHeaderCardBody}>
-                <div
-                  style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
-                  onMouseEnter={() => setPosterHover(true)}
-                  onMouseLeave={() => setPosterHover(false)}
-                >
-                  {basicInfo?.imageUrl ? (
+                {/* The cover opens full size. Replacing it lives in the Edit
+                    Tournament form, so there is one way to change it. */}
+                {basicInfo?.imageUrl ? (
+                  <button
+                    type="button"
+                    className={styles.posterButton}
+                    onClick={() => setLightboxOpen(true)}
+                    aria-label="View cover image full size"
+                    title="View full size"
+                  >
                     <img src={basicInfo.imageUrl} alt="" className={styles.desktop2aPoster} />
-                  ) : (
-                    <div className={styles.desktop2aPosterPlaceholder}>
-                      <ImagePlus size={28} opacity={0.6} />
-                    </div>
-                  )}
-                  {posterHover && (
-                    <div style={{
-                      position: 'absolute', inset: 0, borderRadius: 16,
-                      backgroundColor: 'rgba(0,0,0,0.65)',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      zIndex: 10
-                    }}>
-                      <button
-                        type="button"
-                        onClick={() => { setTempPoster(basicInfo?.imageUrl || ''); setShowPosterModal(true); }}
-                        style={{ padding: '6px 12px', borderRadius: 20, backgroundColor: '#EE7A4C', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                      >
-                        <UploadCloud size={13} /> Re-Upload
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    <span className={styles.posterZoomHint}>
+                      <Eye size={14} /> View
+                    </span>
+                  </button>
+                ) : (
+                  <div className={styles.desktop2aPosterPlaceholder}>
+                    <ImagePlus size={28} opacity={0.6} />
+                  </div>
+                )}
 
                 <div className={styles.desktop2aHeaderTextCol}>
                   {(basicInfo || eventBadgeLabel) && (
@@ -1290,7 +1620,7 @@ export default function OrganizerSetup() {
                   <div className={styles.desktop2aMetaCol}>
                     <div className={styles.desktop2aMetaItem}>
                       <Icon name="calendar" size={16} />
-                      <span>{startPill}{displayEnd && displayEnd !== displayStart ? ` – ${endPill}` : ''}</span>
+                      <span>{dateLabel}</span>
                     </div>
                     {displayLocation && (
                       <div className={styles.desktop2aMetaItem}>
@@ -1301,8 +1631,55 @@ export default function OrganizerSetup() {
                   </div>
 
                 </div>
+
+                {/* Seats across the whole event, not just the open division. */}
+                {seatTotals.cap > 0 && (
+                  <div className={styles.headerSeats}>
+                    <p className={styles.headerSeatsValue}>{seatTotals.filled}/{seatTotals.cap}</p>
+                    <p className={styles.headerSeatsLabel}>
+                      seats filled across {divisions.length} division{divisions.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
+
+            {/* ── Setup readiness ────────────────────────────────
+                Every item is derived from real state — see
+                lib/setupReadiness. */}
+            <section className={styles.readinessCard}>
+              <div className={styles.readinessHead}>
+                <h5 className={styles.readinessTitle}>Setup readiness</h5>
+                <span className={styles.readinessProgressLabel}>{readiness.progressLabel}</span>
+                <div className={styles.readinessTrack}>
+                  <div className={styles.readinessFill} style={{ width: `${readiness.pct}%` }} />
+                </div>
+              </div>
+              <div className={styles.readinessGrid}>
+                {readiness.items.map(item => (
+                  <div key={item.key} className={styles.readinessItem}>
+                    {item.done ? (
+                      <span className={styles.readinessTickDone}><Check size={12} strokeWidth={3} /></span>
+                    ) : (
+                      <span className={styles.readinessTickPending} />
+                    )}
+                    <div className={styles.readinessItemBody}>
+                      <p className={styles.readinessItemLabel}>{item.label}</p>
+                      <p className={styles.readinessItemNote}>{item.note}</p>
+                      {item.actionLabel && (
+                        <button
+                          type="button"
+                          className={styles.readinessAction}
+                          onClick={() => onReadinessAction(item)}
+                        >
+                          {item.actionLabel}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             {/* Division Tabs & 2-Column Split Layout */}
             {divisionsLoading ? (
@@ -1321,19 +1698,31 @@ export default function OrganizerSetup() {
               </div>
             ) : (
               <>
-                <div className={styles.divisionToggle} style={{ marginBottom: 24 }}>
-                  {divisions.map(d => (
+                <div className={styles.divisionCardRow}>
+                  {divisionCards.map(card => (
                     <button
-                      key={d.id}
+                      key={card.id}
                       type="button"
-                      className={`${styles.divToggleBtn} ${activeDivision?.id === d.id ? styles.divToggleBtnActive : ''}`}
-                      onClick={() => setActiveDivisionId(d.id)}
+                      className={`${styles.divisionCard} ${card.active ? styles.divisionCardActive : ''}`}
+                      onClick={() => setActiveDivisionId(card.id)}
+                      aria-pressed={card.active}
                     >
-                      {d.name}
+                      <span className={styles.divisionRing}>{card.count}</span>
+                      <span className={styles.divisionCardText}>
+                        <span className={styles.divisionCardName}>{card.name}</span>
+                        <span className={styles.divisionCardMeta}>{card.meta}</span>
+                      </span>
+                      <span className={styles.divisionCardState}>
+                        <span className={card.stateFull ? styles.divisionCardStateFull : styles.divisionCardStateOpen}>
+                          {card.stateLabel}
+                        </span>
+                        <span className={styles.divisionCardWait}>{card.waitLabel}</span>
+                      </span>
                     </button>
                   ))}
-                  <button type="button" className={styles.divToggleAdd} onClick={handleOpenCreateModal}>
-                    <Plus size={16} /> Add Division
+                  <button type="button" className={styles.divisionCardAdd} onClick={handleOpenCreateModal}>
+                    <Plus size={20} />
+                    Add Division
                   </button>
                 </div>
 
@@ -1349,7 +1738,9 @@ export default function OrganizerSetup() {
                           <div style={{ flex: 1 }}>
                             <h3 className={styles.cardTitle}>Registered Teams</h3>
                             <p className={styles.subtitle}>
-                              Manage teams registered for {activeDivision.name} ({registeredTeams.filter(t => t.status !== 'waitlist').length}/{activeDivision.divisionTeamCap})
+                              {confirmedTeams.length} of {activeDivision.divisionTeamCap} seats filled
+                              {' · '}
+                              {unpaidCount > 0 ? `${unpaidCount} unpaid` : 'all paid'}
                             </p>
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -1391,77 +1782,111 @@ export default function OrganizerSetup() {
                           </div>
                         </div>
                         <div className={styles.sectionBody}>
+                          {/* Search + status filter, both scoped to this division */}
+                          <div className={styles.teamsControls}>
+                            <div className={styles.teamsSearch}>
+                              <Search size={16} className={styles.teamsSearchIcon} />
+                              <input
+                                type="search"
+                                className={styles.teamsSearchInput}
+                                placeholder="Search players or number"
+                                value={teamQuery}
+                                onChange={e => setTeamQuery(e.target.value)}
+                              />
+                            </div>
+                            <div className={styles.segmented} role="group" aria-label="Filter teams">
+                              {TEAM_FILTERS.map(f => (
+                                <button
+                                  key={f}
+                                  type="button"
+                                  className={`${styles.segmentedBtn} ${teamFilter === f ? styles.segmentedBtnActive : ''}`}
+                                  aria-pressed={teamFilter === f}
+                                  onClick={() => setTeamFilter(f)}
+                                >
+                                  {f}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
                           {importError && <div className={styles.importErrorBanner}>{importError}</div>}
                           {importSummary && !importError && <div className={styles.importSuccessBanner}>{importSummary}</div>}
+                          {rowError && <div className={styles.importErrorBanner}>{rowError}</div>}
+
+                          {/* Promoting past the cap is allowed — this is how
+                              the organizer squares it up afterwards. */}
+                          {overCap && (
+                            <div className={styles.overCapBanner}>
+                              <p className={styles.overCapNote}>
+                                Over team cap — {confirmedTeams.length} teams in a {activeDivision.divisionTeamCap}-team division.
+                              </p>
+                              <button
+                                type="button"
+                                className={styles.overCapBtn}
+                                disabled={capBusy}
+                                onClick={() => raiseCapTo(activeDivision, confirmedTeams.length)}
+                              >
+                                {capBusy ? 'Raising…' : `Raise cap to ${confirmedTeams.length}`}
+                              </button>
+                            </div>
+                          )}
+
                           {teamsLoading ? (
                             <p className={styles.summaryText}>Loading registered teams…</p>
                           ) : registeredTeams.length === 0 ? (
                             <p className={styles.summaryText}>No teams registered yet for this division.</p>
+                          ) : noTeamsMatch ? (
+                            <p className={styles.summaryText}>No teams match this filter.</p>
                           ) : (
                             <table className={styles.teamsTable}>
                               <thead>
                                 <tr>
                                   <th style={{ width: '60px' }}>No.</th>
                                   <th>Players</th>
-                                  <th style={{ width: '150px' }}>Contact Number</th>
-                                  <th style={{ width: '120px' }}>Payment</th>
+                                  <th style={{ width: '150px' }}>Contact</th>
+                                  <th style={{ width: '110px' }}>Payment</th>
+                                  <th style={{ width: '84px', textAlign: 'right' }}>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {registeredTeams.map((t, idx) => {
-                                  const firstWaitlistIdx = registeredTeams.findIndex(team => team.status === 'waitlist');
-                                  const showWaitlistSeparator = t.status === 'waitlist' && idx === firstWaitlistIdx;
-                                  const displayIndex = t.status === 'waitlist'
-                                    ? idx - firstWaitlistIdx + 1
-                                    : idx + 1;
+                                {visibleConfirmed.map((t, idx) => (
+                                  <TeamRow
+                                    key={t.id}
+                                    team={t}
+                                    index={idx + 1}
+                                    busy={rowBusy === t.id}
+                                    onOpen={() => openTeamDetail(t)}
+                                    onTogglePayment={() => toggleTeamPayment(t)}
+                                    onRemove={() => setConfirmRemove(t)}
+                                  />
+                                ))}
 
-                                  return (
-                                    <Fragment key={t.id}>
-                                      {showWaitlistSeparator && (
-                                        <tr key="waitlist-separator">
-                                          <td colSpan={4} style={{ padding: '24px 12px 12px', borderBottom: 'none' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                              <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#713F12', backgroundColor: '#FEF08A', padding: '4px 10px', borderRadius: '12px', fontFamily: "var(--font-ui, 'Inter', sans-serif)" }}>
-                                                Waiting List
-                                              </span>
-                                              <div style={{ flex: 1, height: '2px', backgroundColor: 'rgba(238, 122, 76, 0.25)', borderRadius: '1px' }} />
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      )}
-                                      <tr
-                                        className={styles.teamRowClickable}
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => openTeamDetail(t)}
-                                        onKeyDown={e => {
-                                          if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            openTeamDetail(t);
-                                          }
-                                        }}
-                                        title="View full registration"
-                                      >
-                                        <td style={{ fontWeight: 700, color: 'var(--orange, #EE7A4C)' }}>{displayIndex}</td>
-                                        <td>
-                                          <div className={styles.teamRowName}>
-                                            {t.players.length > 0
-                                              ? joinTeamName(t.players.map(p => p.name))
-                                              : t.name}
-                                          </div>
-                                        </td>
-                                        <td style={{ fontWeight: 500 }}>
-                                          {t.players[0]?.phone || '—'}
-                                        </td>
-                                        <td>
-                                          <span className={t.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
-                                            {t.paymentCleared ? 'Paid' : 'Unpaid'}
-                                          </span>
-                                        </td>
-                                      </tr>
-                                    </Fragment>
-                                  );
-                                })}
+                                {visibleWaitlist.length > 0 && (
+                                  <tr>
+                                    <td colSpan={5} className={styles.waitlistSeparatorCell}>
+                                      <div className={styles.waitlistSeparator}>
+                                        <span className={styles.waitlistTag}>Waiting list</span>
+                                        <span className={styles.waitlistNote}>
+                                          {waitlistTeamsList.length} waiting · promote when a seat frees up
+                                        </span>
+                                        <span className={styles.waitlistRule} />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+
+                                {visibleWaitlist.map((t, idx) => (
+                                  <TeamRow
+                                    key={t.id}
+                                    team={t}
+                                    index={idx + 1}
+                                    waitlisted
+                                    busy={rowBusy === t.id}
+                                    onOpen={() => openTeamDetail(t)}
+                                    onPromote={() => promoteTeam(t)}
+                                    onRemove={() => setConfirmRemove(t)}
+                                  />
+                                ))}
                               </tbody>
                             </table>
                           )}
@@ -1472,12 +1897,16 @@ export default function OrganizerSetup() {
                     {/* Right Column: Division Details & Setup Sidebar */}
                     <div className={styles.desktop2aSidebar}>
                       <section className={styles.card}>
-                        <div className={styles.cardHeader} style={{ marginBottom: 16 }}>
-                          <Layers className={styles.iconHeader} size={20} />
-                          <div style={{ flex: 1 }}>
+                        <div className={styles.divisionSidebarHead}>
+                          <span className={styles.divisionRingLarge}>
+                            {confirmedTeams.length}/{activeDivision.divisionTeamCap}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
                             <h3 className={styles.cardTitle}>{activeDivision.name}</h3>
                             <p className={styles.cardSubtitle}>
-                              {activeDivision.genderEligibility} • {activeDivision.formatTypeOnSand}
+                              {activeDivision.genderEligibility}
+                              {activeDivision.ageLimit ? ` · ${ageLimitLabel(activeDivision.ageLimit)}` : ''}
+                              {' · '}{activeDivision.formatTypeOnSand}
                             </p>
                           </div>
                         </div>
@@ -1486,23 +1915,37 @@ export default function OrganizerSetup() {
                           <div className={styles.summaryGrid} style={{ gridTemplateColumns: '1fr 1fr' }}>
                             <div className={styles.summaryItem}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
                             <div className={styles.summaryItem}><span>Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
+                            <div className={styles.summaryItem}><span>Gender</span><strong>{activeDivision.genderEligibility}</strong></div>
+                            <div className={styles.summaryItem}><span>Age limit</span><strong>{ageLimitLabel(activeDivision.ageLimit)}</strong></div>
                             <div className={styles.summaryItem}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
-                            <div className={styles.summaryItem}><span>Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
                             <div className={styles.summaryItem}><span>Opens</span><strong>{activeDivision.registrationOpenDate ? safeFormatDate(activeDivision.registrationOpenDate) : 'Immediately'}</strong></div>
-                            <div className={styles.summaryItem}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
                           </div>
 
                           <hr className={styles.divider} />
 
                           <div className={styles.fieldGroup}>
-                            <label className={styles.fieldLabel}>Competition Rounds</label>
-                            <div className={styles.summaryChips}>
+                            <label className={styles.fieldLabel}>Competition rounds</label>
+                            <div className={styles.roundList}>
                               {activeDivision.rounds.map((r, i) => (
-                                <span key={r.id} className={styles.summaryChip}>
-                                  {roundLabel(i)}: {ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—'}
-                                </span>
+                                <div key={r.id} className={styles.roundRow}>
+                                  <span className={styles.roundIndex}>R{i + 1}</span>
+                                  <span className={styles.roundLabelText}>
+                                    {ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—'}
+                                  </span>
+                                </div>
                               ))}
                             </div>
+                          </div>
+
+                          <hr className={styles.divider} />
+
+                          <div className={styles.feeRow}>
+                            <span className={styles.feeLabel}>Fee</span>
+                            <span className={styles.feeValue}>
+                              {activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}
+                            </span>
+                            <span className={styles.feeLabel} style={{ marginLeft: 'auto' }}>Net</span>
+                            <span className={styles.feeValue}>{activeDivision.netHeight}</span>
                           </div>
 
                           {activeDivision.rules && (
@@ -1531,8 +1974,50 @@ export default function OrganizerSetup() {
             )}
           </div>
 
-                {/* ── Mobile stat row / details / teams (Compact Utility / 1B) ── */}
+                {/* ── Mobile: readiness, divisions, teams (1A) ────────── */}
                 <div className={styles.mobileOnly}>
+                  {/* Readiness leads on mobile too, condensed to the bar and
+                      the one thing left to do. */}
+                  <div className={styles.mobileReadinessCard}>
+                    <div className={styles.mobileReadinessHead}>
+                      <p className={styles.mobileReadinessTitle}>Setup readiness</p>
+                      <p className={styles.mobileReadinessProgress}>{readiness.progressLabel}</p>
+                    </div>
+                    <div className={styles.readinessTrack}>
+                      <div className={styles.readinessFill} style={{ width: `${readiness.pct}%` }} />
+                    </div>
+                    <div className={styles.mobileReadinessNext}>
+                      {readiness.nextStep ? (
+                        <>
+                          <span className={styles.readinessTickPending} />
+                          <span>Next: {readiness.nextStep}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={styles.readinessTickDone}><Check size={12} strokeWidth={3} /></span>
+                          <span>Ready to run</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Mobile had no way to change division at all before this. */}
+                  {divisionCards.length > 0 && (
+                    <div className={styles.mobileDivTabs}>
+                      {divisionCards.map(card => (
+                        <button
+                          key={card.id}
+                          type="button"
+                          className={`${styles.mobileDivTab} ${card.active ? styles.mobileDivTabActive : ''}`}
+                          onClick={() => setActiveDivisionId(card.id)}
+                          aria-pressed={card.active}
+                        >
+                          {card.name} {card.count}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {activeDivision && (
                     <>
                       <div className={styles.mobileStatRow}>
@@ -1592,7 +2077,7 @@ export default function OrganizerSetup() {
                           <p className={styles.summaryText}>No teams registered yet.</p>
                         ) : (
                           <>
-                            {confirmedTeams.map((t, idx) => (
+                            {visibleConfirmed.map((t, idx) => (
                               <div
                                 key={t.id}
                                 className={`${styles.mobileTeamRow} ${styles.teamRowClickable}`}
@@ -1604,22 +2089,33 @@ export default function OrganizerSetup() {
                                 }}
                               >
                                 <span className={styles.mobileTeamRank}>{idx + 1}</span>
-                                <span className={styles.mobileTeamName}>
-                                  {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
+                                <span className={styles.mobileTeamCol}>
+                                  <span className={styles.mobileTeamName}>
+                                    {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
+                                  </span>
+                                  {t.players[0]?.phone && (
+                                    <span className={styles.mobileTeamPhone}>{t.players[0].phone}</span>
+                                  )}
                                 </span>
-                                <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
+                                {/* 44px tap target, per the design's mobile frame. */}
+                                <button
+                                  type="button"
+                                  className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}
+                                  disabled={rowBusy === t.id}
+                                  onClick={e => { e.stopPropagation(); toggleTeamPayment(t); }}
+                                >
                                   {t.paymentCleared ? 'Paid' : 'Unpaid'}
-                                </span>
+                                </button>
                               </div>
                             ))}
 
-                            {waitlistTeamsList.length > 0 && (
+                            {visibleWaitlist.length > 0 && (
                               <>
                                 <div className={styles.mobileWaitlistHeader}>
                                   <span className={styles.mobileWaitlistDot} />
                                   Waiting List · {waitlistTeamsList.length}
                                 </div>
-                                {waitlistTeamsList.map((t, idx) => (
+                                {visibleWaitlist.map((t, idx) => (
                                   <div
                                     key={t.id}
                                     className={`${styles.mobileTeamRow} ${styles.teamRowClickable}`}
@@ -1631,18 +2127,34 @@ export default function OrganizerSetup() {
                                     }}
                                   >
                                     <span className={`${styles.mobileTeamRank} ${styles.mobileTeamRankWaitlist}`}>{idx + 1}</span>
-                                    <span className={styles.mobileTeamName}>
-                                      {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
+                                    <span className={styles.mobileTeamCol}>
+                                      <span className={styles.mobileTeamName}>
+                                        {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
+                                      </span>
+                                      {t.players[0]?.phone && (
+                                        <span className={styles.mobileTeamPhone}>{t.players[0].phone}</span>
+                                      )}
                                     </span>
-                                    <span className={t.paymentCleared ? styles.mobilePillPaid : styles.mobilePillUnpaid}>
-                                      {t.paymentCleared ? 'Paid' : 'Unpaid'}
-                                    </span>
+                                    <button
+                                      type="button"
+                                      className={styles.mobileMoveUpBtn}
+                                      disabled={rowBusy === t.id}
+                                      onClick={e => { e.stopPropagation(); promoteTeam(t); }}
+                                    >
+                                      Move Up
+                                    </button>
                                   </div>
                                 ))}
                               </>
                             )}
                           </>
                         )}
+                        {noTeamsMatch && (
+                          <p className={styles.summaryText}>No teams match this filter.</p>
+                        )}
+                        <button type="button" className={styles.mobileAddTeamBtn} onClick={openAddTeamModal}>
+                          <UserPlus size={16} /> Add Team
+                        </button>
                       </div>
                     </>
                   )}
@@ -1650,6 +2162,71 @@ export default function OrganizerSetup() {
               </div>
 
             </main>
+
+      {/* ── COVER IMAGE LIGHTBOX ──────────────────────────────────────
+          Clicking the cover shows it at full size. Replacing the image is
+          the Edit Tournament form's job, so it is not offered here. */}
+      {lightboxOpen && basicInfo?.imageUrl && (
+        <div
+          className={styles.lightboxOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Cover image"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            type="button"
+            className={styles.lightboxClose}
+            onClick={() => setLightboxOpen(false)}
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={basicInfo.imageUrl}
+            alt={displayTitle ? `${displayTitle} cover` : 'Tournament cover'}
+            className={styles.lightboxImage}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* ── REMOVE TEAM CONFIRM ───────────────────────────────────────
+          A removal deletes a real registration and, when it frees a seat,
+          moves the first waitlisted team into it — both worth saying out
+          loud before it happens. */}
+      {confirmRemove && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.confirmDialog}>
+            <h3 className={styles.confirmTitle}>Remove this team?</h3>
+            <p className={styles.confirmBody}>
+              <strong>
+                {confirmRemove.players.length > 0
+                  ? joinTeamName(confirmRemove.players.map(p => p.name))
+                  : confirmRemove.name}
+              </strong>{' '}
+              will be removed from {activeDivision?.name}, along with their registration details.
+              This cannot be undone.
+              {confirmRemove.status !== 'waitlist' && waitlistTeamsList.length > 0 && (
+                <> The first team on the waiting list will take the freed seat.</>
+              )}
+            </p>
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.btnGhost} onClick={() => setConfirmRemove(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.btnDanger}
+                disabled={rowBusy === confirmRemove.id}
+                onClick={() => removeTeam(confirmRemove)}
+              >
+                {rowBusy === confirmRemove.id ? 'Removing…' : 'Remove team'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── CREATE DIVISION MODAL ─────────────────────────────────── */}
       {showModal && (
@@ -1742,6 +2319,37 @@ export default function OrganizerSetup() {
                   Minimum {FORMAT_PLAYERS[formatType]} for {formatType}. Raise it to allow substitutes / alternates.
                 </span>
               </div>
+
+              <div className={styles.twoCol} style={{ marginTop: 12 }}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Gender *</label>
+                  <select
+                    className={styles.select}
+                    value={genderEligibility}
+                    onChange={e => setGenderEligibility(e.target.value as DivisionGender)}
+                  >
+                    {DIVISION_GENDERS.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Age Limit</label>
+                  <select
+                    className={styles.select}
+                    value={ageLimit}
+                    onChange={e => setAgeLimit(e.target.value as AgeLimit)}
+                  >
+                    {AGE_LIMITS.map(a => (
+                      <option key={a || 'none'} value={a}>{ageLimitLabel(a)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <span className={styles.fieldHint}>
+                Shown on the division and the public event page. Nothing checks a player&apos;s age at
+                registration — it is what the division advertises.
+              </span>
 
               {/* ── B. Fees ──────────────────────────────────────── */}
               <p className={styles.modalSectionTitle}>Fees</p>
@@ -2138,20 +2746,7 @@ export default function OrganizerSetup() {
 
                     <div className={styles.twoCol}>
                       <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>1. Gender/Eligibility</label>
-                        <select
-                          className={styles.select}
-                          value={genderEligibility}
-                          onChange={e => setGenderEligibility(e.target.value)}
-                        >
-                          <option value="Mixed">Mixed / Co-Ed</option>
-                          <option value="Men">Men Only</option>
-                          <option value="Women">Women Only</option>
-                          <option value="Youth">Youth / Under-18</option>
-                        </select>
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>2. Net Height</label>
+                        <label className={styles.fieldLabel}>1. Net Height</label>
                         <input
                           type="text"
                           className={styles.input}
@@ -2160,11 +2755,8 @@ export default function OrganizerSetup() {
                           onChange={e => setNetHeight(e.target.value)}
                         />
                       </div>
-                    </div>
-
-                    <div className={styles.twoCol} style={{ marginTop: 10 }}>
                       <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>3. Min Teams Count</label>
+                        <label className={styles.fieldLabel}>2. Min Teams Count</label>
                         <input
                           type="number"
                           className={styles.input}
@@ -2173,8 +2765,11 @@ export default function OrganizerSetup() {
                           onChange={e => setMinTeams(parseInt(e.target.value) || 4)}
                         />
                       </div>
+                    </div>
+
+                    <div className={styles.twoCol} style={{ marginTop: 10 }}>
                       <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>4. Waitlist Cap</label>
+                        <label className={styles.fieldLabel}>3. Waitlist Cap</label>
                         <input
                           type="number"
                           className={styles.input}
@@ -2183,21 +2778,20 @@ export default function OrganizerSetup() {
                           onChange={e => setWaitlistCap(parseInt(e.target.value) || 0)}
                         />
                       </div>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>4. Prizes &amp; Payout</label>
+                        <input
+                          type="text"
+                          className={styles.input}
+                          placeholder="e.g. Cash 1st: 50%, 2nd: 30%, 3rd: 20%"
+                          value={prizePool}
+                          onChange={e => setPrizePool(e.target.value)}
+                        />
+                      </div>
                     </div>
 
                     <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
-                      <label className={styles.fieldLabel}>5. Prizes &amp; Payout Structure</label>
-                      <input
-                        type="text"
-                        className={styles.input}
-                        placeholder="e.g. Cash 1st: 50%, 2nd: 30%, 3rd: 20%"
-                        value={prizePool}
-                        onChange={e => setPrizePool(e.target.value)}
-                      />
-                    </div>
-
-                    <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
-                      <label className={styles.fieldLabel}>6. Allow Multi-Division Play</label>
+                      <label className={styles.fieldLabel}>5. Allow Multi-Division Play</label>
                       <select
                         className={styles.select}
                         value={allowMulti ? 'yes' : 'no'}
@@ -2281,6 +2875,67 @@ export default function OrganizerSetup() {
                 />
               </div>
 
+              {/* Cover image. The preview is the picked file if there is one,
+                  otherwise whatever is saved — unless it has been removed. */}
+              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
+                <label className={styles.fieldLabel}>Tournament image</label>
+                {(() => {
+                  const shown = editImagePreview || (editImageRemoved ? '' : basicInfo?.imageUrl ?? '');
+                  return shown ? (
+                    <div className={styles.editImageRow}>
+                      <img src={shown} alt="" className={styles.editImageThumb} />
+                      <div className={styles.editImageActions}>
+                        <label className={styles.editImageBtn}>
+                          <ImagePlus size={15} /> Replace
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            hidden
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setEditImageFile(file);
+                              setEditImageRemoved(false);
+                              setEditImagePreview(URL.createObjectURL(file));
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className={styles.editImageRemove}
+                          onClick={() => {
+                            setEditImageFile(null);
+                            setEditImagePreview('');
+                            setEditImageRemoved(true);
+                          }}
+                        >
+                          <Trash2 size={15} /> Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className={styles.editImageEmpty}>
+                      <ImagePlus size={16} /> Add cover image
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        hidden
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setEditImageFile(file);
+                          setEditImageRemoved(false);
+                          setEditImagePreview(URL.createObjectURL(file));
+                        }}
+                      />
+                    </label>
+                  );
+                })()}
+                <p className={styles.fieldHint}>
+                  Shown on tournament cards and the event page. PNG/JPEG/WebP, max 5MB.
+                </p>
+              </div>
+
               {/* Draft or Announced — that is the whole tournament-level
                   decision. Registration is derived from division dates. */}
               <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
@@ -2361,40 +3016,6 @@ export default function OrganizerSetup() {
               <button className={styles.btnGhost} onClick={() => setShowBasicInfoEdit(false)}>Cancel</button>
               <button className={styles.btnActionPrimary} onClick={saveBasicInfo} disabled={basicInfoSaving}>
                 {basicInfoSaving ? 'Saving…' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── POSTER UPLOAD MODAL ───────────────────────────────────── */}
-      {showPosterModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: 400 }}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Upload Poster</h2>
-              <button className={styles.modalCloseBtn} onClick={() => setShowPosterModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {tempPoster ? (
-                  <img src={tempPoster} alt="Preview" style={{ width: '100%', aspectRatio: '1 / 1.414', objectFit: 'cover', borderRadius: 8, border: '1px solid #E5E7EB' }} />
-                ) : (
-                  <div style={{ width: '100%', aspectRatio: '1 / 1.414', backgroundColor: '#F3F4F6', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #D1D5DB' }}>
-                    <span style={{ color: '#6B7280', fontSize: 14 }}>No image selected</span>
-                  </div>
-                )}
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', backgroundColor: '#EEF2FE', color: '#204ECF', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-                  <UploadCloud size={18} style={{ marginRight: 8 }} />
-                  Choose File
-                  <input type="file" accept="image/*" onChange={handlePosterUpload} hidden />
-                </label>
-              </div>
-            </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.btnGhost} onClick={() => setShowPosterModal(false)}>Cancel</button>
-              <button className={styles.btnActionPrimary} onClick={savePoster} disabled={!tempPoster || posterSaving}>
-                {posterSaving ? 'Saving…' : 'Save Image'}
               </button>
             </div>
           </div>

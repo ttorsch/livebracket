@@ -24,8 +24,8 @@ export type Phase = (typeof PHASE)[keyof typeof PHASE];
 export const PHASE_LABEL: Record<Phase, string> = {
   1: 'Draft',
   2: 'Announced',
-  3: 'Open',
-  4: 'Closed',
+  3: 'Registration open',
+  4: 'Registration closed',
 };
 
 export function isPhase(v: unknown): v is Phase {

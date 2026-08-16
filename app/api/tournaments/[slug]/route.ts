@@ -20,7 +20,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       end_date: isOneDay ? startDate : (endDate || null),
       is_one_day: !!isOneDay,
       description: description || null,
-      image_url: imageUrl !== undefined ? imageUrl : undefined,
+      // '' means the organizer removed the cover; store null rather than an
+      // empty string so "no image" is one value everywhere.
+      image_url: imageUrl !== undefined ? (imageUrl || null) : undefined,
     })
     .eq('slug', slug)
     .select('slug, title, location, start_date, end_date, is_one_day, phase, description, image_url')

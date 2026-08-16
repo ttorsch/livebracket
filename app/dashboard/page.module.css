@@ -616,6 +616,7 @@
   font-weight: 600;
   color: var(--text-secondary, #3A414D);
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .filterTab:hover { border-color: var(--sand-400, #D9D4C9); }
@@ -782,6 +783,7 @@
   text-transform: uppercase;
   padding: 3px 10px;
   border-radius: var(--radius-pill, 999px);
+  white-space: nowrap;
 }
 .pillOpen { background: rgba(235, 111, 67, 0.14); color: var(--coral-600, #D95F35); }
 .pillClosed { background: rgba(20, 24, 30, 0.08); color: var(--ink-900, #14181E); }

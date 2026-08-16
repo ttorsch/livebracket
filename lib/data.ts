@@ -1,6 +1,9 @@
 import { supabase } from './supabase';
 import { formatTeamName } from './teamName';
 import { type ScheduleConfig, normaliseConfig } from './schedule/generate';
+import {
+  normalizeGender, normalizeAgeLimit, type DivisionGender, type AgeLimit,
+} from './divisionEligibility';
 
 export type { ScheduleConfig };
 
@@ -191,6 +194,121 @@ export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[
   });
 }
 
+/* ── Setup page overview ──────────────────────────────────────────
+ *
+ * The setup page loads its teams one division at a time, because that is
+ * all the table shows. The readiness checklist and the division cards need
+ * the whole tournament at once — every division's seats, unpaid teams and
+ * waiting list, plus whether the schedule has actually been laid out.
+ *
+ * Deliberately its own narrow query rather than getTournamentDetail: that
+ * one is shared with the public page, and payment status has no business
+ * being in a payload players can read.
+ */
+export interface SetupDivisionSummary {
+  id: string;
+  name: string;
+  cap: number;
+  /** Teams holding a seat — everything not on the waiting list. */
+  confirmed: number;
+  waitlisted: number;
+  /** Seated teams whose payment has not cleared. */
+  unpaid: number;
+  /** settings.draw.isLocked — the draw is final, not merely generated. */
+  drawLocked: boolean;
+}
+
+export interface SetupOverview {
+  divisions: SetupDivisionSummary[];
+  /** Courts available to schedule on: the explicit roster if the organizer
+   *  built one, otherwise the generic count. */
+  courtCount: number;
+  totalMatches: number;
+  /** Matches carrying both a time and a court. */
+  placedMatches: number;
+  /** Earliest scheduled slot, e.g. "Aug 18, 09:00". Null when nothing is placed. */
+  firstMatchLabel: string | null;
+}
+
+interface OverviewDivisionRow {
+  id: string;
+  name: string;
+  division_team_cap: number;
+  settings: Record<string, unknown> | null;
+  teams: { id: string; status: string; payment_cleared: boolean }[];
+  rounds: { matches: { id: string; court: string | null; scheduled_time: string | null }[] }[];
+}
+
+export async function getSetupOverview(slug: string): Promise<SetupOverview> {
+  const rest =
+    'divisions(id, name, division_team_cap, settings, teams(id, status, payment_cleared), rounds(matches(id, court, scheduled_time)))';
+
+  // schedule_config arrived in migration 0007; fall back without it exactly
+  // as getTournamentDetail does, so an un-migrated database still loads.
+  const runQuery = (withScheduleConfig: boolean) =>
+    supabase
+      .from('tournaments')
+      .select(`slug${withScheduleConfig ? ', schedule_config' : ''}, ${rest}`)
+      .eq('slug', slug)
+      .maybeSingle();
+
+  let { data, error } = await runQuery(true);
+  if (error && /schedule_config/i.test(error.message)) {
+    ({ data, error } = await runQuery(false));
+  }
+  if (error) throw new Error(`Failed to load setup overview: ${error.message}`);
+
+  const empty: SetupOverview = {
+    divisions: [], courtCount: 0, totalMatches: 0, placedMatches: 0, firstMatchLabel: null,
+  };
+  if (!data) return empty;
+
+  const row = data as unknown as {
+    schedule_config?: Record<string, unknown> | null;
+    divisions: OverviewDivisionRow[];
+  };
+  const config = readScheduleConfig(row.schedule_config);
+
+  let totalMatches = 0;
+  let placedMatches = 0;
+  let earliest: string | null = null;
+
+  const divisions = (row.divisions ?? []).map((d): SetupDivisionSummary => {
+    const teams = d.teams ?? [];
+    const seated = teams.filter(t => t.status !== 'waitlist');
+    for (const r of d.rounds ?? []) {
+      for (const m of r.matches ?? []) {
+        totalMatches++;
+        // "Placed" means it has somewhere and sometime to be played. A time
+        // without a court is not a schedule anyone can turn up to.
+        if (m.scheduled_time && m.court) {
+          placedMatches++;
+          if (!earliest || m.scheduled_time < earliest) earliest = m.scheduled_time;
+        }
+      }
+    }
+    return {
+      id: d.id,
+      name: d.name,
+      cap: d.division_team_cap,
+      confirmed: seated.length,
+      waitlisted: teams.length - seated.length,
+      unpaid: seated.filter(t => !t.payment_cleared).length,
+      drawLocked: !!(d.settings as { draw?: { isLocked?: boolean } } | null)?.draw?.isLocked,
+    };
+  });
+
+  return {
+    divisions,
+    courtCount: config.courts?.length ?? config.courtCount,
+    totalMatches,
+    placedMatches,
+    firstMatchLabel: earliest
+      ? `${new Date(earliest).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}, ${formatMatchTime(earliest)}`
+      : null,
+  };
+}
+
 function formatDateRange(startDate: string, endDate: string | null, isOneDay: boolean): string {
   const start = new Date(`${startDate}T00:00:00`);
   const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -345,7 +463,11 @@ export interface DetailDivision {
   drawConfig: DrawConfig | null;
   dedicatedCourts: number | null; // D_d override from settings.schedule (null = auto)
   netHeight: string | null;       // settings.netHeight (free text, e.g. "2.24m")
-  gender: string | null;          // settings.genderEligibility (e.g. "Men" / "Mixed")
+  // Advertised eligibility, normalised out of the settings blob — legacy
+  // spellings like "Mixed" and "Open" read as Anyone. See
+  // lib/divisionEligibility.
+  gender: DivisionGender;
+  ageLimit: AgeLimit;             // '' when the division has no age cap
   // Registration is decided per division by these two, not by a switch on
   // the tournament — see lib/tournamentLifecycle.
   registrationOpens: string;      // datetime-local, '' = as soon as public
@@ -542,7 +664,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
       const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;
       const sched = (d.settings as { schedule?: { dedicatedCourts?: number } } | null)?.schedule;
       const settings = (d.settings ?? {}) as {
-        netHeight?: unknown; genderEligibility?: unknown;
+        netHeight?: unknown; genderEligibility?: unknown; ageLimit?: unknown;
         registrationOpenDate?: unknown; registrationCloseDate?: unknown;
       };
       return {
@@ -588,7 +710,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           : null,
         dedicatedCourts: typeof sched?.dedicatedCourts === 'number' ? sched.dedicatedCourts : null,
         netHeight: typeof settings.netHeight === 'string' ? settings.netHeight : null,
-        gender: typeof settings.genderEligibility === 'string' ? settings.genderEligibility : null,
+        gender: normalizeGender(settings.genderEligibility),
+        ageLimit: normalizeAgeLimit(settings.ageLimit),
         registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
         registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
       };

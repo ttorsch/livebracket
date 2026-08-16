@@ -15,6 +15,7 @@ interface DivisionBody {
   maxRosterSize: number;
   registrationFee: number;
   registrationOpenDate: string;
+  registrationCloseDate: string;
   // Each round carries its own scoring rules (e.g. pool play to 21, the
   // elimination round after it best of 3) instead of one blob per division.
   // durationMinutes (per-round match length) is folded into scoring_rules on save.
@@ -23,6 +24,7 @@ interface DivisionBody {
   regFields: unknown[];
   allowMulti: boolean;
   genderEligibility: string;
+  ageLimit: string;
   prizePool: string;
   netHeight: string;
   minTeams: number;
@@ -35,9 +37,13 @@ function toSettings(body: DivisionBody) {
   return {
     maxRosterSize: body.maxRosterSize,
     registrationOpenDate: body.registrationOpenDate,
+    // See the PATCH route: settings is written wholesale, so a key left out
+    // here is a key that never persists.
+    registrationCloseDate: body.registrationCloseDate,
     rules: body.rules,
     allowMulti: body.allowMulti,
     genderEligibility: body.genderEligibility,
+    ageLimit: body.ageLimit,
     prizePool: body.prizePool,
     netHeight: body.netHeight,
     minTeams: body.minTeams,
