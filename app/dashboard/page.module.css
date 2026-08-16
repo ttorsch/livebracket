@@ -8,31 +8,73 @@
   background: var(--sand-100, #F5F1EA);
   font-family: var(--font-text, 'DM Sans', sans-serif);
   color: var(--ink-900, #14181E);
+  /* Gutter for the fixed rail at its collapsed width (78px + its 16px
+     inset). It stays this wide however far the rail expands, which is
+     what keeps the page still on hover. */
+  padding-left: 94px;
 }
 
-/* ── Sidebar (light glass rail) ─────────────────────────────────── */
+/* ── Sidebar (hover-expanding rail) ──────────────────────────────
+   Rests collapsed to icons and expands on hover, on keyboard focus, or
+   when pinned open by clicking the logo.
+
+   Taken out of the flex flow and fixed, with .page holding a matching
+   gutter, so expanding overlays the dashboard instead of shoving it
+   178px to the right every time the cursor crosses the left edge. */
 .sidebar {
-  width: 280px;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.72);
-  border-right: 1px solid rgba(20, 24, 30, 0.08);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 60;
+  width: 78px;
+  box-sizing: border-box;
+  background: transparent;
   display: flex;
   flex-direction: column;
-  padding: 30px 22px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  padding: 22px 12px 16px;
+  height: calc(100vh - 32px);
+  border-radius: 28px;
+  /* Deliberately not `overflow: hidden`. The design clips the rail to hide
+     labels mid-transition, but here every label is display:none while
+     collapsed, so nothing spills — and clipping would cut off the More
+     menu, which is wider than the collapsed rail. */
+  transition:
+    width 220ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    background 220ms ease,
+    box-shadow 220ms ease;
 }
+/* Expansion is a rail behaviour only — below 960px the sidebar is a
+   horizontal bar with nothing to widen, so this is scoped rather than
+   undone there. Collapsed the rail sits over the page's own gutter and
+   needs no surface; expanded it covers content, so it gets one. */
+@media (min-width: 961px) {
+  .sidebar:hover,
+  .sidebar:focus-within,
+  .sidebarPinned {
+    width: 256px;
+    background: var(--sand-100, #F5F1EA);
+    box-shadow: 0 18px 48px rgba(20, 24, 30, 0.14);
+  }
+}
+
+.railSpacer { flex: 1 1 auto; }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 8px 30px;
+  padding: 6px 10px 0;
+  margin-bottom: 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
   text-decoration: none;
+  text-align: left;
+  white-space: nowrap;
 }
+/* The brand slot doubles as Home only on the mobile bar. */
+.brandHome { display: none; }
 .brandMark {
   width: 38px;
   height: 38px;
@@ -41,11 +83,21 @@
 }
 .brandMark svg { width: 100%; height: 100%; }
 .brandName {
-  font-family: var(--font-ui, Inter, sans-serif);
-  font-weight: 800;
-  font-size: 20px;
-  letter-spacing: -0.01em;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.02em;
   color: var(--ink-900, #14181E);
+  white-space: nowrap;
+}
+/* Labels are the collapsed state's cost — hidden at rest, revealed by the
+   same three things that widen the rail. Desktop only: the mobile bar
+   never shows them. */
+.brandName { display: none; }
+@media (min-width: 961px) {
+  .sidebar:hover .brandName,
+  .sidebar:focus-within .brandName,
+  .sidebarPinned .brandName { display: inline; }
 }
 .brandHomeIcon {
   display: none;
@@ -56,71 +108,120 @@
 .sideNav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
 }
 .sideLink {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 13px 16px;
-  border-radius: var(--radius-pill, 999px);
+  padding: 11px 10px;
+  border-radius: 14px;
   border: none;
   background: transparent;
-  color: var(--text-secondary, #3A414D);
+  color: var(--ink-900, #14181E);
   font-family: var(--font-text, 'DM Sans', sans-serif);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 140ms ease, transform 140ms ease;
 }
-.sideLink:hover { background: rgba(20, 24, 30, 0.06); color: var(--ink-900, #14181E); }
+.sideLink:hover { background: var(--sand-200, #EFEAE0); }
+.sideLink:active { transform: scale(0.97); }
+/* Active is weight and colour, not a filled pill — the rail stays quiet. */
 .sideLinkActive,
 .sideLinkActive:hover {
-  background: var(--coral-500, #EB6F43);
-  color: #fff;
+  background: transparent;
+  color: var(--coral-500, #EB6F43);
+  font-weight: 700;
+}
+.sideLinkActive:hover { background: var(--sand-200, #EFEAE0); }
+
+.sideIcon {
+  position: relative;
+  flex: 0 0 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sideLabel { min-width: 0; display: none; }
+@media (min-width: 961px) {
+  .sidebar:hover .sideLabel,
+  .sidebar:focus-within .sideLabel,
+  .sidebarPinned .sideLabel { display: inline; }
 }
 
-.sideProfile {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 20px;
-  background: rgba(20, 24, 30, 0.04);
-  text-decoration: none;
-  transition: background 0.15s ease;
+/* Count sits on the bell, ringed in the page colour so it reads as a
+   badge rather than as part of the icon. */
+.sideBadge {
+  position: absolute;
+  top: -7px;
+  left: 12px;
+  min-width: 10px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--coral-500, #EB6F43);
+  border: 2px solid var(--sand-100, #F5F1EA);
+  color: #fff;
+  font-family: var(--font-ui, Inter, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
 }
-.sideProfile:hover { background: rgba(20, 24, 30, 0.07); }
+
+/* ── More menu ──────────────────────────────────────────────────── */
+.moreWrap { position: relative; }
+.morePopup {
+  position: absolute;
+  bottom: 58px;
+  left: 4px;
+  width: 236px;
+  padding: 8px;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  box-shadow: 0 18px 40px rgba(20, 24, 30, 0.16);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+}
+.moreItem {
+  padding: 11px 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 15px;
+  color: var(--ink-900, #14181E);
+  text-align: left;
+  cursor: pointer;
+}
+.moreItem:hover:not(:disabled) { background: var(--sand-200, #EFEAE0); }
+/* Nothing behind these yet — see MORE_ITEMS in page.tsx. */
+.moreItem:disabled { opacity: 0.45; cursor: default; }
+.moreItem:nth-last-child(2) { margin-bottom: 6px; }
+.moreItem:last-child { border-top: 1px solid var(--sand-300, #E7E2D9); padding-top: 13px; }
+
 .sideAvatar {
-  width: 44px;
-  height: 44px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--coral-500, #EB6F43);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 12px;
   flex-shrink: 0;
   overflow: hidden;
 }
 .sideAvatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.sideProfileText { line-height: 1.25; min-width: 0; }
-.sideProfileName {
-  display: block;
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--ink-900, #14181E);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sideProfileClub {
-  display: block;
-  font-size: 13px;
-  color: var(--text-muted, #7A8294);
-}
 
 /* ── Main ─────────────────────────────────────────────────────── */
 .main {
@@ -1130,7 +1231,8 @@
 
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 960px) {
-  .page { flex-direction: column; }
+  /* No rail here, so no gutter to reserve. */
+  .page { flex-direction: column; padding-left: 0; }
   .sidebar {
     width: auto;
     height: auto;
@@ -1139,6 +1241,7 @@
     left: 0;
     right: 0;
     z-index: 1000;
+    background: rgba(255, 255, 255, 0.92);
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
@@ -1164,35 +1267,57 @@
       calc(var(--enter-t, 0) * -12px)
       rgba(8, 18, 35, calc(var(--enter-t, 0) * 0.55));
   }
-  .brand { padding: 0; flex-shrink: 0; }
-  .brandMark { display: none; }
-  .brandName { display: none; }
+  /* The rail's own geometry is undone here — a horizontal bar has no
+     width to collapse, no spacers to centre against, and must not clip. */
+  .sidebar { align-self: auto; border-radius: 0; }
+  .railSpacer { display: none; }
+
+  /* No rail to toggle, so the brand slot goes back to being Home. */
+  .brand { display: none; }
+  .brandHome {
+    display: inline-flex;
+    padding: 0;
+    flex-shrink: 0;
+    color: var(--ink-900, #14181E);
+  }
   .brandHomeIcon {
     display: inline-flex;
     width: calc(22px - var(--compact-t, 0) * 4px);
     height: calc(22px - var(--compact-t, 0) * 4px);
     transition: width var(--nav-dur, 200ms) ease-in, height var(--nav-dur, 200ms) ease-in;
   }
-  /* Unwraps the <nav> so its 3 buttons become flat siblings of the
-     Home icon and avatar, letting .sidebar's space-between distribute
-     all 5 items evenly instead of treating the buttons as one group. */
+  /* Unwraps the <nav> so its buttons become flat siblings of the Home
+     icon, letting .sidebar's space-between distribute all five items
+     evenly instead of treating the buttons as one group. */
   .sideNav { display: contents; }
   .sideLink {
     padding: calc(9px - var(--compact-t, 0) * 3px) calc(11px - var(--compact-t, 0) * 3px);
     font-size: 14px;
+    gap: 0;
     transition: padding var(--nav-dur, 200ms) ease-in;
   }
-  .sideLink span { display: none; }
+  .sideLabel { display: none; }
+  .sideIcon { flex: none; height: auto; }
   .sideLink svg {
     width: calc(20px - var(--compact-t, 0) * 3px);
     height: calc(20px - var(--compact-t, 0) * 3px);
     transition: width var(--nav-dur, 200ms) ease-in, height var(--nav-dur, 200ms) ease-in;
   }
-  .sideProfile { margin-top: 0; padding: 6px; background: transparent; flex-shrink: 0; }
-  .sideProfileText { display: none; }
+  /* Seven icons will not fit a phone bar. Search and Create are dropped
+     because the page already carries both — the search field sits in the
+     list, and New Tournament is in the header. More has no destinations
+     yet, so it goes too. */
+  .sideLinkDesktopOnly,
+  .moreWrap { display: none; }
+  .sideBadge {
+    top: -4px;
+    left: 10px;
+    border-color: #fff;
+  }
   .sideAvatar {
     width: calc(44px - var(--compact-t, 0) * 10px);
     height: calc(44px - var(--compact-t, 0) * 10px);
+    font-size: 18px;
     transition: width var(--nav-dur, 200ms) ease-in, height var(--nav-dur, 200ms) ease-in;
   }
   .main { padding: 96px 20px 60px; }

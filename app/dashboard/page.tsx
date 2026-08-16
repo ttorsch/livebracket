@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, QrCode, Trophy, Settings, Calendar, MapPin, History, Bell, ChevronDown, Home, Clock,
+  Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Home, Clock,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
 import ScorekeeperQrCards, { useScorekeeperLinks, useQrPdfExport } from '../../components/ScorekeeperQrCards';
-import { Button, SearchField } from '../../components/livebracket-ds';
+import { Button, SearchField, Icon } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
   type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
@@ -34,6 +34,10 @@ function isLiveNow(t: CardTournament): boolean {
 }
 
 /* Map tournament phase → filter status */
+/* The More menu's destinations, none of which exist yet — rendered
+ * disabled so the shape is there without pretending to lead somewhere. */
+const MORE_ITEMS = ['Settings', 'Saved brackets', 'Switch club', 'Log out'];
+
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'announced', label: 'Announced' },
@@ -226,12 +230,69 @@ export default function OrganizerDashboard() {
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  /* The rail rests collapsed to icons and widens on hover — that part is
+   * pure CSS, so it costs no re-render. Pinning is the way to hold it open
+   * without a mouse: hover and :focus-within are unavailable to touch, and
+   * focus alone would close it again the moment you tab out. Only
+   * meaningful above 960px, where the sidebar is a rail at all. */
+  const [pinned, setPinned] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  /* No notifications exist yet, so the badge stays off rather than showing
+   * a decorative number. Point this at the real count when they land. */
+  const notificationCount = 0;
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+
+  /* Search has no view of its own: it takes you to the list the field
+   * filters and puts the cursor in it.
+   *
+   * When the tab has to change first, the field does not exist yet, so the
+   * focus waits for the render that creates it — tracked on a ref rather
+   * than in state, which would cost an extra render per click. */
+  const wantSearchFocus = useRef(false);
+
+  const putCursorInSearch = () => {
+    const input = searchWrapRef.current?.querySelector('input');
+    input?.focus();
+    input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+
+  const focusSearch = () => {
+    setMoreOpen(false);
+    if (activeTab === 'tournament') {
+      putCursorInSearch();          // already rendered
+    } else {
+      wantSearchFocus.current = true;
+      setActiveTab('tournament');
+    }
+  };
+
+  useEffect(() => {
+    if (!wantSearchFocus.current) return;
+    wantSearchFocus.current = false;
+    putCursorInSearch();
+  }, [activeTab]);
+
+  // Close the More menu on an outside click or Escape, like the other menus.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMoreOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [moreOpen]);
 
   useEffect(() => {
     if (!filterMenuOpen) return;
@@ -351,8 +412,20 @@ export default function OrganizerDashboard() {
   return (
     <div className={styles.page}>
       {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside ref={navRef} className={styles.sidebar}>
-        <Link href="/" className={styles.brand} aria-label="Live Bracket home">
+      <aside
+        ref={navRef}
+        className={`${styles.sidebar} ${pinned ? styles.sidebarPinned : ''}`}
+      >
+        {/* Desktop: the logo row is the rail's collapse handle, per the
+            design. Mobile: the bar has no rail, so the same slot is the
+            Home link it has always been — see the 960px block in the CSS. */}
+        <button
+          type="button"
+          className={styles.brand}
+          onClick={() => { setPinned(v => !v); setMoreOpen(false); }}
+          aria-pressed={pinned}
+          title={pinned ? 'Unpin sidebar' : 'Keep sidebar open'}
+        >
           <span className={styles.brandMark}>
             <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
   <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
@@ -367,47 +440,120 @@ export default function OrganizerDashboard() {
 </svg>
           </span>
           <span className={styles.brandName}>Live Bracket</span>
+        </button>
+        <Link href="/" className={styles.brandHome} aria-label="Live Bracket home">
           <Home size={22} className={styles.brandHomeIcon} aria-hidden="true" />
         </Link>
+
+        {/* The nav sits centred between two spacers, per the design. */}
+        <div className={styles.railSpacer} />
 
         <nav className={styles.sideNav}>
           <button
             type="button"
             onClick={() => setActiveTab('tournament')}
             className={`${styles.sideLink} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}
+            title="My Tournament"
           >
-            <Trophy size={20} />
-            <span>My Tournament</span>
+            <span className={styles.sideIcon}>
+              <Icon name="trophy" size={23} strokeWidth={activeTab === 'tournament' ? 2.6 : 1.75} />
+            </span>
+            <span className={styles.sideLabel}>My Tournament</span>
           </button>
+
+          {/* Search is not a view of its own — it jumps to the list and puts
+              the cursor in the field that filters it. */}
+          <button
+            type="button"
+            onClick={focusSearch}
+            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly}`}
+            title="Search"
+          >
+            <span className={styles.sideIcon}>
+              <Icon name="search" size={23} strokeWidth={1.75} />
+            </span>
+            <span className={styles.sideLabel}>Search</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('history')}
             className={`${styles.sideLink} ${activeTab === 'history' ? styles.sideLinkActive : ''}`}
+            title="History"
           >
-            <History size={20} />
-            <span>History</span>
+            <span className={styles.sideIcon}>
+              <Icon name="calendar" size={23} strokeWidth={activeTab === 'history' ? 2.6 : 1.75} />
+            </span>
+            <span className={styles.sideLabel}>History</span>
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('notifications')}
             className={`${styles.sideLink} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}
+            title="Notifications"
           >
-            <Bell size={20} />
-            <span>Notifications</span>
+            <span className={styles.sideIcon}>
+              <Icon name="bell" size={23} strokeWidth={activeTab === 'notifications' ? 2.6 : 1.75} />
+              {/* Reads off the real count, which is zero until notifications
+                  exist — so no badge rather than a decorative one. */}
+              {notificationCount > 0 && (
+                <span className={styles.sideBadge}>{notificationCount}</span>
+              )}
+            </span>
+            <span className={styles.sideLabel}>Notifications</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly}`}
+            title="Create"
+          >
+            <span className={styles.sideIcon}>
+              <Icon name="plus" size={23} strokeWidth={1.75} />
+            </span>
+            <span className={styles.sideLabel}>Create</span>
+          </button>
+
+          <Link href="/profile" className={styles.sideLink} title="Profile">
+            <span className={styles.sideIcon}>
+              <span className={styles.sideAvatar}>
+                {organizer?.avatar_url ? <img src={organizer.avatar_url} alt="" /> : '🏐'}
+              </span>
+            </span>
+            <span className={styles.sideLabel}>Profile</span>
+          </Link>
         </nav>
 
-        <Link href="/profile" className={styles.sideProfile}>
-          <span className={styles.sideAvatar}>
-            {organizer?.avatar_url ? (
-              <img src={organizer.avatar_url} alt="" />
-            ) : '🏐'}
-          </span>
-          <span className={styles.sideProfileText}>
-            <span className={styles.sideProfileName}>{organizer?.name ?? '—'}</span>
-            <span className={styles.sideProfileClub}>{organizer?.club ?? ''}</span>
-          </span>
-        </Link>
+        <div className={styles.railSpacer} />
+
+        <div className={styles.moreWrap} ref={moreRef}>
+          {moreOpen && (
+            <div className={styles.morePopup} role="menu">
+              {/* Nothing behind these yet — shown disabled rather than as
+                  links that go nowhere. */}
+              {MORE_ITEMS.map(label => (
+                <button key={label} type="button" className={styles.moreItem} disabled role="menuitem">
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            className={styles.sideLink}
+            onClick={() => setMoreOpen(v => !v)}
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
+            title="More"
+          >
+            <span className={styles.sideIcon}>
+              <Icon name="filter" size={23} strokeWidth={1.9} />
+            </span>
+            <span className={styles.sideLabel}>More</span>
+          </button>
+        </div>
       </aside>
 
       {/* ── Main area ─────────────────────────────────────────── */}
@@ -496,12 +642,17 @@ export default function OrganizerDashboard() {
                 <h2 className={styles.sectionTitle}>All Tournaments</h2>
               </div>
 
-              <SearchField
-                placeholder="Search tournaments, locations, divisions"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                style={{ marginBottom: 18, background: 'var(--sand-200)' }}
-              />
+              {/* Wrapped so the sidebar's Search item can reach the input —
+                  SearchField is a plain function component, so a ref passed
+                  to it would not forward. */}
+              <div ref={searchWrapRef}>
+                <SearchField
+                  placeholder="Search tournaments, locations, divisions"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  style={{ marginBottom: 18, background: 'var(--sand-200)' }}
+                />
+              </div>
 
               <div className={styles.filterTabs}>
                 {STATUS_FILTERS.map(f => {
