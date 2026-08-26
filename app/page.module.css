@@ -478,20 +478,6 @@
   color: var(--orange, #EE7A4C);
 }
 
-.nearbyStatusPill {
-  display: inline-block;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
 .nearbyCardTitle {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
@@ -620,6 +606,9 @@
   display: flex;
   flex-direction: column;
   text-align: left;
+  /* Keeps the live scoreboard and the upcoming list the same height so the
+     hero doesn't resize when no tournament is running. */
+  min-height: 600px;
 }
 .pulseCard:hover {
   transform: translateY(-4px);
@@ -862,6 +851,121 @@
   transform: scale(1.15);
 }
 
+/* ── Pulse card, no-live state: upcoming tournaments ─────────────── */
+.pulseUpcomingHeader {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.upcomingBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Three equal rows fill the card body; with fewer tournaments the
+   remaining tracks stay empty so the rows sit at the top. */
+.upcomingList {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 14px;
+  flex: 1;
+  margin-top: 18px;
+  min-height: 0;
+}
+
+.upcomingRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  min-height: 0;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-decoration: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s;
+}
+.upcomingRow:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.upcomingChip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 58px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: rgba(238, 122, 76, 0.12);
+  color: var(--orange, #EE7A4C);
+}
+.upcomingChipMonth {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.upcomingChipDay {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.upcomingRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.upcomingRowTitle {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-1, #14181E);
+  overflow-wrap: break-word;
+}
+.upcomingRowMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  color: rgba(20, 24, 30, 0.6);
+}
+.upcomingRowPin {
+  flex-shrink: 0;
+}
+.upcomingRowArrow {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: rgba(20, 24, 30, 0.45);
+}
+
+.upcomingEmpty {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 /* Card Footer Peach Button */
 .pulseFooter {
   display: flex;
@@ -930,37 +1034,15 @@
 }
 
 /* ── Section Header Typography ───────────────────────────────── */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--orange-600, #E0623A);
-}
-.eyebrow::before {
-  content: "";
-  width: 28px; height: 2px;
-  background: var(--orange, #EE7A4C);
-  border-radius: 2px;
-}
+
 .sectionTitle {
-  font-family: var(--font-serif, 'Fraunces', serif);
-  font-weight: 600;
-  font-size: clamp(30px, 4.2vw, 44px);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: clamp(28px, 3.2vw, 38px);
   line-height: 1.1;
   letter-spacing: -0.02em;
   color: var(--ink-1, #14181E);
-  margin: 10px 0 0;
-  text-wrap: balance;
-}
-.sectionTitle em { 
-  font-style: italic; 
-  color: var(--orange, #EE7A4C); 
-  font-weight: 500; 
+  margin: 0;
 }
 
 /* ── Events Section ──────────────────────────────────────────── */
@@ -970,7 +1052,7 @@
 
 .sectionHead {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 8px;
@@ -988,16 +1070,47 @@
 /* Controls */
 .controls {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin: 32px 0 36px;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0 32px;
   width: 100%;
 }
 
-.searchRow {
-  display: flex;
-  gap: 12px;
-  width: 100%;
+
+/* White pill wrapping a native select, so the dropdown stays accessible
+   and uses the platform picker on mobile. */
+.sortSelect {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px -10px rgba(20, 31, 46, 0.45);
+}
+
+.sortSelect select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 14px 44px 14px 22px;
+  border-radius: 999px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+  cursor: pointer;
+}
+
+.sortSelectIcon {
+  position: absolute;
+  right: 18px;
+  color: var(--ink-2, #3A414D);
+  pointer-events: none;
 }
 
 .search {
@@ -1024,16 +1137,7 @@
   flex-shrink: 0;
 }
 
-.searchIconRight {
-  color: rgba(20, 24, 30, 0.45);
-  margin-left: 12px;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-.searchIconRight:hover {
-  color: #14181E;
-}
+
 
 .search input {
   flex: 1;
@@ -1048,44 +1152,10 @@
   color: rgba(20, 24, 30, 0.45);
 }
 
-.chips { 
-  display: inline-flex; 
-  align-items: center;
-  background: transparent;
-  padding: 0;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
-.chip, .favoriteBtn {
-  display: inline-flex;
-  align-items: center;
-  padding: 10px 22px;
-  border-radius: 999px;
-  background: rgba(14, 23, 34, 0.12);
-  border: none;
-  cursor: pointer;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 700;
-  font-size: 14.5px;
-  color: #14181E;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
-}
 
-.chip:hover, .favoriteBtn:hover { 
-  background: rgba(14, 23, 34, 0.18);
-}
 
-.chipActive {
-  background: #fff;
-  color: #14181E;
-  box-shadow: 0 4px 12px rgba(20, 24, 30, 0.08);
-}
 
-.chipActive:hover {
-  background: #fff;
-  opacity: 1;
-}
 
 .chipDot {
   width: 6px;
@@ -1166,6 +1236,17 @@
 }
 .card:hover .cardPoster {
   transform: scale(1.04);
+}
+
+/* Sits in .cardBody markup so the mobile row can place it beside the
+   title; on desktop it is lifted back onto the poster (.card is the
+   nearest positioned ancestor). */
+.cardTitleRow {
+  display: block;
+}
+
+.cardStatusShort {
+  display: none;
 }
 
 .cardStatusBadge {
@@ -1840,20 +1921,136 @@
 @media (max-width: 640px) {
   .hero { padding: 0; }
   .heroGrid { padding: 76px 0 48px; }
+
+  /* Let the hero CTA recede so it stops competing with the nearby-event
+     card directly below it; copy -> CTA -> card should read as one group. */
+  .heroCtas { margin-top: 24px; }
+  .heroPrimary { padding: 12px 22px; font-size: 14px; }
   .events { padding: 60px 0; }
-  .controls { flex-direction: column; align-items: stretch; }
-  .searchRow { flex-direction: column; gap: 12px; }
-  .search { max-width: none; flex: none; width: 100%; }
-  .grid { grid-template-columns: 1fr; }
-  .cardBody { padding: 20px 20px 0; }
-  .cardFooter { margin: 18px 20px 0; }
+  .controls { flex-wrap: nowrap; gap: 10px; margin: 20px 0 20px; }
+  .search { max-width: none; flex: 1; min-width: 0; padding: 13px 18px; }
+  /* Native selects size to their widest option, so trim the chrome to
+     leave the search field usable at 375px. */
+  .sortSelect select { padding: 12px 30px 12px 14px; font-size: 13.5px; }
+  .sortSelectIcon { right: 11px; width: 15px; height: 15px; }
+
+  /* -- Compact list rows replace the poster cards on mobile ---------- */
+  .grid { grid-template-columns: 1fr; gap: 14px; }
+
+  .card { border-radius: 20px; padding: 16px 18px; }
+  .card:hover { transform: none; }
+
+  .cardLink {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .cardMedia { display: none; }
+
+  .cardBody { padding: 0; min-width: 0; }
+
+  .cardTitleRow {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+
+  .cardTitle {
+    font-size: 17px;
+    line-height: 1.25;
+    margin: 0;
+    min-width: 0;
+  }
+
+  /* Plain orange label beside the title instead of a pill on the poster. */
+  /* order:-1 lifts it above the title visually while the heading stays
+     first in the DOM for screen readers. */
+  .cardStatusBadge {
+    order: -1;
+    position: static;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+    flex-shrink: 0;
+    color: #E4573A;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  .cardStatusLive { background: none; box-shadow: none; color: #D32B44; }
+  .cardStatusDot { display: none; }
+  .cardStatusLong { display: none; }
+  .cardStatusShort { display: inline; }
+
+  /* Date pills on one line, location on the next. */
+  .cardMetaList {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+    min-width: 0;
+  }
+  .cardMetaIcon {
+    display: block;
+    width: 15px;
+    height: 15px;
+    color: var(--ink-3, #7A8294);
+  }
+  .cardMetaRow {
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .cardMetaText {
+    font-size: 13.5px;
+    color: var(--ink-3, #7A8294);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Division rows become seat chips on a single swipeable track; the
+     negative margins let chips scroll out to the card's edges. */
+  .cardDivisionsSection {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin: 14px -18px 0;
+    padding: 0 18px;
+    border-top: none;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .cardDivisionsSection::-webkit-scrollbar { display: none; }
+
+  .divisionItem {
+    width: auto;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    gap: 0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(20, 31, 46, 0.06);
+  }
+  .divisionHeader { gap: 7px; font-size: 13px; }
+  .divisionName { font-size: 13px; }
+  .divisionSeats { font-size: 13px; }
+  .divisionSeatsWord { display: none; }
+  .progressBarBg { display: none; }
+  .moreDivisionsText { display: none; }
+
+  .cardFooter { display: none; }
   .cardDivisionsGrid {
     flex-wrap: wrap;
     gap: 16px;
   }
   .completedGrid { grid-template-columns: 1fr; }
   .ctaCard { padding: 40px 20px; }
-  .pulseCard { padding: 20px; }
+  .pulseCard { padding: 20px; min-height: 515px; }
 }
 
 /* Spinner for loading state */

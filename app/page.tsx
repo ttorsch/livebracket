@@ -8,8 +8,7 @@ import {
   MapPin,
   Calendar,
   ArrowRight,
-  Mic,
-  Star
+  ChevronDown
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip } from '@/components/livebracket-ds';
@@ -41,6 +40,8 @@ interface Tournament {
   title: string;
   location: string;
   dateLabel: string;
+  startDate?: string; // ISO date, used to sort the hero's upcoming list
+  endDate?: string; // ISO date, used for the recently-completed window
   endDateLabel?: string;
   chip: { m: string; d: string };
   status: Status;
@@ -441,6 +442,29 @@ function formatDateRange(start: string, end?: string): string {
   return `${start} \u2013 ${end}`;
 }
 
+/* Status pill copy. Long form rides the desktop poster, short form the
+   mobile row. "Filling" once any division passes 80% of its seats. */
+function statusLabels(t: Tournament): { long: string; short: string } {
+  if (t.status === 'live') return { long: 'Live now', short: 'Live' };
+  const fullest = (t.registrations || []).reduce(
+    (max, r) => (r.total > 0 ? Math.max(max, r.filled / r.total) : max),
+    0
+  );
+  if (fullest >= 0.8) return { long: 'Filling fast', short: 'Filling' };
+  return { long: 'Registration open', short: 'Open' };
+}
+
+/* Finished tournaments drop out of "Recently Completed" after this many days. */
+const RECENTLY_COMPLETED_DAYS = 14;
+
+/* ISO (YYYY-MM-DD) date n days before today, for recency windows. */
+function isoDaysAgo(days: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function toEventCard(t: DashboardTournament, index: number, organizerName: string | null): Tournament {
   const today = todayLocal();
   const end = t.endDate || t.startDate;
@@ -455,6 +479,8 @@ function toEventCard(t: DashboardTournament, index: number, organizerName: strin
     title: t.title,
     location: t.location,
     dateLabel: shortDate(t.startDate),
+    startDate: t.startDate,
+    endDate: end,
     endDateLabel: end !== t.startDate ? shortDate(end) : undefined,
     chip: {
       m: start.toLocaleDateString('en-US', { month: 'short' }),
@@ -583,6 +609,7 @@ export default function LiveBracketHome() {
   // Events list — real tournaments from the database (announced and later;
   // drafts stay hidden from the public page).
   const [events, setEvents] = useState<Tournament[]>([]);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -595,7 +622,8 @@ export default function LiveBracketHome() {
           .map((t, i) => toEventCard(t, i, organizer?.name ?? null));
         setEvents(cards);
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setEventsLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -694,6 +722,23 @@ export default function LiveBracketHome() {
     return TOURNAMENTS.find((t) => t.status === 'live') || TOURNAMENTS[0];
   }, []);
 
+  // Hero pulse card mode: the live scoreboard only makes sense while a real
+  // tournament is running. With none live, the card lists the three
+  // soonest-starting tournaments instead. Until the fetch resolves we keep the
+  // live layout so the card doesn't flash the empty upcoming state.
+  const hasLiveTournament = useMemo(
+    () => events.some((t) => t.status === 'live'),
+    [events]
+  );
+  const showLiveCard = !eventsLoaded || hasLiveTournament;
+
+  const upcomingSoon = useMemo(() => {
+    return events
+      .filter((t) => t.status === 'upcoming')
+      .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+      .slice(0, 3);
+  }, [events]);
+
   // Filter lists based on Search input and Filter tabs.
   const filteredActiveUpcoming = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -711,9 +756,13 @@ export default function LiveBracketHome() {
 
   const filteredFinished = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const cutoff = isoDaysAgo(RECENTLY_COMPLETED_DAYS);
     return events
       .filter((t) => {
         if (t.status !== 'finished') return false;
+        // Anything that wrapped up before the cutoff is no longer "recent";
+        // an empty list hides the whole section.
+        if (!t.endDate || t.endDate < cutoff) return false;
         if (filter === 'live' || filter === 'upcoming') return false;
         if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
         return true;
@@ -837,170 +886,202 @@ export default function LiveBracketHome() {
                 }}
               >
                 
-                {/* Event Header: LIVE NOW + Stacking Info */}
-                <div className={styles.pulseHeader}>
-                  <span className={styles.liveBadge}>
-                    <span className={styles.liveDot} />
-                    Live Now
-                  </span>
-                  <div className={styles.pulseHeaderDetails}>
-                    <h2 className={styles.pulseTitle}>{marqueeTournament?.title}</h2>
-                    <div className={styles.pulseDatesRow}>
-                      <span className={styles.pulseDatePill}>{marqueeTournament?.dateLabel}</span>
-                      <span className={styles.pulseDateTo}>to</span>
-                      <span className={styles.pulseDatePill}>{marqueeTournament?.dateLabel}</span>
+                {showLiveCard ? (
+                  <>
+                  {/* Event Header: LIVE NOW + Stacking Info */}
+                  <div className={styles.pulseHeader}>
+                    <span className={styles.liveBadge}>
+                      <span className={styles.liveDot} />
+                      Live Now
+                    </span>
+                    <div className={styles.pulseHeaderDetails}>
+                      <h2 className={styles.pulseTitle}>{marqueeTournament?.title}</h2>
+                      <div className={styles.pulseDatesRow}>
+                        <span className={styles.pulseDatePill}>{marqueeTournament?.dateLabel}</span>
+                        <span className={styles.pulseDateTo}>to</span>
+                        <span className={styles.pulseDatePill}>{marqueeTournament?.dateLabel}</span>
+                      </div>
+                      <p className={styles.pulseMeta}>
+                        <MapPin size={13} style={{ marginRight: '6px' }} />
+                        <span>{marqueeTournament?.location}</span>
+                      </p>
                     </div>
-                    <p className={styles.pulseMeta}>
-                      <MapPin size={13} style={{ marginRight: '6px' }} />
-                      <span>{marqueeTournament?.location}</span>
-                    </p>
                   </div>
-                </div>
 
-                <div className={styles.pulseDivider} />
+                  <div className={styles.pulseDivider} />
 
-                {/* Inner Match Card Container with Slide-in Ease Out from Top & fast disappear exit */}
-                <AnimatePresence mode="popLayout">
-                  <motion.div 
-                    key={carouselIndex}
-                    className={styles.carouselMatchCard}
-                    initial={{ 
-                      clipPath: 'circle(8px at 50% 50%)',
-                      scale: 0.05,
-                      opacity: 1
-                    }}
-                    animate={{ 
-                      clipPath: 'circle(150% at 50% 50%)',
-                      scale: 1,
-                      opacity: 1
-                    }}
-                    exit={{ 
-                      opacity: 0,
-                      transition: { duration: 0 }
-                    }}
-                    transition={{
-                      clipPath: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
-                      scale: { type: 'spring', stiffness: 120, damping: 26 },
-                      boxShadow: { type: 'spring', stiffness: 400, damping: 25 }
-                    }}
-                    style={{
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      background: 'rgba(255, 255, 255, 0.88)',
-                      border: '1px solid rgba(255, 255, 255, 0.4)'
-                    }}
-                  >
-                    <div className={styles.newCarouselContainer} style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%' }}>
+                  {/* Inner Match Card Container with Slide-in Ease Out from Top & fast disappear exit */}
+                  <AnimatePresence mode="popLayout">
+                    <motion.div 
+                      key={carouselIndex}
+                      className={styles.carouselMatchCard}
+                      initial={{ 
+                        clipPath: 'circle(8px at 50% 50%)',
+                        scale: 0.05,
+                        opacity: 1
+                      }}
+                      animate={{ 
+                        clipPath: 'circle(150% at 50% 50%)',
+                        scale: 1,
+                        opacity: 1
+                      }}
+                      exit={{ 
+                        opacity: 0,
+                        transition: { duration: 0 }
+                      }}
+                      transition={{
+                        clipPath: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
+                        scale: { type: 'spring', stiffness: 120, damping: 26 },
+                        boxShadow: { type: 'spring', stiffness: 400, damping: 25 }
+                      }}
+                      style={{
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        background: 'rgba(255, 255, 255, 0.88)',
+                        border: '1px solid rgba(255, 255, 255, 0.4)'
+                      }}
+                    >
+                      <div className={styles.newCarouselContainer} style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%' }}>
                       
-                      {/* Header Row */}
-                      <div className={styles.newCarouselHeader}>
-                        <span className={styles.newCarouselTitle}>
-                          {activeMatch.division.toUpperCase()} • {activeMatch.round.toUpperCase()}
-                        </span>
-                        <span className={styles.newLiveBadge}>
-                          <span className={styles.newLiveDot} />
-                          LIVE
-                        </span>
+                        {/* Header Row */}
+                        <div className={styles.newCarouselHeader}>
+                          <span className={styles.newCarouselTitle}>
+                            {activeMatch.division.toUpperCase()} • {activeMatch.round.toUpperCase()}
+                          </span>
+                          <span className={styles.newLiveBadge}>
+                            <span className={styles.newLiveDot} />
+                            LIVE
+                          </span>
+                        </div>
+
+                        {/* Team A Row */}
+                        <div className={`${styles.newTeamRow} ${activeMatch.currentPointsA >= activeMatch.currentPointsB ? styles.leadingTeam : styles.trailingTeam}`}>
+                          <div className={styles.teamLeftGroup}>
+                            <div className={styles.teamAvatarStack}>
+                              {activeMatch.teamAPlayers.map((player, pIdx) => (
+                                <div key={pIdx} className={styles.teamAvatarItem}>
+                                  {getPlayerInitial(player.lastName)}
+                                </div>
+                              ))}
+                            </div>
+                            <div className={styles.teamNameText}>
+                              {activeMatch.teamAPlayers.map((player, pIdx) => (
+                                <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className={styles.teamRightGroup}>
+                            <div className={styles.setHistoryRow}>
+                              {activeMatch.sets.map((set, sIdx) => (
+                                <span key={sIdx} className={styles.historyPointsValue}>
+                                  {set.a}
+                                </span>
+                              ))}
+                            </div>
+                            <RollingNumber
+                              value={activeMatch.currentPointsA}
+                              className={activeMatch.lastScorer === 'A' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div className={styles.newMatchDivider} />
+
+                        {/* Team B Row */}
+                        <div className={`${styles.newTeamRow} ${activeMatch.currentPointsB > activeMatch.currentPointsA ? styles.leadingTeam : styles.trailingTeam}`}>
+                          <div className={styles.teamLeftGroup}>
+                            <div className={styles.teamAvatarStack}>
+                              {activeMatch.teamBPlayers.map((player, pIdx) => (
+                                <div key={pIdx} className={styles.teamAvatarItem}>
+                                  {getPlayerInitial(player.lastName)}
+                                </div>
+                              ))}
+                            </div>
+                            <div className={styles.teamNameText}>
+                              {activeMatch.teamBPlayers.map((player, pIdx) => (
+                                <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className={styles.teamRightGroup}>
+                            <div className={styles.setHistoryRow}>
+                              {activeMatch.sets.map((set, sIdx) => (
+                                <span key={sIdx} className={styles.historyPointsValue}>
+                                  {set.b}
+                                </span>
+                              ))}
+                            </div>
+                            <RollingNumber
+                              value={activeMatch.currentPointsB}
+                              className={activeMatch.lastScorer === 'B' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
+                            />
+                          </div>
+                        </div>
+
                       </div>
+                    </motion.div>
+                  </AnimatePresence>
 
-                      {/* Team A Row */}
-                      <div className={`${styles.newTeamRow} ${activeMatch.currentPointsA >= activeMatch.currentPointsB ? styles.leadingTeam : styles.trailingTeam}`}>
-                        <div className={styles.teamLeftGroup}>
-                          <div className={styles.teamAvatarStack}>
-                            {activeMatch.teamAPlayers.map((player, pIdx) => (
-                              <div key={pIdx} className={styles.teamAvatarItem}>
-                                {getPlayerInitial(player.lastName)}
-                              </div>
-                            ))}
-                          </div>
-                          <div className={styles.teamNameText}>
-                            {activeMatch.teamAPlayers.map((player, pIdx) => (
-                              <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className={styles.teamRightGroup}>
-                          <div className={styles.setHistoryRow}>
-                            {activeMatch.sets.map((set, sIdx) => (
-                              <span key={sIdx} className={styles.historyPointsValue}>
-                                {set.a}
-                              </span>
-                            ))}
-                          </div>
-                          <RollingNumber
-                            value={activeMatch.currentPointsA}
-                            className={activeMatch.lastScorer === 'A' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
-                          />
-                        </div>
-                      </div>
+                  {/* Carousel Indicator Dots below inner card (remains static) */}
+                  <div className={styles.carouselIndicators} role="tablist" aria-label="Live Match Slides">
+                    {liveMatches.map((_, idx) => (
+                      <button
+                        key={idx}
+                        role="tab"
+                        aria-selected={carouselIndex === idx}
+                        className={`${styles.carouselDot} ${carouselIndex === idx ? styles.carouselDotActive : ''}`}
+                        onClick={() => handleDotClick(idx)}
+                        aria-label={`Go to live match slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
 
-                      {/* Divider */}
-                      <div className={styles.newMatchDivider} />
-
-                      {/* Team B Row */}
-                      <div className={`${styles.newTeamRow} ${activeMatch.currentPointsB > activeMatch.currentPointsA ? styles.leadingTeam : styles.trailingTeam}`}>
-                        <div className={styles.teamLeftGroup}>
-                          <div className={styles.teamAvatarStack}>
-                            {activeMatch.teamBPlayers.map((player, pIdx) => (
-                              <div key={pIdx} className={styles.teamAvatarItem}>
-                                {getPlayerInitial(player.lastName)}
-                              </div>
-                            ))}
-                          </div>
-                          <div className={styles.teamNameText}>
-                            {activeMatch.teamBPlayers.map((player, pIdx) => (
-                              <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className={styles.teamRightGroup}>
-                          <div className={styles.setHistoryRow}>
-                            {activeMatch.sets.map((set, sIdx) => (
-                              <span key={sIdx} className={styles.historyPointsValue}>
-                                {set.b}
-                              </span>
-                            ))}
-                          </div>
-                          <RollingNumber
-                            value={activeMatch.currentPointsB}
-                            className={activeMatch.lastScorer === 'B' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
-                          />
-                        </div>
-                      </div>
-
+                  {/* Card Footer Peach CTA */}
+                  <div className={styles.pulseFooter}>
+                    <Link 
+                      href="#events" 
+                      className={styles.pulseCta} 
+                      onClick={() => setFilter('live')}
+                      style={{
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)'
+                      }}
+                    >
+                      See all division
+                    </Link>
+                  </div>
+                  </>
+                ) : (
+                  <>
+                    {/* No tournament is live: badge only, then the soonest starts */}
+                    <div className={styles.pulseUpcomingHeader}>
+                      <span className={styles.upcomingBadge}>Upcoming</span>
                     </div>
-                  </motion.div>
-                </AnimatePresence>
 
-                {/* Carousel Indicator Dots below inner card (remains static) */}
-                <div className={styles.carouselIndicators} role="tablist" aria-label="Live Match Slides">
-                  {liveMatches.map((_, idx) => (
-                    <button
-                      key={idx}
-                      role="tab"
-                      aria-selected={carouselIndex === idx}
-                      className={`${styles.carouselDot} ${carouselIndex === idx ? styles.carouselDotActive : ''}`}
-                      onClick={() => handleDotClick(idx)}
-                      aria-label={`Go to live match slide ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-
-                {/* Card Footer Peach CTA */}
-                <div className={styles.pulseFooter}>
-                  <Link 
-                    href="#events" 
-                    className={styles.pulseCta} 
-                    onClick={() => setFilter('live')}
-                    style={{
-                      backdropFilter: 'blur(20px)',
-                      WebkitBackdropFilter: 'blur(20px)'
-                    }}
-                  >
-                    See all division
-                  </Link>
-                </div>
-
+                    <div className={styles.upcomingList}>
+                      {upcomingSoon.map((t) => (
+                        <Link key={t.id} href={`/tournament/${t.id}`} className={styles.upcomingRow}>
+                          <span className={styles.upcomingChip}>
+                            <span className={styles.upcomingChipMonth}>{t.chip.m}</span>
+                            <span className={styles.upcomingChipDay}>{t.chip.d}</span>
+                          </span>
+                          <span className={styles.upcomingRowText}>
+                            <span className={styles.upcomingRowTitle}>{t.title}</span>
+                            <span className={styles.upcomingRowMeta}>
+                              <MapPin size={13} className={styles.upcomingRowPin} />
+                              {t.location}
+                            </span>
+                          </span>
+                          <ArrowRight size={16} className={styles.upcomingRowArrow} />
+                        </Link>
+                      ))}
+                      {upcomingSoon.length === 0 && (
+                        <p className={styles.upcomingEmpty}>No tournaments scheduled yet.</p>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1030,7 +1111,6 @@ export default function LiveBracketHome() {
                     <span className={styles.nearbyCardKicker} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <MapPin size={12} style={{ color: 'var(--coral)' }} /> Phang Nga
                     </span>
-                    <span className={styles.nearbyStatusPill}>Upcoming</span>
                   </div>
                   
                   <div className={styles.nearbyCardContent}>
@@ -1081,47 +1161,35 @@ export default function LiveBracketHome() {
           <div className={styles.container}>
             
             <div className={styles.sectionHead}>
-              <div>
-                <p className={styles.eyebrow}>Tournaments</p>
-                <h2 className={styles.sectionTitle}>
-                  Find your <em>next match</em>.
-                </h2>
-              </div>
+              <h2 className={styles.sectionTitle}>Tournaments</h2>
               <p className={styles.resultCount}>
                 {filteredActiveUpcoming.length + filteredFinished.length} { (filteredActiveUpcoming.length + filteredFinished.length) === 1 ? 'event' : 'events' }
               </p>
             </div>
 
-            {/* Controls: search + status filters */}
+            {/* Controls: search + sort/filter dropdown */}
             <div className={styles.controls}>
-              <div className={styles.searchRow}>
-                <div className={styles.search}>
-                  <Search size={18} className={styles.searchIconLeft} />
-                  <input
-                    type="search"
-                    placeholder="Search tournaments"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    aria-label="Search tournaments"
-                  />
-                  <Mic size={18} className={styles.searchIconRight} />
-                </div>
+              <div className={styles.search}>
+                <Search size={18} className={styles.searchIconLeft} />
+                <input
+                  type="search"
+                  placeholder="Search tournaments"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Search tournaments"
+                />
               </div>
-              <div className={styles.chips} role="tablist" aria-label="Filter by status">
-                {FILTERS.map((f) => (
-                  <button
-                    key={f.key}
-                    role="tab"
-                    aria-selected={filter === f.key}
-                    className={`${styles.chip} ${filter === f.key ? styles.chipActive : ''}`}
-                    onClick={() => setFilter(f.key)}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-                <button className={styles.favoriteBtn} aria-label="Add to favorites">
-                  <Star size={16} style={{ marginRight: '8px' }} /> Add Favorite
-                </button>
+              <div className={styles.sortSelect}>
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value as 'all' | Status)}
+                  aria-label="Filter tournaments"
+                >
+                  {FILTERS.map((f) => (
+                    <option key={f.key} value={f.key}>{f.label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={18} className={styles.sortSelectIcon} aria-hidden="true" />
               </div>
             </div>
 
@@ -1146,16 +1214,21 @@ export default function LiveBracketHome() {
                     <Link href={`/tournament/${t.id}`} className={styles.cardLink}>
                       <div className={styles.cardMedia}>
                         <img src={t.image} alt={t.title} className={styles.cardPoster} />
-                        <span
-                          className={`${styles.cardStatusBadge} ${t.status === 'live' ? styles.cardStatusLive : ''}`}
-                        >
-                          <span className={styles.cardStatusDot} aria-hidden="true" />
-                          {t.status === 'live' ? 'Live now' : 'Registration open'}
-                        </span>
                       </div>
 
                       <div className={styles.cardBody}>
-                        <h3 className={styles.cardTitle}>{t.title}</h3>
+                        {/* Badge is absolutely positioned over the poster on desktop
+                            and sits inline beside the title on the mobile row. */}
+                        <div className={styles.cardTitleRow}>
+                          <h3 className={styles.cardTitle}>{t.title}</h3>
+                          <span
+                            className={`${styles.cardStatusBadge} ${t.status === 'live' ? styles.cardStatusLive : ''}`}
+                          >
+                            <span className={styles.cardStatusDot} aria-hidden="true" />
+                            <span className={styles.cardStatusLong}>{statusLabels(t).long}</span>
+                            <span className={styles.cardStatusShort}>{statusLabels(t).short}</span>
+                          </span>
+                        </div>
 
                         <div className={styles.cardMetaList}>
                           <div className={styles.cardMetaRow}>
@@ -1177,7 +1250,8 @@ export default function LiveBracketHome() {
                                 <div className={styles.divisionHeader}>
                                   <span className={styles.divisionName}>{reg.division}</span>
                                   <span className={styles.divisionSeats}>
-                                    {reg.filled}/{reg.total} seats
+                                    {reg.filled}/{reg.total}
+                                    <span className={styles.divisionSeatsWord}> seats</span>
                                   </span>
                                 </div>
                                 <div className={styles.progressBarBg}>
