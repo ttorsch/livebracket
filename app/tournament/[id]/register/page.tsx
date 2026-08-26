@@ -1,48 +1,197 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Check, ChevronRight, AlertCircle } from 'lucide-react';
 import styles from './page.module.css';
-
-/* ── Sample data ─────────────────────────────────────────────── */
-const DIVISIONS = [
-  { id: 'open-m', label: "Men's Open", fee: 800, currency: 'THB', filled: 8, total: 8, deadline: 'July 10, 2025' },
-  { id: 'open-w', label: "Women's Open", fee: 800, currency: 'THB', filled: 6, total: 8, deadline: 'July 10, 2025' },
-  { id: 'mixed', label: 'Mixed', fee: 700, currency: 'THB', filled: 5, total: 8, deadline: 'July 10, 2025' },
-];
+import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
+import { targetFor, type RegField } from '../../../../lib/registrationFields';
+import { divisionRegistrationState } from '../../../../lib/tournamentLifecycle';
 
 const STEPS = ['Division', 'Roster', 'Review'];
 
-interface Player { firstName: string; lastName: string; phone: string; email: string; shirt: string }
+/* A player's answers, keyed the way the API wants them: the four questions
+   with a column of their own are named, everything else is a free bag. */
+interface PlayerAnswers {
+  name: string;
+  phone: string;
+  email: string;
+  shirtSize: string;
+  custom: Record<string, string>;
+}
+
+const emptyPlayer = (): PlayerAnswers => ({ name: '', phone: '', email: '', shirtSize: '', custom: {} });
+
+function readAnswer(p: PlayerAnswers, field: RegField): string {
+  const target = targetFor(field);
+  return target === 'custom' ? p.custom[field.id] ?? '' : p[target];
+}
+
+/* "July 10, 2025" from a stored 'YYYY-MM-DD'. Read in UTC to match how the
+   rest of the app renders dates — a browser west of Greenwich would
+   otherwise show the deadline a day early. */
+function formatDeadline(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  });
+}
+
+interface SubmitResult {
+  teamName: string;
+  status: 'unpaid' | 'waitlist';
+  fee: number;
+  divisionName: string;
+}
 
 export default function TournamentRegister() {
   const params = useParams();
+  const slug = String(params.id);
+
+  const [tournament, setTournament] = useState<TournamentDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const [step, setStep] = useState(0);
   const [divisionId, setDivisionId] = useState('');
-  const [teamName, setTeamName] = useState('');
-  const [players, setPlayers] = useState<Player[]>([
-    { firstName: '', lastName: '', phone: '', email: '', shirt: 'M' },
-    { firstName: '', lastName: '', phone: '', email: '', shirt: 'M' },
-  ]);
+  const [players, setPlayers] = useState<PlayerAnswers[]>([]);
   const [pdpa, setPdpa] = useState(false);
   const [rules, setRules] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [result, setResult] = useState<SubmitResult | null>(null);
 
-  const selectedDiv = DIVISIONS.find(d => d.id === divisionId);
-  const canStep1 = !!divisionId && selectedDiv && selectedDiv.filled < selectedDiv.total;
-  const canStep2 = !!teamName.trim() && players.every(p => p.firstName.trim() && p.lastName.trim() && p.phone.trim());
-  const canStep3 = pdpa && rules;
+  useEffect(() => {
+    let cancelled = false;
+    getTournamentDetail(slug)
+      .then(data => { if (!cancelled) { setTournament(data); setLoading(false); } })
+      .catch(err => {
+        if (!cancelled) { setLoadError(err instanceof Error ? err.message : 'Failed to load'); setLoading(false); }
+      });
+    return () => { cancelled = true; };
+  }, [slug]);
 
-  const updatePlayer = (i: number, field: keyof Player, value: string) => {
-    setPlayers(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p));
+  /* Divisions past their close date can't be joined, so they aren't offered.
+     A division at cap still is — it takes teams onto its waitlist. */
+  const openDivisions = useMemo(
+    () => (tournament?.divisions ?? []).filter(d => divisionRegistrationState(d) !== 'closed'),
+    [tournament],
+  );
+
+  const selectedDiv: DetailDivision | undefined = openDivisions.find(d => d.id === divisionId);
+
+  /* Each division brings its own roster size and question list, so picking one
+     starts the roster over rather than carrying answers to questions the new
+     division never asked. */
+  const chooseDivision = (div: DetailDivision) => {
+    setDivisionId(div.id);
+    setPlayers(Array.from({ length: div.rosterSize }, emptyPlayer));
   };
 
-  if (submitted) {
+  const regFields = selectedDiv?.regFields ?? [];
+  const teamName = players.map(p => p.name.trim()).filter(Boolean).join('/');
+
+  const canStep1 = !!selectedDiv;
+  const canStep2 =
+    players.length > 0 &&
+    players.every(p =>
+      p.name.trim() && regFields.every(f => !f.required || readAnswer(p, f).trim()),
+    );
+  const canStep3 = pdpa && rules;
+
+  const updatePlayer = (i: number, field: RegField, value: string) => {
+    const target = targetFor(field);
+    setPlayers(prev => prev.map((p, idx) => {
+      if (idx !== i) return p;
+      if (target === 'custom') return { ...p, custom: { ...p.custom, [field.id]: value } };
+      return { ...p, [target]: value };
+    }));
+  };
+
+  const submit = async () => {
+    if (!selectedDiv || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ divisionId: selectedDiv.id, players }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? 'Registration failed');
+      setResult(data as SubmitResult);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Registration failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* ── Load / empty states ──────────────────────────────────────── */
+  if (loading) {
+    return (
+      <Shell slug={slug}>
+        <div className={styles.card}>
+          <h2 className={styles.stepTitle}>Choose a division</h2>
+          <p className={styles.stepSub}>Loading this event&apos;s divisions…</p>
+          <div className={styles.skeletonRow} />
+          <div className={styles.skeletonRow} />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (loadError || !tournament) {
+    return (
+      <Shell slug={slug}>
+        <div className={`${styles.card} ${styles.stateCard}`}>
+          <div className={styles.stateTitle}>This event isn&apos;t available</div>
+          <p>{loadError ?? 'We couldn’t find a tournament at this address.'}</p>
+          <div className={styles.successActions}>
+            <Link href="/" className={styles.btnPrimary}>Browse events</Link>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (tournament.cancelled) {
+    return (
+      <Shell slug={slug}>
+        <div className={`${styles.card} ${styles.stateCard}`}>
+          <div className={styles.stateTitle}>{tournament.title} has been cancelled</div>
+          <p>This event is no longer taking registrations.</p>
+          <div className={styles.successActions}>
+            <Link href={`/tournament/${slug}`} className={styles.btnPrimary}>Back to tournament</Link>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (openDivisions.length === 0) {
+    return (
+      <Shell slug={slug}>
+        <div className={`${styles.card} ${styles.stateCard}`}>
+          <div className={styles.stateTitle}>Registration is closed</div>
+          <p>No division at {tournament.title} is taking teams right now.</p>
+          <div className={styles.successActions}>
+            <Link href={`/tournament/${slug}`} className={styles.btnPrimary}>Back to tournament</Link>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  /* ── Success ──────────────────────────────────────────────────── */
+  if (result) {
+    const waitlisted = result.status === 'waitlist';
     return (
       <div className={styles.page}>
-        <TopBar id={String(params.id)} />
+        <TopBar id={slug} />
         <div className={styles.successWrapper}>
           <div className={styles.successCard}
             style={{ backdropFilter: 'blur(18px) saturate(150%)', WebkitBackdropFilter: 'blur(18px) saturate(150%)' }}
@@ -50,16 +199,34 @@ export default function TournamentRegister() {
             <div className={styles.successIcon}>
               <Check size={32} strokeWidth={3} />
             </div>
-            <h2 className={styles.successTitle}>Registration submitted!</h2>
+            <h2 className={styles.successTitle}>
+              {waitlisted ? 'You’re on the waitlist!' : 'Registration submitted!'}
+            </h2>
             <p className={styles.successSub}>
-              Your spot in <strong>{selectedDiv?.label}</strong> is reserved for 24 hours. Complete payment to confirm.
+              {waitlisted ? (
+                <>
+                  <strong>{result.teamName}</strong> is on the waitlist for <strong>{result.divisionName}</strong>.
+                  You&apos;ll be moved up if a team drops out — no payment is due yet.
+                </>
+              ) : (
+                <>
+                  <strong>{result.teamName}</strong> is registered for <strong>{result.divisionName}</strong>.
+                  Your spot is reserved for 24 hours. Complete payment of{' '}
+                  <strong>{result.fee.toLocaleString()} THB</strong> to confirm.
+                </>
+              )}
             </p>
-            <div className={styles.successInfo}>
-              <AlertCircle size={14} />
-              Payment window: 24 hours from now. Unpaid registrations are released automatically.
-            </div>
+            {selectedDiv?.confirmationMessage && (
+              <div className={styles.rulesBlock}>{selectedDiv.confirmationMessage}</div>
+            )}
+            {!waitlisted && (
+              <div className={styles.successInfo}>
+                <AlertCircle size={14} />
+                Payment window: 24 hours from now. Unpaid registrations are released automatically.
+              </div>
+            )}
             <div className={styles.successActions}>
-              <Link href={`/tournament/${params.id}`} className={styles.btnPrimary}>
+              <Link href={`/tournament/${slug}`} className={styles.btnPrimary}>
                 Back to tournament
               </Link>
               <Link href="/" className={styles.btnGhost}>Browse more events</Link>
@@ -70,9 +237,10 @@ export default function TournamentRegister() {
     );
   }
 
+  /* ── Wizard ───────────────────────────────────────────────────── */
   return (
     <div className={styles.page}>
-      <TopBar id={String(params.id)} />
+      <TopBar id={slug} />
 
       {/* ── Progress stepper ──────────────────────────────────── */}
       <div className={styles.stepper}>
@@ -103,32 +271,44 @@ export default function TournamentRegister() {
                 <h2 className={styles.stepTitle}>Choose a division</h2>
                 <p className={styles.stepSub}>Select the division you&apos;d like to enter. Fees are per team.</p>
                 <div className={styles.divisionGrid}>
-                  {DIVISIONS.map(div => {
-                    const full = div.filled >= div.total;
+                  {openDivisions.map(div => {
+                    const full = div.filled >= div.teams;
+                    const waitlistFull = full && div.waitlistCap <= 0;
                     return (
                       <button
                         key={div.id}
-                        disabled={full}
-                        className={`${styles.divCard} ${divisionId === div.id ? styles.divCardActive : ''} ${full ? styles.divCardFull : ''}`}
-                        onClick={() => !full && setDivisionId(div.id)}
+                        disabled={waitlistFull}
+                        className={`${styles.divCard} ${divisionId === div.id ? styles.divCardActive : ''} ${waitlistFull ? styles.divCardFull : ''}`}
+                        onClick={() => !waitlistFull && chooseDivision(div)}
                       >
                         <div className={styles.divCardTop}>
                           <span className={styles.divLabel}>{div.label}</span>
-                          {full && <span className={styles.divFullBadge}>Full</span>}
+                          {waitlistFull
+                            ? <span className={styles.divFullBadge}>Full</span>
+                            : full && <span className={styles.divWaitBadge}>Waitlist</span>}
                         </div>
                         <div className={styles.divFee}>
-                          {div.fee.toLocaleString()} <span className={styles.divCurrency}>{div.currency}</span>
+                          {div.registrationFee.toLocaleString()} <span className={styles.divCurrency}>THB</span>
                         </div>
                         <div className={styles.divMeta}>
-                          <span>{div.filled}/{div.total} teams registered</span>
-                          <span>Deadline: {div.deadline}</span>
+                          <span>{div.filled}/{div.teams} teams registered</span>
+                          <span>
+                            {div.registrationCloses
+                              ? `Deadline: ${formatDeadline(div.registrationCloses)}`
+                              : 'No deadline'}
+                          </span>
                         </div>
                         <div className={styles.divProgress}>
                           <div
                             className={styles.divProgressBar}
-                            style={{ width: `${(div.filled / div.total) * 100}%` }}
+                            style={{ width: `${Math.min(100, (div.filled / Math.max(1, div.teams)) * 100)}%` }}
                           />
                         </div>
+                        {full && !waitlistFull && (
+                          <div className={styles.divNote}>
+                            This division is full — you&apos;ll join the waitlist.
+                          </div>
+                        )}
                         {divisionId === div.id && (
                           <div className={styles.divCheck}><Check size={14} strokeWidth={3} /></div>
                         )}
@@ -137,7 +317,7 @@ export default function TournamentRegister() {
                   })}
                 </div>
                 <div className={styles.stepFooter}>
-                  <Link href={`/tournament/${params.id}`} className={styles.btnGhost}>Cancel</Link>
+                  <Link href={`/tournament/${slug}`} className={styles.btnGhost}>Cancel</Link>
                   <button
                     className={styles.btnPrimary}
                     disabled={!canStep1}
@@ -150,78 +330,59 @@ export default function TournamentRegister() {
             )}
 
             {/* ── Step 2: Roster ────────────────────────────────── */}
-            {step === 1 && (
+            {step === 1 && selectedDiv && (
               <div>
                 <h2 className={styles.stepTitle}>Team roster</h2>
-                <p className={styles.stepSub}>Enter your team name and player details. Both players must be listed.</p>
+                <p className={styles.stepSub}>
+                  {selectedDiv.label} is a {selectedDiv.formatTypeOnSand} division — enter details for
+                  all {players.length} player{players.length === 1 ? '' : 's'}.
+                </p>
 
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Team name</label>
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder="e.g. Sunset Smashers"
-                    value={teamName}
-                    onChange={e => setTeamName(e.target.value)}
-                  />
+                {/* Teams are named after their players everywhere in Live
+                    Bracket — the bracket, the schedule, the score screen —
+                    so the name is derived here rather than typed. */}
+                <div className={styles.teamNamePreview}>
+                  <span className={styles.teamNamePreviewLabel}>Your team will appear as</span>
+                  <span className={styles.teamNamePreviewValue}>{teamName || '—'}</span>
                 </div>
 
                 {players.map((player, i) => (
                   <div key={i} className={styles.playerBlock}>
                     <div className={styles.playerBlockHeader}>Player {i + 1}</div>
                     <div className={styles.playerFields}>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>First name *</label>
-                        <input
-                          className={styles.input}
-                          type="text"
-                          placeholder="First name"
-                          value={player.firstName}
-                          onChange={e => updatePlayer(i, 'firstName', e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Surname *</label>
-                        <input
-                          className={styles.input}
-                          type="text"
-                          placeholder="Surname"
-                          value={player.lastName}
-                          onChange={e => updatePlayer(i, 'lastName', e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Phone *</label>
-                        <input
-                          className={styles.input}
-                          type="tel"
-                          placeholder="+66 XX XXX XXXX"
-                          value={player.phone}
-                          onChange={e => updatePlayer(i, 'phone', e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Email</label>
-                        <input
-                          className={styles.input}
-                          type="email"
-                          placeholder="you@example.com"
-                          value={player.email}
-                          onChange={e => updatePlayer(i, 'email', e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Shirt size</label>
-                        <select
-                          className={styles.select}
-                          value={player.shirt}
-                          onChange={e => updatePlayer(i, 'shirt', e.target.value)}
-                        >
-                          {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map(s => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      </div>
+                      {regFields.map(field => (
+                        <div key={field.id} className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel}>
+                            {field.label}
+                            {field.required ? ' *' : <span className={styles.optionalTag}> (optional)</span>}
+                          </label>
+                          {field.type === 'select' ? (
+                            <select
+                              className={styles.select}
+                              value={readAnswer(player, field)}
+                              onChange={e => updatePlayer(i, field, e.target.value)}
+                            >
+                              <option value="">Select…</option>
+                              {(field.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          ) : field.type === 'paragraph' ? (
+                            <textarea
+                              className={`${styles.input} ${styles.textarea}`}
+                              placeholder={field.label}
+                              value={readAnswer(player, field)}
+                              onChange={e => updatePlayer(i, field, e.target.value)}
+                            />
+                          ) : (
+                            <input
+                              className={styles.input}
+                              type={field.type === 'phone' ? 'tel' : field.type === 'email' ? 'email' : 'text'}
+                              placeholder={field.type === 'phone' ? '+66 XX XXX XXXX' : field.type === 'email' ? 'you@example.com' : field.label}
+                              value={readAnswer(player, field)}
+                              onChange={e => updatePlayer(i, field, e.target.value)}
+                            />
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -233,14 +394,14 @@ export default function TournamentRegister() {
                     disabled={!canStep2}
                     onClick={() => canStep2 && setStep(2)}
                   >
-                    Review & confirm <ChevronRight size={16} />
+                    Review &amp; confirm <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
             )}
 
             {/* ── Step 3: Review + T&C ─────────────────────────── */}
-            {step === 2 && (
+            {step === 2 && selectedDiv && (
               <div>
                 <h2 className={styles.stepTitle}>Review &amp; confirm</h2>
                 <p className={styles.stepSub}>Check your details before submitting. You&apos;ll have 24 hours to complete payment.</p>
@@ -248,23 +409,21 @@ export default function TournamentRegister() {
                 <div className={styles.reviewBlock}>
                   <div className={styles.reviewRow}>
                     <span className={styles.reviewLabel}>Division</span>
-                    <span className={styles.reviewValue}>{selectedDiv?.label}</span>
+                    <span className={styles.reviewValue}>{selectedDiv.label}</span>
                   </div>
                   <div className={styles.reviewRow}>
                     <span className={styles.reviewLabel}>Team name</span>
                     <span className={styles.reviewValue}>{teamName}</span>
                   </div>
-                  <div className={styles.reviewRow}>
-                    <span className={styles.reviewLabel}>Player 1</span>
-                    <span className={styles.reviewValue}>{players[0].firstName} {players[0].lastName}</span>
-                  </div>
-                  <div className={styles.reviewRow}>
-                    <span className={styles.reviewLabel}>Player 2</span>
-                    <span className={styles.reviewValue}>{players[1].firstName} {players[1].lastName}</span>
-                  </div>
+                  {players.map((p, i) => (
+                    <div key={i} className={styles.reviewRow}>
+                      <span className={styles.reviewLabel}>Player {i + 1}</span>
+                      <span className={styles.reviewValue}>{p.name}</span>
+                    </div>
+                  ))}
                   <div className={`${styles.reviewRow} ${styles.reviewRowFee}`}>
                     <span className={styles.reviewLabel}>Registration fee</span>
-                    <span className={styles.reviewFee}>{selectedDiv?.fee.toLocaleString()} {selectedDiv?.currency}</span>
+                    <span className={styles.reviewFee}>{selectedDiv.registrationFee.toLocaleString()} THB</span>
                   </div>
                 </div>
 
@@ -274,6 +433,10 @@ export default function TournamentRegister() {
                     You have <strong>24 hours</strong> from submission to complete payment. Your spot will be released if payment isn&apos;t received in time.
                   </p>
                 </div>
+
+                {selectedDiv.rules && (
+                  <div className={styles.rulesBlock}>{selectedDiv.rules}</div>
+                )}
 
                 <div className={styles.consentBlock}>
                   <label className={styles.consentRow}>
@@ -298,14 +461,21 @@ export default function TournamentRegister() {
                   </label>
                 </div>
 
+                {submitError && (
+                  <div className={styles.formError}>
+                    <AlertCircle size={16} />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 <div className={styles.stepFooter}>
-                  <button className={styles.btnGhost} onClick={() => setStep(1)}>Back</button>
+                  <button className={styles.btnGhost} onClick={() => setStep(1)} disabled={submitting}>Back</button>
                   <button
                     className={styles.btnPrimary}
-                    disabled={!canStep3}
-                    onClick={() => canStep3 && setSubmitted(true)}
+                    disabled={!canStep3 || submitting}
+                    onClick={submit}
                   >
-                    Submit registration
+                    {submitting ? 'Submitting…' : 'Submit registration'}
                   </button>
                 </div>
               </div>
@@ -313,6 +483,18 @@ export default function TournamentRegister() {
 
           </div>
         </div>
+      </main>
+    </div>
+  );
+}
+
+/* ── Page chrome shared by the wizard and its load/empty states ── */
+function Shell({ slug, children }: { slug: string; children: React.ReactNode }) {
+  return (
+    <div className={styles.page}>
+      <TopBar id={slug} />
+      <main className={styles.main}>
+        <div className={styles.container}>{children}</div>
       </main>
     </div>
   );

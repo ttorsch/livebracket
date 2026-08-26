@@ -432,6 +432,15 @@ function shortDate(iso: string): string {
   });
 }
 
+/* "Oct 3, 2026" + "Oct 4, 2026" -> "Oct 3 - Oct 4, 2026" (year printed once). */
+function formatDateRange(start: string, end?: string): string {
+  if (!end || end === start) return start;
+  const [startMd, startYear] = start.split(', ');
+  const [endMd, endYear] = end.split(', ');
+  if (startYear && startYear === endYear) return `${startMd} \u2013 ${endMd}, ${endYear}`;
+  return `${start} \u2013 ${end}`;
+}
+
 function toEventCard(t: DashboardTournament, index: number, organizerName: string | null): Tournament {
   const today = todayLocal();
   const end = t.endDate || t.startDate;
@@ -1129,94 +1138,86 @@ export default function LiveBracketHome() {
               </div>
             )}
 
-            {/* Active & Upcoming Tournament List (Horizontal Poster Layout) */}
+            {/* Active & Upcoming Tournament List (Vertical Poster Card) */}
             {filteredActiveUpcoming.length > 0 && (
               <div className={styles.grid}>
                 {filteredActiveUpcoming.map((t) => (
-                  <Link
-                    key={t.id}
-                    href={`/tournament/${t.id}`}
-                    className={styles.card}
-                    style={{
-                      backdropFilter: 'blur(24px) saturate(200%)',
-                      WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-                    }}
-                  >
-                    <div className={styles.cardImageCol}>
-                      <img src={t.image} alt={t.title} className={styles.cardPoster} />
-                    </div>
-                    
-                    <div className={styles.cardHeaderCol}>
-                      <span
-                        className={styles.cardTopGlassLayer}
-                        aria-hidden="true"
-                        style={{
-                          backdropFilter: 'blur(15px) saturate(180%)',
-                          WebkitBackdropFilter: 'blur(15px) saturate(180%)',
-                        }}
-                      />
-                      <div className={styles.cardMainInfo}>
+                  <article key={t.id} className={styles.card}>
+                    <Link href={`/tournament/${t.id}`} className={styles.cardLink}>
+                      <div className={styles.cardMedia}>
+                        <img src={t.image} alt={t.title} className={styles.cardPoster} />
+                        <span
+                          className={`${styles.cardStatusBadge} ${t.status === 'live' ? styles.cardStatusLive : ''}`}
+                        >
+                          <span className={styles.cardStatusDot} aria-hidden="true" />
+                          {t.status === 'live' ? 'Live now' : 'Registration open'}
+                        </span>
+                      </div>
+
+                      <div className={styles.cardBody}>
                         <h3 className={styles.cardTitle}>{t.title}</h3>
 
-                        <div className={styles.cardPillsRow}>
-                          <span className={styles.cardPillBadge}>{t.dateLabel}</span>
-                          <span className={styles.cardPillTo}>to</span>
-                          <span className={styles.cardPillBadge}>{t.endDateLabel || t.dateLabel}</span>
+                        <div className={styles.cardMetaList}>
+                          <div className={styles.cardMetaRow}>
+                            <Calendar size={17} className={styles.cardMetaIcon} />
+                            <span className={styles.cardMetaText}>
+                              {formatDateRange(t.dateLabel, t.endDateLabel)}
+                            </span>
+                          </div>
+                          <div className={styles.cardMetaRow}>
+                            <MapPin size={17} className={styles.cardMetaIcon} />
+                            <span className={styles.cardMetaText}>{t.location}</span>
+                          </div>
                         </div>
 
-                        <div className={styles.cardLocationRow}>
-                          <MapPin size={13} className={styles.cardLocIcon} />
-                          <span className={styles.cardLocationText}>{t.location}</span>
-                        </div>
+                        {t.registrations && (
+                          <div className={styles.cardDivisionsSection}>
+                            {t.registrations.map((reg, idx) => (
+                              <div key={idx} className={styles.divisionItem}>
+                                <div className={styles.divisionHeader}>
+                                  <span className={styles.divisionName}>{reg.division}</span>
+                                  <span className={styles.divisionSeats}>
+                                    {reg.filled}/{reg.total} seats
+                                  </span>
+                                </div>
+                                <div className={styles.progressBarBg}>
+                                  <div
+                                    className={styles.progressBarFill}
+                                    style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                            {t.divisions && t.divisions.length > t.registrations.length && (
+                              <div className={styles.moreDivisionsText}>
+                                + {t.divisions.length - t.registrations.length} more divisions available
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    
-                    <div className={`${styles.cardDetailsCol} ${!t.registrations ? styles.cardDetailsNoReg : ''}`}>
-                      <span
-                        className={styles.cardGlassLayer}
-                        aria-hidden="true"
-                        style={{
-                          backdropFilter: 'blur(15px) saturate(180%)',
-                          WebkitBackdropFilter: 'blur(15px) saturate(180%)',
-                        }}
-                      />
+                    </Link>
 
-                      {t.registrations && (
-                        <div className={styles.cardDivisionsSection}>
-                          {t.registrations.map((reg, idx) => (
-                            <div key={idx} className={styles.divisionItem}>
-                              <div className={styles.divisionHeader}>
-                                <span className={styles.divisionName}>{reg.division}</span>
-                                <span className={styles.divisionSeats}>
-                                  <strong>{reg.filled}</strong>/{reg.total} seats
-                                </span>
-                              </div>
-                              <div className={styles.progressBarBg}>
-                                <div
-                                  className={styles.progressBarFill}
-                                  style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                          {t.divisions && t.divisions.length > t.registrations.length && (
-                            <div className={styles.moreDivisionsText}>
-                              + {t.divisions.length - t.registrations.length} more divisions available
-                            </div>
-                          )}
-                        </div>
-                      )}
-
+                    <div className={styles.cardFooter}>
                       <div className={styles.organizerRow}>
                         <div className={styles.organizerAvatar}>
                           {t.organizerInitials || 'LB'}
                         </div>
-                        <span className={styles.organizerName}>
-                          {t.organizerName || 'Live Bracket'}
-                        </span>
+                        <div className={styles.organizerMeta}>
+                          <span className={styles.organizerLabel}>Organizer</span>
+                          <span className={styles.organizerName}>
+                            {t.organizerName || 'Live Bracket'}
+                          </span>
+                        </div>
                       </div>
+                      <Link
+                        href={t.status === 'live' ? `/tournament/${t.id}` : `/tournament/${t.id}/register`}
+                        className={styles.cardRegisterBtn}
+                      >
+                        {t.status === 'live' ? 'View Bracket' : 'Register Team'}
+                      </Link>
                     </div>
-                  </Link>
+                  </article>
                 ))}
               </div>
             )}

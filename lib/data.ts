@@ -4,6 +4,7 @@ import { type ScheduleConfig, normaliseConfig } from './schedule/generate';
 import {
   normalizeGender, normalizeAgeLimit, type DivisionGender, type AgeLimit,
 } from './divisionEligibility';
+import { normalizeRegFields, rosterSize, type RegField } from './registrationFields';
 
 export type { ScheduleConfig };
 
@@ -472,6 +473,14 @@ export interface DetailDivision {
   // the tournament — see lib/tournamentLifecycle.
   registrationOpens: string;      // datetime-local, '' = as soon as public
   registrationCloses: string;     // 'YYYY-MM-DD', '' = never closes
+  // ── What the public registration form needs to render itself ──
+  registrationFee: number;        // flat, per team; 0 is a legitimate fee
+  formatTypeOnSand: string;       // '2v2' … '6v6' — the roster's floor
+  rosterSize: number;             // players the form asks for, alternates included
+  regFields: RegField[];          // the questions this division asks each player
+  waitlistCap: number;            // teams accepted past the cap; 0 = none
+  rules: string;                  // shown alongside the rules consent
+  confirmationMessage: string;    // organizer's own post-registration note
 }
 
 export interface DetailVoucher {
@@ -578,6 +587,9 @@ interface DetailDivisionRow {
   id: string;
   name: string;
   division_team_cap: number;
+  registration_fee: number | string; // numeric column — supabase-js hands it back as a string
+  format_type_on_sand: string;
+  reg_fields: unknown;
   settings: Record<string, unknown> | null;
   teams: TeamRow[];
   rounds: RoundRow[];
@@ -614,7 +626,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
   // simply fall back to default schedule settings.
   const rest = `
       divisions (
-        id, name, division_team_cap, settings,
+        id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings,
         teams ( id, name, seed, status ),
         rounds (
           id, sequence, format, name, scoring_rules,
@@ -666,6 +678,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
       const settings = (d.settings ?? {}) as {
         netHeight?: unknown; genderEligibility?: unknown; ageLimit?: unknown;
         registrationOpenDate?: unknown; registrationCloseDate?: unknown;
+        maxRosterSize?: unknown; waitlistCap?: unknown; rules?: unknown;
+        confirmationMessage?: unknown;
       };
       return {
         id: d.id,
@@ -714,6 +728,13 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         ageLimit: normalizeAgeLimit(settings.ageLimit),
         registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
         registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
+        registrationFee: Number(d.registration_fee ?? 0) || 0,
+        formatTypeOnSand: d.format_type_on_sand,
+        rosterSize: rosterSize(d.format_type_on_sand, settings.maxRosterSize),
+        regFields: normalizeRegFields(d.reg_fields),
+        waitlistCap: typeof settings.waitlistCap === 'number' ? Math.max(0, Math.trunc(settings.waitlistCap)) : 0,
+        rules: typeof settings.rules === 'string' ? settings.rules : '',
+        confirmationMessage: typeof settings.confirmationMessage === 'string' ? settings.confirmationMessage : '',
       };
     }),
     vouchers: row.vouchers.map((v) => ({

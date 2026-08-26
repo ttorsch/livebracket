@@ -1120,210 +1120,151 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 24px;
   width: 100%;
 }
 
 .card {
   position: relative;
-  display: block;
-  aspect-ratio: 9 / 16;
-  border-radius: 32px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.42));
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 30px 60px -30px rgba(20, 31, 46, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  background: #ffffff;
+  border: 1px solid rgba(20, 31, 46, 0.06);
+  box-shadow: 0 18px 44px -24px rgba(20, 31, 46, 0.32);
   color: var(--ink-1, #14181E);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s, border-color 0.25s, box-shadow 0.25s;
-  text-decoration: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
 }
 .card:hover {
-  background: #ffffff;
+  transform: translateY(-4px);
+  box-shadow: 0 28px 60px -26px rgba(20, 31, 46, 0.42);
 }
 
-.cardImageCol {
-  position: absolute;
-  inset: 0;
+/* Poster + body are one link; the footer button sits outside it. */
+.cardLink {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardMedia {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
+  background: rgba(20, 31, 46, 0.06);
 }
 
 .cardPoster {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .card:hover .cardPoster {
-  transform: scale(1.03);
+  transform: scale(1.04);
 }
 
-.cardHeaderCol {
+.cardStatusBadge {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 24px 20px;
-  text-align: left;
-  z-index: 2;
-}
-
-.cardHeaderCol > * {
-  position: relative;
-  z-index: 1;
-}
-
-.cardTopGlassLayer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.5));
-  border-radius: 0 0 32px 32px;
-}
-
-.cardDetailsCol {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  min-height: auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 20px;
-  padding: 24px 24px 24px;
-  text-align: left;
-  z-index: 2;
-}
-
-/* Keep panel content above the glass layer */
-.cardDetailsCol > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Glass pane: matches the panel (bottom 50% of the card) with a crisp,
-   lightly rounded top edge. */
-.cardGlassLayer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.68));
-  border-radius: 32px 32px 0 0;
-}
-
-.cardDetailsNoReg {
-  justify-content: flex-end;
-}
-
-/* Top-anchored: title leads, location and dates follow. Long titles
-   push down into the slack above the bottom-pinned organizer row. */
-.cardMainInfo {
-  display: flex;
-  flex-direction: column;
-}
-
-.cardLocationRow {
-  display: flex;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 14.5px;
-  color: rgba(20, 24, 30, 0.6);
-  margin-bottom: 0;
+  gap: 7px;
+  padding: 7px 14px 7px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #F2814F, #E4573A);
+  color: #ffffff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px -8px rgba(228, 87, 58, 0.7);
 }
 
-.cardLocIcon {
-  color: var(--orange, #EE7A4C);
+.cardStatusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
   flex-shrink: 0;
 }
 
-.cardLocationText {
-  font-weight: 500;
+.cardStatusLive {
+  background: linear-gradient(135deg, #EF4C5B, #D32B44);
+  box-shadow: 0 8px 20px -8px rgba(211, 43, 68, 0.7);
+}
+.cardStatusLive .cardStatusDot {
+  animation: statusPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px 24px 0;
+  text-align: left;
 }
 
 .cardTitle {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  font-size: 30px;
+  font-size: 25px;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
   color: var(--ink-1, #14181E);
-  margin-bottom: 8px;
-  line-height: 1.15;
+  margin: 0 0 16px;
 }
 
-.organizerRow {
+.cardMetaList {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: auto;
+  flex-direction: column;
+  gap: 9px;
 }
 
-.organizerAvatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--orange, #EE7A4C);
-  color: #ffffff;
+.cardMetaRow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
+  gap: 10px;
+}
+
+.cardMetaIcon {
+  color: var(--ink-2, #3A414D);
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(238, 122, 76, 0.2);
 }
 
-.organizerName {
+.cardMetaText {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 14.5px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
   color: var(--ink-2, #3A414D);
 }
 
-.cardPillsRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.cardPillBadge {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12.5px;
-  font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: rgba(20, 31, 46, 0.05);
-  border: 1px solid rgba(20, 31, 46, 0.1);
-  color: var(--ink-2, #3A414D);
-}
-
-.cardPillTo {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-3, #7A8294);
-}
-
-/* Fixed height (2 division bars + "more" line) so title, dates and
-   organizer land at the same position on every card. */
 .cardDivisionsSection {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   width: 100%;
-  min-height: 111px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(20, 31, 46, 0.09);
 }
 
 .divisionItem {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -1331,6 +1272,7 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 12px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14.5px;
 }
@@ -1341,17 +1283,15 @@
 }
 
 .divisionSeats {
-  font-size: 13.5px;
-  color: rgba(20, 24, 30, 0.6);
-}
-.divisionSeats strong {
-  color: var(--orange, #EE7A4C);
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-3, #7A8294);
+  white-space: nowrap;
 }
 
 .progressBarBg {
   width: 100%;
-  height: 6px;
+  height: 5px;
   background: rgba(20, 31, 46, 0.08);
   border-radius: 999px;
   overflow: hidden;
@@ -1359,7 +1299,7 @@
 
 .progressBarFill {
   height: 100%;
-  background: var(--orange, #EE7A4C);
+  background: linear-gradient(90deg, #F2814F, #E4573A);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -1372,9 +1312,89 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   text-align: left;
-  margin-top: 2px;
 }
 
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 24px 0;
+  padding: 18px 0 22px;
+  border-top: 1px solid rgba(20, 31, 46, 0.09);
+}
+
+.organizerRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.organizerAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(20, 31, 46, 0.07);
+  color: var(--ink-3, #7A8294);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.organizerMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.organizerLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3, #7A8294);
+}
+
+.organizerName {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardRegisterBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #F2814F, #E4573A);
+  color: #ffffff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14.5px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px -10px rgba(228, 87, 58, 0.75);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, filter 0.2s;
+}
+.cardRegisterBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 14px 28px -10px rgba(228, 87, 58, 0.85);
+}
 /* ── Recently Completed Section (Subtle Style) ────────────────── */
 .completedSection {
   margin-top: 64px;
@@ -1751,7 +1771,7 @@
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .navRow { padding: 16px 20px; z-index: 2; }
-  .grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: repeat(2, 1fr); }
   .links { display: none; }
   .pillContact { display: none; }
   .menuBtn { display: grid; }
@@ -1782,9 +1802,6 @@
   }
   .nearbyCard {
     margin-top: 32px;
-  }
-  .grid { 
-    flex-direction: column; 
   }
   .completedGrid { grid-template-columns: repeat(2, 1fr); }
   .steps { grid-template-columns: 1fr; }
@@ -1827,9 +1844,9 @@
   .controls { flex-direction: column; align-items: stretch; }
   .searchRow { flex-direction: column; gap: 12px; }
   .search { max-width: none; flex: none; width: 100%; }
-  .cardDetailsCol {
-    padding: 24px 20px 20px;
-  }
+  .grid { grid-template-columns: 1fr; }
+  .cardBody { padding: 20px 20px 0; }
+  .cardFooter { margin: 18px 20px 0; }
   .cardDivisionsGrid {
     flex-wrap: wrap;
     gap: 16px;

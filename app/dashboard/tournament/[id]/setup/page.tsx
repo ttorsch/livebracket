@@ -54,22 +54,13 @@ import {
   type DivisionGender, type AgeLimit,
 } from '../../../../../lib/divisionEligibility';
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
+import {
+  BASE_REG_FIELDS, FORMAT_PLAYERS, type RegField, type RegFieldType, type PresetKey,
+} from '../../../../../lib/registrationFields';
 
 
-// ── Per-division registration schema types ───────────────────────
-type RegFieldType = 'text' | 'phone' | 'email' | 'paragraph' | 'select';
-type PresetKey = 'apparel' | 'skill' | 'hometown' | 'nationality';
-
-interface RegField {
-  id: string;
-  label: string;
-  type: RegFieldType;
-  options?: string[];
-  required: boolean;
-  core?: boolean;       // part of the non-deletable Base Form block
-  preset?: PresetKey;   // appended by a Quick-Add toggle chip
-}
-
+// The registration schema types live in lib/registrationFields because the
+// public registration page renders the very list this page authors.
 type OnSandFormat = '2v2' | '3v3' | '4v4' | '6v6';
 type RoundFormat = 'round-robin' | 'single' | 'double';
 
@@ -130,16 +121,10 @@ interface SetupDivision {
   confirmationImage: string; // data URL or '' — e.g. WhatsApp QR / flyer
 }
 
-// Players on the sand per format → also the minimum legal roster size.
-const FORMAT_PLAYERS: Record<OnSandFormat, number> = { '2v2': 2, '3v3': 3, '4v4': 4, '6v6': 6 };
-
-// The Base Form block: four mandatory core inputs, injected into every new
-// division and non-deletable.
-const makeBaseFields = (): RegField[] => [
-  { id: 'base-player', label: "Player's Name", type: 'text', required: true, core: true },
-  { id: 'base-phone', label: "Player's Phone Number", type: 'phone', required: true, core: true },
-  { id: 'base-email', label: 'Captain Email', type: 'email', required: true, core: true },
-];
+// The Base Form block: three mandatory core inputs, injected into every new
+// division and non-deletable. Cloned so editing one division's form can't
+// reach back into the shared definition.
+const makeBaseFields = (): RegField[] => BASE_REG_FIELDS.map(f => ({ ...f }));
 
 // Quick-Add presets: one-click toggle chips that append standard fields.
 const PRESETS: { key: PresetKey; label: string; build: () => RegField }[] = [
