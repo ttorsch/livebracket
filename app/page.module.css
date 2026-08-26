@@ -872,92 +872,133 @@
   text-transform: uppercase;
 }
 
-/* Three equal rows fill the card body; with fewer tournaments the
+/* Three rows fill the card body; with fewer tournaments the
    remaining tracks stay empty so the rows sit at the top. */
 .upcomingList {
-  display: grid;
-  grid-template-rows: repeat(3, 1fr);
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   flex: 1;
-  margin-top: 18px;
+  margin-top: 16px;
   min-height: 0;
 }
 
 .upcomingRow {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 16px 18px;
   min-height: 0;
-  border-radius: 24px;
+  border-radius: 20px;
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   text-decoration: none;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s, box-shadow 0.25s;
 }
 .upcomingRow:hover {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
 }
 
-.upcomingChip {
+.upcomingRowHeader {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  min-width: 58px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  background: rgba(238, 122, 76, 0.12);
-  color: var(--orange, #EE7A4C);
-}
-.upcomingChipMonth {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.upcomingChipDay {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
+  gap: 8px;
 }
 
-.upcomingRowText {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+.upcomingStatusBadge {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--orange, #E4573A);
 }
+.upcomingStatusLive {
+  color: #D32B44;
+}
+
+.upcomingRowArrow {
+  flex-shrink: 0;
+  color: rgba(20, 24, 30, 0.4);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.upcomingRow:hover .upcomingRowArrow {
+  transform: translateX(3px);
+  color: var(--ink-1, #14181E);
+}
+
 .upcomingRowTitle {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink-1, #14181E);
+  margin: 0;
   overflow-wrap: break-word;
 }
-.upcomingRowMeta {
+
+.upcomingMetaList {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.upcomingMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.upcomingMetaIcon {
+  flex-shrink: 0;
+  color: var(--ink-3, #7A8294);
+}
+
+.upcomingMetaText {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  color: var(--ink-3, #7A8294);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcomingDivisionsSection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.upcomingDivisionChip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(20, 31, 46, 0.06);
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 13px;
-  color: rgba(20, 24, 30, 0.6);
+  font-size: 11.5px;
+  color: var(--ink-1, #14181E);
 }
-.upcomingRowPin {
-  flex-shrink: 0;
+
+.upcomingDivisionName {
+  font-weight: 500;
 }
-.upcomingRowArrow {
-  margin-left: auto;
-  flex-shrink: 0;
-  color: rgba(20, 24, 30, 0.45);
+
+.upcomingDivisionSeats {
+  font-weight: 700;
+  color: rgba(20, 31, 46, 0.6);
 }
 
 .upcomingEmpty {
@@ -1561,6 +1602,26 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.completedTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.completedDivisionBadge {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--orange, #EE7A4C);
+  background: rgba(238, 122, 76, 0.1);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(238, 122, 76, 0.2);
 }
 
 .completedBadge {
@@ -1599,13 +1660,14 @@
   color: rgba(20, 24, 30, 0.45);
 }
 
-/* Body: title left, champion center */
+/* Body: champion center */
 .completedBody {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 24px;
+  padding: 16px 0;
+  min-height: 120px;
 }
 
 .completedCardTitle {

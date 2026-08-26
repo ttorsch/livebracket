@@ -376,6 +376,189 @@ export async function getDashboardTournaments(): Promise<DashboardTournament[]> 
   }));
 }
 
+export interface CompletedDivisionSlide {
+  id: string; // unique slide key
+  tournamentId: string; // tournament slug
+  tournamentTitle: string;
+  location: string;
+  dateLabel: string;
+  divisionId: string;
+  divisionName: string;
+  winners: string[]; // [Player1, Player2] or [TeamName]
+  completedAt: string; // ISO string of latest completed match
+}
+
+interface CompletedQueryTournamentRow {
+  slug: string;
+  title: string;
+  location: string;
+  start_date: string;
+  end_date: string | null;
+  is_one_day: boolean;
+  phase: number;
+  divisions: {
+    id: string;
+    name: string;
+    teams: { id: string; name: string }[];
+    rounds: {
+      id: string;
+      sequence: number;
+      format: string;
+      name: string;
+      matches: {
+        id: string;
+        status: string;
+        winner_team_id: string | null;
+        updated_at: string | null;
+        scheduled_time: string | null;
+        team_a_id: string | null;
+        team_b_id: string | null;
+        score_a: number[] | null;
+        score_b: number[] | null;
+      }[];
+    }[];
+  }[];
+}
+
+export async function getRecentlyCompletedDivisions(daysCutoff: number = 14): Promise<CompletedDivisionSlide[]> {
+  const cutoffDate = new Date();
+  cutoffDate.setHours(0, 0, 0, 0);
+  cutoffDate.setDate(cutoffDate.getDate() - daysCutoff);
+
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select(`
+      slug, title, location, start_date, end_date, is_one_day, phase,
+      divisions (
+        id, name,
+        teams ( id, name ),
+        rounds (
+          id, sequence, format, name,
+          matches (
+            id, status, winner_team_id, updated_at, scheduled_time,
+            team_a_id, team_b_id, score_a, score_b
+          )
+        )
+      )
+    `)
+    .is('archived_at', null)
+    .is('deleted_at', null)
+    .gte('phase', 2);
+
+  if (error) {
+    console.error('Failed to load completed divisions:', error);
+    return [];
+  }
+
+  const slides: CompletedDivisionSlide[] = [];
+  const rows = (data ?? []) as unknown as CompletedQueryTournamentRow[];
+
+  for (const t of rows) {
+    for (const d of t.divisions ?? []) {
+      const allDoneMatches: {
+        id: string;
+        status: string;
+        winner_team_id: string | null;
+        updated_at: string | null;
+        scheduled_time: string | null;
+        roundSequence: number;
+        roundName: string;
+        team_a_id: string | null;
+        team_b_id: string | null;
+        score_a: number[] | null;
+        score_b: number[] | null;
+      }[] = [];
+
+      const rounds = [...(d.rounds ?? [])].sort((a, b) => a.sequence - b.sequence);
+      for (const r of rounds) {
+        for (const m of r.matches ?? []) {
+          if (m.status === 'done') {
+            allDoneMatches.push({ ...m, roundSequence: r.sequence, roundName: r.name });
+          }
+        }
+      }
+
+      // If no matches are completed in this division, skip
+      if (allDoneMatches.length === 0) continue;
+
+      // Find latest completed match timestamp in this division
+      let latestCompletedAt: string | null = null;
+      for (const m of allDoneMatches) {
+        const ts = m.updated_at || m.scheduled_time || t.end_date || t.start_date;
+        if (ts) {
+          if (!latestCompletedAt || new Date(ts).getTime() > new Date(latestCompletedAt).getTime()) {
+            latestCompletedAt = ts;
+          }
+        }
+      }
+
+      // If latest match completed more than daysCutoff (14) days ago, skip
+      if (!latestCompletedAt || new Date(latestCompletedAt).getTime() < cutoffDate.getTime()) {
+        continue;
+      }
+
+      // Determine division champion:
+      // Priority 1: Match in a round named 'Final' with a winner
+      // Priority 2: Match in the highest sequence round with a winner
+      // Priority 3: Match with highest sequence
+      const finalRoundMatches = allDoneMatches.filter(
+        (m) => /final/i.test(m.roundName) && !/semi/i.test(m.roundName) && !/quarter/i.test(m.roundName)
+      );
+
+      let championMatch =
+        finalRoundMatches.find((m) => m.winner_team_id) ||
+        finalRoundMatches[0] ||
+        allDoneMatches.filter((m) => m.winner_team_id).sort((a, b) => b.roundSequence - a.roundSequence)[0] ||
+        allDoneMatches[allDoneMatches.length - 1];
+
+      let winningTeamId = championMatch?.winner_team_id;
+      if (!winningTeamId && championMatch) {
+        // In case winner_team_id is not set, infer from score_a vs score_b
+        if (championMatch.score_a && championMatch.score_b && championMatch.team_a_id && championMatch.team_b_id) {
+          const sumA = championMatch.score_a.reduce((s, x) => s + x, 0);
+          const sumB = championMatch.score_b.reduce((s, x) => s + x, 0);
+          winningTeamId = sumA >= sumB ? championMatch.team_a_id : championMatch.team_b_id;
+        }
+      }
+
+      let winningTeamName = '';
+      if (winningTeamId) {
+        const team = (d.teams ?? []).find((tm) => tm.id === winningTeamId);
+        if (team) {
+          winningTeamName = team.name;
+        }
+      }
+
+      if (!winningTeamName && championMatch?.team_a_id) {
+        const team = (d.teams ?? []).find((tm) => tm.id === championMatch.team_a_id);
+        if (team) winningTeamName = team.name;
+      }
+
+      if (!winningTeamName) continue;
+
+      const formattedName = formatTeamName(winningTeamName);
+      const players = formattedName.includes('/')
+        ? formattedName.split('/').map((p) => p.trim()).filter(Boolean)
+        : [formattedName];
+
+      slides.push({
+        id: `${t.slug}-${d.id}`,
+        tournamentId: t.slug,
+        tournamentTitle: t.title,
+        location: t.location,
+        dateLabel: formatDateRange(t.start_date, t.end_date, t.is_one_day),
+        divisionId: d.id,
+        divisionName: d.name,
+        winners: players,
+        completedAt: latestCompletedAt,
+      });
+    }
+  }
+
+  slides.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+  return slides;
+}
+
 export function todayLocal(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

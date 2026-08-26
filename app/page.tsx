@@ -12,7 +12,13 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip } from '@/components/livebracket-ds';
-import { getDashboardTournaments, todayLocal, type DashboardTournament } from '@/lib/data';
+import {
+  getDashboardTournaments,
+  getRecentlyCompletedDivisions,
+  todayLocal,
+  type DashboardTournament,
+  type CompletedDivisionSlide,
+} from '@/lib/data';
 
 type Status = 'live' | 'upcoming' | 'finished';
 
@@ -454,17 +460,6 @@ function statusLabels(t: Tournament): { long: string; short: string } {
   return { long: 'Registration open', short: 'Open' };
 }
 
-/* Finished tournaments drop out of "Recently Completed" after this many days. */
-const RECENTLY_COMPLETED_DAYS = 14;
-
-/* ISO (YYYY-MM-DD) date n days before today, for recency windows. */
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 function toEventCard(t: DashboardTournament, index: number, organizerName: string | null): Tournament {
   const today = todayLocal();
   const end = t.endDate || t.startDate;
@@ -503,18 +498,19 @@ const getPlayerInitial = (name: string) => {
   return name ? name.charAt(0).toUpperCase() : '?';
 };
 
-function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]; styles: Record<string, string> }) {
+function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide[]; styles: Record<string, string> }) {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
-    if (tournaments.length <= 1) return;
+    if (slides.length <= 1) return;
     const timer = setInterval(() => {
-      setActive((i) => (i + 1) % tournaments.length);
+      setActive((i) => (i + 1) % slides.length);
     }, 10000);
     return () => clearInterval(timer);
-  }, [tournaments.length]);
+  }, [slides.length]);
 
-  const t = tournaments[active];
+  const currentSlide = slides[active] || slides[0];
+  if (!currentSlide) return null;
 
   return (
     <div className={styles.completedSection}>
@@ -522,7 +518,7 @@ function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]
       <div className={styles.completedSlideshow}>
         <AnimatePresence mode="popLayout">
           <motion.div
-            key={t.id}
+            key={currentSlide.id}
             className={styles.completedCard}
             initial={{ clipPath: 'circle(8px at 50% 50%)', scale: 0.05, opacity: 1 }}
             animate={{ clipPath: 'circle(150% at 50% 50%)', scale: 1, opacity: 1 }}
@@ -533,34 +529,62 @@ function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]
             }}
             style={{ backdropFilter: 'blur(24px) saturate(200%)', WebkitBackdropFilter: 'blur(24px) saturate(200%)' }}
           >
-            {/* Line 1: title left · date pill + location right */}
+            {/* Line 1: title left + division badge · date pill + location right */}
             <div className={styles.completedMetaRow}>
-              <h4 className={styles.completedCardTitle}>{t.title}</h4>
+              <div className={styles.completedTitleGroup}>
+                <h4 className={styles.completedCardTitle}>{currentSlide.tournamentTitle}</h4>
+                {currentSlide.divisionName && (
+                  <span className={styles.completedDivisionBadge}>{currentSlide.divisionName}</span>
+                )}
+              </div>
               <div className={styles.completedMetaRight}>
-                <span className={styles.completedDatePill}>{t.dateLabel}</span>
+                <span className={styles.completedDatePill}>{currentSlide.dateLabel}</span>
                 <span className={styles.completedLocation}>
                   <MapPin size={12} strokeWidth={2} />
-                  {t.location}
+                  {currentSlide.location}
                 </span>
               </div>
             </div>
 
             {/* Body: champion center */}
             <div className={styles.completedBody}>
-
-              {t.winners && (
+              {currentSlide.winners && currentSlide.winners.length > 0 && (
                 <div className={styles.completedChampionBlock}>
                   <div className={styles.completedTrophyIcon}>🏆</div>
                   <div className={styles.completedChampionRow}>
-                    <span className={styles.completedPlayerName}>{t.winners[0]}</span>
-                    <div className={styles.completedChampionAvatars}>
-                      {t.winners.map((name, i) => (
-                        <div key={i} className={styles.completedAvatar}>
-                          {name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                    {currentSlide.winners.length === 1 ? (
+                      <>
+                        <div className={styles.completedChampionAvatars}>
+                          <div className={styles.completedAvatar}>
+                            {currentSlide.winners[0].split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                    <span className={styles.completedPlayerName}>{t.winners[1]}</span>
+                        <span className={styles.completedPlayerName}>{currentSlide.winners[0]}</span>
+                      </>
+                    ) : currentSlide.winners.length === 2 ? (
+                      <>
+                        <span className={styles.completedPlayerName}>{currentSlide.winners[0]}</span>
+                        <div className={styles.completedChampionAvatars}>
+                          {currentSlide.winners.map((name, i) => (
+                            <div key={i} className={styles.completedAvatar}>
+                              {name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                            </div>
+                          ))}
+                        </div>
+                        <span className={styles.completedPlayerName}>{currentSlide.winners[1]}</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className={styles.completedChampionAvatars}>
+                          {currentSlide.winners.slice(0, 4).map((name, i) => (
+                            <div key={i} className={styles.completedAvatar}>
+                              {name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                            </div>
+                          ))}
+                        </div>
+                        <span className={styles.completedPlayerName}>{currentSlide.winners.join(' & ')}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -568,14 +592,16 @@ function CompletedSlideshow({ tournaments, styles }: { tournaments: Tournament[]
 
             {/* Footer */}
             <div className={styles.completedFooter}>
-              <Link href={`#events`} className={styles.completedLink}>View Standing</Link>
+              <Link href={`/tournament/${currentSlide.tournamentId}`} className={styles.completedLink}>
+                View Standing
+              </Link>
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {tournaments.length > 1 && (
+        {slides.length > 1 && (
           <div className={styles.completedDots}>
-            {tournaments.map((_, i) => (
+            {slides.map((_, i) => (
               <button
                 key={i}
                 className={`${styles.completedDot} ${i === active ? styles.completedDotActive : ''}`}
@@ -609,18 +635,21 @@ export default function LiveBracketHome() {
   // Events list — real tournaments from the database (announced and later;
   // drafts stay hidden from the public page).
   const [events, setEvents] = useState<Tournament[]>([]);
+  const [completedSlides, setCompletedSlides] = useState<CompletedDivisionSlide[]>([]);
   const [eventsLoaded, setEventsLoaded] = useState(false);
 
   useEffect(() => {
     Promise.all([
       getDashboardTournaments(),
+      getRecentlyCompletedDivisions(14),
       fetch('/api/organizer').then(r => r.json()).catch(() => null),
     ])
-      .then(([rows, organizer]) => {
+      .then(([rows, slides, organizer]) => {
         const cards = rows
           .filter(t => t.phase >= 2)
           .map((t, i) => toEventCard(t, i, organizer?.name ?? null));
         setEvents(cards);
+        setCompletedSlides(slides);
       })
       .catch(console.error)
       .finally(() => setEventsLoaded(true));
@@ -754,23 +783,30 @@ export default function LiveBracketHome() {
     // live events (earliest) lead and the nearest upcoming follow.
   }, [events, filter, query]);
 
-  const filteredFinished = useMemo(() => {
+  const filteredCompletedSlides = useMemo(() => {
+    if (filter === 'live' || filter === 'upcoming') return [];
     const q = query.trim().toLowerCase();
-    const cutoff = isoDaysAgo(RECENTLY_COMPLETED_DAYS);
-    return events
-      .filter((t) => {
-        if (t.status !== 'finished') return false;
-        // Anything that wrapped up before the cutoff is no longer "recent";
-        // an empty list hides the whole section.
-        if (!t.endDate || t.endDate < cutoff) return false;
-        if (filter === 'live' || filter === 'upcoming') return false;
-        if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
-        return true;
-      })
-      .reverse(); // most recently finished first
-  }, [events, filter, query]);
+    if (!q) return completedSlides;
+    return completedSlides.filter(
+      (s) =>
+        s.tournamentTitle.toLowerCase().includes(q) ||
+        s.location.toLowerCase().includes(q) ||
+        s.divisionName.toLowerCase().includes(q) ||
+        s.winners.some((w) => w.toLowerCase().includes(q))
+    );
+  }, [completedSlides, filter, query]);
 
-  const hasAnyResults = filteredActiveUpcoming.length > 0 || filteredFinished.length > 0;
+  const uniqueCompletedTournamentCount = useMemo(() => {
+    const ids = new Set(filteredCompletedSlides.map((s) => s.tournamentId));
+    return ids.size;
+  }, [filteredCompletedSlides]);
+
+  const totalEventCount = useMemo(() => {
+    if (filter === 'finished') return uniqueCompletedTournamentCount;
+    return filteredActiveUpcoming.length + (filter === 'all' ? uniqueCompletedTournamentCount : 0);
+  }, [filter, filteredActiveUpcoming.length, uniqueCompletedTournamentCount]);
+
+  const hasAnyResults = filteredActiveUpcoming.length > 0 || filteredCompletedSlides.length > 0;
 
   // Active slide match item
   const activeMatch = liveMatches[carouselIndex];
@@ -1062,18 +1098,42 @@ export default function LiveBracketHome() {
                     <div className={styles.upcomingList}>
                       {upcomingSoon.map((t) => (
                         <Link key={t.id} href={`/tournament/${t.id}`} className={styles.upcomingRow}>
-                          <span className={styles.upcomingChip}>
-                            <span className={styles.upcomingChipMonth}>{t.chip.m}</span>
-                            <span className={styles.upcomingChipDay}>{t.chip.d}</span>
-                          </span>
-                          <span className={styles.upcomingRowText}>
-                            <span className={styles.upcomingRowTitle}>{t.title}</span>
-                            <span className={styles.upcomingRowMeta}>
-                              <MapPin size={13} className={styles.upcomingRowPin} />
-                              {t.location}
+                          <div className={styles.upcomingRowHeader}>
+                            <span
+                              className={`${styles.upcomingStatusBadge} ${t.status === 'live' ? styles.upcomingStatusLive : ''}`}
+                            >
+                              {statusLabels(t).long}
                             </span>
-                          </span>
-                          <ArrowRight size={16} className={styles.upcomingRowArrow} />
+                            <ArrowRight size={16} className={styles.upcomingRowArrow} />
+                          </div>
+
+                          <h4 className={styles.upcomingRowTitle}>{t.title}</h4>
+
+                          <div className={styles.upcomingMetaList}>
+                            <div className={styles.upcomingMetaRow}>
+                              <Calendar size={14} className={styles.upcomingMetaIcon} />
+                              <span className={styles.upcomingMetaText}>
+                                {formatDateRange(t.dateLabel, t.endDateLabel)}
+                              </span>
+                            </div>
+                            <div className={styles.upcomingMetaRow}>
+                              <MapPin size={14} className={styles.upcomingMetaIcon} />
+                              <span className={styles.upcomingMetaText}>{t.location}</span>
+                            </div>
+                          </div>
+
+                          {t.registrations && t.registrations.length > 0 && (
+                            <div className={styles.upcomingDivisionsSection}>
+                              {t.registrations.map((reg, idx) => (
+                                <div key={idx} className={styles.upcomingDivisionChip}>
+                                  <span className={styles.upcomingDivisionName}>{reg.division}</span>
+                                  <span className={styles.upcomingDivisionSeats}>
+                                    {reg.filled}/{reg.total}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </Link>
                       ))}
                       {upcomingSoon.length === 0 && (
@@ -1163,7 +1223,7 @@ export default function LiveBracketHome() {
             <div className={styles.sectionHead}>
               <h2 className={styles.sectionTitle}>Tournaments</h2>
               <p className={styles.resultCount}>
-                {filteredActiveUpcoming.length + filteredFinished.length} { (filteredActiveUpcoming.length + filteredFinished.length) === 1 ? 'event' : 'events' }
+                {totalEventCount} {totalEventCount === 1 ? 'event' : 'events'}
               </p>
             </div>
 
@@ -1297,8 +1357,8 @@ export default function LiveBracketHome() {
             )}
 
             {/* Recently Completed Tournament Section (Slideshow) */}
-            {filteredFinished.length > 0 && (
-              <CompletedSlideshow tournaments={filteredFinished.slice(0, 5)} styles={styles} />
+            {filteredCompletedSlides.length > 0 && (
+              <CompletedSlideshow slides={filteredCompletedSlides.slice(0, 8)} styles={styles} />
             )}
 
           </div>
