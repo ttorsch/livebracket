@@ -1048,6 +1048,13 @@
 /* ── Events Section ──────────────────────────────────────────── */
 .events {
   padding: 80px 0;
+  /* The tournament list is what this page is for, so the section claims a
+     full screen at every size. With one or two events that leaves space
+     beneath the list rather than letting it read as a thin strip between
+     the hero and whatever follows. min-height, so a long list still grows
+     past a single screen instead of scrolling inside itself. */
+  min-height: 100vh;   /* fallback where dvh is unsupported */
+  min-height: 100dvh;  /* tracks mobile browser chrome */
 }
 
 .sectionHead {
@@ -2050,7 +2057,16 @@
   }
   .completedGrid { grid-template-columns: 1fr; }
   .ctaCard { padding: 40px 20px; }
-  .pulseCard { padding: 20px; min-height: 515px; }
+  /* Pane hugs its content on mobile instead of reserving a fixed block. */
+  .pulseCard { padding: 20px; min-height: 0; }
+  .upcomingList {
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    flex: 0 0 auto;
+  }
+
+  /* Placeholder is dropped on mobile; the magnifier carries the meaning. */
+  .search input::placeholder { opacity: 0; }
 }
 
 /* Spinner for loading state */
