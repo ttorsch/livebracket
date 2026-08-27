@@ -23,6 +23,7 @@ interface DivisionBody {
   netHeight: string;
   minTeams: number;
   waitlistCap: number;
+  advancePerPool: number;
   confirmationMessage: string;
   confirmationImage: string;
 }
@@ -50,6 +51,9 @@ function toSettings(body: DivisionBody) {
     netHeight: body.netHeight,
     minTeams: body.minTeams,
     waitlistCap: body.waitlistCap,
+    // Settings is written wholesale — omitting this on edit would silently
+    // reset the organizer's advance count on every save.
+    advancePerPool: Math.max(1, Math.min(4, Math.trunc(body.advancePerPool ?? 2) || 2)),
     confirmationMessage: body.confirmationMessage,
     confirmationImage: body.confirmationImage,
   };

@@ -107,6 +107,11 @@ interface SetupDivision {
   registrationCloseDate: string;    // 'YYYY-MM-DD'; when this division stops taking teams
   // C. Rules & formats
   rounds: TournamentRound[];        // ordered tournament rounds, each with its own format + scoring
+  /* How many teams leave each pool for the round that follows. Set here, at
+     division setup, so the format is fully described before anyone registers;
+     the draw screen reads it as its starting value rather than inventing one.
+     Only meaningful when a group round is followed by another round. */
+  advancePerPool: number;
   rules: string;
   // Per-division (isolated) registration schema
   regFields: RegField[];
@@ -183,6 +188,7 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
         : defaultScoringRules(),
       durationMinutes: typeof r.durationMinutes === 'number' ? r.durationMinutes : DEFAULT_MATCH_MINUTES,
     })),
+    advancePerPool: typeof settings.advancePerPool === 'number' ? settings.advancePerPool : 2,
     rules: typeof settings.rules === 'string' ? settings.rules : 'Standard FIVB Beach Volleyball rules apply.',
     regFields: (row.regFields as RegField[]) ?? makeBaseFields(),
     allowMulti: typeof settings.allowMulti === 'boolean' ? settings.allowMulti : true,
@@ -503,6 +509,7 @@ export default function OrganizerSetup() {
   const [netHeight, setNetHeight] = useState('2.24m');
   const [minTeams, setMinTeams] = useState(4);
   const [waitlistCap, setWaitlistCap] = useState(5);
+  const [advancePerPool, setAdvancePerPool] = useState(2);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
 
@@ -548,6 +555,7 @@ export default function OrganizerSetup() {
     setNetHeight('2.24m');
     setMinTeams(4);
     setWaitlistCap(5);
+    setAdvancePerPool(2);
     setShowAdvanced(false);
     setModalStep(0);
     setShowModal(true);
@@ -580,6 +588,7 @@ export default function OrganizerSetup() {
     setNetHeight(d.netHeight);
     setMinTeams(d.minTeams);
     setWaitlistCap(d.waitlistCap);
+    setAdvancePerPool(d.advancePerPool);
     setFormError(null);
     setShowAdvanced(false);
     setModalStep(0);
@@ -953,6 +962,7 @@ export default function OrganizerSetup() {
       registrationOpenDate: regOpenDate,
       registrationCloseDate: regCloseDate,
       rounds,
+      advancePerPool,
       rules: divRules,
       regFields,
       allowMulti,
@@ -1283,6 +1293,7 @@ export default function OrganizerSetup() {
     netHeight: d.netHeight,
     minTeams: d.minTeams,
     waitlistCap: d.waitlistCap,
+    advancePerPool: d.advancePerPool,
     confirmationMessage: d.confirmationMessage,
     confirmationImage: d.confirmationImage,
   });
@@ -2406,6 +2417,33 @@ export default function OrganizerSetup() {
 
                       {round.format !== null && (
                         <div className={styles.scoringMatrix} style={{ marginTop: 12 }}>
+                          {/* Only a group round that something follows sends teams
+                              onward — a final round advances nobody, and an
+                              elimination round advances its winners by definition.
+                              Rendered on the first such round so the division-level
+                              value can't appear twice. */}
+                          {round.format === 'round-robin'
+                            && i < rounds.length - 1
+                            && rounds.findIndex((r, ri) => r.format === 'round-robin' && ri < rounds.length - 1) === i && (
+                            <div className={styles.scoringRow}>
+                              <span className={styles.scoringRowLabel}>Teams advancing</span>
+                              <label className={styles.scoringCell}>
+                                <span>Top</span>
+                                <input
+                                  type="number"
+                                  className={styles.scoringInput}
+                                  min={1}
+                                  max={4}
+                                  value={advancePerPool}
+                                  onChange={e => {
+                                    const v = parseInt(e.target.value, 10);
+                                    setAdvancePerPool(isNaN(v) ? 1 : Math.max(1, Math.min(4, v)));
+                                  }}
+                                />
+                                <span>per pool</span>
+                              </label>
+                            </div>
+                          )}
                           <div className={styles.scoringRow}>
                             <span className={styles.scoringRowLabel}>Match length</span>
                             <label className={styles.scoringCell}>

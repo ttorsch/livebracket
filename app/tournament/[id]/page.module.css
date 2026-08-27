@@ -173,9 +173,17 @@
   font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
-  margin-bottom: 14px;
+  /* Padded rather than left as bare 13px text: the label alone is a ~16px
+     tap target sitting right above the pills, which is easy to miss and easy
+     to mis-hit. The negative top/left margin keeps it optically aligned with
+     the title below while the hit area grows around it, and the bottom
+     margin opens a clear gap to the pill row. */
+  padding: 9px 12px;
+  margin: -9px 0 20px -12px;
+  border-radius: var(--radius-pill);
+  transition: color var(--duration-base) var(--ease-standard), background var(--duration-base) var(--ease-standard);
 }
-.backLink:hover { color: var(--text-primary); }
+.backLink:hover { color: var(--text-primary); background: var(--sand-200); }
 
 .headRow {
   display: flex;
@@ -481,63 +489,261 @@
 .emptyBody { margin: 0; color: var(--text-muted); font-size: 14px; }
 
 /* ── Format & rules ──────────────────────────────────────────── */
-.formatGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 14px;
-  align-items: start;
+.formatWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
-.formatCard {
-  background: var(--surface-card);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
-  padding: 22px 24px 20px;
-}
-.formatEyebrow {
-  font-size: 11px;
+
+/* The design's shared overline: one definition, five call sites. */
+.microLabel {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: 10px;
+  line-height: 12px;
   font-weight: 700;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.formatTitle {
+
+/* ── Division header card ───────────────────────────────────── */
+.divisionCard {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.divisionCardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 32px 20px;
+}
+/* Full-width so the name and its badges start on the line beneath. */
+.divisionCardHead .microLabel { width: 100%; }
+
+.divisionName {
+  margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 21px;
-  letter-spacing: -0.01em;
-  margin: 4px 0 14px;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
-.advanceNote {
-  display: flex;
+
+.badgeHighlight,
+.badgeStatus {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  background: var(--status-highlight);
-  border-radius: var(--radius-lg);
-  padding: 12px 15px;
-  margin-bottom: 14px;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
-.advanceNote svg { flex-shrink: 0; }
-.specList { display: flex; flex-direction: column; }
-.specRow {
+.badgeHighlight { background: var(--status-highlight); color: var(--text-primary); }
+.badgeStatus {
+  background: transparent;
+  border: 1px solid var(--border-hairline);
+  color: var(--text-secondary);
+}
+
+.divisionStats {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 48px;
+  row-gap: 20px;
+  padding: 20px 32px 24px;
+  border-top: 1px solid var(--border-hairline);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 96px;
+}
+.statValue {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 24px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── How the draw runs ──────────────────────────────────────── */
+.drawSection { display: flex; flex-direction: column; gap: 16px; }
+.drawHead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  padding: 11px 0;
-  border-top: 1px solid var(--border-hairline);
+  flex-wrap: wrap;
 }
-.specLabel { font-size: 13px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
-.specValue {
+.drawTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.drawCaption {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-muted);
+}
+
+.roundGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.roundCard {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Grows so the outcome bar sits on the floor of every card in a row,
+   however many sets or facts the round above it carries. */
+.roundBody {
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.roundHead { display: flex; align-items: center; gap: 12px; }
+.roundNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-900);
+  color: #fff;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 14px;
-  text-align: right;
+  flex-shrink: 0;
+}
+.roundHeadText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.roundName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 28px;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+/* One tile per set. Three across for the common best-of-3; a best-of-5
+   wraps onto a second row rather than squeezing. */
+.setGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.setTile {
+  background: var(--sand-100);
+  border-radius: var(--radius-md);
+  padding: 12px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.setPoints {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 30px;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
-.aboutText { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-wrap; }
+.setNote {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--text-muted);
+}
+
+.factRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.factPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-hairline);
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.factLabel { color: var(--text-muted); }
+.factValue { color: var(--text-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.outcomeBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--status-highlight);
+  border-top: 1px solid var(--border-hairline);
+  color: var(--text-primary);
+}
+.outcomeBar svg { flex-shrink: 0; }
+.outcomeText {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-wrap: pretty;
+}
+
+.aboutCard {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  padding: 24px 32px;
+}
+.aboutCard .drawTitle { margin: 4px 0 10px; }
+.aboutText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+@media (max-width: 720px) {
+  .divisionCardHead { padding: 20px 20px 16px; }
+  .divisionStats { padding: 16px 20px 20px; column-gap: 28px; }
+  .roundBody { padding: 20px 18px 18px; }
+  .outcomeBar { padding: 14px 18px; }
+  .aboutCard { padding: 20px; }
+}
 
 /* ── Teams ───────────────────────────────────────────────────── */
 .teamsWrap { display: flex; flex-direction: column; gap: 16px; }

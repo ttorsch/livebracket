@@ -282,14 +282,19 @@ export default function OrganizerBracketPage() {
     if (data) {
       const config: Record<string, DrawSettings> = {};
       data.divisions.forEach(d => {
+        /* settings.draw can exist as a stub before any draw has run, and its
+           advance is defaulted on read — so the presence of the key proves
+           nothing. Matches do: until they exist, the count the organizer set
+           at division setup is the truth. */
+        const drawn = d.bracket.some(r => r.matches.length > 0);
         config[d.id] = d.drawConfig
           ? {
               pools: d.drawConfig.pools,
-              advance: d.drawConfig.advance,
+              advance: drawn ? d.drawConfig.advance : d.advancePerPool,
               crossing: d.drawConfig.crossing,
               thirdPlace: !!d.drawConfig.thirdPlace,
             }
-          : { ...DEFAULT_DRAW };
+          : { ...DEFAULT_DRAW, advance: d.advancePerPool };
       });
       // Keep whatever top seeds were already picked for a division across a
       // reload (e.g. right after Draw Pool) instead of clearing them. On a

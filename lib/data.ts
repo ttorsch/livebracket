@@ -674,6 +674,10 @@ export interface DetailDivision {
      public Format & Rules panel describes the former. Same derivation as
      getSetupDivisions; see the note there. */
   configuredRounds: ConfiguredRound[];
+  /* Teams leaving each pool for the next round, as the organizer set it at
+     division setup. drawConfig.advance is what a draw actually ran with; this
+     is the intent, and it exists before any draw has been run. */
+  advancePerPool: number;
   registrationFee: number;        // flat, per team; 0 is a legitimate fee
   formatTypeOnSand: string;       // '2v2' … '6v6' — the roster's floor
   rosterSize: number;             // players the form asks for, alternates included
@@ -928,7 +932,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         netHeight?: unknown; genderEligibility?: unknown; ageLimit?: unknown;
         registrationOpenDate?: unknown; registrationCloseDate?: unknown;
         maxRosterSize?: unknown; waitlistCap?: unknown; rules?: unknown;
-        confirmationMessage?: unknown;
+        confirmationMessage?: unknown; advancePerPool?: number;
       };
       return {
         id: d.id,
@@ -978,6 +982,9 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
         registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
         configuredRounds: readConfiguredRounds(settings as Record<string, unknown>, d.rounds),
+        advancePerPool: typeof settings.advancePerPool === 'number'
+          ? Math.max(1, Math.min(4, Math.trunc(settings.advancePerPool)))
+          : 2,
         registrationFee: Number(d.registration_fee ?? 0) || 0,
         formatTypeOnSand: d.format_type_on_sand,
         rosterSize: rosterSize(d.format_type_on_sand, settings.maxRosterSize),

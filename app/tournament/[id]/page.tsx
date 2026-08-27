@@ -3,14 +3,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Calendar, Users, ArrowRight } from 'lucide-react';
+import { MapPin, Calendar, Users, ArrowRight, Trophy } from 'lucide-react';
 import styles from './page.module.css';
 import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
-  type DetailDivision, type ConfiguredRound,
+  type DetailDivision,
 } from '../../../lib/data';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
 import { registrationState, nextOpening, isPublic, type Phase } from '../../../lib/tournamentLifecycle';
+import { ageLimitLabel } from '../../../lib/divisionEligibility';
 
 // Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
@@ -104,24 +105,67 @@ function buildStandings(division: DetailDivision): StandingRow[] {
   );
 }
 
-/* ── Spec rows for one configured round ──────────────────────────── */
-function specsFor(round: ConfiguredRound, rulesText: string): { label: string; value: string }[] {
-  const s = round.scoring;
-  const cap = (n: number) => (n > 0 ? ` · hard cap ${n}` : ' · no hard cap');
-  const out: { label: string; value: string }[] = [];
+/* ── One round, as the Format & Rules panel presents it ───────────── */
+const CROSSING_LABEL: Record<string, string> = {
+  fivb: 'FIVB standard crossing',
+  static: 'Static cross-bracket',
+};
 
-  if (s.setsBestOf > 1) {
-    out.push({ label: 'Match', value: `Best of ${s.setsBestOf}${s.winBy2 ? ' · win by 2' : ''}` });
-    out.push({ label: `Sets 1 & ${s.setsBestOf - 1}`, value: `to ${s.pointsPerSet}${cap(s.hardCap)}` });
-    out.push({ label: 'Deciding set', value: `to ${s.decidingSetPoints}${cap(s.hardCap)}` });
-  } else {
-    out.push({ label: 'Match', value: `1 set${s.winBy2 ? ' · win by 2' : ''}` });
-    out.push({ label: 'Set', value: `to ${s.pointsPerSet}${cap(s.hardCap)}` });
-  }
+interface RoundView {
+  key: string;
+  n: number;
+  eyebrow: string;
+  name: string;
+  /* One tile per set that can be played: the regular sets, then the decider,
+     which is scored differently and so gets its own tile. */
+  sets: { label: string; points: string; note: string }[];
+  facts: { label: string; value: string }[];
+  outcome: string;
+  isFinal: boolean;
+}
 
-  out.push({ label: 'Match length', value: `${round.durationMinutes} min` });
-  if (rulesText.trim()) out.push({ label: 'Standard rules', value: rulesText.trim() });
-  return out;
+function buildRoundViews(division: DetailDivision, advanceCount: number): RoundView[] {
+  const rounds = division.configuredRounds;
+  const crossing = division.drawConfig ? CROSSING_LABEL[division.drawConfig.crossing] : undefined;
+
+  return rounds.map((round, i) => {
+    const s = round.scoring;
+    const note = s.hardCap > 0 ? `hard cap ${s.hardCap}` : 'no hard cap';
+    const isLast = i === rounds.length - 1;
+
+    const sets: RoundView['sets'] = [];
+    if (s.setsBestOf > 1) {
+      for (let n = 1; n < s.setsBestOf; n++) {
+        sets.push({ label: `Set ${n}`, points: String(s.pointsPerSet), note });
+      }
+      sets.push({ label: 'Deciding', points: String(s.decidingSetPoints), note });
+    } else {
+      sets.push({ label: 'Set 1', points: String(s.pointsPerSet), note });
+    }
+
+    const facts: RoundView['facts'] = [{ label: 'Match', value: `Best of ${s.setsBestOf}` }];
+    if (s.winBy2) facts.push({ label: 'Win by', value: '2' });
+    facts.push({ label: 'Length', value: `${round.durationMinutes} min` });
+    // Seeding only describes how teams enter a knockout round.
+    if (!isGroupFormat(round.format) && crossing) facts.push({ label: 'Seeding', value: crossing });
+
+    const outcome = isLast
+      ? 'Winner of the final takes the division.'
+      : isGroupFormat(round.format)
+        ? `Top ${advanceCount} of each pool advance to the next round.`
+        : 'Winners advance to the next round.';
+
+    return {
+      key: `${i}-${round.format}`,
+      n: i + 1,
+      eyebrow: `Round ${i + 1}`,
+      name: formatLabel(round.format),
+      sets,
+      facts,
+      outcome,
+      isFinal: isLast,
+    };
+  });
 }
 
 /* ── A court currently in play ───────────────────────────────────── */
@@ -251,6 +295,23 @@ export default function TournamentPage() {
   /* A configured elimination round exists in the rounds table before the draw
      has run, with no matches hanging off it — that is "not drawn yet", not a
      bracket, so it must not produce an empty column. */
+  /* The organizer's setup value is the definition; a draw that has actually
+     been run overrides it, because that is what the bracket was built from.
+     "Run" is tested by the presence of matches, not by settings.draw existing
+     — that key can be a stub with no advance recorded, whose defaulted 2
+     would otherwise mask a real setup value. */
+  const advanceCount = useMemo(() => {
+    if (!activeDivision) return 2;
+    const drawn = activeDivision.bracket.some(r => r.matches.length > 0);
+    const draw = activeDivision.drawConfig;
+    return drawn && draw && draw.advance > 0 ? draw.advance : activeDivision.advancePerPool;
+  }, [activeDivision]);
+
+  const roundViews = useMemo(
+    () => (activeDivision ? buildRoundViews(activeDivision, advanceCount) : []),
+    [activeDivision, advanceCount],
+  );
+
   const knockoutRounds = useMemo(
     () => (activeDivision?.bracket ?? [])
       .filter(r => !isGroupFormat(r.format) && r.matches.length > 0),
@@ -481,49 +542,110 @@ export default function TournamentPage() {
 
         {/* ── Format & rules ──────────────────────────────────── */}
         {currentTab === 'Format & Rules' && activeDivision && (
-          <div className={styles.formatGrid}>
-            {activeDivision.configuredRounds.length === 0 && (
+          <div className={styles.formatWrap}>
+
+            {/* ── What the division is ─────────────────────────── */}
+            <div className={styles.divisionCard}>
+              <div className={styles.divisionCardHead}>
+                <p className={styles.microLabel}>Division</p>
+                <h1 className={styles.divisionName}>{activeDivision.label}</h1>
+                <span className={styles.badgeHighlight}>
+                  {activeDivision.formatTypeOnSand.replace('v', ' v ')}
+                </span>
+                {activeDivision.configuredRounds.length > 0 && (
+                  <span className={styles.badgeStatus}>
+                    {activeDivision.configuredRounds.length} round
+                    {activeDivision.configuredRounds.length === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+
+              <div className={styles.divisionStats}>
+                {[
+                  { label: 'Format', value: activeDivision.formatTypeOnSand.replace('v', ' v ') },
+                  { label: 'Team cap', value: `${activeDivision.teams} teams` },
+                  { label: 'Roster', value: `${activeDivision.rosterSize} players` },
+                  { label: 'Gender', value: activeDivision.gender },
+                  { label: 'Age limit', value: ageLimitLabel(activeDivision.ageLimit) },
+                  ...(activeDivision.netHeight ? [{ label: 'Net height', value: activeDivision.netHeight }] : []),
+                  {
+                    label: 'Entry fee',
+                    value: activeDivision.registrationFee > 0
+                      ? `${activeDivision.registrationFee.toLocaleString()} THB`
+                      : 'Free',
+                  },
+                ].map(st => (
+                  <div key={st.label} className={styles.stat}>
+                    <p className={styles.microLabel}>{st.label}</p>
+                    <p className={styles.statValue}>{st.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── How the draw runs ────────────────────────────── */}
+            {roundViews.length > 0 ? (
+              <section className={styles.drawSection}>
+                <div className={styles.drawHead}>
+                  <h2 className={styles.drawTitle}>How the draw runs</h2>
+                  {activeDivision.rules.trim() && (
+                    <p className={styles.drawCaption}>{activeDivision.rules.trim()}</p>
+                  )}
+                </div>
+
+                <div className={styles.roundGrid}>
+                  {roundViews.map(r => (
+                    <article key={r.key} className={styles.roundCard}>
+                      <div className={styles.roundBody}>
+                        <div className={styles.roundHead}>
+                          <span className={styles.roundNum}>{r.n}</span>
+                          <div className={styles.roundHeadText}>
+                            <p className={styles.microLabel}>{r.eyebrow}</p>
+                            <h3 className={styles.roundName}>{r.name}</h3>
+                          </div>
+                        </div>
+
+                        <div className={styles.setGrid}>
+                          {r.sets.map(t => (
+                            <div key={t.label} className={styles.setTile}>
+                              <p className={styles.microLabel}>{t.label}</p>
+                              <p className={styles.setPoints}>{t.points}</p>
+                              <p className={styles.setNote}>{t.note}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className={styles.factRow}>
+                          {r.facts.map(f => (
+                            <span key={f.label} className={styles.factPill}>
+                              <span className={styles.factLabel}>{f.label}</span>
+                              <span className={styles.factValue}>{f.value}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className={styles.outcomeBar}>
+                        {r.isFinal ? <Trophy size={18} /> : <ArrowRight size={18} />}
+                        <p className={styles.outcomeText}>{r.outcome}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : (
               <EmptyCard
                 title="Format not set yet"
                 body="The organizer hasn't configured this division's rounds."
               />
             )}
-            {activeDivision.configuredRounds.map((round, i) => {
-              const draw = activeDivision.drawConfig;
-              const advance =
-                isGroupFormat(round.format) && draw && draw.advance > 0
-                  ? `Top ${draw.advance} of each pool advance — ${draw.pools * draw.advance} teams total.`
-                  : '';
-              return (
-                <div key={i} className={styles.formatCard}>
-                  <span className={styles.formatEyebrow}>Round {i + 1}</span>
-                  <h2 className={styles.formatTitle}>{formatLabel(round.format)}</h2>
-
-                  {advance && (
-                    <div className={styles.advanceNote}>
-                      <ArrowRight size={16} />
-                      <span>{advance}</span>
-                    </div>
-                  )}
-
-                  <div className={styles.specList}>
-                    {specsFor(round, activeDivision.rules).map(sp => (
-                      <div key={sp.label} className={styles.specRow}>
-                        <span className={styles.specLabel}>{sp.label}</span>
-                        <span className={styles.specValue}>{sp.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
 
             {tournament.description && (
-              <div className={styles.formatCard}>
-                <span className={styles.formatEyebrow}>About</span>
-                <h2 className={styles.formatTitle}>This tournament</h2>
+              <section className={styles.aboutCard}>
+                <p className={styles.microLabel}>About</p>
+                <h2 className={styles.drawTitle}>This tournament</h2>
                 <p className={styles.aboutText}>{tournament.description}</p>
-              </div>
+              </section>
             )}
           </div>
         )}

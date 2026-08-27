@@ -29,6 +29,7 @@ interface DivisionBody {
   netHeight: string;
   minTeams: number;
   waitlistCap: number;
+  advancePerPool: number;
   confirmationMessage: string;
   confirmationImage: string;
 }
@@ -48,6 +49,11 @@ function toSettings(body: DivisionBody) {
     netHeight: body.netHeight,
     minTeams: body.minTeams,
     waitlistCap: body.waitlistCap,
+    // How many teams leave each pool for the next round. Set at division
+    // setup; the draw screen starts from it. Clamped to the same 1–4 the
+    // form allows, so a hand-made request can't produce a bracket the draw
+    // cannot build.
+    advancePerPool: Math.max(1, Math.min(4, Math.trunc(body.advancePerPool ?? 2) || 2)),
     confirmationMessage: body.confirmationMessage,
     confirmationImage: body.confirmationImage,
     // The rounds the organizer configured, recorded separately from the
