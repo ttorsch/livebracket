@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -94,7 +94,7 @@ function ProgressCircle({ filled, total }: { filled: number; total: number }) {
           cy={radius}
         />
         <circle
-          stroke="var(--orange, #EE7A4C)"
+          stroke="var(--color-primary, #EB6F43)"
           fill="transparent"
           strokeWidth={strokeWidth}
           strokeDasharray={`${circumference} ${circumference}`}
@@ -638,7 +638,8 @@ export default function LiveBracketHome() {
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [query, setQuery] = useState('');
 
-  // Morphing Navigation States
+  // Navigation States & Ref
+  const navRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -804,6 +805,35 @@ export default function LiveBracketHome() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Auto-hide mobile search and menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!mobileSearchOpen && !menuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setMobileSearchOpen(false);
+        setMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileSearchOpen(false);
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileSearchOpen, menuOpen]);
+
   // Find the active marquee tournament for the Hero right column.
   const marqueeTournament = useMemo(() => {
     return TOURNAMENTS.find((t) => t.status === 'live') || TOURNAMENTS[0];
@@ -882,6 +912,7 @@ export default function LiveBracketHome() {
       {/* ── Morphing Navigation Bar (Desktop Search & Action Buttons) ───────── */}
       <header 
         id="livebracket-nav"
+        ref={navRef}
         className={`${styles.nav} ${scrolled ? styles.scrolled : styles.onHero}`}
       >
         <div className={styles.navRow}>

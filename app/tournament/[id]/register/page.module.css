@@ -1,653 +1,840 @@
 /* ═══════════════════════════════════════════════════════════════
-   Tournament Registration — 3-step wizard
+   Team registration — Live Bracket design system
+
+   Ported from the "Team Registration" Claude Design doc. The token
+   block below is the design system's own, scoped to this page rather
+   than :root so adopting it here cannot restyle pages still running
+   on the older globals.css variables — same convention as the
+   tournament detail page.
+
+   The design ships a 1180px desktop frame and a 390px mobile frame.
+   Mobile is the base here and desktop is layered on at 768px.
    ════════════════════════════════════════════════════════════════ */
 
 .page {
-  background:
-    radial-gradient(50% 45% at 15% 10%, rgba(238, 122, 76, 0.1), transparent 70%),
-    radial-gradient(45% 40% at 85% 90%, rgba(238, 122, 76, 0.07), transparent 70%),
-    #F5F1EA;
+  /* — Primitives — */
+  --coral-100: #FEDCD2;
+  --coral-200: #FCBEAC;
+  --coral-300: #F8A288;
+  --coral-500: #EB6F43;
+  --coral-600: #E44F1C;
+  --coral-700: #BA4019;
+  --ink-900: #14181E;
+  --ink-600: #3A414D;
+  --ink-500: #7A8294;
+  --sand-50: #FFFFFF;
+  --sand-100: #F5F1EA;
+  --sand-300: #E7E2D9;
+  --amber-300: #F7C175;
+
+  /* — Semantic — */
+  --color-primary: var(--coral-500);
+  --color-primary-hover: var(--coral-600);
+  --surface-app: var(--sand-100);
+  --surface-card: #FFFFFF;
+  --text-primary: var(--ink-900);
+  --text-secondary: var(--ink-600);
+  --text-muted: var(--ink-500);
+  --border-hairline: var(--sand-300);
+  --focus-ring: rgba(235, 111, 67, 0.45);
+
+  /* — Type — */
+  --font-display: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
+  --font-text: 'DM Sans', system-ui, -apple-system, sans-serif;
+
+  /* — Motion — */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* The hero bar sits on cream on mobile and on the photo on desktop,
+     so the wordmark colour is a variable the media query can flip. */
+  --lb-logo-ink: var(--text-primary);
+
   min-height: 100vh;
-  color: var(--ink-1, #14181E);
+  background: var(--surface-app);
+  font-family: var(--font-text);
+  color: var(--text-primary);
 }
 
-.container {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 0 24px;
+/* ── Hero ─────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  background-position: center 40%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  padding-bottom: 56px;
+  isolation: isolate;
 }
 
-/* ── Top bar ──────────────────────────────────────────────────── */
-.topBar {
-  background: var(--ink-1, #14181E);
-  padding: 0;
+/* No cover image on the tournament: a coral-into-ink wash stands in so
+   the white hero type keeps its contrast. */
+.heroFallback {
+  background-image: linear-gradient(135deg, #EB6F43 0%, #BA4019 45%, #14181E 100%);
 }
-.topBarInner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 0 28px;
-  height: 60px;
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 24, 30, 0.60) 0%,
+    rgba(20, 24, 30, 0.35) 40%,
+    rgba(245, 241, 234, 0.97) 88%,
+    var(--sand-100) 100%
+  );
+}
+
+.heroBar {
+  position: relative;
+  z-index: 2;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+  background: var(--sand-100);
 }
-.brand {
+
+.heroBrand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 18px;
-  color: #fff;
   text-decoration: none;
 }
-.brandMark {
-  display: grid;
-  place-items: center;
-  width: 28px; height: 28px;
-  flex-shrink: 0;
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px 20px 0;
 }
-.brandMark svg { width: 100%; height: 100%; }
-.topBack {
+
+.backPill {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-  transition: color 0.15s;
+  gap: 7px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  background: rgba(20, 24, 30, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  font: 600 13px/1 var(--font-text);
+  text-decoration: none;
+  transition: background 160ms var(--ease-standard);
 }
-.topBack:hover { color: rgba(255, 255, 255, 0.9); }
+.backPill:hover { background: rgba(20, 24, 30, 0.62); }
+
+.backPillIcon { display: inline-flex; transform: rotate(180deg); }
+
+.heroTags {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.heroStep {
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.80);
+}
+
+.heroTitle {
+  margin: 0;
+  font: 700 27px/1.1 var(--font-display);
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  color: rgba(255, 255, 255, 0.86);
+  font: 500 14px/1.3 var(--font-text);
+}
+.heroMetaItem { display: flex; align-items: center; gap: 7px; }
+
+/* ── Card shell ───────────────────────────────────────────────── */
+.cardWrap {
+  position: relative;
+  margin-top: -34px;
+  padding: 0 12px 32px;
+}
+
+.card {
+  max-width: 840px;
+  margin: 0 auto;
+  background: var(--surface-card);
+  border-radius: 28px;
+  box-shadow: 0 14px 36px rgba(20, 24, 30, 0.13);
+  overflow: hidden;
+}
 
 /* ── Stepper ──────────────────────────────────────────────────── */
 .stepper {
-  background: #fff;
-  border-bottom: 1px solid var(--line, #E7E2D9);
-  padding: 20px 0;
-}
-.stepperInner {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 0 24px;
   display: flex;
   align-items: center;
-  gap: 0;
-}
-.stepWrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-}
-.stepWrap:last-child { flex: 0; }
-.stepCircle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid rgba(20, 31, 46, 0.15);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(20, 24, 30, 0.35);
-  flex-shrink: 0;
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
-}
-.stepActive {
-  border-color: var(--orange, #EE7A4C);
-  background: var(--orange, #EE7A4C);
-  color: #fff;
-}
-.stepDone {
-  border-color: rgba(20, 31, 46, 0.15);
-  background: rgba(20, 31, 46, 0.06);
-  color: var(--ink-2, #3A414D);
-}
-.stepLabel {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(20, 24, 30, 0.4);
-  white-space: nowrap;
-}
-.stepLabelActive { color: var(--ink-1, #14181E); }
-.stepLine {
-  flex: 1;
-  height: 2px;
-  background: rgba(20, 31, 46, 0.1);
-  border-radius: 2px;
-  transition: background 0.2s;
-}
-.stepLineDone { background: rgba(20, 31, 46, 0.25); }
-
-/* ── Main content ─────────────────────────────────────────────── */
-.main {
-  padding: 40px 0 80px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-hairline);
 }
 
-/* ── Glass card ───────────────────────────────────────────────── */
-.card {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 28px;
-  padding: 36px;
-  box-shadow: 0 20px 50px -20px rgba(20, 31, 46, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
+.stepItem { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 
-.stepTitle {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 26px;
-  color: var(--ink-1, #14181E);
-  margin-bottom: 6px;
-}
-.stepSub {
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 15px;
-  color: var(--ink-2, #3A414D);
-  margin-bottom: 28px;
-  line-height: 1.5;
-}
-
-/* ── Division cards ───────────────────────────────────────────── */
-.divisionGrid {
+.stepHead {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 28px;
-}
-.divCard {
-  position: relative;
-  width: 100%;
-  padding: 18px 20px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1.5px solid rgba(20, 31, 46, 0.1);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-}
-.divCard:hover:not(:disabled) {
-  border-color: rgba(238, 122, 76, 0.4);
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 16px -6px rgba(238, 122, 76, 0.15);
-}
-.divCardActive {
-  border-color: var(--orange, #EE7A4C) !important;
-  background: rgba(238, 122, 76, 0.04) !important;
-  box-shadow: 0 4px 16px -6px rgba(238, 122, 76, 0.2) !important;
-}
-.divCardFull {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.divCardTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-.divLabel {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 16px;
-  color: var(--ink-1, #14181E);
-}
-.divFullBadge {
-  display: inline-flex;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(20, 31, 46, 0.07);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  color: rgba(20, 24, 30, 0.45);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.divFee {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 22px;
-  color: var(--orange, #EE7A4C);
-  margin-bottom: 6px;
-}
-.divCurrency {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(238, 122, 76, 0.7);
-}
-.divMeta {
-  display: flex;
-  gap: 12px;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 12px;
-  color: rgba(20, 24, 30, 0.5);
-  margin-bottom: 10px;
-}
-.divProgress {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(20, 31, 46, 0.08);
-  overflow: hidden;
-}
-.divProgressBar {
-  height: 100%;
-  border-radius: 2px;
-  background: var(--orange, #EE7A4C);
-  transition: width 0.3s;
-}
-.divCheck {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--orange, #EE7A4C);
-  display: grid;
-  place-items: center;
-  color: #fff;
-}
-
-/* ── Form fields ──────────────────────────────────────────────── */
-.fieldGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-.fieldLabel {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(20, 24, 30, 0.5);
-}
-.input {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1.5px solid rgba(20, 31, 46, 0.12);
-  background: #fff;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 15px;
-  color: var(--ink-1, #14181E);
-  outline: none;
-  transition: border-color 0.15s;
-}
-.input:focus { border-color: var(--orange, #EE7A4C); }
-.input::placeholder { color: rgba(20, 24, 30, 0.35); }
-.select {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1.5px solid rgba(20, 31, 46, 0.12);
-  background: #fff;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 15px;
-  color: var(--ink-1, #14181E);
-  outline: none;
-  cursor: pointer;
-  transition: border-color 0.15s;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%233A414D' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 36px;
-}
-.select:focus { border-color: var(--orange, #EE7A4C); }
-
-.playerBlock {
-  border: 1.5px solid rgba(20, 31, 46, 0.08);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
-  background: rgba(255, 255, 255, 0.5);
-}
-.playerBlockHeader {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--orange, #EE7A4C);
-  margin-bottom: 14px;
-}
-.playerFields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 16px;
-}
-
-/* ── Review block ─────────────────────────────────────────────── */
-.reviewBlock {
-  border: 1px solid rgba(20, 31, 46, 0.1);
-  border-radius: 16px;
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-.reviewRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid rgba(20, 31, 46, 0.06);
-  gap: 16px;
-}
-.reviewRow:last-child { border-bottom: none; }
-.reviewRowFee { background: rgba(238, 122, 76, 0.04); }
-.reviewLabel {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(20, 24, 30, 0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.reviewValue {
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink-1, #14181E);
-}
-.reviewFee {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 20px;
-  color: var(--orange, #EE7A4C);
-}
-
-/* ── Payment notice ───────────────────────────────────────────── */
-.paymentNotice {
-  display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: rgba(238, 122, 76, 0.06);
-  border: 1px solid rgba(238, 122, 76, 0.2);
-  margin-bottom: 20px;
-}
-.paymentNotice svg { color: var(--orange, #EE7A4C); flex-shrink: 0; margin-top: 2px; }
-.paymentNotice p {
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 14px;
-  color: var(--ink-2, #3A414D);
-  line-height: 1.5;
-}
-
-/* ── Consent ──────────────────────────────────────────────────── */
-.consentBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 28px;
-}
-.consentRow {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  cursor: pointer;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 14px;
-  color: var(--ink-2, #3A414D);
-  line-height: 1.5;
-}
-.checkbox {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  border: 1.5px solid rgba(20, 31, 46, 0.25);
-  accent-color: var(--orange, #EE7A4C);
-  cursor: pointer;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-/* ── Step footer buttons ──────────────────────────────────────── */
-.stepFooter {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: flex-end;
-  padding-top: 24px;
-  border-top: 1px solid rgba(20, 31, 46, 0.08);
-}
-.btnPrimary {
-  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px;
-  border-radius: 999px;
-  background: var(--orange, #EE7A4C);
-  color: #fff;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 700;
-  font-size: 15px;
-  border: 1px solid transparent;
-  outline: none;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+  min-width: 0;
 }
-.btnPrimary:hover:not(:disabled) { background: var(--orange-600, #E0623A); transform: translateY(-1px); }
-.btnPrimary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.btnPrimary:active:not(:disabled) {
-  transform: scale(0.92);
-  transition: transform 0.05s linear;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-.btnGhost {
-  display: inline-flex;
-  align-items: center;
-  padding: 12px 20px;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink-2, #3A414D);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 600;
-  font-size: 14px;
-  border: 1.5px solid rgba(20, 31, 46, 0.14);
-  outline: none;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.btnGhost:hover { background: rgba(20, 31, 46, 0.04); border-color: rgba(20, 31, 46, 0.22); }
-.btnGhost:active {
-  transform: scale(0.92);
-  transition: transform 0.05s linear;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
+.stepHeadDone { cursor: pointer; }
 
-/* ── Success screen ───────────────────────────────────────────── */
-.successWrapper {
-  min-height: calc(100vh - 60px);
+.stepCircle {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  font: 700 13px/1 var(--font-text);
+  flex: none;
+  background: transparent;
+  color: var(--text-muted);
+  border: 2px solid var(--sand-300);
 }
-.successCard {
-  max-width: 480px;
-  width: 100%;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 28px;
-  padding: 40px 36px;
-  box-shadow: 0 20px 60px -20px rgba(20, 31, 46, 0.2);
-  text-align: center;
+.stepCircleDone {
+  background: var(--coral-100);
+  color: var(--coral-700);
+  border-color: var(--coral-100);
 }
-.successIcon {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: rgba(238, 122, 76, 0.1);
-  display: grid;
-  place-items: center;
-  margin: 0 auto 20px;
-  color: var(--orange, #EE7A4C);
+.stepCircleActive {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
 }
-.successTitle {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 26px;
-  color: var(--ink-1, #14181E);
-  margin-bottom: 10px;
+
+.stepLabel {
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.successSub {
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 15px;
-  color: var(--ink-2, #3A414D);
-  line-height: 1.55;
-  margin-bottom: 20px;
+.stepLabelSeen { color: var(--text-primary); }
+.stepLabelActive { color: var(--text-primary); font-weight: 700; }
+
+.stepLine {
+  flex: 1;
+  min-width: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--sand-300);
 }
-.successInfo {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: rgba(238, 122, 76, 0.06);
-  border: 1px solid rgba(238, 122, 76, 0.18);
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 13px;
-  color: var(--ink-2, #3A414D);
-  margin-bottom: 24px;
-  text-align: left;
-}
-.successInfo svg { color: var(--orange, #EE7A4C); flex-shrink: 0; margin-top: 1px; }
-.successActions {
+.stepLineDone { background: var(--coral-200); }
+
+/* ── Step panels ──────────────────────────────────────────────── */
+.panel {
+  padding: 22px 18px 24px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
+}
+.panelRoster { gap: 22px; }
+
+.panelHead { display: flex; flex-direction: column; gap: 7px; }
+
+.stepTitle {
+  margin: 0;
+  font: 700 24px/1.15 var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
 }
 
-/* ── Responsive ───────────────────────────────────────────────── */
-@media (max-width: 540px) {
-  .card { padding: 24px 20px; }
-  .playerFields { grid-template-columns: 1fr; }
-  .stepFooter { flex-direction: column-reverse; align-items: stretch; }
-  .btnPrimary, .btnGhost { width: 100%; justify-content: center; }
+.stepSub {
+  margin: 0;
+  font: 400 15px/1.45 var(--font-text);
+  color: var(--text-secondary);
+  max-width: 52ch;
+  text-wrap: pretty;
 }
 
-/* ── Loading / empty / error states ───────────────────────────── */
-.stateCard {
-  padding: 48px 32px;
-  text-align: center;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 14px;
-  color: rgba(20, 24, 30, 0.55);
+/* Deadline stat, right-aligned beside the step title on desktop. */
+.deadline {
+  display: none;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
 }
-.stateTitle {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 20px;
-  color: var(--ink-1, #14181E);
-  margin-bottom: 8px;
-}
-.skeletonRow {
-  height: 96px;
-  border-radius: 18px;
-  background: linear-gradient(
-    90deg,
-    rgba(20, 31, 46, 0.05) 25%,
-    rgba(20, 31, 46, 0.09) 37%,
-    rgba(20, 31, 46, 0.05) 63%
-  );
-  background-size: 400% 100%;
-  animation: shimmer 1.3s ease-in-out infinite;
-  margin-bottom: 14px;
-}
-@keyframes shimmer {
-  from { background-position: 100% 50%; }
-  to   { background-position: 0 50%; }
-}
-
-/* ── Waitlist variant of the division badge ───────────────────── */
-.divWaitBadge {
-  display: inline-flex;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(238, 122, 76, 0.12);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--orange, #EE7A4C);
+.deadlineLabel {
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--text-muted);
 }
-.divNote {
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 12px;
-  color: var(--orange, #EE7A4C);
-  margin-top: 10px;
+.deadlineValue { font: 700 16px/1 var(--font-display); color: var(--text-primary); }
+
+/* ── Division cards ───────────────────────────────────────────── */
+.divisionGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
-/* ── Roster form ──────────────────────────────────────────────── */
-.textarea {
-  min-height: 84px;
-  resize: vertical;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
+.divCard {
+  position: relative;
+  text-align: left;
+  cursor: pointer;
+  background: var(--sand-50);
+  border: 1px solid var(--border-hairline);
+  border-radius: 20px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font: inherit;
+  color: inherit;
+  transition: box-shadow 160ms var(--ease-standard), transform 160ms var(--ease-standard);
 }
+.divCard:hover { box-shadow: 0 8px 20px rgba(20, 24, 30, 0.09); transform: translateY(-2px); }
+.divCard:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--focus-ring); }
+
+.divCardFull { cursor: not-allowed; opacity: 0.55; }
+.divCardFull:hover { box-shadow: none; transform: none; }
+
+/* Selection ring drawn as an overlay so the card never reflows by a
+   pixel when it is picked. */
+.divRing {
+  position: absolute;
+  inset: -1px;
+  border-radius: 20px;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(235, 111, 67, 0.16);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms var(--ease-standard);
+}
+.divRingOn { opacity: 1; }
+
+.divTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.divIdentity { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+
+.divNameRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.divName { font: 600 17px/1.2 var(--font-display); color: var(--text-primary); }
+
+.divFee { display: flex; align-items: baseline; gap: 5px; }
+.divFeeValue {
+  font: 700 22px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary);
+}
+.divFeeCurrency {
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.divCheck {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  opacity: 0;
+  transition: opacity 140ms var(--ease-standard);
+}
+.divCheckOn { opacity: 1; }
+
+.divProgressWrap { display: flex; flex-direction: column; gap: 7px; }
+
+.divTrack {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--sand-300);
+  overflow: hidden;
+}
+.divBar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 200ms var(--ease-standard);
+}
+
+.divMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font: 500 13px/1.2 var(--font-text);
+  color: var(--text-secondary);
+}
+.divLeft { color: var(--text-muted); }
+.divLeftTight { color: var(--coral-700); }
+
+.divDeadline { font: 400 12px/1.3 var(--font-text); color: var(--text-muted); }
+
+.divNote {
+  font: 400 12px/1.4 var(--font-text);
+  color: var(--coral-700);
+  background: rgba(235, 111, 67, 0.10);
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+
+/* ── Roster ───────────────────────────────────────────────────── */
+.fieldSet { display: flex; flex-direction: column; gap: 12px; }
+
+.sectionLabel {
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.field { display: flex; flex-direction: column; gap: 7px; }
+
+.fieldLabel { font: 500 14px/1 var(--font-text); color: var(--text-secondary); }
+.req { color: var(--color-primary); }
+
+.input {
+  height: 48px;
+  box-sizing: border-box;
+  padding: 0 15px;
+  border-radius: 14px;
+  border: 1px solid var(--border-hairline);
+  background: var(--sand-50);
+  font-family: var(--font-text);
+  font-size: 15px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 140ms var(--ease-standard), box-shadow 140ms var(--ease-standard);
+}
+.input::placeholder { color: var(--ink-500); opacity: 0.7; }
+.input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+.contactGrid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+
+.playerGrid { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+
+.playerCard {
+  background: var(--sand-100);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.playerHead { display: flex; align-items: center; gap: 9px; }
+
+.playerNum {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--ink-900);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 12px/1 var(--font-text);
+  flex: none;
+}
+.playerName { font: 600 16px/1 var(--font-display); color: var(--text-primary); }
+
+.playerExtras { display: flex; flex-direction: column; gap: 14px; }
+.playerExtraPair { display: grid; grid-template-columns: 1fr; gap: 12px; }
+
+/* Teams are named after their players everywhere else in the app, so
+   the roster shows what the derived name will be. */
 .teamNamePreview {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
+  border: 1px dashed var(--border-hairline);
   border-radius: 14px;
-  background: rgba(238, 122, 76, 0.06);
-  border: 1px solid rgba(238, 122, 76, 0.18);
-  margin-bottom: 22px;
 }
 .teamNamePreviewLabel {
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 12px;
-  color: rgba(20, 24, 30, 0.55);
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 .teamNamePreviewValue {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 15px;
-  color: var(--ink-1, #14181E);
-}
-.optionalTag {
-  font-weight: 500;
-  color: rgba(20, 24, 30, 0.4);
+  font: 600 15px/1.2 var(--font-display);
+  color: var(--text-primary);
+  text-align: right;
 }
 
-/* ── Submit error ─────────────────────────────────────────────── */
+/* ── Review ───────────────────────────────────────────────────── */
+.reviewGrid { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+
+.reviewTeam {
+  background: var(--sand-100);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.reviewTeamHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.editLink {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: 600 14px/1 var(--font-text);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+.editLink:hover { color: var(--color-primary-hover); }
+
+.reviewRows { display: flex; flex-direction: column; }
+.reviewRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.reviewRow:last-child { border-bottom: none; }
+.reviewRowLabel { font: 500 15px/1.3 var(--font-text); color: var(--text-secondary); flex: none; }
+.reviewRowValue {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: right;
+  min-width: 0;
+}
+.reviewValue { font: 600 16px/1.2 var(--font-text); color: var(--text-primary); overflow-wrap: anywhere; }
+.reviewMeta { font: 400 13px/1.2 var(--font-text); color: var(--text-muted); overflow-wrap: anywhere; }
+
+/* The design leads the mobile review with the division and its fee, and
+   puts it beside the roster on desktop. */
+.reviewFee {
+  order: -1;
+  background: var(--ink-900);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.reviewFeeHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.reviewFeeKicker {
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.editLinkOnInk {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: 600 14px/1 var(--font-text);
+  color: var(--coral-300);
+  cursor: pointer;
+}
+.editLinkOnInk:hover { color: var(--coral-200); }
+
+.reviewFeeDivision { font: 600 19px/1.2 var(--font-display); color: #fff; }
+.reviewFeeRule { height: 1px; background: rgba(255, 255, 255, 0.14); }
+.reviewFeeRow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.reviewFeeRowLabel { font: 500 14px/1 var(--font-text); color: rgba(255, 255, 255, 0.72); }
+.reviewFeeAmount { display: flex; align-items: baseline; gap: 5px; }
+.reviewFeeValue {
+  font: 700 24px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.reviewFeeCurrency {
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+}
+.reviewFeeNote { font: 400 13px/1.45 var(--font-text); color: rgba(255, 255, 255, 0.6); }
+
+.waitlistNote {
+  font: 400 13px/1.45 var(--font-text);
+  color: var(--amber-300);
+}
+
+.rulesBlock {
+  font: 400 14px/1.55 var(--font-text);
+  color: var(--text-secondary);
+  background: var(--sand-100);
+  border-radius: 16px;
+  padding: 16px 18px;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* ── Consent ──────────────────────────────────────────────────── */
+.consentList { display: flex; flex-direction: column; gap: 10px; }
+
+.consentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  padding: 14px 16px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 18px;
+  transition: border-color 140ms var(--ease-standard);
+}
+.consentRow:hover { border-color: var(--ink-500); }
+
+/* The native box is kept in the DOM for keyboard and screen readers and
+   drawn over by .consentBox — hiding it outright would take both away. */
+.consentInput {
+  position: absolute;
+  opacity: 0;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.consentBox {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--sand-50);
+  border: 1.5px solid var(--ink-500);
+  transition: background 140ms var(--ease-standard), border-color 140ms var(--ease-standard);
+}
+.consentBoxOn { background: var(--color-primary); border-color: var(--color-primary); }
+.consentInput:focus-visible + .consentBox { box-shadow: 0 0 0 4px var(--focus-ring); }
+
+.consentText {
+  font: 400 14px/1.45 var(--font-text);
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+/* ── Errors / states ──────────────────────────────────────────── */
 .formError {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(203, 60, 60, 0.08);
-  border: 1px solid rgba(203, 60, 60, 0.2);
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 13px;
-  color: #A32E2E;
-  margin-bottom: 18px;
-}
-.formError svg { flex-shrink: 0; margin-top: 1px; }
-
-/* ── Rules text on the consent step ───────────────────────────── */
-.rulesBlock {
+  gap: 10px;
   padding: 14px 16px;
-  border-radius: 14px;
-  background: rgba(20, 31, 46, 0.03);
-  border: 1px solid rgba(20, 31, 46, 0.07);
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 13px;
-  line-height: 1.6;
-  color: rgba(20, 24, 30, 0.7);
-  white-space: pre-wrap;
-  margin-bottom: 18px;
+  border-radius: 16px;
+  background: rgba(235, 111, 67, 0.10);
+  border: 1px solid rgba(235, 111, 67, 0.28);
+  color: var(--coral-700);
+  font: 500 14px/1.45 var(--font-text);
+}
+.formErrorIcon { flex: none; margin-top: 1px; }
+
+.skeletonRow {
+  height: 92px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, var(--sand-100) 0%, var(--sand-300) 50%, var(--sand-100) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s var(--ease-standard) infinite;
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeletonRow { animation: none; }
+}
+
+.stateActions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ── Done ─────────────────────────────────────────────────────── */
+.done {
+  padding: 44px 22px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.doneIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--coral-100);
+  color: var(--coral-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.doneTitle {
+  margin: 0;
+  font: 700 25px/1.15 var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+.doneBody {
+  margin: 0;
+  max-width: 44ch;
+  font: 400 15px/1.5 var(--font-text);
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+.doneNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 13px/1.4 var(--font-text);
+  color: var(--text-muted);
+}
+.doneMessage {
+  width: 100%;
+  max-width: 46ch;
+  text-align: left;
+}
+
+/* ── Footer ───────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 20px;
+  background: var(--sand-100);
+  border-top: 1px solid var(--border-hairline);
+}
+.footerHint {
+  font: 400 13px/1.4 var(--font-text);
+  color: var(--text-muted);
+  text-align: center;
+}
+.footerActions { display: flex; flex-direction: column-reverse; gap: 10px; }
+.footerActions > * { width: 100%; }
+
+/* ═══ Desktop — the design's 1180px frame ═══════════════════════ */
+@media (min-width: 768px) {
+  .page { --lb-logo-ink: #FFFFFF; }
+
+  .hero { padding-bottom: 96px; }
+  .heroOverlay {
+    background: linear-gradient(
+      180deg,
+      rgba(20, 24, 30, 0.72) 0%,
+      rgba(20, 24, 30, 0.42) 55%,
+      rgba(245, 241, 234, 0.96) 90%,
+      var(--sand-100) 100%
+    );
+  }
+  .heroBar { height: 76px; padding: 0 28px; background: transparent; }
+  .heroContent {
+    max-width: 840px;
+    margin: 0 auto;
+    gap: 14px;
+    padding: 22px 40px 0;
+  }
+  .backPill { gap: 8px; padding: 9px 16px 9px 12px; font-size: 14px; }
+  .heroStep { font-size: 12px; }
+  .heroTitle { font-size: 42px; line-height: 1.05; }
+  .heroMeta { gap: 8px 22px; font-size: 15px; }
+
+  .cardWrap { margin-top: -64px; padding: 0 40px 48px; }
+  .card { border-radius: 32px; box-shadow: 0 18px 48px rgba(20, 24, 30, 0.13); }
+
+  .stepper { padding: 22px 36px; }
+  .stepItem { gap: 14px; }
+  .stepHead { gap: 12px; }
+  .stepCircle { width: 34px; height: 34px; font-size: 15px; }
+  .stepLabel { font-size: 16px; }
+
+  .panel { padding: 34px 36px 36px; gap: 24px; }
+  .panelRoster { gap: 26px; }
+  .panelHead { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 24px; }
+  .panelHeadText { display: flex; flex-direction: column; gap: 8px; }
+  .stepTitle { font-size: 30px; line-height: 1.1; }
+  .stepSub { font-size: 16px; }
+  .deadline { display: flex; }
+
+  .divisionGrid { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .divCard { border-radius: 22px; padding: 20px 22px; gap: 14px; }
+  .divRing { border-radius: 22px; }
+  .divTop { align-items: flex-start; }
+  .divIdentity { gap: 8px; }
+  .divName { font-size: 20px; }
+  .divFeeValue { font-size: 28px; }
+  .divFeeCurrency { font-size: 12px; }
+  .divProgressWrap { gap: 8px; }
+
+  .contactGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .playerGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  .playerCard { border-radius: 22px; padding: 22px; gap: 16px; }
+  .playerNum { width: 26px; height: 26px; font-size: 13px; }
+  .playerName { font-size: 17px; }
+  .playerExtras { gap: 16px; }
+  .playerExtraPair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+  .reviewGrid { grid-template-columns: 1.35fr 1fr; }
+  .reviewTeam { border-radius: 22px; }
+  .reviewTeamHead { padding: 18px 22px; }
+  .reviewRow { padding: 16px 22px; }
+  .reviewFee { order: 0; border-radius: 22px; padding: 22px; gap: 18px; }
+  .reviewFeeDivision { font-size: 22px; }
+  .reviewFeeRowLabel { font-size: 15px; }
+  .reviewFeeValue { font-size: 30px; }
+  .reviewFeeCurrency { font-size: 12px; }
+  .consentRow { padding: 16px 18px; }
+  .consentText { font-size: 15px; }
+
+  .done { padding: 56px 36px 60px; gap: 18px; }
+  .doneIcon { width: 64px; height: 64px; }
+  .doneTitle { font-size: 32px; line-height: 1.1; }
+  .doneBody { font-size: 16px; }
+
+  .footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 36px;
+  }
+  .footerHint { text-align: left; }
+  .footerActions { flex-direction: row; align-items: center; gap: 10px; }
+  .footerActions > * { width: auto; }
+}
+
+/* All three labels fit down to about a 375px phone; below that keep the
+   current step's label and drop the rest. */
+@media (max-width: 359px) {
+  .stepLabel { display: none; }
+  .stepLabelActive { display: inline; }
 }

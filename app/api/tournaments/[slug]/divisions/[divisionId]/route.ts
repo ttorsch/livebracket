@@ -8,6 +8,7 @@ interface DivisionBody {
   formatTypeOnSand: string;
   maxRosterSize: number;
   registrationFee: number;
+  currency: string;
   registrationOpenDate: string;
   registrationCloseDate: string;
   // Each round carries its own scoring rules (e.g. pool play to 21, the
@@ -36,9 +37,14 @@ const roundLabel = (i: number) => (ORDINALS[i] ? `${ORDINALS[i]} Round` : `Round
 const clampMinutes = (v: number | undefined) =>
   typeof v === 'number' && v > 0 ? Math.max(5, Math.min(240, Math.trunc(v))) : 45;
 
+const CURRENCIES = ['THB', 'USD', 'EUR', 'GBP', 'AUD', 'SGD'];
+
 function toSettings(body: DivisionBody) {
   return {
     maxRosterSize: body.maxRosterSize,
+    // Display currency for registrationFee. Whitelisted so a hand-made
+    // request cannot store an arbitrary code the form can't render back.
+    currency: CURRENCIES.includes(body.currency) ? body.currency : 'THB',
     registrationOpenDate: body.registrationOpenDate,
     // Registration is derived from these two dates (lib/tournamentLifecycle),
     // and settings is replaced wholesale below — leaving the close date out

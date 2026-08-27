@@ -136,6 +136,7 @@ interface SetupDivision {
   ageLimit: AgeLimit;               // youth cap, or '' for no limit
   // B. Staggered timing & fees
   registrationFee: number;          // flat per-team-slot, can be 0
+  currency: string;                 // ISO code the fee is priced in
   registrationOpenDate: string;     // datetime-local string, staggered windows
   registrationCloseDate: string;    // 'YYYY-MM-DD'; when this division stops taking teams
   // C. Rules & formats
@@ -215,6 +216,7 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
     genderEligibility: normalizeGender(settings.genderEligibility),
     ageLimit: normalizeAgeLimit(settings.ageLimit),
     registrationFee: row.registrationFee,
+    currency: normalizeCurrency(settings.currency),
     registrationOpenDate: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
     registrationCloseDate: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
     rounds: row.rounds.map((r) => ({
@@ -241,6 +243,15 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
 
 // Create Division modal is split into three navigable steps.
 const MODAL_STEPS = ['Basics & Fee', 'Format & Rules', 'Registration'];
+
+/* Currencies an organizer can price a division in. The symbol is display
+   only — the fee is stored as a plain number and the code alongside it. */
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  THB: '\u0e3f', USD: '$', EUR: '\u20ac', GBP: '\u00a3', AUD: 'A$', SGD: 'S$',
+};
+const CURRENCIES = Object.keys(CURRENCY_SYMBOLS);
+const normalizeCurrency = (v: unknown): string =>
+  typeof v === 'string' && CURRENCIES.includes(v) ? v : 'THB';
 
 /* The teams table's segmented filter. "Waitlist" is a status rather than a
  * payment state, which is why this is one control and not two. */
@@ -498,6 +509,7 @@ export default function OrganizerSetup() {
   const [maxRoster, setMaxRoster] = useState(2);
   // B. Staggered timing & fees
   const [regFee, setRegFee] = useState(800);
+  const [currency, setCurrency] = useState('THB');
   const [regOpenDate, setRegOpenDate] = useState('');
   const [regCloseDate, setRegCloseDate] = useState('');
   const [isOpenImmediately, setIsOpenImmediately] = useState(true);
@@ -578,6 +590,7 @@ export default function OrganizerSetup() {
     setFormatType('2v2');
     setMaxRoster(FORMAT_PLAYERS['2v2']);
     setRegFee(800);
+    setCurrency('THB');
     setRegOpenDate('');
     setRegCloseDate(registrationCloseDefault(basicInfo?.startDate));
     setIsOpenImmediately(true);
@@ -611,6 +624,7 @@ export default function OrganizerSetup() {
     setFormatType(d.formatTypeOnSand);
     setMaxRoster(d.maxRosterSize);
     setRegFee(d.registrationFee);
+    setCurrency(d.currency);
     setRegOpenDate(d.registrationOpenDate);
     // Falls back to the default rather than showing an empty date on a
     // division saved before this field existed.
@@ -1000,6 +1014,7 @@ export default function OrganizerSetup() {
       genderEligibility,
       ageLimit,
       registrationFee: regFee,
+      currency,
       registrationOpenDate: regOpenDate,
       registrationCloseDate: regCloseDate,
       rounds,
@@ -2252,104 +2267,143 @@ export default function OrganizerSetup() {
               {/* ══ Step 1: Basics & Fee ═════════════════════════ */}
               {modalStep === 0 && (
               <>
-              {/* ── A. Basics & Dynamic Capacity ─────────────────── */}
-              <p className={styles.modalSectionTitle}>Basics &amp; Capacity</p>
+              {/* ── A. Basics & Capacity ─────────────────────────── */}
+              <div className={styles.stepCard}>
+                <span className={styles.stepCardEyebrow}>Basics &amp; Capacity</span>
 
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Division Name *</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  placeholder="e.g. Women's Open, Mixed 4s"
-                  value={divName}
-                  onChange={e => { setDivName(e.target.value); setFormError(null); }}
-                />
-              </div>
-
-              <div className={styles.twoCol} style={{ marginTop: 12 }}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Team Cap (Max Teams) *</label>
+                <div className={styles.stepFieldBlock}>
+                  <label className={styles.stepFieldLabel}>
+                    Division Name <span className={styles.asteriskOrange}>*</span>
+                  </label>
                   <input
-                    type="number"
-                    className={styles.input}
-                    min={2}
-                    value={divCap}
-                    onChange={e => setDivCap(parseInt(e.target.value) || 8)}
+                    type="text"
+                    className={styles.stepNameInput}
+                    placeholder="e.g. Women's Open, Mixed 4s"
+                    value={divName}
+                    onChange={e => { setDivName(e.target.value); setFormError(null); }}
                   />
                 </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Format *</label>
-                  <select
-                    className={styles.select}
-                    value={formatType}
-                    onChange={e => handleFormatChange(e.target.value as OnSandFormat)}
-                  >
-                    <option value="2v2">2 v 2</option>
-                    <option value="3v3">3 v 3</option>
-                    <option value="4v4">4 v 4</option>
-                    <option value="6v6">6 v 6</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
-                <label className={styles.fieldLabel}>Max Roster Size *</label>
-                <input
-                  type="number"
-                  className={styles.input}
-                  min={FORMAT_PLAYERS[formatType]}
-                  value={maxRoster}
-                  onChange={e => { setMaxRoster(parseInt(e.target.value) || 0); setFormError(null); }}
-                />
-                <span className={styles.fieldHint}>
-                  Minimum {FORMAT_PLAYERS[formatType]} for {formatType}. Raise it to allow substitutes / alternates.
-                </span>
-              </div>
+                <div className={styles.tileGrid}>
+                  <div className={styles.creamTile}>
+                    <span className={styles.creamTileLabel}>Team cap</span>
+                    <div className={styles.creamTileInputRow}>
+                      <input
+                        type="number"
+                        className={styles.creamTileNumberInput}
+                        min={2}
+                        value={divCap}
+                        onChange={e => setDivCap(parseInt(e.target.value) || 8)}
+                      />
+                      <span className={styles.creamTileSuffix}>teams</span>
+                    </div>
+                  </div>
 
-              <div className={styles.twoCol} style={{ marginTop: 12 }}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Gender *</label>
-                  <select
-                    className={styles.select}
-                    value={genderEligibility}
-                    onChange={e => setGenderEligibility(e.target.value as DivisionGender)}
-                  >
-                    {DIVISION_GENDERS.map(g => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
+                  <div className={styles.creamTile}>
+                    <span className={styles.creamTileLabel}>Format</span>
+                    <div className={styles.creamTileSelectRow}>
+                      <select
+                        className={styles.creamTileSelect}
+                        value={formatType}
+                        onChange={e => handleFormatChange(e.target.value as OnSandFormat)}
+                      >
+                        <option value="2v2">2 v 2</option>
+                        <option value="3v3">3 v 3</option>
+                        <option value="4v4">4 v 4</option>
+                        <option value="6v6">6 v 6</option>
+                      </select>
+                      <ChevronDown size={15} className={styles.creamTileChevron} />
+                    </div>
+                  </div>
+
+                  <div className={styles.creamTile}>
+                    <span className={styles.creamTileLabel}>Max roster size</span>
+                    <div className={styles.creamTileInputRow}>
+                      <input
+                        type="number"
+                        className={styles.creamTileNumberInput}
+                        min={FORMAT_PLAYERS[formatType]}
+                        value={maxRoster}
+                        onChange={e => { setMaxRoster(parseInt(e.target.value) || 0); setFormError(null); }}
+                      />
+                      <span className={styles.creamTileSuffix}>players</span>
+                    </div>
+                  </div>
                 </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.fieldLabel}>Age Limit</label>
-                  <select
-                    className={styles.select}
-                    value={ageLimit}
-                    onChange={e => setAgeLimit(e.target.value as AgeLimit)}
-                  >
-                    {AGE_LIMITS.map(a => (
-                      <option key={a || 'none'} value={a}>{ageLimitLabel(a)}</option>
-                    ))}
-                  </select>
+
+                <div className={styles.stepDivider} />
+
+                <div className={styles.stepSubGroup}>
+                  <span className={styles.stepCardEyebrowMuted}>Eligibility</span>
+                  <div className={styles.tileGrid}>
+                    <div className={styles.creamTile}>
+                      <span className={styles.creamTileLabel}>Gender</span>
+                      <div className={styles.creamTileSelectRow}>
+                        <select
+                          className={styles.creamTileSelect}
+                          value={genderEligibility}
+                          onChange={e => setGenderEligibility(e.target.value as DivisionGender)}
+                        >
+                          {DIVISION_GENDERS.map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={15} className={styles.creamTileChevron} />
+                      </div>
+                    </div>
+
+                    <div className={styles.creamTile}>
+                      <span className={styles.creamTileLabel}>Age limit</span>
+                      <div className={styles.creamTileSelectRow}>
+                        <select
+                          className={styles.creamTileSelect}
+                          value={ageLimit}
+                          onChange={e => setAgeLimit(e.target.value as AgeLimit)}
+                        >
+                          {AGE_LIMITS.map(a => (
+                            <option key={a || 'none'} value={a}>{ageLimitLabel(a)}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={15} className={styles.creamTileChevron} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <span className={styles.fieldHint}>
-                Shown on the division and the public event page. Nothing checks a player&apos;s age at
-                registration — it is what the division advertises.
-              </span>
 
               {/* ── B. Fees ──────────────────────────────────────── */}
-              <p className={styles.modalSectionTitle}>Fees</p>
-
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Registration Fee (THB) *</label>
-                <input
-                  type="number"
-                  className={styles.input}
-                  min={0}
-                  value={regFee}
-                  onChange={e => setRegFee(parseInt(e.target.value) || 0)}
-                />
-                <span className={styles.fieldHint}>Flat per team slot. Enter 0 for a free division.</span>
+              <div className={styles.stepCard}>
+                <span className={styles.stepCardEyebrow}>Fees</span>
+                <div className={styles.feeRow}>
+                  <div className={styles.feeBox}>
+                    <div className={styles.feeCurrencyWrap}>
+                      <select
+                        className={styles.feeCurrencySelect}
+                        value={currency}
+                        onChange={e => setCurrency(e.target.value)}
+                        aria-label="Currency"
+                      >
+                        {CURRENCIES.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className={styles.feeCurrencyChevron} />
+                    </div>
+                    <input
+                      type="number"
+                      className={styles.feeAmountInput}
+                      min={0}
+                      value={regFee}
+                      onChange={e => setRegFee(parseInt(e.target.value) || 0)}
+                      aria-label="Registration fee per team"
+                    />
+                    <span className={styles.feeSuffix}>per team</span>
+                  </div>
+                  <span className={styles.feeTotalText}>
+                    Full division collects {CURRENCY_SYMBOLS[currency] ?? ''}
+                    {(divCap * regFee).toLocaleString('en-US')} at {divCap} teams
+                  </span>
+                </div>
               </div>
               </>
               )}

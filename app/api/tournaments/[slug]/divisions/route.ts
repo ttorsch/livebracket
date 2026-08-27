@@ -14,6 +14,7 @@ interface DivisionBody {
   formatTypeOnSand: string;
   maxRosterSize: number;
   registrationFee: number;
+  currency: string;
   registrationOpenDate: string;
   registrationCloseDate: string;
   // Each round carries its own scoring rules (e.g. pool play to 21, the
@@ -35,9 +36,14 @@ interface DivisionBody {
   confirmationImage: string;
 }
 
+const CURRENCIES = ['THB', 'USD', 'EUR', 'GBP', 'AUD', 'SGD'];
+
 function toSettings(body: DivisionBody) {
   return {
     maxRosterSize: body.maxRosterSize,
+    // Display currency for registrationFee. Whitelisted so a hand-made
+    // request cannot store an arbitrary code the form can't render back.
+    currency: CURRENCIES.includes(body.currency) ? body.currency : 'THB',
     registrationOpenDate: body.registrationOpenDate,
     // See the PATCH route: settings is written wholesale, so a key left out
     // here is a key that never persists.

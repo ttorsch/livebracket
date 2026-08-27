@@ -965,7 +965,7 @@
 
 .modalHeader {
   padding: 20px 24px;
-  border-bottom: 1.5px solid rgba(20, 31, 46, 0.08);
+  border-bottom: 1px solid var(--border-hairline, #E7E2D9);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1001,28 +1001,30 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #F3F4F6;
+  background: var(--surface-raised, #F3F3F3);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #4B5563;
+  color: var(--text-secondary, #3A414D);
   transition: background 0.15s, color 0.15s;
 }
 .modalCloseBtnCircle:hover {
-  background: #E5E7EB;
-  color: #1F2937;
+  background: var(--sand-300, #E7E2D9);
+  color: var(--text-primary, #14181E);
 }
 
 .modalBody {
-  padding: 24px;
+  padding: 20px 22px 24px;
   overflow-y: auto;
   flex: 1;
+  background: var(--sand-100, #F5F1EA);
 }
 .modalFooter {
   padding: 16px 24px;
-  border-top: 1.5px solid rgba(20, 31, 46, 0.08);
+  border-top: 1px solid var(--border-hairline, #E7E2D9);
+  background: var(--surface-card, #FFFFFF);
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -1033,8 +1035,8 @@
   display: flex;
   align-items: center;
   padding: 14px 24px;
-  border-bottom: 1.5px solid rgba(20, 31, 46, 0.08);
-  background: #FFFFFF;
+  border-bottom: 1px solid var(--border-hairline, #E7E2D9);
+  background: var(--surface-card, #FFFFFF);
 }
 .modalStepRow {
   display: flex;
@@ -1064,30 +1066,30 @@
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
-  background: #F3F4F6;
-  color: #9CA3AF;
+  background: var(--surface-raised, #F3F3F3);
+  color: var(--text-muted, #7A8294);
   flex-shrink: 0;
   transition: background 0.18s, color 0.18s;
 }
 .modalStepLabel {
   font-size: 13px;
   font-weight: 600;
-  color: #9CA3AF;
+  color: var(--text-muted, #7A8294);
   white-space: nowrap;
   transition: color 0.18s;
 }
 .modalStepActive .modalStepDot {
-  background: #EF5A24;
-  color: #fff;
+  background: var(--color-primary, #EB6F43);
+  color: var(--color-on-primary, #FFFFFF);
+  box-shadow: var(--shadow-primary, 0 4px 12px rgba(242, 103, 73, 0.40));
 }
 .modalStepActive .modalStepLabel {
   color: #14181E;
   font-weight: 700;
 }
 .modalStepDone .modalStepDot {
-  background: #FDE8E0;
-  color: #EF5A24;
-  border: 1px solid #FBCDBA;
+  background: var(--color-primary-soft, rgba(235, 111, 67, 0.20));
+  color: var(--color-primary, #EB6F43);
 }
 .modalStepDone .modalStepLabel {
   color: #14181E;
@@ -1098,12 +1100,13 @@
   height: 2px;
   min-width: 12px;
   margin: 0 12px;
-  background: #E5E7EB;
+  background: var(--border-hairline, #E7E2D9);
   border-radius: 2px;
   transition: background 0.18s;
 }
 .modalStepLineDone {
-  background: #EF5A24;
+  background: var(--color-primary, #EB6F43);
+  opacity: 0.35;
 }
 
 /* ── Registration response photo ──────────────────────────────── */
@@ -1452,10 +1455,10 @@
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--orange, #EE7A4C);
+  color: var(--color-primary, #EB6F43);
   margin: 22px 0 12px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(238, 122, 76, 0.18);
+  border-bottom: 1px solid var(--border-hairline, #E7E2D9);
 }
 .modalSectionTitle:first-child {
   margin-top: 0;
@@ -1531,7 +1534,7 @@
   margin-bottom: 14px;
 }
 .asteriskOrange {
-  color: #EF5A24;
+  color: var(--color-primary, #EB6F43);
   font-weight: 800;
   margin-left: 2px;
 }
@@ -1543,11 +1546,10 @@
 }
 
 .roundCardNew {
-  background: #FFFFFF;
-  border: 1.5px solid rgba(20, 31, 46, 0.09);
+  background: var(--surface-card, #FFFFFF);
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 4px 14px rgba(20, 31, 46, 0.04);
+  box-shadow: var(--shadow-card, 0 8px 40px rgba(0, 0, 0, 0.12));
 }
 
 .roundCardHeader {
@@ -1608,7 +1610,7 @@
 .roundCardDeleteBtn {
   background: none;
   border: none;
-  color: #9CA3AF;
+  color: var(--text-muted, #7A8294);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
@@ -1620,8 +1622,8 @@
 }
 
 .roundCardDeleteBtn:hover {
-  color: #EF4444;
-  background: #FEE2E2;
+  color: var(--color-primary, #EB6F43);
+  background: var(--color-primary-soft, rgba(235, 111, 67, 0.20));
 }
 
 /* 3-Column Format Cards Grid */
@@ -1637,17 +1639,12 @@
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
-  border: 1.5px solid rgba(20, 31, 46, 0.1);
-  background: #FFFFFF;
+  border: 1.5px solid var(--border-hairline, #E7E2D9);
+  background: var(--surface-card, #FFFFFF);
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-}
-
-.formatCard:hover {
-  border-color: rgba(239, 90, 36, 0.5);
-  background: #FFFAF8;
 }
 
 .formatCardTitle {
@@ -1659,14 +1656,14 @@
 .formatCardDesc {
   font-size: 11.5px;
   line-height: 1.35;
-  color: #6B7280;
+  color: var(--text-muted, #7A8294);
   font-weight: 500;
 }
 
 .formatCardActive {
-  background: #EF5A24 !important;
-  border-color: #EF5A24 !important;
-  box-shadow: 0 6px 18px -4px rgba(239, 90, 36, 0.4);
+  background: var(--color-primary, #EB6F43) !important;
+  border-color: var(--color-primary, #EB6F43) !important;
+  box-shadow: var(--shadow-primary, 0 4px 12px rgba(242, 103, 73, 0.40));
 }
 
 .formatCardActive .formatCardTitle {
@@ -1708,7 +1705,8 @@
 
 /* Cream Tile */
 .creamTile {
-  background: #F4EFEA;
+  background: var(--sand-100, #F5F1EA);
+  border: 1px solid var(--border-hairline, #E7E2D9);
   border-radius: 14px;
   padding: 10px 14px;
   display: flex;
@@ -1737,7 +1735,8 @@
 .creamTileNumberInput {
   background: transparent;
   border: none;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-variant-numeric: tabular-nums;
   font-size: 18px;
   font-weight: 800;
   color: #14181E;
@@ -1764,7 +1763,7 @@
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 12.5px;
   font-weight: 500;
-  color: #4B5563;
+  color: var(--text-secondary, #3A414D);
 }
 
 .creamTileSelectRow {
@@ -1778,7 +1777,7 @@
 .creamTileSelect {
   background: transparent;
   border: none;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-size: 15px;
   font-weight: 800;
   color: #14181E;
@@ -1794,7 +1793,7 @@
   position: absolute;
   right: 0;
   pointer-events: none;
-  color: #4B5563;
+  color: var(--text-muted, #7A8294);
 }
 
 .creamTileToggleRow {
@@ -1821,7 +1820,7 @@
 .creamSwitchTrack {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #D1D5DB;
+  background-color: var(--sand-400, #D9D4C9);
   border-radius: 9999px;
   transition: background-color 0.2s ease;
 }
@@ -1836,11 +1835,11 @@
   background-color: white;
   border-radius: 50%;
   transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(20, 24, 30, 0.25);
 }
 
 .creamSwitch input:checked + .creamSwitchTrack {
-  background-color: #EF5A24;
+  background-color: var(--color-primary, #EB6F43);
 }
 
 .creamSwitch input:checked + .creamSwitchTrack .creamSwitchThumb {
@@ -1851,10 +1850,10 @@
 .btnAddRoundDashed {
   width: 100%;
   padding: 13px 16px;
-  border-radius: 14px;
-  border: 1.5px dashed #F87171;
-  background: #FFF7ED;
-  color: #EF5A24;
+  border-radius: var(--radius-pill, 999px);
+  border: 1.5px dashed var(--coral-300, #F8A288);
+  background: transparent;
+  color: var(--color-primary, #EB6F43);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   font-weight: 800;
@@ -1868,8 +1867,8 @@
 }
 
 .btnAddRoundDashed:hover {
-  background: #FFEDD5;
-  border-color: #EF5A24;
+  background: var(--coral-50, #FFFBFA);
+  border-color: var(--color-primary, #EB6F43);
 }
 
 /* Competition Rules Section */
@@ -1894,14 +1893,14 @@
 
 .rulesTextarea {
   width: 100%;
-  border: 1.5px solid rgba(20, 31, 46, 0.1);
-  border-radius: 14px;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 16px;
   padding: 12px 14px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13.5px;
-  color: #14181E;
+  color: var(--text-primary, #14181E);
   outline: none;
-  background: #FFFFFF;
+  background: var(--surface-card, #FFFFFF);
   resize: vertical;
   min-height: 72px;
   transition: border-color 0.15s;
@@ -1909,17 +1908,17 @@
 }
 
 .rulesTextarea:focus {
-  border-color: #EF5A24;
-  box-shadow: 0 0 0 3px rgba(239, 90, 36, 0.12);
+  border-color: var(--color-primary, #EB6F43);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(235, 111, 67, 0.45));
 }
 
 /* Modal Footer Buttons */
 .btnModalBack {
   padding: 10px 24px;
   border-radius: 9999px;
-  background: #FFFFFF;
-  border: 1.5px solid rgba(20, 31, 46, 0.14);
-  color: #14181E;
+  background: var(--surface-card, #FFFFFF);
+  border: 1.5px solid var(--border-hairline, #E7E2D9);
+  color: var(--text-primary, #14181E);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   font-weight: 700;
@@ -1928,16 +1927,16 @@
 }
 
 .btnModalBack:hover {
-  background: #F9FAFB;
-  border-color: rgba(20, 31, 46, 0.25);
+  background: var(--sand-100, #F5F1EA);
+  border-color: var(--sand-400, #D9D4C9);
 }
 
 .btnModalNext {
   padding: 10px 28px;
   border-radius: 9999px;
-  background: #EF5A24;
+  background: var(--color-primary, #EB6F43);
   border: none;
-  color: #FFFFFF;
+  color: var(--color-on-primary, #FFFFFF);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 14px;
   font-weight: 700;
@@ -1945,7 +1944,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 4px 14px rgba(239, 90, 36, 0.35);
+  box-shadow: var(--shadow-primary, 0 4px 12px rgba(242, 103, 73, 0.40));
   transition: all 0.15s ease;
 }
 
@@ -1974,14 +1973,28 @@
   .advancementGrid {
     grid-template-columns: 1fr;
   }
+  /* Three steps + labels don't fit 390px, so the row scrolls rather than
+     clipping "Registration" off the right edge. Sizes tighten first so
+     scrolling is only needed on the narrowest phones. */
   .modalSteps {
     padding: 12px 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .modalSteps::-webkit-scrollbar {
+    display: none;
+  }
+  .modalStepDot {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
   }
   .modalStepLabel {
     font-size: 11.5px;
   }
   .modalStepLine {
-    margin: 0 6px;
+    margin: 0 4px;
+    min-width: 10px;
   }
 }
 
@@ -3633,4 +3646,161 @@
   width: 100%;
   max-width: none;
   height: 8px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Step 1 — Basics & Fee
+   Mirrors DivisionBasicsStep from the Claude Design wizard: two
+   white cards floating on the sand body, compact tile fields.
+   ══════════════════════════════════════════════════════════════ */
+
+.stepCard {
+  background: var(--surface-card, #FFFFFF);
+  border-radius: 20px;
+  box-shadow: var(--shadow-card, 0 8px 40px rgba(0, 0, 0, 0.12));
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.stepCard + .stepCard {
+  margin-top: 14px;
+}
+
+/* Section eyebrow. Brand-coloured for a card's own heading, muted
+   for a subsection inside one (e.g. Eligibility). */
+.stepCardEyebrow {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary, #EB6F43);
+}
+.stepCardEyebrowMuted {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #7A8294);
+}
+
+.stepFieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stepFieldLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, #7A8294);
+}
+.stepNameInput {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 14px;
+  background: var(--sand-100, #F5F1EA);
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.stepNameInput:focus {
+  border-color: var(--color-primary, #EB6F43);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(235, 111, 67, 0.45));
+}
+
+/* Tiles reflow from three-up to one-up on their own. */
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.stepDivider {
+  height: 1px;
+  background: var(--border-hairline, #E7E2D9);
+}
+
+.stepSubGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Fees ─────────────────────────────────────────────────────── */
+.feeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.feeBox {
+  flex: 1;
+  min-width: 190px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--sand-100, #F5F1EA);
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 16px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+}
+.feeCurrencyWrap {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.feeCurrencySelect {
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary, #3A414D);
+  cursor: pointer;
+  appearance: none;
+}
+.feeCurrencyChevron {
+  display: flex;
+  color: var(--text-muted, #7A8294);
+  pointer-events: none;
+}
+.feeAmountInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary, #14181E);
+}
+.feeSuffix {
+  flex: none;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  color: var(--text-secondary, #3A414D);
+}
+.feeTotalText {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  color: var(--text-secondary, #3A414D);
+  font-variant-numeric: tabular-nums;
 }
