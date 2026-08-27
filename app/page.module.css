@@ -887,60 +887,67 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
-  padding: 16px 18px;
+  padding: 24px;
   min-height: 0;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 30px 80px -30px rgba(8, 18, 35, 0.6);
   text-decoration: none;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s, box-shadow 0.25s;
+  transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+  /* DateChip resolves its pill colours from these two, so setting them here
+     flips the chip light-on-dark. Same pair the nearby card sets. */
+  --text-primary: rgba(255, 255, 255, 0.85);
+  --fills-tertiary: rgba(255, 255, 255, 0.12);
 }
 .upcomingRow:hover {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .upcomingRowHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 8px;
+  margin-bottom: 14px;
 }
 
 .upcomingStatusBadge {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--orange, #E4573A);
+  color: var(--orange, #EE7A4C);
 }
 .upcomingStatusLive {
-  color: #D32B44;
+  color: #FF8A9B;
 }
 
-.upcomingRowArrow {
-  flex-shrink: 0;
-  color: rgba(20, 24, 30, 0.4);
-  transition: transform 0.2s ease, color 0.2s ease;
+/* Text on the left, round arrow centred against it on the right. */
+.upcomingRowContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
 }
-.upcomingRow:hover .upcomingRowArrow {
-  transform: translateX(3px);
-  color: var(--ink-1, #14181E);
+
+.upcomingRowTextCol {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .upcomingRowTitle {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--ink-1, #14181E);
-  margin: 0;
+  letter-spacing: 0.03em;
+  color: #fff;
+  margin: 0 0 16px;
   overflow-wrap: break-word;
 }
 
@@ -948,57 +955,54 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 5px;
+  gap: 8px;
+  margin-top: auto;
+  min-width: 0;
 }
 
 .upcomingMetaRow {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  /* The venue wraps to a second line in the narrow hero card rather than
+     being cut to an ellipsis, so the pin sits against the first line. */
+  align-items: flex-start;
+  gap: 8px;
   min-width: 0;
   max-width: 100%;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .upcomingMetaIcon {
   flex-shrink: 0;
-  color: var(--ink-3, #7A8294);
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .upcomingMetaText {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12.5px;
-  color: var(--ink-3, #7A8294);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.upcomingDivisionsSection {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.upcomingDivisionChip {
+.upcomingArrowBtn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(20, 31, 46, 0.06);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11.5px;
-  color: var(--ink-1, #14181E);
+  justify-content: center;
+  align-self: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
 }
-
-.upcomingDivisionName {
-  font-weight: 500;
-}
-
-.upcomingDivisionSeats {
-  font-weight: 700;
-  color: rgba(20, 31, 46, 0.6);
+.upcomingRow:hover .upcomingArrowBtn {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateX(3px);
 }
 
 .upcomingEmpty {

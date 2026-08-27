@@ -1104,36 +1104,37 @@ export default function LiveBracketHome() {
                             >
                               {statusLabels(t).long}
                             </span>
-                            <ArrowRight size={16} className={styles.upcomingRowArrow} />
                           </div>
 
-                          <h4 className={styles.upcomingRowTitle}>{t.title}</h4>
+                          <div className={styles.upcomingRowContent}>
+                            <div className={styles.upcomingRowTextCol}>
+                              <h4 className={styles.upcomingRowTitle}>{t.title}</h4>
 
-                          <div className={styles.upcomingMetaList}>
-                            <div className={styles.upcomingMetaRow}>
-                              <Calendar size={14} className={styles.upcomingMetaIcon} />
-                              <span className={styles.upcomingMetaText}>
-                                {formatDateRange(t.dateLabel, t.endDateLabel)}
-                              </span>
-                            </div>
-                            <div className={styles.upcomingMetaRow}>
-                              <MapPin size={14} className={styles.upcomingMetaIcon} />
-                              <span className={styles.upcomingMetaText}>{t.location}</span>
-                            </div>
-                          </div>
-
-                          {t.registrations && t.registrations.length > 0 && (
-                            <div className={styles.upcomingDivisionsSection}>
-                              {t.registrations.map((reg, idx) => (
-                                <div key={idx} className={styles.upcomingDivisionChip}>
-                                  <span className={styles.upcomingDivisionName}>{reg.division}</span>
-                                  <span className={styles.upcomingDivisionSeats}>
-                                    {reg.filled}/{reg.total}
-                                  </span>
+                              <div className={styles.upcomingMetaList}>
+                                <DateChip
+                                  style={{
+                                    fontWeight: 700,
+                                    fontSize: '13.5px',
+                                    padding: '6px 14px',
+                                    border: 'none',
+                                    width: 'fit-content',
+                                  }}
+                                >
+                                  {formatDateRange(t.dateLabel, t.endDateLabel)}
+                                </DateChip>
+                                <div className={styles.upcomingMetaRow}>
+                                  <MapPin size={13} className={styles.upcomingMetaIcon} />
+                                  <span className={styles.upcomingMetaText}>{t.location}</span>
                                 </div>
-                              ))}
+                              </div>
                             </div>
-                          )}
+
+                            {/* Nested inside the row's own Link, so a span rather
+                                than a second anchor. */}
+                            <span className={styles.upcomingArrowBtn} aria-hidden="true">
+                              <ArrowRight size={18} />
+                            </span>
+                          </div>
                         </Link>
                       ))}
                       {upcomingSoon.length === 0 && (

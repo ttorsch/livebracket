@@ -1,154 +1,177 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Calendar, Users, Trophy, Clock, ChevronRight } from 'lucide-react';
+import { MapPin, Calendar, Users, ArrowRight } from 'lucide-react';
 import styles from './page.module.css';
-import { getTournamentDetail, type TournamentDetail, type DetailMatch } from '../../../lib/data';
+import {
+  getTournamentDetail, type TournamentDetail, type DetailMatch,
+  type DetailDivision, type ConfiguredRound,
+} from '../../../lib/data';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
 import { registrationState, nextOpening, isPublic, type Phase } from '../../../lib/tournamentLifecycle';
 
-/* "Opens 26 Sep" — UTC to match how the rest of the app reads scheduled
-   dates, so the badge can't say a different day than the schedule does. */
-function formatOpensAt(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-}
-
-// Spectators are watching a match happen; the bracket has to keep up.
+// Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
 
-type BracketMatch = DetailMatch;
+/* Dates are read in UTC everywhere in this app — a browser west of Greenwich
+   would otherwise show a deadline a day early. */
+function formatDay(d: Date): string {
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
 
-type Tab = 'bracket' | 'pool' | 'schedule' | 'teams' | 'rules' | 'vouchers';
+function formatCloseDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return formatDay(new Date(Date.UTC(y, m - 1, d)));
+}
 
-/* ── Nav (mirrors homepage) ───────────────────────────────────── */
-function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+const FORMAT_LABEL: Record<string, string> = {
+  'round-robin': 'Round Robin',
+  pool: 'Pool Play',
+  single: 'Single Elimination',
+  double: 'Double Elimination',
+};
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+const formatLabel = (f: string) => FORMAT_LABEL[f] ?? f;
 
-  return (
-    <nav className={`${styles.nav} ${scrolled ? styles.scrolled : styles.onHero}`}>
-      <div className={styles.navRow}
-        style={scrolled ? { backdropFilter: 'blur(18px) saturate(150%)', WebkitBackdropFilter: 'blur(18px) saturate(150%)' } : undefined}
-      >
-        <Link href="/" className={styles.logo}>
-          <span className={styles.brandMark}>
-            <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
-  <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="722.713" y="462.822" width="129.386" height="35.9406" rx="15" fill="white" />
-  <rect x="593.327" y="489.178" width="129.386" height="35.9406" rx="15" fill="white" />
-  <rect x="557.386" y="416.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 557.386 416.099)" fill="white" />
-  <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
-  <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
-</svg>
-          </span>
-          <span>Live Bracket</span>
-        </Link>
+/* A round that ranks teams against each other rather than knocking them out —
+   the only kind that produces a standings table. */
+const isGroupFormat = (f: string) => f === 'round-robin' || f === 'pool';
 
-        <ul className={styles.links}>
-          <li><Link href="/" className={styles.link}>Events</Link></li>
-          <li><Link href="/dashboard" className={styles.link}>Dashboard</Link></li>
-          <li><Link href="/profile" className={styles.link}>My Profile</Link></li>
-          <li><Link href="/" className={`${styles.link} ${styles.linkKlv}`}>KLV Home</Link></li>
-        </ul>
+/* ── Standings, tallied from the matches themselves ───────────────
+ *
+ * Nothing in the database stores a table: the rows below are counted off
+ * the finished matches in the group rounds. Match points are 3 for a win,
+ * which is the rule this app applies — the organizer's own scoring settings
+ * cover sets and points within a match, not how a pool is ranked. */
+const WIN_POINTS = 3;
 
-        <div className={styles.actions}>
-          <Link href="/login" className={styles.pillContact}>Log in</Link>
-          <button className={styles.menuBtn} onClick={() => setMenuOpen(v => !v)} aria-label="Menu">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-              <path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
+interface StandingRow {
+  teamId: string;
+  team: string;
+  wins: number;
+  losses: number;
+  setsFor: number;
+  setsAgainst: number;
+  points: number;
+}
 
-        {menuOpen && (
-          <>
-            <div className={styles.menuBackdrop} onClick={() => setMenuOpen(false)} />
-            <div className={styles.mobileMenu}>
-              <Link href="/" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Events</Link>
-              <Link href="/dashboard" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Dashboard</Link>
-              <Link href="/profile" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>My Profile</Link>
-              <Link href="/login" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Log in</Link>
-              <Link href="/" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>KLV Home</Link>
-            </div>
-          </>
-        )}
-      </div>
-    </nav>
+function buildStandings(division: DetailDivision): StandingRow[] {
+  const table = new Map<string, StandingRow>();
+
+  const row = (id: string, name: string) => {
+    let r = table.get(id);
+    if (!r) {
+      r = { teamId: id, team: name, wins: 0, losses: 0, setsFor: 0, setsAgainst: 0, points: 0 };
+      table.set(id, r);
+    }
+    return r;
+  };
+
+  for (const round of division.bracket) {
+    if (!isGroupFormat(round.format)) continue;
+    for (const m of round.matches) {
+      // Only a finished match has told us anything.
+      if (m.status !== 'done' || !m.teamAId || !m.teamBId || !m.winner) continue;
+
+      const a = row(m.teamAId, m.teamAName ?? m.teamA.map(p => p.name).join('/'));
+      const b = row(m.teamBId, m.teamBName ?? m.teamB.map(p => p.name).join('/'));
+
+      const setsA = m.scoreA ?? [];
+      const setsB = m.scoreB ?? [];
+      for (let i = 0; i < Math.max(setsA.length, setsB.length); i++) {
+        const sa = setsA[i] ?? 0;
+        const sb = setsB[i] ?? 0;
+        if (sa === sb) continue;
+        if (sa > sb) { a.setsFor++; b.setsAgainst++; } else { b.setsFor++; a.setsAgainst++; }
+      }
+
+      const winner = m.winner === 'A' ? a : b;
+      const loser = m.winner === 'A' ? b : a;
+      winner.wins++;
+      winner.points += WIN_POINTS;
+      loser.losses++;
+    }
+  }
+
+  return [...table.values()].sort(
+    (x, y) =>
+      y.points - x.points ||
+      (y.setsFor - y.setsAgainst) - (x.setsFor - x.setsAgainst) ||
+      x.team.localeCompare(y.team),
   );
 }
 
-/* ── Bracket match card ───────────────────────────────────────── */
-function BracketMatchCard({ match }: { match: BracketMatch }) {
-  const statusColor = match.status === 'live' ? '#FF3B3B' : match.status === 'done' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)';
+/* ── Spec rows for one configured round ──────────────────────────── */
+function specsFor(round: ConfiguredRound, rulesText: string): { label: string; value: string }[] {
+  const s = round.scoring;
+  const cap = (n: number) => (n > 0 ? ` · hard cap ${n}` : ' · no hard cap');
+  const out: { label: string; value: string }[] = [];
 
-  return (
-    <div className={`${styles.bracketMatch} ${match.status === 'live' ? styles.bracketMatchLive : ''}`}>
-      <div className={styles.bracketMatchMeta}>
-        <span className={styles.bracketCourt}>{match.court}</span>
-        {match.status === 'live' && <span className={styles.bracketLivePill}><span className={styles.liveDot} style={{ background: statusColor }} />Live</span>}
-        {match.status === 'done' && <span className={styles.bracketDonePill}>Done</span>}
-        {match.status === 'upcoming' && <span className={styles.bracketTimePill}>{match.time}</span>}
-      </div>
-      <div className={styles.bracketTeamRow}>
-        <div className={styles.bracketTeamNames}>
-          {match.teamA.map((p, i) => (
-            <span key={i} className={styles.bracketPlayerName}>
-              {p.flag && <span className={styles.bracketFlag}>{p.flag}</span>}
-              {p.name}
-            </span>
-          ))}
-        </div>
-        {(match.scoreA?.length ?? 0) > 0 && (
-          <span className={styles.bracketScore}>{match.scoreA!.join(' · ')}</span>
-        )}
-      </div>
-      <div className={styles.bracketDivider} />
-      <div className={styles.bracketTeamRow}>
-        <div className={styles.bracketTeamNames}>
-          {match.teamB.map((p, i) => (
-            <span key={i} className={styles.bracketPlayerName}>
-              {p.flag && <span className={styles.bracketFlag}>{p.flag}</span>}
-              {p.name}
-            </span>
-          ))}
-        </div>
-        {(match.scoreB?.length ?? 0) > 0 && (
-          <span className={styles.bracketScore}>{match.scoreB!.join(' · ')}</span>
-        )}
-      </div>
-    </div>
-  );
+  if (s.setsBestOf > 1) {
+    out.push({ label: 'Match', value: `Best of ${s.setsBestOf}${s.winBy2 ? ' · win by 2' : ''}` });
+    out.push({ label: `Sets 1 & ${s.setsBestOf - 1}`, value: `to ${s.pointsPerSet}${cap(s.hardCap)}` });
+    out.push({ label: 'Deciding set', value: `to ${s.decidingSetPoints}${cap(s.hardCap)}` });
+  } else {
+    out.push({ label: 'Match', value: `1 set${s.winBy2 ? ' · win by 2' : ''}` });
+    out.push({ label: 'Set', value: `to ${s.pointsPerSet}${cap(s.hardCap)}` });
+  }
+
+  out.push({ label: 'Match length', value: `${round.durationMinutes} min` });
+  if (rulesText.trim()) out.push({ label: 'Standard rules', value: rulesText.trim() });
+  return out;
 }
 
-/* ── Main page ────────────────────────────────────────────────── */
-export default function TournamentDetail() {
+/* ── A court currently in play ───────────────────────────────────── */
+interface LiveCourt {
+  id: string;
+  heading: string;      // "Court 1 · Open Men"
+  setLabel: string;     // "Set 3"
+  a: { name: string; history: string; score: number; leading: boolean };
+  b: { name: string; history: string; score: number; leading: boolean };
+  footnote: string;     // "Semifinal"
+}
+
+function toLiveCourt(divisionLabel: string, roundName: string, m: DetailMatch): LiveCourt {
+  const setsA = m.scoreA ?? [];
+  const setsB = m.scoreB ?? [];
+  // applyLiveScores appends the set being played, so the last entry is the
+  // score on court and everything before it is history.
+  const currentA = setsA.length ? setsA[setsA.length - 1] : 0;
+  const currentB = setsB.length ? setsB[setsB.length - 1] : 0;
+  const doneA = setsA.slice(0, -1);
+  const doneB = setsB.slice(0, -1);
+
+  return {
+    id: m.id,
+    heading: [m.court, divisionLabel].filter(Boolean).join(' · '),
+    setLabel: `Set ${Math.max(1, setsA.length)}`,
+    a: {
+      name: m.teamAName ?? m.teamA.map(p => p.name).join(' / '),
+      history: doneA.length ? doneA.join(' · ') : '—',
+      score: currentA,
+      leading: currentA >= currentB,
+    },
+    b: {
+      name: m.teamBName ?? m.teamB.map(p => p.name).join(' / '),
+      history: doneB.length ? doneB.join(' · ') : '—',
+      score: currentB,
+      leading: currentB > currentA,
+    },
+    footnote: roundName,
+  };
+}
+
+export default function TournamentPage() {
   const params = useParams();
   const slug = String(params.id);
 
-  // The bracket as Postgres has it. Live scores are polled separately and
-  // folded in below, so a score moving on court doesn't mean refetching
-  // every division, round, team and voucher every 15 seconds.
   const [baseTournament, setBaseTournament] = useState<TournamentDetail | null>(null);
   const [liveScores, setLiveScores] = useState<LiveScoreMap>({});
-  const tournament = useMemo(
-    () => (baseTournament ? applyLiveScores(baseTournament, liveScores) : null),
-    [baseTournament, liveScores],
-  );
-  const [activeDiv, setActiveDiv] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('bracket');
-  const tabBarRef = useRef<HTMLDivElement>(null);
-  const [tabBarStuck, setTabBarStuck] = useState(false);
+  const [activeDiv, setActiveDiv] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('Format & Rules');
 
   useEffect(() => {
     getTournamentDetail(slug).then((data) => {
@@ -167,342 +190,591 @@ export default function TournamentDetail() {
     return () => { cancelled = true; clearInterval(timer); };
   }, [slug]);
 
-  /* Registration is not a tournament-level switch: it is read back off the
-     divisions' own open and close dates. The phase only says whether the
-     event is public at all.
+  const tournament = useMemo(
+    () => (baseTournament ? applyLiveScores(baseTournament, liveScores) : null),
+    [baseTournament, liveScores],
+  );
 
-     The old ?phase= override is gone with it — it let anyone put a working
-     "Register team" button on a draft tournament by editing the URL. */
+  const activeDivision = tournament?.divisions.find(d => d.id === activeDiv) ?? null;
+
+  /* Every court in play across the whole event, plus what is due on next —
+     the panel is about the tournament, not the selected division. */
+  const { liveCourts, nextUp } = useMemo(() => {
+    const live: LiveCourt[] = [];
+    const upcoming: { time: string; sortKey: string; where: string; match: string }[] = [];
+
+    for (const d of tournament?.divisions ?? []) {
+      for (const round of d.bracket) {
+        for (const m of round.matches) {
+          if (m.status === 'live') {
+            live.push(toLiveCourt(d.label, round.round, m));
+          } else if (m.status === 'upcoming' && m.teamAId && m.teamBId) {
+            upcoming.push({
+              time: m.time,
+              sortKey: `${m.scheduledDate ?? '9999-99-99'} ${m.time || '99:99'}`,
+              where: [m.court, d.label].filter(Boolean).join(' · '),
+              match: `${m.teamAName ?? 'TBD'} vs ${m.teamBName ?? 'TBD'}`,
+            });
+          }
+        }
+      }
+    }
+
+    upcoming.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    return { liveCourts: live, nextUp: upcoming.slice(0, 2) };
+  }, [tournament]);
+
   const regState = tournament ? registrationState(tournament.divisions) : null;
   const opensAt = tournament ? nextOpening(tournament.divisions) : null;
 
-  // Watchlist Star Button State
-  const [starred, setStarred] = useState(false);
-  const [watchlistCount, setWatchlistCount] = useState(14);
+  /* The soonest close date still ahead — what "open until" refers to when
+     divisions close on different days. */
+  const closesOn = useMemo(() => {
+    const dates = (tournament?.divisions ?? [])
+      .map(d => d.registrationCloses)
+      .filter(Boolean)
+      .sort();
+    return dates[0] ?? '';
+  }, [tournament]);
 
-  useEffect(() => {
-    const isStarred = localStorage.getItem(`watchlist_${params.id}`) === 'true';
-    setStarred(isStarred);
-    setWatchlistCount(isStarred ? 15 : 14);
-  }, [params.id]);
+  const courtCount = useMemo(() => new Set(
+    (tournament?.divisions ?? [])
+      .flatMap(d => d.bracket.flatMap(r => r.matches.map(m => m.court)))
+      .filter(Boolean),
+  ).size, [tournament]);
 
-  const toggleWatchlist = () => {
-    const nextState = !starred;
-    setStarred(nextState);
-    localStorage.setItem(`watchlist_${params.id}`, String(nextState));
-    setWatchlistCount(nextState ? 15 : 14);
-  };
+  const standings = useMemo(
+    () => (activeDivision ? buildStandings(activeDivision) : []),
+    [activeDivision],
+  );
 
-  useEffect(() => {
-    if (!tabBarRef.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setTabBarStuck(!entry.isIntersecting),
-      { threshold: 1, rootMargin: '-80px 0px 0px 0px' }
-    );
-    observer.observe(tabBarRef.current);
-    return () => observer.disconnect();
-  }, []);
+  /* A configured elimination round exists in the rounds table before the draw
+     has run, with no matches hanging off it — that is "not drawn yet", not a
+     bracket, so it must not produce an empty column. */
+  const knockoutRounds = useMemo(
+    () => (activeDivision?.bracket ?? [])
+      .filter(r => !isGroupFormat(r.format) && r.matches.length > 0),
+    [activeDivision],
+  );
+
+  const scheduleItems = useMemo(() => (activeDivision?.bracket ?? [])
+    .flatMap(r => r.matches.map(m => ({
+      id: m.id,
+      time: m.time,
+      sortKey: `${m.scheduledDate ?? '9999-99-99'} ${m.time || '99:99'}`,
+      court: m.court,
+      match: `${r.round} — ${m.teamAName ?? 'TBD'} vs ${m.teamBName ?? 'TBD'}`,
+      status: m.status,
+    })))
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey)), [activeDivision]);
+
+  /* Tabs follow the design's order. A pool table only earns a tab when the
+     division actually has a group round, and vouchers only when the
+     organizer created some. */
+  const tabs = useMemo(() => {
+    const t = ['Format & Rules', 'Teams'];
+    // Every tab past the first two is offered only when it has something in
+    // it — a tab that opens onto "nothing here yet" is worse than no tab.
+    if (standings.length > 0) t.push('Standings');
+    if (knockoutRounds.length > 0) t.push('Bracket');
+    if (scheduleItems.length > 0) t.push('Schedule');
+    if ((tournament?.vouchers.length ?? 0) > 0) t.push('Vouchers');
+    return t;
+  }, [standings, knockoutRounds, scheduleItems, tournament]);
+
+  // A division change can retire the tab that was open.
+  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
 
   if (!tournament) {
     return (
       <div className={styles.page}>
-        <Nav />
-        <div className={styles.container} style={{ padding: '160px 0', textAlign: 'center' }}>
-          Loading tournament…
-        </div>
+        <SiteHeader />
+        <div className={styles.stateWrap}>Loading tournament…</div>
       </div>
     );
   }
 
   /* Draft means nobody but the organizer sees it, and archived means it has
-     been taken off the board — both were reachable by direct link until the
-     status became a real switch, since the page only ever used phase to pick
-     a button label. Cancelled is deliberately *not* here: a cancelled event
-     stays up so the teams who registered find out. */
+     been taken off the board. Cancelled is deliberately not here: a cancelled
+     event stays up so the teams who registered find out. */
   if (!isPublic(tournament.phase as Phase) || tournament.archived) {
     return (
       <div className={styles.page}>
-        <Nav />
-        <div className={styles.container} style={{ padding: '160px 0', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 22, marginBottom: 8 }}>This tournament isn&apos;t published</h1>
-          <p style={{ color: 'var(--muted, #7A8294)' }}>
-            The organizer hasn&apos;t made it public yet. Check back soon.
-          </p>
+        <SiteHeader />
+        <div className={styles.stateWrap}>
+          <h1 className={styles.stateTitle}>This tournament isn&apos;t published</h1>
+          <p className={styles.stateBody}>The organizer hasn&apos;t made it public yet. Check back soon.</p>
         </div>
       </div>
     );
   }
 
-  const activeDivision = tournament.divisions.find((d) => d.id === activeDiv) ?? null;
-  const courtCount = new Set(
-    tournament.divisions.flatMap((d) => d.bracket.flatMap((r) => r.matches.map((m) => m.court))).filter(Boolean)
-  ).size;
-  const scheduleItems = (activeDivision?.bracket ?? []).flatMap((r) =>
-    r.matches.map((m) => ({
-      time: m.time,
-      court: m.court,
-      match: `${r.round} — ${m.teamA.map((p) => p.name).join('/')} vs ${m.teamB.map((p) => p.name).join('/')}`,
-      status: m.status,
-    }))
-  );
+  const canRegister = regState === 'open';
 
   return (
     <div className={styles.page}>
-      <Nav />
+      <SiteHeader />
 
-      {/* ── Hero ──────────────────────────────────────────────── */}
-      <section className={styles.hero}>
-        <div className={styles.heroBg}>
-          <img src="/images/Hero.jpg" alt="" className={styles.heroImg} />
-          <div className={styles.heroScrim} />
-        </div>
-        <div className={styles.heroContent}>
-          <div className={styles.container}>
-            <Link href="/" className={styles.backLink}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M12 7H2m0 0l4 4M2 7l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              All events
-            </Link>
+      {/* ── Event head ────────────────────────────────────────── */}
+      <section className={styles.headSection}>
+        <Link href="/" className={styles.backLink}>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M12 7H2m0 0l4 4M2 7l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          All events
+        </Link>
 
-            <div className={styles.heroBadgeRow}>
-              {regState === null && (
-                <span className={styles.upcomingBadge}>Save the Date</span>
+        <div className={styles.headRow}>
+          <div className={styles.headMain}>
+            <div className={styles.pillRow}>
+              {tournament.cancelled ? (
+                <span className={styles.pillCancelled}>Cancelled</span>
+              ) : (
+                <>
+                  {regState === 'open' && (
+                    <span className={styles.pillPrimary}>
+                      <span className={styles.pillDot} />
+                      Registration Open
+                    </span>
+                  )}
+                  {regState === 'opens-soon' && (
+                    <span className={styles.pillOutline}>
+                      <Calendar size={12} />
+                      {opensAt ? `Opens ${formatDay(opensAt)}` : 'Opens soon'}
+                    </span>
+                  )}
+                  {regState === 'closed' && <span className={styles.pillMuted}>Registration Closed</span>}
+                  {regState === null && <span className={styles.pillMuted}>Save the date</span>}
+
+                  {regState === 'open' && closesOn && (
+                    <span className={styles.pillOutline}>
+                      <Calendar size={12} />
+                      Open until {formatCloseDate(closesOn)}
+                    </span>
+                  )}
+                </>
               )}
-              {regState === 'opens-soon' && (
-                <span className={styles.upcomingBadge}>
-                  {opensAt ? `Registration opens ${formatOpensAt(opensAt)}` : 'Registration Opens Soon'}
-                </span>
-              )}
-              {regState === 'open' && (
-                <span className={styles.liveBadge}>
-                  <span className={styles.liveDot} />
-                  Registration Open
-                </span>
-              )}
-              {regState === 'closed' && (
-                <span className={styles.finishedBadge}>Registration Closed</span>
-              )}
-              <span className={styles.formatBadge}>Single Elimination</span>
             </div>
 
-            <h1 className={styles.heroTitle}>{tournament.title}</h1>
+            <h1 className={styles.title}>{tournament.title}</h1>
 
-            <div className={styles.heroMeta}>
-              <span className={styles.heroMetaItem}>
+            <div className={styles.metaRow}>
+              <span className={styles.metaItem}>
                 <MapPin size={15} />
                 {tournament.location}
               </span>
-              <span className={styles.heroMetaItem}>
+              <span className={styles.metaItem}>
                 <Calendar size={15} />
                 {tournament.date}
               </span>
-              {courtCount > 0 && (
-                <span className={styles.heroMetaItem}>
-                  <Users size={15} />
-                  {courtCount} courts
-                </span>
-              )}
+              <span className={styles.metaItem}>
+                <Users size={15} />
+                {courtCount > 0 ? `${courtCount} courts · ` : ''}
+                {tournament.divisions.length} division{tournament.divisions.length === 1 ? '' : 's'}
+              </span>
             </div>
+          </div>
 
-            <div className={styles.heroActions}>
-              {regState === null && (
-                <button className={styles.heroDisabled} disabled>
-                  Registration Date Pending
-                </button>
-              )}
-              {regState === 'opens-soon' && (
-                <button className={styles.heroDisabled} disabled>
-                  {opensAt ? `Opens ${formatOpensAt(opensAt)}` : 'Registration Opens Soon'}
-                </button>
-              )}
-              {regState === 'open' && (
-                <Link
-                  href={`/tournament/${params.id}/register`}
-                  className={styles.heroPrimary}
-                >
-                  Register team
-                  <ChevronRight size={16} />
-                </Link>
-              )}
-              {regState === 'closed' && (
-                <button className={styles.heroDisabled} disabled>
-                  Registration Closed
-                </button>
-              )}
-              
-              <button className={styles.heroShare} onClick={toggleWatchlist}>
-                {starred ? '★ Watching' : '☆ Watchlist'} ({watchlistCount})
+          <div className={styles.headActions}>
+            {canRegister ? (
+              <Link href={`/tournament/${slug}/register`} className={styles.btnPrimary}>Register team</Link>
+            ) : (
+              <button className={styles.btnPrimary} disabled>
+                {regState === 'opens-soon' && opensAt ? `Opens ${formatDay(opensAt)}` : 'Registration closed'}
               </button>
-              <button className={styles.heroShare} onClick={() => alert('Link copied to clipboard!')}>
-                Share event
-              </button>
-            </div>
+            )}
+            <ShareButton />
           </div>
         </div>
       </section>
 
-      {/* ── Division selector ─────────────────────────────────── */}
-      <div className={styles.divisionBar}>
-        <div className={styles.container}>
-          <div className={styles.divisionTabs}>
-            {tournament.divisions.map(div => (
+      {/* ── Live now ──────────────────────────────────────────── */}
+      {liveCourts.length > 0 && (
+        <section className={styles.liveSection}>
+          <div className={styles.livePanel}>
+            <div className={styles.livePanelHead}>
+              <span className={styles.liveNowLabel}>
+                <span className={styles.livePulse} />
+                Live Now
+              </span>
+              <span className={styles.liveUpdated}>Updates every 15s</span>
+            </div>
+
+            <div className={styles.liveGrid}>
+              {liveCourts.map(c => (
+                <div key={c.id} className={styles.liveCard}>
+                  <div className={styles.liveCardHead}>
+                    <span className={styles.liveCourtName}>{c.heading}</span>
+                    <span className={styles.liveSet}>{c.setLabel}</span>
+                  </div>
+
+                  {[c.a, c.b].map((side, i) => (
+                    <div key={i}>
+                      {i === 1 && <div className={styles.liveDivider} />}
+                      <div className={styles.liveTeamRow}>
+                        <span className={side.leading ? styles.liveTeamLead : styles.liveTeam}>{side.name}</span>
+                        <span className={styles.liveScoreGroup}>
+                          <span className={styles.liveHistory}>{side.history}</span>
+                          <span className={side.leading ? styles.liveScoreLead : styles.liveScore}>{side.score}</span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {c.footnote && <div className={styles.liveFootnote}>{c.footnote}</div>}
+                </div>
+              ))}
+
+              {nextUp.length > 0 && (
+                <div className={styles.nextCard}>
+                  <span className={styles.nextLabel}>Next up</span>
+                  {nextUp.map((n, i) => (
+                    <div key={i} className={i === 0 ? styles.nextItem : styles.nextItemDivided}>
+                      <div className={styles.nextTimeRow}>
+                        <span className={styles.nextTime}>{n.time || '—'}</span>
+                        <span className={styles.nextWhere}>{n.where}</span>
+                      </div>
+                      <div className={styles.nextMatch}>{n.match}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Division picker ───────────────────────────────────── */}
+      {tournament.divisions.length > 0 && (
+        <section className={styles.divisionSection}>
+          <span className={styles.divisionLabel}>Division</span>
+          <div className={styles.segmented}>
+            {tournament.divisions.map(d => (
               <button
-                key={div.id}
-                className={`${styles.divisionTab} ${activeDiv === div.id ? styles.divisionTabActive : ''}`}
-                onClick={() => setActiveDiv(div.id)}
+                key={d.id}
+                className={`${styles.segment} ${activeDiv === d.id ? styles.segmentActive : ''}`}
+                onClick={() => setActiveDiv(d.id)}
               >
-                {div.label}
-                <span className={styles.divisionCount}>{div.filled}/{div.teams}</span>
+                {d.label}
               </button>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* ── Tabs ──────────────────────────────────────────────── */}
+      <div className={styles.tabBar}>
+        <div className={styles.tabBarInner}>
+          {tabs.map(t => (
+            <button
+              key={t}
+              className={`${styles.tab} ${currentTab === t ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(t)}
+            >
+              {t}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ── Content tabs ──────────────────────────────────────── */}
-      <div ref={tabBarRef} className={`${styles.tabBar} ${tabBarStuck ? styles.tabBarStuck : ''}`}>
-        <div className={styles.container}>
-          <div className={styles.tabs}>
-            {(['bracket', 'pool', 'schedule', 'teams', 'rules', 'vouchers'] as Tab[]).map(tab => (
-              <button
-                key={tab}
-                className={`${styles.tabBtn} ${activeTab === tab ? styles.tabBtnActive : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Tab content ───────────────────────────────────────── */}
       <main className={styles.main}>
-        <div className={styles.container}>
 
-          {/* Bracket */}
-          {activeTab === 'bracket' && (
-            <div className={styles.bracketSection}>
-              {activeDivision && activeDivision.bracket.length > 0 ? (
-                <div className={styles.bracketScroll}>
-                  <div className={styles.bracketGrid}>
-                    {activeDivision.bracket.map((round) => (
-                      <div key={round.round} className={styles.bracketRound}>
-                        <div className={styles.bracketRoundLabel}>{round.round}</div>
-                        <div className={styles.bracketRoundMatches}>
-                          {round.matches.map((match) => (
-                            <BracketMatchCard key={match.id} match={match} />
-                          ))}
-                        </div>
+        {/* ── Format & rules ──────────────────────────────────── */}
+        {currentTab === 'Format & Rules' && activeDivision && (
+          <div className={styles.formatGrid}>
+            {activeDivision.configuredRounds.length === 0 && (
+              <EmptyCard
+                title="Format not set yet"
+                body="The organizer hasn't configured this division's rounds."
+              />
+            )}
+            {activeDivision.configuredRounds.map((round, i) => {
+              const draw = activeDivision.drawConfig;
+              const advance =
+                isGroupFormat(round.format) && draw && draw.advance > 0
+                  ? `Top ${draw.advance} of each pool advance — ${draw.pools * draw.advance} teams total.`
+                  : '';
+              return (
+                <div key={i} className={styles.formatCard}>
+                  <span className={styles.formatEyebrow}>Round {i + 1}</span>
+                  <h2 className={styles.formatTitle}>{formatLabel(round.format)}</h2>
+
+                  {advance && (
+                    <div className={styles.advanceNote}>
+                      <ArrowRight size={16} />
+                      <span>{advance}</span>
+                    </div>
+                  )}
+
+                  <div className={styles.specList}>
+                    {specsFor(round, activeDivision.rules).map(sp => (
+                      <div key={sp.label} className={styles.specRow}>
+                        <span className={styles.specLabel}>{sp.label}</span>
+                        <span className={styles.specValue}>{sp.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-              ) : (
-                <p className={styles.poolNote}>No bracket scheduled yet for this division.</p>
-              )}
-            </div>
-          )}
+              );
+            })}
 
-          {/* Pool standings */}
-          {activeTab === 'pool' && (
-            <div className={styles.poolSection}>
-              <p className={styles.poolNote}>This division doesn&apos;t use pool play.</p>
-            </div>
-          )}
+            {tournament.description && (
+              <div className={styles.formatCard}>
+                <span className={styles.formatEyebrow}>About</span>
+                <h2 className={styles.formatTitle}>This tournament</h2>
+                <p className={styles.aboutText}>{tournament.description}</p>
+              </div>
+            )}
+          </div>
+        )}
 
-          {/* Schedule */}
-          {activeTab === 'schedule' && (
-            <div className={styles.scheduleSection}>
-              {scheduleItems.length > 0 ? (
-                <div className={styles.scheduleList}>
-                  {scheduleItems.map((item, i) => (
-                    <div key={i} className={`${styles.scheduleItem} ${item.status === 'live' ? styles.scheduleItemLive : ''} ${item.status === 'done' ? styles.scheduleItemDone : ''}`}>
-                      <div className={styles.scheduleTime}>
-                        <Clock size={13} />
-                        {item.time}
-                      </div>
-                      <div className={styles.scheduleCourt}>{item.court}</div>
-                      <div className={styles.scheduleMatch}>{item.match}</div>
-                      <div className={styles.scheduleStatus}>
-                        {item.status === 'live' && <span className={styles.scheduleStatusLive}><span className={styles.liveDot} />Live</span>}
-                        {item.status === 'done' && <span className={styles.scheduleStatusDone}>✓ Done</span>}
-                        {item.status === 'upcoming' && <span className={styles.scheduleStatusUpcoming}>Upcoming</span>}
-                      </div>
-                    </div>
-                  ))}
+        {/* ── Teams ───────────────────────────────────────────── */}
+        {currentTab === 'Teams' && activeDivision && (
+          <div className={styles.teamsWrap}>
+            <FillCard division={activeDivision} />
+            <div className={styles.teamsGrid}>
+              {activeDivision.teamsList.map(team => (
+                <div
+                  key={team.id}
+                  className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardMuted : ''}`}
+                >
+                  <span className={styles.teamSeed}>#{team.seed}</span>
+                  <span className={styles.teamName}>{team.name}</span>
+                  {team.status !== 'confirmed' && (
+                    <span className={styles.teamTag}>
+                      {team.status === 'waitlist' ? 'Waitlist' : 'Unpaid'}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <p className={styles.poolNote}>No matches scheduled yet for this division.</p>
+              ))}
+              {activeDivision.teamsList.length === 0 && (
+                <EmptyCard title="No teams yet" body="Registered teams appear here as they sign up." />
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Teams */}
-          {activeTab === 'teams' && (
-            <div className={styles.teamsSection}>
-              <div className={styles.teamsGrid}>
-                {(activeDivision?.teamsList ?? []).map((team) => (
-                  <div key={team.seed} className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardEliminated : ''}`}>
-                    <div className={styles.teamSeed}>#{team.seed}</div>
-                    <div className={styles.teamName}>{team.name}</div>
-                    {team.status === 'waitlist' && (
-                      <div className={styles.teamElimBadge}>Waitlist</div>
-                    )}
+        {/* ── Standings ───────────────────────────────────────── */}
+        {currentTab === 'Standings' && (
+            <div className={styles.tableCard}>
+              <div className={styles.tableHead}>
+                <span>#</span>
+                <span>Team</span>
+                <span className={styles.center}>W–L</span>
+                <span className={styles.center}>Sets</span>
+                <span className={styles.right}>Points</span>
+              </div>
+              {standings.map((r, i) => (
+                <div key={r.teamId} className={styles.tableRow}>
+                  <span className={styles.rank}>{i + 1}</span>
+                  <span className={styles.tableTeam}>{r.team}</span>
+                  <span className={`${styles.center} ${styles.num}`}>{r.wins}–{r.losses}</span>
+                  <span className={`${styles.center} ${styles.numMuted}`}>{r.setsFor}–{r.setsAgainst}</span>
+                  <span className={`${styles.right} ${styles.numBold}`}>{r.points}</span>
+                </div>
+              ))}
+            </div>
+        )}
+
+        {/* ── Bracket ─────────────────────────────────────────── */}
+        {currentTab === 'Bracket' && (
+          knockoutRounds.length > 0 ? (
+            <div className={styles.bracketScroll}>
+              <div className={styles.bracketGrid}>
+                {knockoutRounds.map(round => (
+                  <div key={round.round} className={styles.bracketColumn}>
+                    <div className={styles.bracketRoundLabel}>{round.round}</div>
+                    <div className={styles.bracketMatches}>
+                      {round.matches.map(m => <BracketCard key={m.id} match={m} />)}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          ) : (
+            <EmptyCard
+              title="Bracket not drawn yet"
+              body="This division is still in pool play. The draw appears here once pools finish."
+            />
+          )
+        )}
 
-          {/* Rules */}
-          {activeTab === 'rules' && (
-            <div className={styles.rulesSection}>
-              <h2 className={styles.rulesTitle}>About this tournament</h2>
-              <div className={styles.rulesContent}>
-                {tournament.description || 'No description provided yet.'}
-              </div>
-              <h2 className={styles.rulesTitle}>Venue Information</h2>
-              <div className={styles.rulesContent}>
-                {tournament.location}
-              </div>
+        {/* ── Schedule ────────────────────────────────────────── */}
+        {currentTab === 'Schedule' && (
+            <div className={styles.scheduleList}>
+              {scheduleItems.map(item => (
+                <div
+                  key={item.id}
+                  className={`${styles.scheduleRow} ${item.status === 'live' ? styles.scheduleRowLive : ''} ${item.status === 'done' ? styles.scheduleRowDone : ''}`}
+                >
+                  <span className={styles.scheduleTime}>{item.time || '—'}</span>
+                  <span className={styles.scheduleCourt}>{item.court}</span>
+                  <span className={styles.scheduleMatch}>{item.match}</span>
+                  <span
+                    className={
+                      item.status === 'live' ? styles.statusLive
+                        : item.status === 'done' ? styles.statusDone
+                          : styles.statusUpcoming
+                    }
+                  >
+                    {item.status === 'live' ? 'Live' : item.status === 'done' ? 'Final' : 'Upcoming'}
+                  </span>
+                </div>
+              ))}
             </div>
-          )}
+        )}
 
-          {/* Vouchers */}
-          {activeTab === 'vouchers' && (
-            <div className={styles.vouchersSection}>
-              <h2 className={styles.rulesTitle}>Sponsor Promotions &amp; Perks</h2>
-              <div className={styles.vouchersGrid}>
-                {tournament.vouchers.map(v => (
-                  <div key={v.id} className={styles.voucherItemCard}>
-                    <span className={styles.voucherTitle}>{v.title}</span>
-                    <p className={styles.voucherDesc}>{v.description}</p>
-                    <span className={styles.voucherCode}>PROMO CODE: {v.code}</span>
-                  </div>
-                ))}
+        {/* ── Vouchers ────────────────────────────────────────── */}
+        {currentTab === 'Vouchers' && (
+          <div className={styles.voucherGrid}>
+            {tournament.vouchers.map(v => (
+              <div key={v.id} className={styles.voucherCard}>
+                <h3 className={styles.voucherTitle}>{v.title}</h3>
+                <p className={styles.voucherDesc}>{v.description}</p>
+                <span className={styles.voucherCode}>{v.code}</span>
               </div>
-            </div>
-          )}
-
-        </div>
+            ))}
+          </div>
+        )}
       </main>
+    </div>
+  );
+}
 
-      {/* ── Footer CTA ────────────────────────────────────────── */}
-      <div className={styles.footerCta}>
-        <div className={styles.container}>
-          <div className={styles.footerCtaInner}>
-            <div>
-              <p className={styles.footerCtaLabel}>Want to play?</p>
-              <p className={styles.footerCtaTitle}>Register your team</p>
-            </div>
-            <Link href={`/tournament/${params.id}/register`} className={styles.footerCtaBtn}>
-              Register now <ChevronRight size={16} />
-            </Link>
+/* ── Pieces ──────────────────────────────────────────────────────── */
+
+function SiteHeader() {
+  return (
+    <header className={styles.siteHeader}>
+      <div className={styles.siteHeaderInner}>
+        <Link href="/" className={styles.brand}>
+          <span className={styles.brandMark}>
+            <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
+              <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
+              <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
+              <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
+              <rect x="722.713" y="462.822" width="129.386" height="35.9406" rx="15" fill="white" />
+              <rect x="593.327" y="489.178" width="129.386" height="35.9406" rx="15" fill="white" />
+              <rect x="557.386" y="416.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 557.386 416.099)" fill="white" />
+              <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
+              <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
+            </svg>
+          </span>
+          <span className={styles.brandWord}>Live Bracket</span>
+        </Link>
+
+        <nav className={styles.headerNav}>
+          <Link href="/" className={styles.headerLink}>Events</Link>
+          <Link href="/dashboard" className={styles.headerLink}>Dashboard</Link>
+          <Link href="/login" className={styles.btnGeneral}>Log in</Link>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+/* Uses the platform share sheet where there is one, and falls back to the
+   clipboard — with the label reporting which happened. */
+function ShareButton() {
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    if (navigator.share) {
+      try {
+        await navigator.share({ url });
+        return;
+      } catch {
+        // Dismissed, or unavailable — fall through to the clipboard.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <button className={styles.btnGeneral} onClick={share}>
+      {copied ? 'Link copied' : 'Share event'}
+    </button>
+  );
+}
+
+function FillCard({ division }: { division: DetailDivision }) {
+  const cap = Math.max(1, division.teams);
+  const pct = Math.min(100, Math.round((division.filled / cap) * 100));
+  const waitlist = division.teamsList.filter(t => t.status === 'waitlist').length;
+
+  return (
+    <div className={styles.fillCard}>
+      <div className={styles.fillTop}>
+        <div>
+          <p className={styles.fillEyebrow}>Spots filled</p>
+          <p className={styles.fillCount}>{division.filled} / {division.teams} teams</p>
+        </div>
+        <div className={styles.fillStats}>
+          <div>
+            <p className={styles.fillStatLabel}>Spots left</p>
+            <p className={styles.fillStatValue}>{Math.max(0, division.teams - division.filled)}</p>
+          </div>
+          <div>
+            <p className={styles.fillStatLabel}>Waitlist</p>
+            <p className={styles.fillStatValue}>{waitlist}</p>
+          </div>
+          <div>
+            <p className={styles.fillStatLabel}>Full</p>
+            <p className={styles.fillStatValue}>{pct}%</p>
           </div>
         </div>
       </div>
+      <div className={styles.fillTrack}>
+        <div
+          className={pct >= 100 ? styles.fillBarFull : styles.fillBar}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BracketCard({ match }: { match: DetailMatch }) {
+  const live = match.status === 'live';
+  const scoreA = match.scoreA ?? [];
+  const scoreB = match.scoreB ?? [];
+
+  return (
+    <div className={`${styles.matchCard} ${live ? styles.matchCardLive : ''}`}>
+      <div className={styles.matchMeta}>
+        <span>{[match.court, match.time].filter(Boolean).join(' · ') || 'Time TBD'}</span>
+        {live && <span className={styles.matchLive}>Live</span>}
+        {match.status === 'done' && <span className={styles.matchDone}>Final</span>}
+      </div>
+
+      {([['A', match.teamAName, scoreA], ['B', match.teamBName, scoreB]] as const).map(([side, name, sets], i) => (
+        <div key={side}>
+          {i === 1 && <div className={styles.matchDivider} />}
+          <div className={styles.matchRow}>
+            <span className={match.winner === side ? styles.matchTeamWin : styles.matchTeam}>
+              {name ?? 'TBD'}
+            </span>
+            <span className={styles.matchSets}>{sets.length ? sets.join(' · ') : '—'}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className={styles.emptyCard}>
+      <p className={styles.emptyTitle}>{title}</p>
+      <p className={styles.emptyBody}>{body}</p>
     </div>
   );
 }

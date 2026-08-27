@@ -593,6 +593,18 @@ export interface DetailMatch {
   status: 'live' | 'upcoming' | 'done';
 }
 
+export interface ConfiguredRound {
+  format: string;             // 'round-robin' | 'single' | 'double' | 'pool'
+  scoring: {
+    setsBestOf: number;
+    pointsPerSet: number;
+    winBy2: boolean;
+    hardCap: number;          // 0 = no cap
+    decidingSetPoints: number;
+  };
+  durationMinutes: number;
+}
+
 export interface DetailRound {
   round: string;
   format: string;
@@ -657,6 +669,11 @@ export interface DetailDivision {
   registrationOpens: string;      // datetime-local, '' = as soon as public
   registrationCloses: string;     // 'YYYY-MM-DD', '' = never closes
   // ── What the public registration form needs to render itself ──
+  /* The rounds the organizer *configured* ("a round robin, then a single
+     elimination"), not the bracket stages a draw expanded them into — the
+     public Format & Rules panel describes the former. Same derivation as
+     getSetupDivisions; see the note there. */
+  configuredRounds: ConfiguredRound[];
   registrationFee: number;        // flat, per team; 0 is a legitimate fee
   formatTypeOnSand: string;       // '2v2' … '6v6' — the roster's floor
   rosterSize: number;             // players the form asks for, alternates included
@@ -754,6 +771,55 @@ interface RoundRow {
 // (under `durationMinutes`) so no schema migration is needed — the same blob
 // already carries the round's scoring config. Falls back to a sane default.
 const DEFAULT_MATCH_MINUTES = 45;
+
+/* Read one configured round's scoring out of its jsonb blob, defaulting each
+   field the way the scorekeeper does so the public panel never prints a blank
+   where a rule should be. */
+function readScoring(blob: unknown): ConfiguredRound['scoring'] {
+  const b = (blob ?? {}) as Record<string, unknown>;
+  const num = (v: unknown, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+  return {
+    setsBestOf: num(b.setsBestOf, 3),
+    pointsPerSet: num(b.pointsPerSet, 21),
+    winBy2: b.winBy2 !== false,
+    hardCap: num(b.hardCap, 0),
+    decidingSetPoints: num(b.decidingSetPoints, 15),
+  };
+}
+
+/* The organizer's configuration, preferred over the bracket a draw expanded
+   it into. Mirrors getSetupDivisions: the recorded configuration first, then
+   — for divisions drawn before it was recorded — the stored rounds collapsed
+   back out of the bracket, and failing that the stored rounds as they are. */
+function readConfiguredRounds(
+  settings: Record<string, unknown>,
+  stored: { sequence: number; format: string; scoring_rules?: Record<string, unknown> | null }[],
+): ConfiguredRound[] {
+  const configured = (settings as {
+    formatRounds?: { format?: string; scoring?: unknown; durationMinutes?: unknown }[];
+  }).formatRounds;
+
+  if (Array.isArray(configured) && configured.length > 0) {
+    return configured.map(r => ({
+      format: String(r.format ?? ''),
+      scoring: readScoring(r.scoring),
+      durationMinutes: typeof r.durationMinutes === 'number' ? r.durationMinutes : DEFAULT_MATCH_MINUTES,
+    }));
+  }
+
+  const ordered = [...stored].sort((a, b) => a.sequence - b.sequence);
+  const source = settings.draw
+    // A run of consecutive same-format stages came from one configured round.
+    ? ordered.filter((r, i) => i === 0 || ordered[i - 1].format !== r.format)
+    : ordered;
+
+  return source.map(r => ({
+    format: r.format,
+    scoring: readScoring(r.scoring_rules),
+    durationMinutes: readRoundMinutes(r.scoring_rules),
+  }));
+}
 function readRoundMinutes(blob: Record<string, unknown> | null | undefined): number {
   const v = (blob as { durationMinutes?: unknown } | null | undefined)?.durationMinutes;
   return typeof v === 'number' && v > 0 ? Math.trunc(v) : DEFAULT_MATCH_MINUTES;
@@ -911,6 +977,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         ageLimit: normalizeAgeLimit(settings.ageLimit),
         registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
         registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
+        configuredRounds: readConfiguredRounds(settings as Record<string, unknown>, d.rounds),
         registrationFee: Number(d.registration_fee ?? 0) || 0,
         formatTypeOnSand: d.format_type_on_sand,
         rosterSize: rosterSize(d.format_type_on_sand, settings.maxRosterSize),
