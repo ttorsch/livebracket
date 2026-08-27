@@ -30,6 +30,7 @@ interface DivisionBody {
   minTeams: number;
   waitlistCap: number;
   advancePerPool: number;
+  crossing: string;
   confirmationMessage: string;
   confirmationImage: string;
 }
@@ -54,6 +55,9 @@ function toSettings(body: DivisionBody) {
     // form allows, so a hand-made request can't produce a bracket the draw
     // cannot build.
     advancePerPool: Math.max(1, Math.min(4, Math.trunc(body.advancePerPool ?? 2) || 2)),
+    // How pool finishers seed into the knockout round. Only the two the draw
+    // can actually build are accepted; anything else falls back to FIVB.
+    crossing: ['fivb', 'static'].includes(body.crossing) ? body.crossing : 'fivb',
     confirmationMessage: body.confirmationMessage,
     confirmationImage: body.confirmationImage,
     // The rounds the organizer configured, recorded separately from the

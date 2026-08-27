@@ -509,10 +509,38 @@
 
 /* ── Division header card ───────────────────────────────────── */
 .divisionCard {
+  display: flex;
+  align-items: stretch;
   background: var(--surface-card);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
   overflow: hidden;
+}
+/* Header + stats stack on the left; the fee rail spans the card's full height. */
+.divisionCardMain {
+  flex: 1;
+  min-width: 0;
+}
+.feeRail {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 24px 32px;
+  text-align: right;
+}
+.feeValue {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .divisionCardHead {
   display: flex;
@@ -534,7 +562,6 @@
   color: var(--text-primary);
 }
 
-.badgeHighlight,
 .badgeStatus {
   display: inline-flex;
   align-items: center;
@@ -544,9 +571,6 @@
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-}
-.badgeHighlight { background: var(--status-highlight); color: var(--text-primary); }
-.badgeStatus {
   background: transparent;
   border: 1px solid var(--border-hairline);
   color: var(--text-secondary);
@@ -740,6 +764,14 @@
 @media (max-width: 720px) {
   .divisionCardHead { padding: 20px 20px 16px; }
   .divisionStats { padding: 16px 20px 20px; column-gap: 28px; }
+  /* Too narrow for a side rail — the fee becomes a band under the stats. */
+  .divisionCard { flex-direction: column; }
+  .feeRail {
+    align-items: flex-start;
+    text-align: left;
+    padding: 16px 20px 20px;
+    border-top: 1px solid var(--border-hairline);
+  }
   .roundBody { padding: 20px 18px 18px; }
   .outcomeBar { padding: 14px 18px; }
   .aboutCard { padding: 20px; }

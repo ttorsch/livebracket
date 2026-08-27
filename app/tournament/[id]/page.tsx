@@ -126,7 +126,11 @@ interface RoundView {
 
 function buildRoundViews(division: DetailDivision, advanceCount: number): RoundView[] {
   const rounds = division.configuredRounds;
-  const crossing = division.drawConfig ? CROSSING_LABEL[division.drawConfig.crossing] : undefined;
+  /* Same rule as the advance count: the organizer's setup value is the
+     definition, and a draw that has actually produced matches overrides it. */
+  const drawn = division.bracket.some(r => r.matches.length > 0);
+  const crossingKey = drawn && division.drawConfig ? division.drawConfig.crossing : division.crossing;
+  const crossing = CROSSING_LABEL[crossingKey];
 
   return rounds.map((round, i) => {
     const s = round.scoring;
@@ -546,40 +550,43 @@ export default function TournamentPage() {
 
             {/* ── What the division is ─────────────────────────── */}
             <div className={styles.divisionCard}>
-              <div className={styles.divisionCardHead}>
-                <p className={styles.microLabel}>Division</p>
-                <h1 className={styles.divisionName}>{activeDivision.label}</h1>
-                <span className={styles.badgeHighlight}>
-                  {activeDivision.formatTypeOnSand.replace('v', ' v ')}
-                </span>
-                {activeDivision.configuredRounds.length > 0 && (
-                  <span className={styles.badgeStatus}>
-                    {activeDivision.configuredRounds.length} round
-                    {activeDivision.configuredRounds.length === 1 ? '' : 's'}
-                  </span>
-                )}
+              <div className={styles.divisionCardMain}>
+                <div className={styles.divisionCardHead}>
+                  <p className={styles.microLabel}>Division</p>
+                  <h1 className={styles.divisionName}>{activeDivision.label}</h1>
+                  {activeDivision.configuredRounds.length > 0 && (
+                    <span className={styles.badgeStatus}>
+                      {activeDivision.configuredRounds.length} round
+                      {activeDivision.configuredRounds.length === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+
+                <div className={styles.divisionStats}>
+                  {[
+                    { label: 'Format', value: activeDivision.formatTypeOnSand.replace('v', ' v ') },
+                    { label: 'Team cap', value: `${activeDivision.teams} teams` },
+                    { label: 'Roster', value: `${activeDivision.rosterSize} players` },
+                    { label: 'Gender', value: activeDivision.gender },
+                    { label: 'Age limit', value: ageLimitLabel(activeDivision.ageLimit) },
+                    ...(activeDivision.netHeight ? [{ label: 'Net height', value: activeDivision.netHeight }] : []),
+                  ].map(st => (
+                    <div key={st.label} className={styles.stat}>
+                      <p className={styles.microLabel}>{st.label}</p>
+                      <p className={styles.statValue}>{st.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className={styles.divisionStats}>
-                {[
-                  { label: 'Format', value: activeDivision.formatTypeOnSand.replace('v', ' v ') },
-                  { label: 'Team cap', value: `${activeDivision.teams} teams` },
-                  { label: 'Roster', value: `${activeDivision.rosterSize} players` },
-                  { label: 'Gender', value: activeDivision.gender },
-                  { label: 'Age limit', value: ageLimitLabel(activeDivision.ageLimit) },
-                  ...(activeDivision.netHeight ? [{ label: 'Net height', value: activeDivision.netHeight }] : []),
-                  {
-                    label: 'Entry fee',
-                    value: activeDivision.registrationFee > 0
-                      ? `${activeDivision.registrationFee.toLocaleString()} THB`
-                      : 'Free',
-                  },
-                ].map(st => (
-                  <div key={st.label} className={styles.stat}>
-                    <p className={styles.microLabel}>{st.label}</p>
-                    <p className={styles.statValue}>{st.value}</p>
-                  </div>
-                ))}
+              {/* Entry fee owns the full-height rail on the right of the card. */}
+              <div className={styles.feeRail}>
+                <p className={styles.microLabel}>Entry fee</p>
+                <p className={styles.feeValue}>
+                  {activeDivision.registrationFee > 0
+                    ? `${activeDivision.registrationFee.toLocaleString()} THB`
+                    : 'Free'}
+                </p>
               </div>
             </div>
 
@@ -787,8 +794,6 @@ function SiteHeader() {
         </Link>
 
         <nav className={styles.headerNav}>
-          <Link href="/" className={styles.headerLink}>Events</Link>
-          <Link href="/dashboard" className={styles.headerLink}>Dashboard</Link>
           <Link href="/login" className={styles.btnGeneral}>Log in</Link>
         </nav>
       </div>

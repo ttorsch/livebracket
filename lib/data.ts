@@ -420,6 +420,66 @@ interface CompletedQueryTournamentRow {
   }[];
 }
 
+export interface HomepageStats {
+  upcomingMatches: number;
+  registeredTeams: number;
+}
+
+export async function getHomepageStats(): Promise<HomepageStats> {
+  try {
+    // Query active & announced tournaments (non-archived, non-deleted)
+    const { data: tournaments, error } = await supabase
+      .from('tournaments')
+      .select(`
+        phase,
+        divisions (
+          teams ( id, status ),
+          rounds (
+            matches ( id, status )
+          )
+        )
+      `)
+      .is('archived_at', null)
+      .is('deleted_at', null);
+
+    if (error || !tournaments) {
+      console.error('Failed to load homepage stats:', error);
+      return { upcomingMatches: 0, registeredTeams: 0 };
+    }
+
+    let upcomingMatches = 0;
+    let registeredTeams = 0;
+
+    for (const t of (tournaments as unknown as { divisions: { teams: { status: string }[]; rounds: { matches: { status: string }[] }[] }[] }[])) {
+      for (const d of t.divisions || []) {
+        for (const team of d.teams || []) {
+          if (team.status !== 'waitlist' && team.status !== 'withdrawn') {
+            registeredTeams++;
+          }
+        }
+        for (const r of d.rounds || []) {
+          for (const m of r.matches || []) {
+            if (m.status !== 'completed' && m.status !== 'finished') {
+              upcomingMatches++;
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      upcomingMatches,
+      registeredTeams,
+    };
+  } catch (e) {
+    console.error('Failed to load homepage stats:', e);
+    return {
+      upcomingMatches: 0,
+      registeredTeams: 0,
+    };
+  }
+}
+
 export async function getRecentlyCompletedDivisions(daysCutoff: number = 14): Promise<CompletedDivisionSlide[]> {
   const cutoffDate = new Date();
   cutoffDate.setHours(0, 0, 0, 0);
@@ -678,6 +738,9 @@ export interface DetailDivision {
      division setup. drawConfig.advance is what a draw actually ran with; this
      is the intent, and it exists before any draw has been run. */
   advancePerPool: number;
+  /* Seeding out of the pools, as the organizer set it at division setup.
+     drawConfig.crossing is what a draw actually ran with. */
+  crossing: string;
   registrationFee: number;        // flat, per team; 0 is a legitimate fee
   formatTypeOnSand: string;       // '2v2' … '6v6' — the roster's floor
   rosterSize: number;             // players the form asks for, alternates included
@@ -932,7 +995,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         netHeight?: unknown; genderEligibility?: unknown; ageLimit?: unknown;
         registrationOpenDate?: unknown; registrationCloseDate?: unknown;
         maxRosterSize?: unknown; waitlistCap?: unknown; rules?: unknown;
-        confirmationMessage?: unknown; advancePerPool?: number;
+        confirmationMessage?: unknown; advancePerPool?: number; crossing?: string;
       };
       return {
         id: d.id,
@@ -985,6 +1048,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         advancePerPool: typeof settings.advancePerPool === 'number'
           ? Math.max(1, Math.min(4, Math.trunc(settings.advancePerPool)))
           : 2,
+        crossing: typeof settings.crossing === 'string' && settings.crossing ? settings.crossing : 'fivb',
         registrationFee: Number(d.registration_fee ?? 0) || 0,
         formatTypeOnSand: d.format_type_on_sand,
         rosterSize: rosterSize(d.format_type_on_sand, settings.maxRosterSize),

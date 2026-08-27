@@ -291,10 +291,10 @@ export default function OrganizerBracketPage() {
           ? {
               pools: d.drawConfig.pools,
               advance: drawn ? d.drawConfig.advance : d.advancePerPool,
-              crossing: d.drawConfig.crossing,
+              crossing: drawn ? d.drawConfig.crossing : d.crossing,
               thirdPlace: !!d.drawConfig.thirdPlace,
             }
-          : { ...DEFAULT_DRAW, advance: d.advancePerPool };
+          : { ...DEFAULT_DRAW, advance: d.advancePerPool, crossing: d.crossing };
       });
       // Keep whatever top seeds were already picked for a division across a
       // reload (e.g. right after Draw Pool) instead of clearing them. On a
@@ -1483,20 +1483,19 @@ export default function OrganizerBracketPage() {
                             </span>
                           </div>
                         </div>
+                        {/* Crossing is part of the division's format, set when
+                            the division is created so everything is settled
+                            before registration opens. Shown here as what the
+                            draw will apply, not as another place to change it. */}
                         <div>
-                          <label className={styles.fieldLabel}>Bracket Crossing Logic <em>*</em></label>
-                          <div className={styles.selectWrap}>
-                            <select
-                              className={styles.select}
-                              value={config.crossing}
-                              onChange={e => setConfig({ crossing: e.target.value })}
-                            >
-                              <option value="fivb">FIVB Standard Draw</option>
-                              <option value="static">Static Cross-Bracket A1–D4</option>
-                            </select>
-                            <span className={styles.selectChevron}><ChevronDown size={18} /></span>
-                          </div>
-                          <p className={styles.fieldNote}>Determines how pool finishers are seeded into the knockout round.</p>
+                          <label className={styles.fieldLabel}>Bracket Crossing Logic</label>
+                          <p className={styles.fieldSummary}>
+                            {config.crossing === 'static' ? 'Static Cross-Bracket A1–D4' : 'FIVB Standard Draw'}
+                          </p>
+                          <p className={styles.fieldNote}>
+                            Determines how pool finishers are seeded into the knockout round. Change it in the
+                            division&apos;s Format &amp; Rules.
+                          </p>
                         </div>
                         <div>
                           <label className={styles.fieldLabel} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>

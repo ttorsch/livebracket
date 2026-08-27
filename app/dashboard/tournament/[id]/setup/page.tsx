@@ -20,6 +20,7 @@ import {
   Gift, 
   ListPlus,
   ArrowLeft,
+  ArrowRight,
   ArrowUp,
   ArrowDown,
   Trash,
@@ -79,9 +80,41 @@ const ROUND_FORMATS: { value: RoundFormat; label: string }[] = [
   { value: 'double', label: 'Double Elimination' },
 ];
 
+const ROUND_FORMAT_CARDS: { value: RoundFormat; label: string; desc: string }[] = [
+  {
+    value: 'round-robin',
+    label: 'Round Robin',
+    desc: 'Every team plays every team in its pool.',
+  },
+  {
+    value: 'single',
+    label: 'Single Elimination',
+    desc: 'One loss and a team is out.',
+  },
+  {
+    value: 'double',
+    label: 'Double Elimination',
+    desc: 'A loss drops teams to the lower bracket.',
+  },
+];
+
 const roundLabel = (i: number) => {
   const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'];
   return ordinals[i] ? `${ordinals[i]} Round` : `Round ${i + 1}`;
+};
+
+const roundBadgeLabel = (i: number) => `R${i + 1}`;
+
+const getRoundSummaryText = (round: TournamentRound): string => {
+  if (!round.format) return 'click to choose format';
+  const formatCard = ROUND_FORMAT_CARDS.find(c => c.value === round.format);
+  const formatName = formatCard ? formatCard.label : 'Round Robin';
+
+  const sets = round.scoring?.setsBestOf || 3;
+  const pts = round.scoring?.pointsPerSet || 21;
+  const setsText = sets === 1 ? `1 set to ${pts} pts` : `best of ${sets} sets to ${pts} pts`;
+  const durText = `${round.durationMinutes || DEFAULT_MATCH_MINUTES} min`;
+  return `${formatName} · ${setsText} · ${durText}`;
 };
 
 interface ScoringRules {
@@ -112,6 +145,10 @@ interface SetupDivision {
      the draw screen reads it as its starting value rather than inventing one.
      Only meaningful when a group round is followed by another round. */
   advancePerPool: number;
+  /* How pool finishers are seeded into the knockout round. Defined here with
+     the rest of the format so the whole competition is settled before
+     registration opens; the draw applies it rather than asking again. */
+  crossing: string;
   rules: string;
   // Per-division (isolated) registration schema
   regFields: RegField[];
@@ -189,6 +226,7 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
       durationMinutes: typeof r.durationMinutes === 'number' ? r.durationMinutes : DEFAULT_MATCH_MINUTES,
     })),
     advancePerPool: typeof settings.advancePerPool === 'number' ? settings.advancePerPool : 2,
+    crossing: typeof settings.crossing === 'string' && settings.crossing ? settings.crossing : 'fivb',
     rules: typeof settings.rules === 'string' ? settings.rules : 'Standard FIVB Beach Volleyball rules apply.',
     regFields: (row.regFields as RegField[]) ?? makeBaseFields(),
     allowMulti: typeof settings.allowMulti === 'boolean' ? settings.allowMulti : true,
@@ -510,6 +548,7 @@ export default function OrganizerSetup() {
   const [minTeams, setMinTeams] = useState(4);
   const [waitlistCap, setWaitlistCap] = useState(5);
   const [advancePerPool, setAdvancePerPool] = useState(2);
+  const [crossing, setCrossing] = useState('fivb');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
 
@@ -556,6 +595,7 @@ export default function OrganizerSetup() {
     setMinTeams(4);
     setWaitlistCap(5);
     setAdvancePerPool(2);
+    setCrossing('fivb');
     setShowAdvanced(false);
     setModalStep(0);
     setShowModal(true);
@@ -589,6 +629,7 @@ export default function OrganizerSetup() {
     setMinTeams(d.minTeams);
     setWaitlistCap(d.waitlistCap);
     setAdvancePerPool(d.advancePerPool);
+    setCrossing(d.crossing);
     setFormError(null);
     setShowAdvanced(false);
     setModalStep(0);
@@ -963,6 +1004,7 @@ export default function OrganizerSetup() {
       registrationCloseDate: regCloseDate,
       rounds,
       advancePerPool,
+      crossing,
       rules: divRules,
       regFields,
       allowMulti,
@@ -1294,6 +1336,7 @@ export default function OrganizerSetup() {
     minTeams: d.minTeams,
     waitlistCap: d.waitlistCap,
     advancePerPool: d.advancePerPool,
+    crossing: d.crossing,
     confirmationMessage: d.confirmationMessage,
     confirmationImage: d.confirmationImage,
   });
@@ -2227,10 +2270,17 @@ export default function OrganizerSetup() {
       {/* ── CREATE DIVISION MODAL ─────────────────────────────────── */}
       {showModal && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
+          <div className={`${styles.modalContent} ${styles.divisionModalContent}`}>
             <div className={styles.modalHeader}>
-              <h3>{editingDivisionId ? 'Edit Division' : 'Create New Division'}</h3>
-              <button className={styles.modalCloseBtn} onClick={() => setShowModal(false)}>×</button>
+              <div className={styles.modalHeaderTitleGroup}>
+                <h3>{editingDivisionId ? 'Edit Division' : 'Create New Division'}</h3>
+                <p className={styles.modalSubtitle}>
+                  {basicInfo?.title || 'Tournament'} — {divName.trim() ? divName.trim() : editingDivisionId ? 'Division' : 'New Division'}
+                </p>
+              </div>
+              <button className={styles.modalCloseBtnCircle} onClick={() => setShowModal(false)} aria-label="Close">
+                <X size={18} />
+              </button>
             </div>
 
             {/* ── Step navigation line ─────────────────────────── */}
@@ -2243,7 +2293,7 @@ export default function OrganizerSetup() {
                     onClick={() => goToModalStep(i)}
                   >
                     <span className={styles.modalStepDot}>
-                      {i < modalStep ? <Check size={13} strokeWidth={3} /> : i + 1}
+                      {i < modalStep ? <Check size={14} strokeWidth={3} /> : i + 1}
                     </span>
                     <span className={styles.modalStepLabel}>{label}</span>
                   </button>
@@ -2368,14 +2418,10 @@ export default function OrganizerSetup() {
               {modalStep === 1 && (
               <>
               {/* ── C. Rules & Formats ───────────────────────────── */}
-              <p className={styles.modalSectionTitle}>Rules &amp; Formats</p>
-
               <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Competition Format *</label>
-                <p className={styles.fieldHint} style={{ marginTop: -2 }}>
-                  Build the tournament one round at a time. Each round has its own format and
-                  scoring — e.g. round robin to 21 points, then a best-of-3 elimination bracket.
-                </p>
+                <h4 className={styles.sectionTitleWithAsterisk}>
+                  Competition Format <span className={styles.asteriskOrange}>*</span>
+                </h4>
                 {rebuildsBracket && (
                   <div className={styles.modalFormError} style={{ marginTop: 8 }}>
                     Adding, removing or re-ordering a round changes the shape of the bracket, so saving will
@@ -2385,53 +2431,59 @@ export default function OrganizerSetup() {
                 )}
                 <div className={styles.roundsList}>
                   {rounds.map((round, i) => (
-                    <div key={round.id} className={styles.roundCard}>
+                    <div key={round.id} className={styles.roundCardNew}>
                       <div className={styles.roundCardHeader}>
-                        <span className={styles.roundName}>{roundLabel(i)}</span>
-                        {round.format === null && (
-                          <span className={styles.roundPrompt}>click to choose format</span>
-                        )}
+                        <div className={styles.roundHeaderLeft}>
+                          <span className={styles.roundBadge}>{roundBadgeLabel(i)}</span>
+                          <div className={styles.roundTitleGroup}>
+                            <span className={styles.roundName}>{roundLabel(i)}</span>
+                            <span className={styles.roundSummaryText}>
+                              {getRoundSummaryText(round)}
+                            </span>
+                          </div>
+                        </div>
                         {rounds.length > 1 && (
                           <button
                             type="button"
-                            className={styles.btnRemove}
+                            className={styles.roundCardDeleteBtn}
                             onClick={() => removeRound(round.id)}
                             aria-label={`Remove ${roundLabel(i)}`}
                           >
-                            <Trash2 size={15} />
+                            <X size={16} />
                           </button>
                         )}
                       </div>
-                      <div className={styles.selectorGroup}>
-                        {ROUND_FORMATS.map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className={`${styles.selectorBtn} ${round.format === opt.value ? styles.selectorBtnActive : ''}`}
-                            onClick={() => setRoundFormat(round.id, opt.value)}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+
+                      {/* 3-Column Format Cards */}
+                      <div className={styles.formatCardsGrid}>
+                        {ROUND_FORMAT_CARDS.map(opt => {
+                          const isActive = round.format === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className={`${styles.formatCard} ${isActive ? styles.formatCardActive : ''}`}
+                              onClick={() => setRoundFormat(round.id, opt.value)}
+                            >
+                              <span className={styles.formatCardTitle}>{opt.label}</span>
+                              <span className={styles.formatCardDesc}>{opt.desc}</span>
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {round.format !== null && (
-                        <div className={styles.scoringMatrix} style={{ marginTop: 12 }}>
-                          {/* Only a group round that something follows sends teams
-                              onward — a final round advances nobody, and an
-                              elimination round advances its winners by definition.
-                              Rendered on the first such round so the division-level
-                              value can't appear twice. */}
-                          {round.format === 'round-robin'
-                            && i < rounds.length - 1
-                            && rounds.findIndex((r, ri) => r.format === 'round-robin' && ri < rounds.length - 1) === i && (
-                            <div className={styles.scoringRow}>
-                              <span className={styles.scoringRowLabel}>Teams advancing</span>
-                              <label className={styles.scoringCell}>
-                                <span>Top</span>
+                      {/* Advancement Section (Only for Round Robin) */}
+                      {round.format === 'round-robin' && (
+                        <div className={styles.formatSubSection}>
+                          <div className={styles.formatSubSectionHeader}>ADVANCEMENT</div>
+                          <div className={styles.advancementGrid}>
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>TEAMS ADVANCING</span>
+                              <div className={styles.creamTileInputRow}>
+                                <span className={styles.creamTilePrefix}>Top</span>
                                 <input
                                   type="number"
-                                  className={styles.scoringInput}
+                                  className={styles.creamTileNumberInput}
                                   min={1}
                                   max={4}
                                   value={advancePerPool}
@@ -2440,101 +2492,152 @@ export default function OrganizerSetup() {
                                     setAdvancePerPool(isNaN(v) ? 1 : Math.max(1, Math.min(4, v)));
                                   }}
                                 />
-                                <span>per pool</span>
-                              </label>
+                                <span className={styles.creamTileSuffix}>per pool</span>
+                              </div>
                             </div>
-                          )}
-                          <div className={styles.scoringRow}>
-                            <span className={styles.scoringRowLabel}>Match length</span>
-                            <label className={styles.scoringCell}>
-                              <input
-                                type="number"
-                                className={styles.scoringInput}
-                                min={5}
-                                max={240}
-                                step={5}
-                                value={round.durationMinutes}
-                                onChange={e => setRoundDuration(round.id, parseInt(e.target.value) || 0)}
-                              />
-                              <span>min</span>
-                            </label>
+
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>CROSSING</span>
+                              <div className={styles.creamTileSelectRow}>
+                                <select
+                                  className={styles.creamTileSelect}
+                                  value={crossing}
+                                  onChange={e => setCrossing(e.target.value)}
+                                >
+                                  <option value="fivb">FIVB Standard Draw</option>
+                                  <option value="static">Static Cross-Bracket A1–D4</option>
+                                </select>
+                                <ChevronDown size={15} className={styles.creamTileChevron} />
+                              </div>
+                            </div>
                           </div>
-                          <div className={styles.scoringRow}>
-                            <span className={styles.scoringRowLabel}>Match</span>
-                            <label className={styles.scoringCell}>
-                              <span>Best of</span>
-                              <select
-                                className={styles.scoringInput}
-                                value={round.scoring.setsBestOf}
-                                onChange={e => setRoundScoring(round.id, { setsBestOf: parseInt(e.target.value) })}
-                              >
-                                <option value={1}>1</option>
-                                <option value={3}>3</option>
-                                <option value={5}>5</option>
-                              </select>
-                            </label>
-                            <label className={styles.scoringCell}>
-                              <input
-                                type="checkbox"
-                                checked={round.scoring.winBy2}
-                                onChange={e => setRoundScoring(round.id, { winBy2: e.target.checked })}
-                              />
-                              <span>Win by 2</span>
-                            </label>
-                          </div>
-                          <div className={styles.scoringRow}>
-                            <span className={styles.scoringRowLabel}>Sets 1 &amp; 2</span>
-                            <label className={styles.scoringCell}>
-                              <span>to</span>
-                              <input
-                                type="number"
-                                className={styles.scoringInput}
-                                min={1}
-                                value={round.scoring.pointsPerSet}
-                                onChange={e => setRoundScoring(round.id, { pointsPerSet: parseInt(e.target.value) || 0 })}
-                              />
-                            </label>
-                            <label className={styles.scoringCell}>
-                              <span>Hard cap</span>
-                              <input
-                                type="number"
-                                className={styles.scoringInput}
-                                min={0}
-                                placeholder="none"
-                                value={round.scoring.hardCap || ''}
-                                onChange={e => setRoundScoring(round.id, { hardCap: parseInt(e.target.value) || 0 })}
-                              />
-                            </label>
-                          </div>
-                          <div className={styles.scoringRow}>
-                            <span className={styles.scoringRowLabel}>Deciding set</span>
-                            <label className={styles.scoringCell}>
-                              <span>to</span>
-                              <input
-                                type="number"
-                                className={styles.scoringInput}
-                                min={1}
-                                value={round.scoring.decidingSetPoints}
-                                onChange={e => setRoundScoring(round.id, { decidingSetPoints: parseInt(e.target.value) || 0 })}
-                              />
-                            </label>
+                        </div>
+                      )}
+
+                      {/* Match & Scoring Section */}
+                      {round.format !== null && (
+                        <div className={styles.formatSubSection}>
+                          <div className={styles.formatSubSectionHeader}>MATCH &amp; SCORING</div>
+                          <div className={styles.scoringTilesGrid}>
+                            {/* 1. MATCH LENGTH */}
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>MATCH LENGTH</span>
+                              <div className={styles.creamTileInputRow}>
+                                <input
+                                  type="number"
+                                  className={styles.creamTileNumberInput}
+                                  min={5}
+                                  max={240}
+                                  step={5}
+                                  value={round.durationMinutes}
+                                  onChange={e => setRoundDuration(round.id, parseInt(e.target.value) || 0)}
+                                />
+                                <span className={styles.creamTileSuffix}>min</span>
+                              </div>
+                            </div>
+
+                            {/* 2. MATCH */}
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>MATCH</span>
+                              <div className={styles.creamTileSelectRow}>
+                                <select
+                                  className={styles.creamTileSelect}
+                                  value={round.scoring.setsBestOf}
+                                  onChange={e => setRoundScoring(round.id, { setsBestOf: parseInt(e.target.value) })}
+                                >
+                                  <option value={1}>Best of 1</option>
+                                  <option value={3}>Best of 3</option>
+                                  <option value={5}>Best of 5</option>
+                                </select>
+                                <ChevronDown size={15} className={styles.creamTileChevron} />
+                              </div>
+                            </div>
+
+                            {/* 3. WIN BY 2 */}
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>WIN BY 2</span>
+                              <div className={styles.creamTileToggleRow}>
+                                <label className={styles.creamSwitch}>
+                                  <input
+                                    type="checkbox"
+                                    role="switch"
+                                    checked={round.scoring.winBy2}
+                                    onChange={e => setRoundScoring(round.id, { winBy2: e.target.checked })}
+                                  />
+                                  <span className={styles.creamSwitchTrack}>
+                                    <span className={styles.creamSwitchThumb} />
+                                  </span>
+                                </label>
+                              </div>
+                            </div>
+
+                            {/* 4. WINNING SCORE */}
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>WINNING SCORE</span>
+                              <div className={styles.creamTileInputRow}>
+                                <input
+                                  type="number"
+                                  className={styles.creamTileNumberInput}
+                                  min={1}
+                                  value={round.scoring.pointsPerSet}
+                                  onChange={e => setRoundScoring(round.id, { pointsPerSet: parseInt(e.target.value) || 0 })}
+                                />
+                                <span className={styles.creamTileSuffix}>points</span>
+                              </div>
+                            </div>
+
+                            {/* 5. HARD CAP */}
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>HARD CAP</span>
+                              <div className={styles.creamTileInputRow}>
+                                <input
+                                  type="text"
+                                  className={styles.creamTileNumberInput}
+                                  placeholder="none"
+                                  value={round.scoring.hardCap ? round.scoring.hardCap : ''}
+                                  onChange={e => {
+                                    const val = e.target.value.trim();
+                                    const num = parseInt(val, 10);
+                                    setRoundScoring(round.id, { hardCap: isNaN(num) ? 0 : num });
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 6. DECIDING SET TO */}
+                            <div className={styles.creamTile} style={{ opacity: round.scoring.setsBestOf > 1 ? 1 : 0.4 }}>
+                              <span className={styles.creamTileLabel}>DECIDING SET TO</span>
+                              <div className={styles.creamTileInputRow}>
+                                <input
+                                  type="number"
+                                  className={styles.creamTileNumberInput}
+                                  min={1}
+                                  disabled={round.scoring.setsBestOf <= 1}
+                                  value={round.scoring.decidingSetPoints}
+                                  onChange={e => setRoundScoring(round.id, { decidingSetPoints: parseInt(e.target.value) || 0 })}
+                                />
+                                <span className={styles.creamTileSuffix}>points</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-                <button type="button" className={styles.btnAdd} onClick={addRound} style={{ marginTop: 10, width: '100%' }}>
+                <button type="button" className={styles.btnAddRoundDashed} onClick={addRound}>
                   <Plus size={16} /> Add Round
                 </button>
               </div>
 
-              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
-                <label className={styles.fieldLabel}>Competition Rules (Optional)</label>
+              <div className={styles.rulesSection}>
+                <label className={styles.rulesLabel}>
+                  Competition Rules <span className={styles.rulesLabelOptional}>(optional)</span>
+                </label>
                 <textarea
-                  className={styles.textarea}
-                  rows={2}
-                  placeholder="Rules specific to this division..."
+                  className={styles.rulesTextarea}
+                  rows={3}
+                  placeholder="Standard FIVB Beach Volleyball rules apply."
                   value={divRules}
                   onChange={e => setDivRules(e.target.value)}
                 />
@@ -2832,18 +2935,18 @@ export default function OrganizerSetup() {
             </div>
             <div className={styles.modalFooter}>
               {modalStep === 0 ? (
-                <button className={styles.btnGhost} onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="button" className={styles.btnModalBack} onClick={() => setShowModal(false)}>Cancel</button>
               ) : (
-                <button className={styles.btnGhost} onClick={handleModalBack}>
-                  <ArrowLeft size={15} /> Back
+                <button type="button" className={styles.btnModalBack} onClick={handleModalBack}>
+                  Back
                 </button>
               )}
               {modalStep < MODAL_STEPS.length - 1 ? (
-                <button className={styles.btnActionPrimary} onClick={handleModalNext}>
-                  Next <ChevronRight size={16} />
+                <button type="button" className={styles.btnModalNext} onClick={handleModalNext}>
+                  Next <ArrowRight size={16} />
                 </button>
               ) : (
-                <button className={styles.btnActionPrimary} onClick={saveDivisionModal} disabled={divisionSaving}>
+                <button type="button" className={styles.btnModalNext} onClick={saveDivisionModal} disabled={divisionSaving}>
                   {divisionSaving ? 'Saving…' : editingDivisionId ? 'Save Division' : 'Create Division'}
                 </button>
               )}

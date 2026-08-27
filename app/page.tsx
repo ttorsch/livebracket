@@ -8,16 +8,19 @@ import {
   MapPin,
   Calendar,
   ArrowRight,
-  ChevronDown
+  ChevronDown,
+  Mic
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip } from '@/components/livebracket-ds';
 import {
   getDashboardTournaments,
   getRecentlyCompletedDivisions,
+  getHomepageStats,
   todayLocal,
   type DashboardTournament,
   type CompletedDivisionSlide,
+  type HomepageStats,
 } from '@/lib/data';
 
 type Status = 'live' | 'upcoming' | 'finished';
@@ -623,6 +626,7 @@ export default function LiveBracketHome() {
   // Morphing Navigation States
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   // Live Match Carousel State
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -636,20 +640,43 @@ export default function LiveBracketHome() {
   // drafts stay hidden from the public page).
   const [events, setEvents] = useState<Tournament[]>([]);
   const [completedSlides, setCompletedSlides] = useState<CompletedDivisionSlide[]>([]);
+  const [realStats, setRealStats] = useState<HomepageStats>({ upcomingMatches: 0, registeredTeams: 0 });
   const [eventsLoaded, setEventsLoaded] = useState(false);
+
+  const upcomingMatchesCount = useMemo(() => {
+    return realStats.upcomingMatches;
+  }, [realStats]);
+
+  const registeredTeamsCount = useMemo(() => {
+    const fromEvents = events.reduce((sum, t) => sum + (t.teams || 0), 0);
+    return realStats.registeredTeams > 0 ? realStats.registeredTeams : fromEvents;
+  }, [realStats, events]);
+
+  const activeLiveCount = useMemo(() => {
+    const liveTournaments = events.filter(e => e.status === 'live');
+    return liveTournaments.length;
+  }, [events]);
 
   useEffect(() => {
     Promise.all([
       getDashboardTournaments(),
       getRecentlyCompletedDivisions(14),
       fetch('/api/organizer').then(r => r.json()).catch(() => null),
+      getHomepageStats(),
     ])
-      .then(([rows, slides, organizer]) => {
+      .then(([rows, slides, organizer, statsData]) => {
         const cards = rows
           .filter(t => t.phase >= 2)
           .map((t, i) => toEventCard(t, i, organizer?.name ?? null));
         setEvents(cards);
         setCompletedSlides(slides);
+        if (statsData) {
+          const totalFromRows = rows.reduce((sum, t) => sum + t.divisions.reduce((dSum, d) => d.filled, 0), 0);
+          setRealStats({
+            upcomingMatches: statsData.upcomingMatches,
+            registeredTeams: statsData.registeredTeams > 0 ? statsData.registeredTeams : totalFromRows,
+          });
+        }
       })
       .catch(console.error)
       .finally(() => setEventsLoaded(true));
@@ -658,8 +685,20 @@ export default function LiveBracketHome() {
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLoc('Phang Nga');
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            if (res.ok) {
+              const data = await res.json();
+              const city = data.address?.city || data.address?.town || data.address?.municipality || data.address?.county || data.address?.state || 'Phang Nga';
+              setUserLoc(city);
+            } else {
+              setUserLoc('Phang Nga');
+            }
+          } catch {
+            setUserLoc('Phang Nga');
+          }
         },
         () => {
           setUserLoc('Khao Lak');
@@ -808,13 +847,10 @@ export default function LiveBracketHome() {
 
   const hasAnyResults = filteredActiveUpcoming.length > 0 || filteredCompletedSlides.length > 0;
 
-  // Active slide match item
-  const activeMatch = liveMatches[carouselIndex];
-
   return (
     <div className={styles.page} id="top">
       
-      {/* ── Morphing Navigation Bar (Design System Portal) ───────── */}
+      {/* ── Morphing Navigation Bar (Desktop Search & Action Buttons) ───────── */}
       <header 
         id="livebracket-nav"
         className={`${styles.nav} ${scrolled ? styles.scrolled : styles.onHero}`}
@@ -829,384 +865,196 @@ export default function LiveBracketHome() {
           <Link href="/" className={styles.logo} aria-label="Live Bracket — home" onClick={scrollToTop}>
             <span className={styles.brandMark} aria-hidden="true">
               <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
-  <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
-  <rect x="722.713" y="462.822" width="129.386" height="35.9406" rx="15" fill="white" />
-  <rect x="593.327" y="489.178" width="129.386" height="35.9406" rx="15" fill="white" />
-  <rect x="557.386" y="416.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 557.386 416.099)" fill="white" />
-  <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
-  <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
-</svg>
+                <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
+                <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
+                <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
+                <rect x="593.327" y="308.277" width="165.327" height="35.9406" rx="15" fill="white" />
+                <rect x="722.713" y="462.822" width="129.386" height="35.9406" rx="15" fill="white" />
+                <rect x="593.327" y="489.178" width="129.386" height="35.9406" rx="15" fill="white" />
+                <rect x="557.386" y="416.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 557.386 416.099)" fill="white" />
+                <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
+                <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
+              </svg>
             </span>
-            <span>Live Bracket</span>
+            <span className={styles.brandText}>LIVE BRACKET</span>
           </Link>
 
-          <ul className={styles.links}>
-            <li>
-              <a href="#events" className={styles.link}>Tournaments</a>
-            </li>
-            <li>
-              <Link href="/#community" className={styles.link}>Community & News</Link>
-            </li>
-            <li>
-              <Link href="/#about" className={styles.link}>About</Link>
-            </li>
-          </ul>
+          {/* Desktop Center Search Bar */}
+          <div className={styles.navSearchWrapper}>
+            <div className={styles.navSearchPill}>
+              <Search size={16} className={styles.navSearchIcon} />
+              <input
+                type="text"
+                placeholder="Find a tournament"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className={styles.navSearchInput}
+              />
+              <Mic size={15} className={styles.navMicIcon} />
+            </div>
+          </div>
 
-          <div className={styles.actions}>
-            <Link href="/login" className={styles.pillContact}>
+          {/* Right Action Buttons */}
+          <div className={styles.navRightActions}>
+            <Link href="/login" className={styles.navSignInLink}>
               Sign In
             </Link>
-            
+            <Link href="/login?role=organizer" className={styles.navCreateBtn}>
+              Create a tournament
+            </Link>
+
+            {/* Mobile Search Button */}
             <button 
-              className={styles.menuBtn}
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Toggle menu"
-              aria-expanded={menuOpen}
+              className={styles.mobileSearchToggle}
+              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              aria-label="Toggle search"
             >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                {menuOpen ? (
-                  <path d="M5 5l10 10M5 15L15 5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                ) : (
-                  <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                )}
-              </svg>
+              <Search size={18} />
             </button>
           </div>
         </div>
         
-        {/* Mobile menu popup sheet */}
-        {menuOpen && (
-          <>
-            <div className={styles.menuBackdrop} onClick={() => setMenuOpen(false)} />
-            <div className={styles.mobileMenu}>
-              <a href="#events" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
-                Tournaments
-              </a>
-              <Link href="/#community" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
-                Community & News
-              </Link>
-              <Link href="/#about" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
-                About
-              </Link>
-              <Link href="/login" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
-                Sign In
-              </Link>
-              {/* TEMP: quick access to the organizer dashboard for testing — remove later */}
-              <Link href="/dashboard" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>
-                Dashboard
-              </Link>
+        {/* Mobile Search Dropdown */}
+        {mobileSearchOpen && (
+          <div className={styles.mobileSearchDropdown}>
+            <div className={styles.navSearchPill} style={{ width: '100%' }}>
+              <Search size={16} className={styles.navSearchIcon} />
+              <input
+                type="text"
+                placeholder="Find a tournament"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className={styles.navSearchInput}
+                autoFocus
+              />
             </div>
-          </>
+          </div>
         )}
       </header>
 
-      {/* ── Asymmetrical "Pulse" Hero (Swapped Left and Right layout) ──── */}
-      <section className={styles.hero}>
-        <div className={styles.heroBg} aria-hidden="true">
-          <img src="/images/Hero.jpg" alt="Volleyball tournament background" className={styles.heroImg} />
-          <div className={styles.heroScrim} />
-        </div>
-        <div className={styles.container} style={{ width: '100%' }}>
-          <div className={styles.heroGrid}>
+      {/* ── Redesigned Hero Section ──── */}
+      <section className={styles.heroNew}>
+        <div className={styles.container}>
+          <div className={styles.heroNewGrid}>
             
-            {/* Swapped LEFT Column: Live "Pulse" Card Container */}
-            <div className={styles.heroCardCol}>
-              <div 
-                className={styles.pulseCard}
-                style={{
-                  backdropFilter: 'blur(5px)',
-                  WebkitBackdropFilter: 'blur(5px)'
-                }}
-              >
-                
-                {showLiveCard ? (
-                  <>
-                  {/* Event Header: LIVE NOW + Stacking Info */}
-                  <div className={styles.pulseHeader}>
-                    <span className={styles.liveBadge}>
-                      <span className={styles.liveDot} />
-                      Live Now
-                    </span>
-                    <div className={styles.pulseHeaderDetails}>
-                      <h2 className={styles.pulseTitle}>{marqueeTournament?.title}</h2>
-                      <div className={styles.pulseDatesRow}>
-                        <span className={styles.pulseDatePill}>{marqueeTournament?.dateLabel}</span>
-                        <span className={styles.pulseDateTo}>to</span>
-                        <span className={styles.pulseDatePill}>{marqueeTournament?.dateLabel}</span>
-                      </div>
-                      <p className={styles.pulseMeta}>
-                        <MapPin size={13} style={{ marginRight: '6px' }} />
-                        <span>{marqueeTournament?.location}</span>
-                      </p>
-                    </div>
+            {/* Left Column: Headlines, CTAs, Stats */}
+            <div className={styles.heroNewLeftCol}>
+              <p className={styles.heroKicker}>KHAO LAK VOLLEY PRESENTS</p>
+              <h1 className={styles.heroHeadline}>
+                Every Point<br />live on one link
+              </h1>
+              <p className={styles.heroSubtitle}>
+                Set up brackets, seed the draw in seconds, and update scores court-side. Players and spectators follow the same live link — no account needed.
+              </p>
+
+              <div className={styles.heroCtasRow}>
+                <a href="#events" className={styles.heroPrimaryPill}>
+                  See all tournaments
+                </a>
+                <button 
+                  type="button" 
+                  className={styles.heroSecondaryPill}
+                  onClick={() => {
+                    setFilter('live');
+                    document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  Watch a live match
+                </button>
+              </div>
+
+              {/* Bottom Live Matches Indicator & Season Stats */}
+              <div className={styles.heroStatsSection}>
+                <button
+                  type="button"
+                  className={styles.heroNearYouBtn}
+                  onClick={() => {
+                    setQuery(userLoc);
+                    document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <span className={styles.liveDotRed} />
+                  <span className={styles.nearYouBold}>{activeLiveCount} {activeLiveCount === 1 ? 'match' : 'matches'} near you</span>
+                  <span className={styles.nearYouSub}>{userLoc}</span>
+                  <ArrowRight size={14} className={styles.nearYouArrow} />
+                </button>
+
+                <div className={styles.heroStatsRow}>
+                  <div className={styles.heroStatItem}>
+                    <span className={styles.heroStatNumber}>{upcomingMatchesCount}</span>
+                    <span className={styles.heroStatLabel}>Upcoming matches</span>
                   </div>
-
-                  <div className={styles.pulseDivider} />
-
-                  {/* Inner Match Card Container with Slide-in Ease Out from Top & fast disappear exit */}
-                  <AnimatePresence mode="popLayout">
-                    <motion.div 
-                      key={carouselIndex}
-                      className={styles.carouselMatchCard}
-                      initial={{ 
-                        clipPath: 'circle(8px at 50% 50%)',
-                        scale: 0.05,
-                        opacity: 1
-                      }}
-                      animate={{ 
-                        clipPath: 'circle(150% at 50% 50%)',
-                        scale: 1,
-                        opacity: 1
-                      }}
-                      exit={{ 
-                        opacity: 0,
-                        transition: { duration: 0 }
-                      }}
-                      transition={{
-                        clipPath: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
-                        scale: { type: 'spring', stiffness: 120, damping: 26 },
-                        boxShadow: { type: 'spring', stiffness: 400, damping: 25 }
-                      }}
-                      style={{
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        background: 'rgba(255, 255, 255, 0.88)',
-                        border: '1px solid rgba(255, 255, 255, 0.4)'
-                      }}
-                    >
-                      <div className={styles.newCarouselContainer} style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%' }}>
-                      
-                        {/* Header Row */}
-                        <div className={styles.newCarouselHeader}>
-                          <span className={styles.newCarouselTitle}>
-                            {activeMatch.division.toUpperCase()} • {activeMatch.round.toUpperCase()}
-                          </span>
-                          <span className={styles.newLiveBadge}>
-                            <span className={styles.newLiveDot} />
-                            LIVE
-                          </span>
-                        </div>
-
-                        {/* Team A Row */}
-                        <div className={`${styles.newTeamRow} ${activeMatch.currentPointsA >= activeMatch.currentPointsB ? styles.leadingTeam : styles.trailingTeam}`}>
-                          <div className={styles.teamLeftGroup}>
-                            <div className={styles.teamAvatarStack}>
-                              {activeMatch.teamAPlayers.map((player, pIdx) => (
-                                <div key={pIdx} className={styles.teamAvatarItem}>
-                                  {getPlayerInitial(player.lastName)}
-                                </div>
-                              ))}
-                            </div>
-                            <div className={styles.teamNameText}>
-                              {activeMatch.teamAPlayers.map((player, pIdx) => (
-                                <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
-                              ))}
-                            </div>
-                          </div>
-                          <div className={styles.teamRightGroup}>
-                            <div className={styles.setHistoryRow}>
-                              {activeMatch.sets.map((set, sIdx) => (
-                                <span key={sIdx} className={styles.historyPointsValue}>
-                                  {set.a}
-                                </span>
-                              ))}
-                            </div>
-                            <RollingNumber
-                              value={activeMatch.currentPointsA}
-                              className={activeMatch.lastScorer === 'A' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Divider */}
-                        <div className={styles.newMatchDivider} />
-
-                        {/* Team B Row */}
-                        <div className={`${styles.newTeamRow} ${activeMatch.currentPointsB > activeMatch.currentPointsA ? styles.leadingTeam : styles.trailingTeam}`}>
-                          <div className={styles.teamLeftGroup}>
-                            <div className={styles.teamAvatarStack}>
-                              {activeMatch.teamBPlayers.map((player, pIdx) => (
-                                <div key={pIdx} className={styles.teamAvatarItem}>
-                                  {getPlayerInitial(player.lastName)}
-                                </div>
-                              ))}
-                            </div>
-                            <div className={styles.teamNameText}>
-                              {activeMatch.teamBPlayers.map((player, pIdx) => (
-                                <span key={pIdx} className={styles.teamNameLine}>{player.lastName}</span>
-                              ))}
-                            </div>
-                          </div>
-                          <div className={styles.teamRightGroup}>
-                            <div className={styles.setHistoryRow}>
-                              {activeMatch.sets.map((set, sIdx) => (
-                                <span key={sIdx} className={styles.historyPointsValue}>
-                                  {set.b}
-                                </span>
-                              ))}
-                            </div>
-                            <RollingNumber
-                              value={activeMatch.currentPointsB}
-                              className={activeMatch.lastScorer === 'B' ? `${styles.livePoints} ${styles.livePointsActive}` : styles.livePoints}
-                            />
-                          </div>
-                        </div>
-
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-
-                  {/* Carousel Indicator Dots below inner card (remains static) */}
-                  <div className={styles.carouselIndicators} role="tablist" aria-label="Live Match Slides">
-                    {liveMatches.map((_, idx) => (
-                      <button
-                        key={idx}
-                        role="tab"
-                        aria-selected={carouselIndex === idx}
-                        className={`${styles.carouselDot} ${carouselIndex === idx ? styles.carouselDotActive : ''}`}
-                        onClick={() => handleDotClick(idx)}
-                        aria-label={`Go to live match slide ${idx + 1}`}
-                      />
-                    ))}
+                  <div className={styles.heroStatDivider} />
+                  <div className={styles.heroStatItem}>
+                    <span className={styles.heroStatNumber}>{registeredTeamsCount}</span>
+                    <span className={styles.heroStatLabel}>Registered teams</span>
                   </div>
-
-                  {/* Card Footer Peach CTA */}
-                  <div className={styles.pulseFooter}>
-                    <Link 
-                      href="#events" 
-                      className={styles.pulseCta} 
-                      onClick={() => setFilter('live')}
-                      style={{
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)'
-                      }}
-                    >
-                      See all division
-                    </Link>
-                  </div>
-                  </>
-                ) : (
-                  <>
-                    {/* No tournament is live: badge only, then the soonest starts */}
-                    <div className={styles.pulseUpcomingHeader}>
-                      <span className={styles.upcomingBadge}>Upcoming</span>
-                    </div>
-
-                    <div className={styles.upcomingList}>
-                      {upcomingSoon.map((t) => (
-                        <Link key={t.id} href={`/tournament/${t.id}`} className={styles.upcomingRow}>
-                          <div className={styles.upcomingRowHeader}>
-                            <span
-                              className={`${styles.upcomingStatusBadge} ${t.status === 'live' ? styles.upcomingStatusLive : ''}`}
-                            >
-                              {statusLabels(t).long}
-                            </span>
-                          </div>
-
-                          <div className={styles.upcomingRowContent}>
-                            <div className={styles.upcomingRowTextCol}>
-                              <h4 className={styles.upcomingRowTitle}>{t.title}</h4>
-
-                              <div className={styles.upcomingMetaList}>
-                                <DateChip
-                                  style={{
-                                    fontWeight: 700,
-                                    fontSize: '13.5px',
-                                    padding: '6px 14px',
-                                    border: 'none',
-                                    width: 'fit-content',
-                                  }}
-                                >
-                                  {formatDateRange(t.dateLabel, t.endDateLabel)}
-                                </DateChip>
-                                <div className={styles.upcomingMetaRow}>
-                                  <MapPin size={13} className={styles.upcomingMetaIcon} />
-                                  <span className={styles.upcomingMetaText}>{t.location}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Nested inside the row's own Link, so a span rather
-                                than a second anchor. */}
-                            <span className={styles.upcomingArrowBtn} aria-hidden="true">
-                              <ArrowRight size={18} />
-                            </span>
-                          </div>
-                        </Link>
-                      ))}
-                      {upcomingSoon.length === 0 && (
-                        <p className={styles.upcomingEmpty}>No tournaments scheduled yet.</p>
-                      )}
-                    </div>
-                  </>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* Swapped RIGHT Column: Headline, paragraph text, and CTAs */}
-            <div className={styles.heroTextCol}>
-              <p className={styles.kicker}>Khao Lak Volley presents</p>
-              <h1 className={styles.serifTitle}>
-                LIVE BRACKET
-              </h1>
-              <p className={styles.heroSub}>
-                Set up brackets, seed the draw in seconds, and update scores court-side. Share one live link so players and spectators can follow real-time scores and tournament standings.
-              </p>
-              <div className={styles.heroCtas}>
-                <a href="#events" className={styles.heroPrimary}>
-                  See all tournament <ArrowRight size={16} />
-                </a>
-              </div>
-              {nearbyEvent && (
-                <div 
-                  className={styles.nearbyCard}
-                  style={{
-                    backdropFilter: 'blur(5px)',
-                    WebkitBackdropFilter: 'blur(5px)'
-                  }}
-                >
-                  <div className={styles.nearbyCardHeader}>
-                    <span className={styles.nearbyCardKicker} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={12} style={{ color: 'var(--coral)' }} /> Phang Nga
+            {/* Right Column: Featured Live Showcase Card */}
+            <div className={styles.heroNewRightCol}>
+              <div className={styles.showcaseCard}>
+                <img 
+                  src="/images/Hero.jpg" 
+                  alt="Beach volleyball tournament in action" 
+                  className={styles.showcaseImg} 
+                />
+                <div className={styles.showcaseGradientOverlay} />
+
+                {/* Top Badges */}
+                <div className={styles.showcaseTopRow}>
+                  <span className={styles.showcaseLiveBadge}>
+                    <span className={styles.liveDotWhite} />
+                    LIVE
+                  </span>
+                  <span className={styles.showcaseCourtLabel}>Court 1 · Memories Beach</span>
+                </div>
+
+                {/* Middle Tournament Title */}
+                <div className={styles.showcaseTournamentInfo}>
+                  <h3 className={styles.showcaseTournamentTitle}>Khao Lak Open 2027</h3>
+                  <p className={styles.showcaseTournamentSub}>Men · Quarterfinal</p>
+                </div>
+
+                {/* Bottom Floating Scoreboard Card */}
+                <div className={styles.floatingScoreboard}>
+                  <div className={styles.scoreboardHeader}>
+                    <span className={styles.scoreboardStatus}>SET 3 · IN PROGRESS</span>
+                    <span className={styles.scoreboardLiveIndicator}>
+                      <span className={styles.liveDotRedSmall} />
+                      LIVE
                     </span>
                   </div>
-                  
-                  <div className={styles.nearbyCardContent}>
-                    <div className={styles.nearbyCardTextCol}>
-                      <h3 className={styles.nearbyCardTitle}>{nearbyEvent.title}</h3>
-                      
-                      <div className={styles.nearbyCardMeta}>
-                        <DateChip 
-                          style={{
-                            fontWeight: 700,
-                            fontSize: '13.5px',
-                            padding: '6px 14px',
-                            border: 'none',
-                            width: 'fit-content'
-                          }}
-                        >
-                          {nearbyEvent.dateLabel}
-                        </DateChip>
-                        <span className={styles.nearbyMetaItem}>
-                          <MapPin size={13} className={styles.nearbyMetaIcon} />
-                          {nearbyEvent.location}
-                        </span>
-                      </div>
-                    </div>
 
-                    <Link 
-                      href={`/tournament/${nearbyEvent.id}`} 
-                      className={styles.nearbyArrowBtn}
-                      aria-label="View tournament details"
-                    >
-                      <ArrowRight size={18} />
-                    </Link>
+                  {/* Team A Row */}
+                  <div className={styles.scoreboardTeamRow}>
+                    <div className={styles.scoreboardTeamLeft}>
+                      <span className={styles.scoreboardAvatar}>A/</span>
+                      <span className={styles.scoreboardTeamName}>Aroon / Niran</span>
+                    </div>
+                    <div className={styles.scoreboardTeamRight}>
+                      <span className={styles.scoreboardPrevSet}>21</span>
+                      <span className={styles.scoreboardPrevSet}>19</span>
+                      <span className={`${styles.scoreboardCurrentScore} ${styles.scoreLead}`}>2</span>
+                    </div>
+                  </div>
+
+                  {/* Team B Row */}
+                  <div className={styles.scoreboardTeamRow}>
+                    <div className={styles.scoreboardTeamLeft}>
+                      <span className={styles.scoreboardAvatar}>L/</span>
+                      <span className={styles.scoreboardTeamName}>Lukas / Felix</span>
+                    </div>
+                    <div className={styles.scoreboardTeamRight}>
+                      <span className={styles.scoreboardPrevSet}>18</span>
+                      <span className={styles.scoreboardPrevSet}>21</span>
+                      <span className={styles.scoreboardCurrentScore}>1</span>
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
           </div>
