@@ -10,7 +10,9 @@ import {
   ArrowRight,
   ChevronDown,
   Mic,
-  ArrowUpDown
+  ArrowUpDown,
+  Menu,
+  X
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip } from '@/components/livebracket-ds';
@@ -791,26 +793,10 @@ export default function LiveBracketHome() {
     }
   };
 
-  // Monitor scroll position to apply morphing layout transitions (desktop & mobile)
+  // Monitor scroll position to apply solid background transition when scrolled
   useEffect(() => {
     const handleScroll = () => {
-      const y = window.scrollY;
-      const isScrolled = y > 20;
-      setScrolled(isScrolled);
-
-      if (window.innerWidth < 960) {
-        const enterStart = 20;
-        const enterEnd = 100;
-        // --enter-t is [0, 1] over scrollY [20, 100] drives logo shrink + transparent to glass
-        const enterT = Math.min(1, Math.max(0, (y - enterStart) / (enterEnd - enterStart)));
-        const nav = document.getElementById('livebracket-nav');
-        nav?.style.setProperty('--enter-t', String(enterT));
-        
-        // --compact-t is [0, 1] over scrollY [100, 300] for additional mobile container shrink
-        const compactZone = 200;
-        const compactT = Math.min(1, Math.max(0, (y - enterEnd) / compactZone));
-        nav?.style.setProperty('--compact-t', String(compactT));
-      }
+      setScrolled(window.scrollY > 20);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -898,13 +884,7 @@ export default function LiveBracketHome() {
         id="livebracket-nav"
         className={`${styles.nav} ${scrolled ? styles.scrolled : styles.onHero}`}
       >
-        <div 
-          className={styles.navRow}
-          style={{
-            backdropFilter: 'var(--nav-backdrop-filter)',
-            WebkitBackdropFilter: 'var(--nav-backdrop-filter)'
-          }}
-        >
+        <div className={styles.navRow}>
           <Link href="/" className={styles.logo} aria-label="Live Bracket — home" onClick={scrollToTop}>
             <span className={styles.brandMark} aria-hidden="true">
               <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -949,10 +929,25 @@ export default function LiveBracketHome() {
             {/* Mobile Search Button */}
             <button 
               className={styles.mobileSearchToggle}
-              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              onClick={() => {
+                setMobileSearchOpen(!mobileSearchOpen);
+                if (!mobileSearchOpen) setMenuOpen(false);
+              }}
               aria-label="Toggle search"
             >
               <Search size={18} />
+            </button>
+
+            {/* Mobile Hamburger Menu Button (Rightmost) */}
+            <button
+              className={styles.mobileMenuToggle}
+              onClick={() => {
+                setMenuOpen(!menuOpen);
+                if (!menuOpen) setMobileSearchOpen(false);
+              }}
+              aria-label="Toggle navigation menu"
+            >
+              {menuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
@@ -970,7 +965,28 @@ export default function LiveBracketHome() {
                 className={styles.navSearchInput}
                 autoFocus
               />
+              <Mic size={15} className={styles.navMicIcon} />
             </div>
+          </div>
+        )}
+
+        {/* Mobile Menu Dropdown */}
+        {menuOpen && (
+          <div className={styles.mobileMenuDropdown}>
+            <Link 
+              href="/login" 
+              className={styles.mobileNavSignInLink}
+              onClick={() => setMenuOpen(false)}
+            >
+              Sign In
+            </Link>
+            <Link 
+              href="/login?role=organizer" 
+              className={styles.mobileNavCreateBtn}
+              onClick={() => setMenuOpen(false)}
+            >
+              Create a tournament
+            </Link>
           </div>
         )}
       </header>
@@ -1271,24 +1287,7 @@ export default function LiveBracketHome() {
           </div>
         </section>
 
-        {/* ── Organizer CTA band ──────────────────────────────────── */}
-        <section className={styles.ctaSection}>
-          <div className={styles.container}>
-            <div className={styles.ctaCard}>
-              <h2 className={styles.ctaTitle}>Running a tournament this season?</h2>
-              <p className={styles.ctaSub}>
-                Set up your bracket in minutes and share one live link with the whole Khao Lak beach.
-              </p>
-              <div className={styles.ctaButtons}>
-                <Link href="/login" className={styles.ctaPrimary}>
-                  Create a tournament <ArrowRight size={16} />
-                </Link>
-                <a href="#events" className={styles.ctaSecondary}>Browse events</a>
-              </div>
-            </div>
-          </div>
-        </section>
-        
+
       </div>
     </div>
   );

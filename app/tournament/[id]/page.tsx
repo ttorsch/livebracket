@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Calendar, Users, Clock } from 'lucide-react';
+import { MapPin, Calendar, Users, Clock, Share2, Check } from 'lucide-react';
 import styles from './page.module.css';
 import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
@@ -436,25 +436,29 @@ export default function TournamentPage() {
             <h1 className={styles.title}>{tournament.title}</h1>
 
             <div className={styles.metaRow}>
-              <span className={styles.metaItem}>
-                <Calendar size={15} />
-                {tournament.date}
-              </span>
-              <span className={styles.metaItem}>
-                <MapPin size={15} />
-                {tournament.location}
-              </span>
-              <span className={styles.metaItem}>
-                <Users size={15} />
-                {courtCount > 0 ? `${courtCount} courts · ` : ''}
-                {tournament.divisions.length} division{tournament.divisions.length === 1 ? '' : 's'}
-              </span>
-              {regState === 'open' && closesOn && (
+              <div className={styles.metaLine}>
                 <span className={styles.metaItem}>
-                  <Clock size={15} />
-                  Registration closes {formatCloseDate(closesOn)}
+                  <Calendar size={15} />
+                  {tournament.date}
                 </span>
-              )}
+                <span className={styles.metaItem}>
+                  <MapPin size={15} />
+                  {tournament.location}
+                </span>
+              </div>
+              <div className={styles.metaLine}>
+                <span className={styles.metaItem}>
+                  <Users size={15} />
+                  {courtCount > 0 ? `${courtCount} courts · ` : ''}
+                  {tournament.divisions.length} division{tournament.divisions.length === 1 ? '' : 's'}
+                </span>
+                {regState === 'open' && closesOn && (
+                  <span className={styles.metaItem}>
+                    <Clock size={15} />
+                    Registration closes {formatCloseDate(closesOn)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -888,8 +892,14 @@ function ShareButton() {
   };
 
   return (
-    <button className={styles.btnGeneral} onClick={share}>
-      {copied ? 'Link copied' : 'Share event'}
+    <button 
+      className={`${styles.btnGeneral} ${styles.shareBtn}`} 
+      onClick={share}
+      aria-label={copied ? "Link copied" : "Share event"}
+      title={copied ? "Link copied" : "Share event"}
+    >
+      {copied ? <Check size={17} className={styles.shareIcon} /> : <Share2 size={17} className={styles.shareIcon} />}
+      <span className={styles.shareBtnText}>{copied ? 'Link copied' : 'Share event'}</span>
     </button>
   );
 }

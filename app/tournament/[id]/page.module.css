@@ -245,6 +245,19 @@
   width: 100%;
 }
 
+.shareBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.shareIcon {
+  flex-shrink: 0;
+}
+.shareBtnText {
+  display: inline;
+}
+
 .pillRow { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 2px; }
 
 .pillPrimary,
@@ -285,10 +298,10 @@
 
 .title {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(24px, 3.2vw, 36px);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  font-size: clamp(24px, 3.8vw, 44px);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
   margin: 0;
   color: var(--text-primary);
   text-wrap: pretty;
@@ -297,11 +310,19 @@
 .metaRow {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
-  margin-top: 4px;
+  margin-top: 6px;
+}
+.metaLine {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 20px;
+  row-gap: 6px;
 }
 .metaItem { display: inline-flex; align-items: center; gap: 8px; }
 .metaItem svg { color: var(--text-muted); flex-shrink: 0; }
@@ -1241,26 +1262,65 @@
     gap: 20px;
   }
   .heroPosterWrap {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .heroPoster,
-  .heroPosterFallback {
-    width: 100%;
-    max-width: 320px;
-    height: 180px;
+    display: none;
   }
   .headActions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
     width: 100%;
     min-width: 0;
+  }
+  .headActions .btnPrimary {
+    flex: 1 1 auto;
+    width: auto;
+  }
+  .headActions .shareBtn {
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    max-width: 42px;
+    padding: 0;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .headActions .shareBtnText {
+    display: none;
   }
 }
 
 @media (max-width: 720px) {
   .headerLink { display: none; }
-  .headActions { width: 100%; }
-  .headActions .btnPrimary,
-  .headActions .btnGeneral { flex: 1 1 auto; }
+  .headActions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .headActions .btnPrimary {
+    flex: 1 1 auto;
+    width: auto;
+  }
+  .headActions .shareBtn {
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    max-width: 42px;
+    padding: 0;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .headActions .shareBtnText {
+    display: none;
+  }
   .teamsGrid { grid-template-columns: 1fr; }
   .fillStats { gap: 18px; }
   .fillCount { font-size: 24px; }
