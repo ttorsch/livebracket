@@ -1683,43 +1683,6 @@ export default function OrganizerSetup() {
               </div>
             </Card>
 
-            {/* ── Setup readiness ────────────────────────────────
-                Every item is derived from real state — see
-                lib/setupReadiness. */}
-            <section className={styles.readinessCard}>
-              <div className={styles.readinessHead}>
-                <h5 className={styles.readinessTitle}>Setup readiness</h5>
-                <span className={styles.readinessProgressLabel}>{readiness.progressLabel}</span>
-                <div className={styles.readinessTrack}>
-                  <div className={styles.readinessFill} style={{ width: `${readiness.pct}%` }} />
-                </div>
-              </div>
-              <div className={styles.readinessGrid}>
-                {readiness.items.map(item => (
-                  <div key={item.key} className={styles.readinessItem}>
-                    {item.done ? (
-                      <span className={styles.readinessTickDone}><Check size={12} strokeWidth={3} /></span>
-                    ) : (
-                      <span className={styles.readinessTickPending} />
-                    )}
-                    <div className={styles.readinessItemBody}>
-                      <p className={styles.readinessItemLabel}>{item.label}</p>
-                      <p className={styles.readinessItemNote}>{item.note}</p>
-                      {item.actionLabel && (
-                        <button
-                          type="button"
-                          className={styles.readinessAction}
-                          onClick={() => onReadinessAction(item)}
-                        >
-                          {item.actionLabel}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
             {/* Division Tabs & 2-Column Split Layout */}
             {divisionsLoading ? (
               <div className={styles.emptyDivisions}>
@@ -2013,32 +1976,9 @@ export default function OrganizerSetup() {
             )}
           </div>
 
-                {/* ── Mobile: readiness, divisions, teams (1A) ────────── */}
+                {/* ── Mobile: divisions, teams (1A) ────────── */}
                 <div className={styles.mobileOnly}>
-                  {/* Readiness leads on mobile too, condensed to the bar and
-                      the one thing left to do. */}
-                  <div className={styles.mobileReadinessCard}>
-                    <div className={styles.mobileReadinessHead}>
-                      <p className={styles.mobileReadinessTitle}>Setup readiness</p>
-                      <p className={styles.mobileReadinessProgress}>{readiness.progressLabel}</p>
-                    </div>
-                    <div className={styles.readinessTrack}>
-                      <div className={styles.readinessFill} style={{ width: `${readiness.pct}%` }} />
-                    </div>
-                    <div className={styles.mobileReadinessNext}>
-                      {readiness.nextStep ? (
-                        <>
-                          <span className={styles.readinessTickPending} />
-                          <span>Next: {readiness.nextStep}</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className={styles.readinessTickDone}><Check size={12} strokeWidth={3} /></span>
-                          <span>Ready to run</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  {/* Mobile division tabs */}
 
                   {/* Mobile had no way to change division at all before this. */}
                   {divisionCards.length > 0 && (

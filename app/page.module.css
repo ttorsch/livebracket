@@ -7,7 +7,7 @@
 
 .page {
   --lb-navy: #0E1722;
-  background: var(--bg-cream, #E7E2D9);
+  background: var(--bg-cream, #F7F3EC);
   color: var(--ink-1, #14181E);
   overflow-x: hidden;
   min-height: 100vh;
@@ -198,7 +198,7 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: #EAE5DE;
+  background: transparent;
   border: none;
   align-items: center;
   justify-content: center;
@@ -370,6 +370,7 @@
   display: flex;
   align-items: center;
   gap: 28px;
+  padding-left: 15px;
 }
 .heroStatItem {
   display: flex;
@@ -601,27 +602,102 @@
   .navCreateBtn {
     display: none;
   }
-  .heroNewGrid {
-    grid-template-columns: 1fr;
-    gap: 36px;
-  }
   .heroNew {
-    padding: 95px 0 40px;
+    padding: 85px 0 36px;
+    min-height: auto;
+  }
+  .heroNewGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .heroNewRightCol {
+    order: -1;
+    width: 100%;
+  }
+  .heroNewLeftCol {
+    order: 1;
+    width: 100%;
   }
   .heroHeadline {
-    font-size: 36px;
+    font-size: 32px;
+    margin: 0 0 14px;
+  }
+  .heroSubtitle {
+    font-size: 14.5px;
+    margin: 0 0 22px;
   }
   .heroCtasRow {
-    flex-direction: column;
+    display: flex;
+    flex-direction: row;
     width: 100%;
+    gap: 10px;
+    margin-bottom: 28px;
   }
   .heroPrimaryPill, .heroSecondaryPill {
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
     text-align: center;
+    padding: 12px 10px;
+    font-size: 13.5px;
+    white-space: nowrap;
+  }
+  .heroStatsRow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    width: 100%;
+    padding-left: 0;
+    gap: 0;
+  }
+  .heroStatItem:first-child {
+    padding-right: 16px;
+  }
+  .heroStatItem:last-child {
+    padding-left: 16px;
   }
   .showcaseCard {
-    height: 420px;
+    height: auto;
+    min-height: unset;
     max-width: 100%;
+    padding: 14px 14px 12px;
+    border-radius: 18px;
+    gap: 8px;
+  }
+  .showcaseTournamentInfo {
+    margin-top: 24px;
+    margin-bottom: 6px;
+  }
+  .showcaseTournamentTitle {
+    font-size: 16px;
+  }
+  .showcaseTournamentSub {
+    font-size: 11.5px;
+  }
+  .floatingScoreboard {
+    padding: 10px 12px;
+    border-radius: 12px;
+    gap: 6px;
+  }
+  .scoreboardHeader {
+    font-size: 9.5px;
+  }
+  .scoreboardTeamName {
+    font-size: 13px;
+  }
+  .scoreboardAvatar {
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+  }
+  .scoreboardPrevSet {
+    font-size: 12px;
+    width: 14px;
+  }
+  .scoreboardCurrentScore {
+    font-size: 16px;
+    width: 14px;
   }
 }
 .nearbyCard:hover {
@@ -1242,7 +1318,7 @@
   margin-bottom: -100dvh;
   z-index: -1;
   pointer-events: none;
-  background-color: var(--bg-cream, #E7E2D9);
+  background-color: var(--bg-cream, #F7F3EC);
 }
 
 /* ── Section Header Typography ───────────────────────────────── */
@@ -1298,16 +1374,22 @@
 }
 
 
-/* White pill wrapping a native select, so the dropdown stays accessible
-   and uses the platform picker on mobile. */
+/* Pill wrapping a native select */
 .sortSelect {
   position: relative;
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px -10px rgba(20, 31, 46, 0.45);
+  border-radius: 9999px;
+  background: #EAE5DE;
+  border: 1px solid rgba(20, 31, 46, 0.06);
+  transition: all 0.2s ease;
+}
+
+.sortSelect:focus-within {
+  background: #FFFFFF;
+  border-color: #EF5A24;
+  box-shadow: 0 0 0 3px rgba(239, 90, 36, 0.12);
 }
 
 .sortSelect select {
@@ -1316,59 +1398,70 @@
   border: none;
   outline: none;
   background: transparent;
-  padding: 14px 44px 14px 22px;
-  border-radius: 999px;
+  padding: 10px 42px 10px 20px;
+  border-radius: 9999px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--ink-1, #14181E);
   cursor: pointer;
 }
 
 .sortSelectIcon {
   position: absolute;
-  right: 18px;
-  color: var(--ink-2, #3A414D);
+  right: 16px;
+  color: #7A8294;
   pointer-events: none;
+}
+
+.sortSignIcon {
+  display: none;
 }
 
 .search {
   position: relative;
   display: flex;
   align-items: center;
+  gap: 10px;
   flex: 1;
-  padding: 14px 24px;
-  border-radius: 999px;
-  background: rgba(14, 23, 34, 0.12);
-  border: none;
+  min-width: 260px;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  background: #EAE5DE;
+  border: 1px solid rgba(20, 31, 46, 0.06);
   color: #14181E;
-  transition: background 0.15s, box-shadow 0.15s;
+  transition: all 0.2s ease;
 }
 
 .search:focus-within {
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(20, 24, 30, 0.08);
+  background: #FFFFFF;
+  border-color: #EF5A24;
+  box-shadow: 0 0 0 3px rgba(239, 90, 36, 0.12);
 }
 
 .searchIconLeft {
-  color: rgba(20, 24, 30, 0.45);
-  margin-right: 12px;
+  color: #7A8294;
   flex-shrink: 0;
 }
 
-
+.searchMicIcon {
+  color: #7A8294;
+  flex-shrink: 0;
+  cursor: pointer;
+}
 
 .search input {
   flex: 1;
   border: none;
   outline: none;
   background: transparent;
-  font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 16px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 500;
   color: #14181E;
 }
 .search input::placeholder {
-  color: rgba(20, 24, 30, 0.45);
+  color: #7A8294;
 }
 
 
@@ -1501,6 +1594,11 @@
 }
 .cardStatusLive .cardStatusDot {
   animation: statusPulse 1.4s ease-in-out infinite;
+}
+
+.cardStatusFinished {
+  background: linear-gradient(135deg, #717D8D, #4A5568);
+  box-shadow: 0 8px 20px -8px rgba(74, 85, 104, 0.6);
 }
 
 @keyframes statusPulse {
@@ -2167,12 +2265,87 @@
   .heroCtas { margin-top: 24px; }
   .heroPrimary { padding: 12px 22px; font-size: 14px; }
   .events { padding: 60px 0; }
-  .controls { flex-wrap: nowrap; gap: 10px; margin: 20px 0 20px; }
-  .search { max-width: none; flex: 1; min-width: 0; padding: 13px 18px; }
-  /* Native selects size to their widest option, so trim the chrome to
-     leave the search field usable at 375px. */
-  .sortSelect select { padding: 12px 30px 12px 14px; font-size: 13.5px; }
-  .sortSelectIcon { right: 11px; width: 15px; height: 15px; }
+  .controls {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    margin: 18px 0 20px;
+    width: 100%;
+  }
+  .search {
+    flex: 5 1 0;
+    min-width: 0;
+    width: auto;
+    padding: 10px 10px 10px 12px;
+    gap: 6px;
+    border-radius: 9999px;
+  }
+  .search input {
+    width: 100%;
+    min-width: 0;
+    font-size: 13px;
+  }
+  .searchMicIcon {
+    display: none;
+  }
+  .searchIconLeft {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+  .statusSelect {
+    flex: 4 1 0;
+    min-width: 0;
+    width: auto;
+  }
+  .statusSelect select {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 22px 10px 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .statusSelect .sortSelectIcon {
+    right: 7px;
+    width: 13px;
+    height: 13px;
+  }
+  .reorderSelect {
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+    background: #EAE5DE;
+  }
+  .reorderSelect .sortSelectIcon {
+    display: none;
+  }
+  .reorderSelect .sortSignIcon {
+    display: block;
+    color: #14181E;
+    pointer-events: none;
+  }
+  .reorderSelect select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+  }
 
   /* -- Compact list rows replace the poster cards on mobile ---------- */
   .grid { grid-template-columns: 1fr; gap: 14px; }
@@ -2219,6 +2392,7 @@
     letter-spacing: 0.06em;
   }
   .cardStatusLive { background: none; box-shadow: none; color: #D32B44; }
+  .cardStatusFinished { background: none; box-shadow: none; color: #6B7280; }
   .cardStatusDot { display: none; }
   .cardStatusLong { display: none; }
   .cardStatusShort { display: inline; }

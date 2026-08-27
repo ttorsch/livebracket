@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Calendar, Users, ArrowRight, Trophy } from 'lucide-react';
+import { MapPin, Calendar, Users, Clock } from 'lucide-react';
 import styles from './page.module.css';
 import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
@@ -26,6 +26,13 @@ function formatCloseDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return '';
   return formatDay(new Date(Date.UTC(y, m - 1, d)));
+}
+
+function getTitleInitials(title: string): string {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'T';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 const FORMAT_LABEL: Record<string, string> = {
@@ -120,8 +127,6 @@ interface RoundView {
      which is scored differently and so gets its own tile. */
   sets: { label: string; points: string; note: string }[];
   facts: { label: string; value: string }[];
-  outcome: string;
-  isFinal: boolean;
 }
 
 function buildRoundViews(division: DetailDivision, advanceCount: number): RoundView[] {
@@ -150,14 +155,16 @@ function buildRoundViews(division: DetailDivision, advanceCount: number): RoundV
     const facts: RoundView['facts'] = [{ label: 'Match', value: `Best of ${s.setsBestOf}` }];
     if (s.winBy2) facts.push({ label: 'Win by', value: '2' });
     facts.push({ label: 'Length', value: `${round.durationMinutes} min` });
+
+    const advancingValue = isLast
+      ? 'Winner takes title'
+      : isGroupFormat(round.format)
+        ? `Top ${advanceCount} / pool`
+        : 'Winners advance';
+    facts.push({ label: 'Advancing', value: advancingValue });
+
     // Seeding only describes how teams enter a knockout round.
     if (!isGroupFormat(round.format) && crossing) facts.push({ label: 'Seeding', value: crossing });
-
-    const outcome = isLast
-      ? 'Winner of the final takes the division.'
-      : isGroupFormat(round.format)
-        ? `Top ${advanceCount} of each pool advance to the next round.`
-        : 'Winners advance to the next round.';
 
     return {
       key: `${i}-${round.format}`,
@@ -166,8 +173,6 @@ function buildRoundViews(division: DetailDivision, advanceCount: number): RoundV
       name: formatLabel(round.format),
       sets,
       facts,
-      outcome,
-      isFinal: isLast,
     };
   });
 }
@@ -337,8 +342,8 @@ export default function TournamentPage() {
      division actually has a group round, and vouchers only when the
      organizer created some. */
   const tabs = useMemo(() => {
-    const t = ['Format & Rules', 'Teams'];
-    // Every tab past the first two is offered only when it has something in
+    const t = ['Format & Rules', 'Prize', 'Teams'];
+    // Every tab past the first three is offered only when it has something in
     // it — a tab that opens onto "nothing here yet" is worse than no tab.
     if (standings.length > 0) t.push('Standings');
     if (knockoutRounds.length > 0) t.push('Bracket');
@@ -389,7 +394,21 @@ export default function TournamentPage() {
           All events
         </Link>
 
-        <div className={styles.headRow}>
+        <div className={styles.heroCard}>
+          <div className={styles.heroPosterWrap}>
+            {tournament.imageUrl ? (
+              <img
+                src={tournament.imageUrl}
+                alt={tournament.title}
+                className={styles.heroPoster}
+              />
+            ) : (
+              <div className={styles.heroPosterFallback} aria-hidden="true">
+                <span className={styles.heroPosterInitials}>{getTitleInitials(tournament.title)}</span>
+              </div>
+            )}
+          </div>
+
           <div className={styles.headMain}>
             <div className={styles.pillRow}>
               {tournament.cancelled ? (
@@ -410,13 +429,6 @@ export default function TournamentPage() {
                   )}
                   {regState === 'closed' && <span className={styles.pillMuted}>Registration Closed</span>}
                   {regState === null && <span className={styles.pillMuted}>Save the date</span>}
-
-                  {regState === 'open' && closesOn && (
-                    <span className={styles.pillOutline}>
-                      <Calendar size={12} />
-                      Open until {formatCloseDate(closesOn)}
-                    </span>
-                  )}
                 </>
               )}
             </div>
@@ -425,18 +437,24 @@ export default function TournamentPage() {
 
             <div className={styles.metaRow}>
               <span className={styles.metaItem}>
-                <MapPin size={15} />
-                {tournament.location}
-              </span>
-              <span className={styles.metaItem}>
                 <Calendar size={15} />
                 {tournament.date}
+              </span>
+              <span className={styles.metaItem}>
+                <MapPin size={15} />
+                {tournament.location}
               </span>
               <span className={styles.metaItem}>
                 <Users size={15} />
                 {courtCount > 0 ? `${courtCount} courts · ` : ''}
                 {tournament.divisions.length} division{tournament.divisions.length === 1 ? '' : 's'}
               </span>
+              {regState === 'open' && closesOn && (
+                <span className={styles.metaItem}>
+                  <Clock size={15} />
+                  Registration closes {formatCloseDate(closesOn)}
+                </span>
+              )}
             </div>
           </div>
 
@@ -512,13 +530,14 @@ export default function TournamentPage() {
       {/* ── Division picker ───────────────────────────────────── */}
       {tournament.divisions.length > 0 && (
         <section className={styles.divisionSection}>
-          <span className={styles.divisionLabel}>Division</span>
           <div className={styles.segmented}>
             {tournament.divisions.map(d => (
               <button
                 key={d.id}
+                type="button"
                 className={`${styles.segment} ${activeDiv === d.id ? styles.segmentActive : ''}`}
                 onClick={() => setActiveDiv(d.id)}
+                aria-pressed={activeDiv === d.id}
               >
                 {d.label}
               </button>
@@ -553,18 +572,16 @@ export default function TournamentPage() {
               <div className={styles.divisionCardMain}>
                 <div className={styles.divisionCardHead}>
                   <p className={styles.microLabel}>Division</p>
-                  <h1 className={styles.divisionName}>{activeDivision.label}</h1>
-                  {activeDivision.configuredRounds.length > 0 && (
+                  <h2 className={styles.divisionName}>{activeDivision.label}</h2>
+                  {activeDivision.formatTypeOnSand && (
                     <span className={styles.badgeStatus}>
-                      {activeDivision.configuredRounds.length} round
-                      {activeDivision.configuredRounds.length === 1 ? '' : 's'}
+                      {activeDivision.formatTypeOnSand}
                     </span>
                   )}
                 </div>
 
                 <div className={styles.divisionStats}>
                   {[
-                    { label: 'Format', value: activeDivision.formatTypeOnSand.replace('v', ' v ') },
                     { label: 'Team cap', value: `${activeDivision.teams} teams` },
                     { label: 'Roster', value: `${activeDivision.rosterSize} players` },
                     { label: 'Gender', value: activeDivision.gender },
@@ -595,9 +612,6 @@ export default function TournamentPage() {
               <section className={styles.drawSection}>
                 <div className={styles.drawHead}>
                   <h2 className={styles.drawTitle}>How the draw runs</h2>
-                  {activeDivision.rules.trim() && (
-                    <p className={styles.drawCaption}>{activeDivision.rules.trim()}</p>
-                  )}
                 </div>
 
                 <div className={styles.roundGrid}>
@@ -631,11 +645,6 @@ export default function TournamentPage() {
                           ))}
                         </div>
                       </div>
-
-                      <div className={styles.outcomeBar}>
-                        {r.isFinal ? <Trophy size={18} /> : <ArrowRight size={18} />}
-                        <p className={styles.outcomeText}>{r.outcome}</p>
-                      </div>
                     </article>
                   ))}
                 </div>
@@ -645,6 +654,14 @@ export default function TournamentPage() {
                 title="Format not set yet"
                 body="The organizer hasn't configured this division's rounds."
               />
+            )}
+
+            {/* ── Note section ──────────────────────────────────── */}
+            {activeDivision.rules.trim() && (
+              <section className={styles.noteCard}>
+                <p className={styles.microLabel}>Note</p>
+                <p className={styles.noteText}>{activeDivision.rules.trim()}</p>
+              </section>
             )}
 
             {tournament.description && (
@@ -657,25 +674,70 @@ export default function TournamentPage() {
           </div>
         )}
 
+        {/* ── Prize ───────────────────────────────────────────── */}
+        {currentTab === 'Prize' && activeDivision && (
+          <div className={styles.prizeWrap}>
+            <div className={styles.prizeCard}>
+              <div className={styles.prizeCardHead}>
+                <div>
+                  <p className={styles.microLabel}>Awards & Payout</p>
+                  <h2 className={styles.drawTitle}>{activeDivision.label} Prizes</h2>
+                </div>
+                {activeDivision.registrationFee > 0 && (
+                  <div className={styles.prizeFeeBadge}>
+                    <span className={styles.microLabel}>Entry Fee</span>
+                    <span className={styles.prizeFeeValue}>{activeDivision.registrationFee.toLocaleString()} THB</span>
+                  </div>
+                )}
+              </div>
+
+              {activeDivision.prizePool && activeDivision.prizePool.trim() ? (
+                <div className={styles.prizeBody}>
+                  <div className={styles.prizeText}>
+                    {activeDivision.prizePool.trim()}
+                  </div>
+                </div>
+              ) : (
+                <EmptyCard
+                  title="Prizes to be announced"
+                  body="The organizer hasn't published the prize breakdown for this division yet. Check back closer to tournament start."
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Teams ───────────────────────────────────────────── */}
         {currentTab === 'Teams' && activeDivision && (
           <div className={styles.teamsWrap}>
             <FillCard division={activeDivision} />
             <div className={styles.teamsGrid}>
-              {activeDivision.teamsList.map(team => (
-                <div
-                  key={team.id}
-                  className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardMuted : ''}`}
-                >
-                  <span className={styles.teamSeed}>#{team.seed}</span>
-                  <span className={styles.teamName}>{team.name}</span>
-                  {team.status !== 'confirmed' && (
-                    <span className={styles.teamTag}>
-                      {team.status === 'waitlist' ? 'Waitlist' : 'Unpaid'}
-                    </span>
-                  )}
-                </div>
-              ))}
+              {activeDivision.teamsList.map(team => {
+                const players = parseTeamPlayers(team.name);
+                return (
+                  <div
+                    key={team.id}
+                    className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardMuted : ''}`}
+                  >
+                    <div className={styles.teamCardHeader}>
+                      <div className={styles.teamPlayersList}>
+                        {players.map((playerName, idx) => (
+                          <div key={idx} className={styles.teamPlayerRow}>
+                            <PlayerAvatar name={playerName} />
+                            <span className={styles.teamPlayerName}>{playerName}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {team.status !== 'confirmed' && (
+                        <span className={styles.teamTag}>
+                          {team.status === 'waitlist' ? 'Waitlist' : 'Unpaid'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               {activeDivision.teamsList.length === 0 && (
                 <EmptyCard title="No teams yet" body="Registered teams appear here as they sign up." />
               )}
@@ -902,6 +964,36 @@ function EmptyCard({ title, body }: { title: string; body: string }) {
     <div className={styles.emptyCard}>
       <p className={styles.emptyTitle}>{title}</p>
       <p className={styles.emptyBody}>{body}</p>
+    </div>
+  );
+}
+
+function parseTeamPlayers(name: string): string[] {
+  const parts = name.split('/').map(s => s.trim()).filter(Boolean);
+  return parts.length > 0 ? parts : [name];
+}
+
+function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
+  const [imgError, setImgError] = useState(false);
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const initial = words.length > 1
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : (name.trim()[0]?.toUpperCase() || '?');
+
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className={styles.playerAvatarImg}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={styles.playerAvatar} aria-hidden="true">
+      <span>{initial}</span>
     </div>
   );
 }

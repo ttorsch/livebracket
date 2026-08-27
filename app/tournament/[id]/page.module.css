@@ -173,29 +173,79 @@
   font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
-  /* Padded rather than left as bare 13px text: the label alone is a ~16px
-     tap target sitting right above the pills, which is easy to miss and easy
-     to mis-hit. The negative top/left margin keeps it optically aligned with
-     the title below while the hit area grows around it, and the bottom
-     margin opens a clear gap to the pill row. */
   padding: 9px 12px;
-  margin: -9px 0 20px -12px;
+  margin: -9px 0 16px -12px;
   border-radius: var(--radius-pill);
   transition: color var(--duration-base) var(--ease-standard), background var(--duration-base) var(--ease-standard);
 }
 .backLink:hover { color: var(--text-primary); background: var(--sand-200); }
 
-.headRow {
+.heroCard {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 20px 32px;
-  justify-content: space-between;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
 }
-.headMain { min-width: 280px; flex: 1 1 480px; }
-.headActions { display: flex; flex-wrap: wrap; gap: 10px; }
 
-.pillRow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.heroPosterWrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.heroPoster,
+.heroPosterFallback {
+  width: 140px;
+  height: 175px;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  display: block;
+}
+
+.heroPoster {
+  object-fit: cover;
+}
+
+.heroPosterFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sand-200, #EAE5DC);
+  border: 1px solid var(--border-hairline, rgba(0, 0, 0, 0.08));
+}
+
+.heroPosterInitials {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 38px;
+  color: var(--color-primary, #EB6F43);
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+.headMain {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.headActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 180px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.headActions .btnPrimary,
+.headActions .btnGeneral {
+  width: 100%;
+}
+
+.pillRow { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 2px; }
 
 .pillPrimary,
 .pillOutline,
@@ -203,43 +253,57 @@
 .pillCancelled {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 11px;
+  gap: 6px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 6px 13px;
-  border-radius: var(--radius-pill);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
-.pillPrimary { background: var(--color-primary); color: #fff; }
-.pillDot { width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+
+.pillPrimary { color: var(--color-primary, #EF5A24); }
+.pillDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary, #EF5A24);
+  flex-shrink: 0;
+}
+
 .pillOutline {
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-hairline);
+  background: transparent;
+  color: var(--text-secondary, #4B5563);
+  border: none;
 }
-.pillMuted { background: var(--sand-200); color: var(--text-muted); }
-.pillCancelled { background: var(--status-live); color: #fff; }
+.pillOutline svg { color: var(--text-muted, #7A8294); }
+.pillMuted { background: transparent; color: var(--text-muted, #7A8294); }
+.pillCancelled { background: transparent; color: var(--status-live, #EF4444); }
 
 .title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(30px, 5.2vw, 48px);
-  line-height: 1.04;
+  font-size: clamp(24px, 3.2vw, 36px);
+  line-height: 1.15;
   letter-spacing: -0.02em;
-  margin: 0 0 12px;
+  margin: 0;
+  color: var(--text-primary);
   text-wrap: pretty;
 }
 
 .metaRow {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
+  flex-direction: column;
+  gap: 6px;
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
+  margin-top: 4px;
 }
-.metaItem { display: inline-flex; align-items: center; gap: 7px; }
+.metaItem { display: inline-flex; align-items: center; gap: 8px; }
 .metaItem svg { color: var(--text-muted); flex-shrink: 0; }
 
 /* ── Live now ────────────────────────────────────────────────── */
@@ -389,31 +453,23 @@
 
 /* ── Division picker ─────────────────────────────────────────── */
 .divisionSection {
-  padding-top: 26px;
+  padding-top: 24px;
   display: flex;
   align-items: center;
-  gap: 12px;
   overflow-x: auto;
   scrollbar-width: thin;
 }
 .divisionSection::-webkit-scrollbar { height: 8px; }
 .divisionSection::-webkit-scrollbar-thumb { background: var(--sand-400); border-radius: var(--radius-pill); }
 
-.divisionLabel {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
 .segmented {
   display: inline-flex;
   gap: 4px;
   padding: 4px;
   border-radius: var(--radius-pill);
-  background: var(--sand-200);
+  background: var(--sand-200, #EAE5DC);
 }
+
 .segment {
   border: none;
   background: transparent;
@@ -422,13 +478,21 @@
   font-family: var(--font-text);
   font-size: 14px;
   font-weight: 700;
-  color: var(--text-secondary);
-  padding: 9px 18px;
+  color: var(--text-secondary, #4B5563);
+  padding: 9px 20px;
   border-radius: var(--radius-pill);
-  transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+  transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
 }
-.segment:hover:not(.segmentActive) { color: var(--text-primary); }
-.segmentActive { background: var(--surface-card); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+
+.segment:hover:not(.segmentActive) {
+  color: var(--text-primary);
+}
+
+.segmentActive {
+  background: var(--color-primary, #EB6F43);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(235, 111, 67, 0.25);
+}
 
 /* ── Tabs ────────────────────────────────────────────────────── */
 .tabBar {
@@ -442,8 +506,6 @@
   margin-top: 18px;
 }
 .tabBarInner {
-  padding-top: 10px;
-  padding-bottom: 10px;
   display: flex;
   gap: 8px;
   overflow-x: auto;
@@ -458,17 +520,21 @@
   white-space: nowrap;
   font-family: var(--font-text);
   font-weight: 700;
-  font-size: 14px;
-  padding: 9px 18px;
-  border-radius: var(--radius-pill);
+  font-size: 14.5px;
+  padding: 12px 16px 14px;
+  border-radius: 0;
   background: transparent;
   color: var(--text-secondary);
-  transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard);
 }
-/* Excluding the active tab matters: its label is white on ink, and a bare
-   :hover would outrank .tabActive and repaint it dark-on-dark. */
 .tab:hover:not(.tabActive) { color: var(--text-primary); }
-.tabActive { background: var(--text-primary); color: #fff; }
+.tabActive {
+  background: transparent;
+  color: var(--text-primary);
+  border-bottom-color: var(--color-primary, #EB6F43);
+}
 
 /* ── Main ────────────────────────────────────────────────────── */
 .main { padding-top: 24px; padding-bottom: 56px; }
@@ -556,9 +622,9 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
@@ -571,9 +637,9 @@
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  background: transparent;
-  border: 1px solid var(--border-hairline);
-  color: var(--text-secondary);
+  background: rgba(235, 111, 67, 0.1);
+  border: 1px solid rgba(235, 111, 67, 0.35);
+  color: var(--color-primary);
 }
 
 .divisionStats {
@@ -641,10 +707,8 @@
   flex-direction: column;
   overflow: hidden;
 }
-/* Grows so the outcome bar sits on the floor of every card in a row,
-   however many sets or facts the round above it carries. */
 .roundBody {
-  padding: 24px 24px 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -659,7 +723,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius-pill);
-  background: var(--ink-900);
+  background: var(--color-primary);
   color: #fff;
   font-family: var(--font-display);
   font-weight: 700;
@@ -667,6 +731,9 @@
   flex-shrink: 0;
 }
 .roundHeadText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.roundHeadText .microLabel {
+  color: var(--color-primary);
+}
 .roundName {
   margin: 0;
   font-family: var(--font-display);
@@ -726,24 +793,18 @@
 .factLabel { color: var(--text-muted); }
 .factValue { color: var(--text-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.outcomeBar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 24px;
-  background: var(--status-highlight);
-  border-top: 1px solid var(--border-hairline);
-  color: var(--text-primary);
+.noteCard {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  padding: 24px 32px;
 }
-.outcomeBar svg { flex-shrink: 0; }
-.outcomeText {
-  margin: 0;
-  font-family: var(--font-text);
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  text-wrap: pretty;
+.noteText {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
 }
 
 .aboutCard {
@@ -761,6 +822,60 @@
   white-space: pre-wrap;
 }
 
+/* ── Prize Tab ───────────────────────────────────────────────── */
+.prizeWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.prizeCard {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  padding: 28px 32px;
+}
+
+.prizeCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.prizeCardHead .drawTitle {
+  margin: 4px 0 0;
+}
+
+.prizeFeeBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.prizeFeeValue {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--color-primary, #EF5A24);
+}
+
+.prizeBody {
+  padding: 8px 0 4px;
+}
+
+.prizeText {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-primary, #14181E);
+  white-space: pre-wrap;
+}
+
 @media (max-width: 720px) {
   .divisionCardHead { padding: 20px 20px 16px; }
   .divisionStats { padding: 16px 20px 20px; column-gap: 28px; }
@@ -772,8 +887,7 @@
     padding: 16px 20px 20px;
     border-top: 1px solid var(--border-hairline);
   }
-  .roundBody { padding: 20px 18px 18px; }
-  .outcomeBar { padding: 14px 18px; }
+  .roundBody { padding: 20px 18px; }
   .aboutCard { padding: 20px; }
 }
 
@@ -843,37 +957,94 @@
 
 .teamsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 .teamCard {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 15px 18px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-card);
-  box-shadow: var(--shadow-card);
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: var(--surface-card, #FFFFFF);
+  box-shadow: 0 1px 3px rgba(20, 24, 30, 0.06), 0 8px 24px rgba(20, 24, 30, 0.04);
+  min-height: 90px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.teamCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(20, 24, 30, 0.08), 0 12px 28px rgba(20, 24, 30, 0.06);
 }
 .teamCardMuted { opacity: 0.68; }
-.teamSeed {
+
+.teamCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.teamPlayersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.teamPlayerRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.playerAvatar,
+.playerAvatarImg {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.playerAvatarImg {
+  object-fit: cover;
+}
+
+.playerAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(238, 122, 76, 0.12);
+  color: var(--color-primary, #EB6F43);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  user-select: none;
+}
+
+.teamPlayerName {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 13px;
-  color: var(--color-primary);
-  min-width: 26px;
+  font-size: 16px;
+  line-height: 1.25;
+  color: var(--text-primary, #14181E);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-.teamName { flex: 1; font-size: 15px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+
 .teamTag {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 4px 9px;
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
   background: var(--sand-200);
   color: var(--text-muted);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ── Standings table ─────────────────────────────────────────── */
@@ -1063,11 +1234,34 @@
 .stateBody { margin: 0; color: var(--text-muted); }
 
 /* ── Narrow screens ──────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .heroCard {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+  }
+  .heroPosterWrap {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .heroPoster,
+  .heroPosterFallback {
+    width: 100%;
+    max-width: 320px;
+    height: 180px;
+  }
+  .headActions {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 720px) {
   .headerLink { display: none; }
   .headActions { width: 100%; }
   .headActions .btnPrimary,
   .headActions .btnGeneral { flex: 1 1 auto; }
+  .teamsGrid { grid-template-columns: 1fr; }
   .fillStats { gap: 18px; }
   .fillCount { font-size: 24px; }
   .liveScore,

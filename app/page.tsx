@@ -9,7 +9,8 @@ import {
   Calendar,
   ArrowRight,
   ChevronDown,
-  Mic
+  Mic,
+  ArrowUpDown
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip } from '@/components/livebracket-ds';
@@ -414,9 +415,19 @@ const CAROUSEL_MATCHES: CarouselMatch[] = [
   }
 ];
 
-const FILTERS: { key: 'all' | Status; label: string }[] = [
-  { key: 'all', label: 'Latest' },
-  { key: 'upcoming', label: 'Starting Soon' },
+type StatusFilter = 'all' | Status;
+type SortOption = 'latest' | 'soonest';
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'All Statuses' },
+  { key: 'live', label: 'Live Now' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'finished', label: 'Finished' },
+];
+
+const SORT_OPTIONS: { key: SortOption; label: string }[] = [
+  { key: 'latest', label: 'Latest' },
+  { key: 'soonest', label: 'Soonest' },
 ];
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -455,6 +466,7 @@ function formatDateRange(start: string, end?: string): string {
    mobile row. "Filling" once any division passes 80% of its seats. */
 function statusLabels(t: Tournament): { long: string; short: string } {
   if (t.status === 'live') return { long: 'Live now', short: 'Live' };
+  if (t.status === 'finished') return { long: 'Finished', short: 'Finished' };
   const fullest = (t.registrations || []).reduce(
     (max, r) => (r.total > 0 ? Math.max(max, r.filled / r.total) : max),
     0
@@ -620,7 +632,8 @@ function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide
 }
 
 export default function LiveBracketHome() {
-  const [filter, setFilter] = useState<'all' | Status>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [query, setQuery] = useState('');
 
   // Morphing Navigation States
@@ -633,19 +646,20 @@ export default function LiveBracketHome() {
   const [liveMatches, setLiveMatches] = useState<CarouselMatch[]>(CAROUSEL_MATCHES);
 
   // User Geolocation & Upcoming Banner
-  const [userLoc, setUserLoc] = useState<string>('Khao Lak');
+  const [userLoc, setUserLoc] = useState<string>('Khao Lak, Phang Nga, Thailand');
   const [nearbyEvent, setNearbyEvent] = useState<Tournament | null>(() => TOURNAMENTS.find((t) => t.status === 'upcoming') || null);
 
   // Events list — real tournaments from the database (announced and later;
   // drafts stay hidden from the public page).
   const [events, setEvents] = useState<Tournament[]>([]);
   const [completedSlides, setCompletedSlides] = useState<CompletedDivisionSlide[]>([]);
-  const [realStats, setRealStats] = useState<HomepageStats>({ upcomingMatches: 0, registeredTeams: 0 });
+  const [realStats, setRealStats] = useState<HomepageStats>({ divisions: 0, registeredTeams: 0 });
   const [eventsLoaded, setEventsLoaded] = useState(false);
 
-  const upcomingMatchesCount = useMemo(() => {
-    return realStats.upcomingMatches;
-  }, [realStats]);
+  const divisionsCount = useMemo(() => {
+    const fromEvents = events.reduce((sum, t) => sum + (t.divisions?.length || 0), 0);
+    return realStats.divisions > 0 ? realStats.divisions : fromEvents;
+  }, [realStats, events]);
 
   const registeredTeamsCount = useMemo(() => {
     const fromEvents = events.reduce((sum, t) => sum + (t.teams || 0), 0);
@@ -653,9 +667,21 @@ export default function LiveBracketHome() {
   }, [realStats, events]);
 
   const activeLiveCount = useMemo(() => {
-    const liveTournaments = events.filter(e => e.status === 'live');
-    return liveTournaments.length;
+    return events.filter(e => e.status === 'live').length;
   }, [events]);
+
+  const userCountry = useMemo(() => {
+    return userLoc.split(',').pop()?.trim() || 'Thailand';
+  }, [userLoc]);
+
+  const matchesNearYouCount = useMemo(() => {
+    const country = userCountry.toLowerCase();
+    if (!country) return 0;
+    return events.filter(t =>
+      t.location.toLowerCase().includes(country) ||
+      t.title.toLowerCase().includes(country)
+    ).length;
+  }, [events, userCountry]);
 
   useEffect(() => {
     Promise.all([
@@ -671,10 +697,11 @@ export default function LiveBracketHome() {
         setEvents(cards);
         setCompletedSlides(slides);
         if (statsData) {
-          const totalFromRows = rows.reduce((sum, t) => sum + t.divisions.reduce((dSum, d) => d.filled, 0), 0);
+          const totalTeamsFromRows = rows.reduce((sum, t) => sum + t.divisions.reduce((dSum, d) => d.filled, 0), 0);
+          const totalDivsFromRows = rows.reduce((sum, t) => sum + t.divisions.length, 0);
           setRealStats({
-            upcomingMatches: statsData.upcomingMatches,
-            registeredTeams: statsData.registeredTeams > 0 ? statsData.registeredTeams : totalFromRows,
+            divisions: statsData.divisions > 0 ? statsData.divisions : totalDivsFromRows,
+            registeredTeams: statsData.registeredTeams > 0 ? statsData.registeredTeams : totalTeamsFromRows,
           });
         }
       })
@@ -691,17 +718,23 @@ export default function LiveBracketHome() {
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
             if (res.ok) {
               const data = await res.json();
-              const city = data.address?.city || data.address?.town || data.address?.municipality || data.address?.county || data.address?.state || 'Phang Nga';
-              setUserLoc(city);
+              const addr = data.address || {};
+              let city = addr.city || addr.town || addr.municipality || addr.village || addr.suburb || addr.county || 'Khao Lak';
+              if (/khuekkhak|takua pa|khao lak/i.test(city) || /phang nga/i.test(addr.state || '') || /phang nga/i.test(addr.county || '')) {
+                city = 'Khao Lak';
+              }
+              const state = addr.state || addr.province || 'Phang Nga';
+              const country = addr.country || 'Thailand';
+              setUserLoc([city, state, country].filter(Boolean).join(', '));
             } else {
-              setUserLoc('Phang Nga');
+              setUserLoc('Khao Lak, Phang Nga, Thailand');
             }
           } catch {
-            setUserLoc('Phang Nga');
+            setUserLoc('Khao Lak, Phang Nga, Thailand');
           }
         },
         () => {
-          setUserLoc('Khao Lak');
+          setUserLoc('Khao Lak, Phang Nga, Thailand');
         }
       );
     }
@@ -807,23 +840,31 @@ export default function LiveBracketHome() {
       .slice(0, 3);
   }, [events]);
 
-  // Filter lists based on Search input and Filter tabs.
+  // Filter and sort tournaments based on Search input, Status filter, and Sort order.
   const filteredActiveUpcoming = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return events.filter((t) => {
-      if (t.status === 'finished') return false;
-      if (filter === 'live' && t.status !== 'live') return false;
-      if (filter === 'upcoming' && t.status !== 'upcoming') return false;
-      if (filter === 'finished') return false;
+    const list = events.filter((t) => {
+      if (statusFilter === 'live' && t.status !== 'live') return false;
+      if (statusFilter === 'upcoming' && t.status !== 'upcoming') return false;
+      if (statusFilter === 'finished' && t.status !== 'finished') return false;
+      if (statusFilter === 'all' && t.status === 'finished') return false;
       if (q && !(`${t.title} ${t.location}`.toLowerCase().includes(q))) return false;
       return true;
     });
-    // getDashboardTournaments returns rows ordered by start date, so
-    // live events (earliest) lead and the nearest upcoming follow.
-  }, [events, filter, query]);
+
+    return [...list].sort((a, b) => {
+      const dateA = a.startDate || '';
+      const dateB = b.startDate || '';
+      if (sortBy === 'latest') {
+        return dateB.localeCompare(dateA) || a.title.localeCompare(b.title);
+      } else {
+        return dateA.localeCompare(dateB) || a.title.localeCompare(b.title);
+      }
+    });
+  }, [events, statusFilter, sortBy, query]);
 
   const filteredCompletedSlides = useMemo(() => {
-    if (filter === 'live' || filter === 'upcoming') return [];
+    if (statusFilter === 'live' || statusFilter === 'upcoming') return [];
     const q = query.trim().toLowerCase();
     if (!q) return completedSlides;
     return completedSlides.filter(
@@ -833,7 +874,7 @@ export default function LiveBracketHome() {
         s.divisionName.toLowerCase().includes(q) ||
         s.winners.some((w) => w.toLowerCase().includes(q))
     );
-  }, [completedSlides, filter, query]);
+  }, [completedSlides, statusFilter, query]);
 
   const uniqueCompletedTournamentCount = useMemo(() => {
     const ids = new Set(filteredCompletedSlides.map((s) => s.tournamentId));
@@ -841,11 +882,13 @@ export default function LiveBracketHome() {
   }, [filteredCompletedSlides]);
 
   const totalEventCount = useMemo(() => {
-    if (filter === 'finished') return uniqueCompletedTournamentCount;
-    return filteredActiveUpcoming.length + (filter === 'all' ? uniqueCompletedTournamentCount : 0);
-  }, [filter, filteredActiveUpcoming.length, uniqueCompletedTournamentCount]);
+    if (statusFilter === 'finished') {
+      return filteredActiveUpcoming.length > 0 ? filteredActiveUpcoming.length : uniqueCompletedTournamentCount;
+    }
+    return filteredActiveUpcoming.length + (statusFilter === 'all' ? uniqueCompletedTournamentCount : 0);
+  }, [statusFilter, filteredActiveUpcoming.length, uniqueCompletedTournamentCount]);
 
-  const hasAnyResults = filteredActiveUpcoming.length > 0 || filteredCompletedSlides.length > 0;
+  const hasAnyResults = filteredActiveUpcoming.length > 0 || (statusFilter !== 'live' && statusFilter !== 'upcoming' && filteredCompletedSlides.length > 0);
 
   return (
     <div className={styles.page} id="top">
@@ -955,11 +998,11 @@ export default function LiveBracketHome() {
                   type="button" 
                   className={styles.heroSecondaryPill}
                   onClick={() => {
-                    setFilter('live');
+                    setStatusFilter('live');
                     document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                 >
-                  Watch a live match
+                  Watch Live
                 </button>
               </div>
 
@@ -969,25 +1012,26 @@ export default function LiveBracketHome() {
                   type="button"
                   className={styles.heroNearYouBtn}
                   onClick={() => {
-                    setQuery(userLoc);
+                    setQuery(userCountry);
+                    setStatusFilter('all');
                     document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                 >
                   <span className={styles.liveDotRed} />
-                  <span className={styles.nearYouBold}>{activeLiveCount} {activeLiveCount === 1 ? 'match' : 'matches'} near you</span>
+                  <span className={styles.nearYouBold}>{matchesNearYouCount} {matchesNearYouCount === 1 ? 'match' : 'matches'} near you</span>
                   <span className={styles.nearYouSub}>{userLoc}</span>
                   <ArrowRight size={14} className={styles.nearYouArrow} />
                 </button>
 
                 <div className={styles.heroStatsRow}>
                   <div className={styles.heroStatItem}>
-                    <span className={styles.heroStatNumber}>{upcomingMatchesCount}</span>
-                    <span className={styles.heroStatLabel}>Upcoming matches</span>
+                    <span className={styles.heroStatNumber}>{divisionsCount}</span>
+                    <span className={styles.heroStatLabel}>{divisionsCount === 1 ? 'Division is coming' : 'Divisions are coming'}</span>
                   </div>
                   <div className={styles.heroStatDivider} />
                   <div className={styles.heroStatItem}>
                     <span className={styles.heroStatNumber}>{registeredTeamsCount}</span>
-                    <span className={styles.heroStatLabel}>Registered teams</span>
+                    <span className={styles.heroStatLabel}>{registeredTeamsCount === 1 ? 'Team is playing' : 'Teams are playing'}</span>
                   </div>
                 </div>
               </div>
@@ -1076,29 +1120,43 @@ export default function LiveBracketHome() {
               </p>
             </div>
 
-            {/* Controls: search + sort/filter dropdown */}
+            {/* Controls: search + status filter dropdown + reorder dropdown */}
             <div className={styles.controls}>
               <div className={styles.search}>
-                <Search size={18} className={styles.searchIconLeft} />
+                <Search size={16} className={styles.searchIconLeft} />
                 <input
                   type="search"
-                  placeholder="Search tournaments"
+                  placeholder="Find a tournament..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   aria-label="Search tournaments"
                 />
+                <Mic size={15} className={styles.searchMicIcon} />
               </div>
-              <div className={styles.sortSelect}>
+              <div className={`${styles.sortSelect} ${styles.statusSelect}`}>
                 <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as 'all' | Status)}
-                  aria-label="Filter tournaments"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                  aria-label="Filter by status"
                 >
-                  {FILTERS.map((f) => (
+                  {STATUS_FILTERS.map((f) => (
                     <option key={f.key} value={f.key}>{f.label}</option>
                   ))}
                 </select>
-                <ChevronDown size={18} className={styles.sortSelectIcon} aria-hidden="true" />
+                <ChevronDown size={16} className={styles.sortSelectIcon} aria-hidden="true" />
+              </div>
+              <div className={`${styles.sortSelect} ${styles.reorderSelect}`}>
+                <ArrowUpDown size={15} className={styles.sortSignIcon} aria-hidden="true" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  aria-label="Reorder tournaments"
+                >
+                  {SORT_OPTIONS.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className={styles.sortSelectIcon} aria-hidden="true" />
               </div>
             </div>
 
@@ -1108,7 +1166,7 @@ export default function LiveBracketHome() {
                 <p>No tournaments match that search query or filter.</p>
                 <button
                   className={styles.linkBtn}
-                  onClick={() => { setQuery(''); setFilter('all'); }}
+                  onClick={() => { setQuery(''); setStatusFilter('all'); setSortBy('latest'); }}
                 >
                   Clear filters
                 </button>
@@ -1131,7 +1189,7 @@ export default function LiveBracketHome() {
                         <div className={styles.cardTitleRow}>
                           <h3 className={styles.cardTitle}>{t.title}</h3>
                           <span
-                            className={`${styles.cardStatusBadge} ${t.status === 'live' ? styles.cardStatusLive : ''}`}
+                            className={`${styles.cardStatusBadge} ${t.status === 'live' ? styles.cardStatusLive : t.status === 'finished' ? styles.cardStatusFinished : ''}`}
                           >
                             <span className={styles.cardStatusDot} aria-hidden="true" />
                             <span className={styles.cardStatusLong}>{statusLabels(t).long}</span>
@@ -1194,10 +1252,10 @@ export default function LiveBracketHome() {
                         </div>
                       </div>
                       <Link
-                        href={t.status === 'live' ? `/tournament/${t.id}` : `/tournament/${t.id}/register`}
+                        href={t.status === 'live' || t.status === 'finished' ? `/tournament/${t.id}` : `/tournament/${t.id}/register`}
                         className={styles.cardRegisterBtn}
                       >
-                        {t.status === 'live' ? 'View Bracket' : 'Register Team'}
+                        {t.status === 'live' ? 'View Bracket' : t.status === 'finished' ? 'View Standings' : 'Register Team'}
                       </Link>
                     </div>
                   </article>

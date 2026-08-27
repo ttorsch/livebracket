@@ -26,7 +26,7 @@
   --ink-2:       #3A414D;
   --muted:       #7A8294;
   --line:        #E7E2D9;
-  --bg-cream:    #E7E2D9;
+  --bg-cream:    #F7F3EC;
   --card-bg:     #FFFFFF;
   --night:       #0E1722;
 }
@@ -37,7 +37,7 @@ body {
   font-family: var(--font-body);
   font-size: 16px;
   color: var(--ink-1);
-  background: var(--bg-cream, #E7E2D9);
+  background: var(--bg-cream, #F7F3EC);
   overflow-x: hidden;
 }
 

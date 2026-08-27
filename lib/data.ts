@@ -421,7 +421,7 @@ interface CompletedQueryTournamentRow {
 }
 
 export interface HomepageStats {
-  upcomingMatches: number;
+  divisions: number;
   registeredTeams: number;
 }
 
@@ -433,10 +433,8 @@ export async function getHomepageStats(): Promise<HomepageStats> {
       .select(`
         phase,
         divisions (
-          teams ( id, status ),
-          rounds (
-            matches ( id, status )
-          )
+          id,
+          teams ( id, status )
         )
       `)
       .is('archived_at', null)
@@ -444,37 +442,31 @@ export async function getHomepageStats(): Promise<HomepageStats> {
 
     if (error || !tournaments) {
       console.error('Failed to load homepage stats:', error);
-      return { upcomingMatches: 0, registeredTeams: 0 };
+      return { divisions: 0, registeredTeams: 0 };
     }
 
-    let upcomingMatches = 0;
+    let divisions = 0;
     let registeredTeams = 0;
 
-    for (const t of (tournaments as unknown as { divisions: { teams: { status: string }[]; rounds: { matches: { status: string }[] }[] }[] }[])) {
+    for (const t of (tournaments as unknown as { divisions: { id: string; teams: { status: string }[] }[] }[])) {
       for (const d of t.divisions || []) {
+        divisions++;
         for (const team of d.teams || []) {
-          if (team.status !== 'waitlist' && team.status !== 'withdrawn') {
+          if (team.status === 'confirmed' || team.status === 'registered' || team.status === 'approved' || (team.status !== 'waitlist' && team.status !== 'withdrawn')) {
             registeredTeams++;
-          }
-        }
-        for (const r of d.rounds || []) {
-          for (const m of r.matches || []) {
-            if (m.status !== 'completed' && m.status !== 'finished') {
-              upcomingMatches++;
-            }
           }
         }
       }
     }
 
     return {
-      upcomingMatches,
+      divisions,
       registeredTeams,
     };
   } catch (e) {
     console.error('Failed to load homepage stats:', e);
     return {
-      upcomingMatches: 0,
+      divisions: 0,
       registeredTeams: 0,
     };
   }
@@ -747,6 +739,7 @@ export interface DetailDivision {
   regFields: RegField[];          // the questions this division asks each player
   waitlistCap: number;            // teams accepted past the cap; 0 = none
   rules: string;                  // shown alongside the rules consent
+  prizePool: string;              // division prize structure or award breakdown
   confirmationMessage: string;    // organizer's own post-registration note
 }
 
@@ -766,6 +759,7 @@ export interface TournamentDetail {
   endDate: string;
   dayCount: number; // number of days the tournament spans (>= 1)
   phase: number;
+  imageUrl: string | null;
   archived: boolean;
   cancelled: boolean;
   description: string | null;
@@ -927,6 +921,7 @@ interface TournamentDetailRow {
   is_one_day: boolean;
   phase: number;
   description: string | null;
+  image_url: string | null;
   archived_at: string | null;
   cancelled_at: string | null;
   deleted_at: string | null;
@@ -955,7 +950,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         )
       ),
       vouchers ( id, code, discount_type, discount_value )`;
-  const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description, archived_at, cancelled_at, deleted_at';
+  const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description, image_url, archived_at, cancelled_at, deleted_at';
 
   const runQuery = (withScheduleConfig: boolean) =>
     supabase
@@ -984,6 +979,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     endDate: row.end_date ?? row.start_date,
     dayCount: row.is_one_day || !row.end_date ? 1 : Math.max(1, diffDaysUTC(row.start_date, row.end_date) + 1),
     phase: row.phase,
+    imageUrl: row.image_url ?? null,
     archived: !!row.archived_at,
     cancelled: !!row.cancelled_at,
     description: row.description,
@@ -1055,6 +1051,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         regFields: normalizeRegFields(d.reg_fields),
         waitlistCap: typeof settings.waitlistCap === 'number' ? Math.max(0, Math.trunc(settings.waitlistCap)) : 0,
         rules: typeof settings.rules === 'string' ? settings.rules : '',
+        prizePool: typeof (settings as { prizePool?: unknown }).prizePool === 'string' ? (settings as { prizePool: string }).prizePool : '',
         confirmationMessage: typeof settings.confirmationMessage === 'string' ? settings.confirmationMessage : '',
       };
     }),
