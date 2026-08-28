@@ -7,7 +7,7 @@ import { getCurrentUser, getOrganizerForUser, ensureOrganizerForUser } from '../
  * profile rather than shown an organizer surface with nothing in it. */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  if (!user) redirect('/login?next=/dashboard');
+  if (!user) redirect('/login?role=organizer&next=/dashboard');
 
   const organizer =
     (await getOrganizerForUser(user.id)) ?? (await ensureOrganizerForUser(user));

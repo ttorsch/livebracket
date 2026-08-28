@@ -860,7 +860,7 @@ function SiteHeader() {
         </Link>
 
         <nav className={styles.headerNav}>
-          <Link href="/login" className={styles.btnGeneral}>Log in</Link>
+          <Link href="/login?role=player" className={styles.btnGeneral}>Log in</Link>
         </nav>
       </div>
     </header>

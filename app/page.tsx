@@ -953,7 +953,7 @@ export default function LiveBracketHome() {
 
           {/* Right Action Buttons */}
           <div className={styles.navRightActions}>
-            <Link href="/login" className={styles.navSignInLink}>
+            <Link href="/login?role=player" className={styles.navSignInLink}>
               Sign In
             </Link>
             <Link href="/login?role=organizer" className={styles.navCreateBtn}>
@@ -1008,7 +1008,7 @@ export default function LiveBracketHome() {
         {menuOpen && (
           <div className={styles.mobileMenuDropdown}>
             <Link 
-              href="/login" 
+              href="/login?role=player" 
               className={styles.mobileNavSignInLink}
               onClick={() => setMenuOpen(false)}
             >

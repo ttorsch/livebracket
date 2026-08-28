@@ -71,7 +71,13 @@ function LiveBracketLoginInner() {
   const rawNext = searchParams.get('next');
   const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
 
-  const [role, setRole] = useState<Role>('organizer');
+  /* Which tab opens first. Entry points say where they came from — "Sign in"
+   * in the public nav means a player, "Create a tournament" means an
+   * organizer — so the form starts on the tab that matches the intent
+   * instead of making half the visitors switch. Only a hint: the account's
+   * real role is still settled server-side after sign-in. */
+  const roleParam = searchParams.get('role');
+  const [role, setRole] = useState<Role>(roleParam === 'player' ? 'player' : 'organizer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 

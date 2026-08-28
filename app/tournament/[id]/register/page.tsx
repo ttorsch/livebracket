@@ -735,7 +735,7 @@ function HeroBar() {
       <Link href="/" className={styles.heroBrand} aria-label="Live Bracket home">
         <Logo variant="lockup" size={30} color="var(--lb-logo-ink)" />
       </Link>
-      <Button variant="general" size="small" onClick={() => router.push('/login')}>Log in</Button>
+      <Button variant="general" size="small" onClick={() => router.push('/login?role=player')}>Log in</Button>
     </div>
   );
 }

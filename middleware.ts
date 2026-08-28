@@ -57,8 +57,11 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.search = '';
-    // Remember where they were headed so the login can finish the journey.
+    // Remember where they were headed so the login can finish the journey,
+    // and open the tab that matches it — someone bounced off /dashboard is
+    // an organizer, someone bounced off /profile is a player.
     loginUrl.searchParams.set('next', `${pathname}${search}`);
+    loginUrl.searchParams.set('role', pathname.startsWith('/profile') ? 'player' : 'organizer');
     return NextResponse.redirect(loginUrl);
   }
 
