@@ -149,19 +149,20 @@ function buildRoundViews(division: DetailDivision, advanceCount: number): RoundV
       sets.push({ label: 'Set 1', points: String(s.pointsPerSet), note });
     }
 
-    const facts: RoundView['facts'] = [{ label: 'Match', value: `Best of ${s.setsBestOf}` }];
-    if (s.winBy2) facts.push({ label: 'Win by', value: '2' });
-    facts.push({ label: 'Length', value: `${round.durationMinutes} min` });
+    const facts: RoundView['facts'] = [
+      { label: 'Match', value: s.setsBestOf > 1 ? `Best of ${s.setsBestOf}` : '1 set' },
+      { label: 'Hard cap', value: s.hardCap > 0 ? String(s.hardCap) : 'None' },
+    ];
 
-    const advancingValue = isLast
-      ? 'Winner takes title'
-      : isGroupFormat(round.format)
-        ? `Top ${advanceCount} / pool`
-        : 'Winners advance';
-    facts.push({ label: 'Advancing', value: advancingValue });
+    // Advancing only applies to group / pool play stages
+    if (isGroupFormat(round.format) && advanceCount > 0) {
+      facts.push({ label: 'Advancing', value: `Top ${advanceCount} / pool` });
+    }
 
-    // Seeding only describes how teams enter a knockout round.
-    if (!isGroupFormat(round.format) && crossing) facts.push({ label: 'Seeding', value: crossing });
+    // Crossing describes how teams advance from round robin / pool play into the draw.
+    if (isGroupFormat(round.format) && crossing) {
+      facts.push({ label: 'Crossing', value: crossing });
+    }
 
     return {
       key: `${i}-${round.format}`,
@@ -871,6 +872,17 @@ function SiteHeader({ onSignInClick }: { onSignInClick?: () => void }) {
   return (
     <header className={styles.siteHeader}>
       <div className={styles.siteHeaderInner}>
+        {/* Narrow screens fold the way back into the header row, so the
+            back link, the wordmark and the account control share one
+            line. The copy below the head section (.backLink) is the
+            wide-screen one and is hidden there instead. */}
+        <Link href="/" className={styles.headerBack}>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M12 7H2m0 0l4 4M2 7l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          All events
+        </Link>
+
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark}>
             <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">

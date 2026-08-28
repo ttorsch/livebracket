@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '../../../lib/supabaseServer';
-import { ensureOrganizerForUser, claimTeamsForUser } from '../../../lib/auth';
+import { ensureOrganizerForUser, claimTeamsForUser, getOrganizerForUser } from '../../../lib/auth';
+import { signInDestination } from '../../../lib/authRedirect';
 import { ensureProfileForUser } from '../../../lib/profiles';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
@@ -66,7 +67,16 @@ export async function GET(request: NextRequest) {
         if (updated?.user) effectiveUser = updated.user;
       }
 
-      isOrganizer = (await ensureOrganizerForUser(effectiveUser)) !== null;
+      await ensureOrganizerForUser(effectiveUser);
+
+      /* Read the row, do not infer it from what provisioning returned.
+       * ensureOrganizerForUser is gated on user_metadata.role and hands
+       * back null for anyone whose metadata does not say 'organizer' —
+       * including someone who added the capability later through
+       * POST /api/auth/organizer, which writes the row and never touches
+       * metadata. Holding the capability is what the organizers table
+       * says, exactly as lib/auth.ts insists everywhere else. */
+      isOrganizer = (await getOrganizerForUser(user.id)) !== null;
     } catch (err) {
       console.error('Failed to provision organizer on callback:', err);
     }
@@ -91,13 +101,29 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (next && next.startsWith('/') && !next.startsWith('//')) {
-    return NextResponse.redirect(`${origin}${next}`);
+  /* Where an OAuth sign-in lands, decided by the same rule the password
+   * form uses — signInDestination in lib/authRedirect.
+   *
+   * This used to redirect to `next` directly, which quietly beat the role:
+   * a visitor who reached /login from the homepage carries `next=/`, so
+   * picking the Organizer tab and signing in with Google dropped them back
+   * on the homepage instead of their dashboard. signInDestination is built
+   * for exactly that — it honours `next` only where it agrees with the
+   * chosen destination, keeping a /dashboard next for an organizer and
+   * dropping one that would send them somewhere else.
+   *
+   * The tab is a request, not a verdict: it only counts as organizer if
+   * the account actually holds the capability, so someone who picks that
+   * tab without an organizers row still lands on a page that works. */
+  const role = roleParam === 'organizer' && isOrganizer ? 'organizer' : 'player';
+
+  if (next) {
+    return NextResponse.redirect(`${origin}${signInDestination(role, next)}`);
   }
 
   if (type === 'signup' || type === 'email') {
     return NextResponse.redirect(`${origin}/auth/confirmed`);
   }
 
-  return NextResponse.redirect(`${origin}${isOrganizer ? '/dashboard' : '/profile'}`);
+  return NextResponse.redirect(`${origin}${signInDestination(role, null)}`);
 }

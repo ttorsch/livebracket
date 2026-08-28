@@ -35,14 +35,6 @@ const ROLE_CONTENT: Record<Role, {
   },
 };
 
-function Arrow() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M2 7h10m0 0L8 3m4 4L8 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -554,29 +546,6 @@ function LiveBracketLoginInner() {
             <h3 className={styles.asideTitle}>{content.asideTitle}</h3>
             <p className={styles.asideSub}>{content.asideSub}</p>
 
-            <div
-              className={styles.eventPreview}
-              style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-            >
-              <div className={styles.livePill}>
-                <span className={styles.liveDot} aria-hidden="true" />
-                Live now
-              </div>
-              <div className={styles.eventPreviewBody}>
-                <p className={styles.eventName}>Bang Niang Beach Classic · Final</p>
-                <div className={styles.scoreRow}>
-                  <span className={styles.team}>Team Sunset</span>
-                  <span className={styles.score}>21</span>
-                </div>
-                <div className={`${styles.scoreRow} ${styles.scoreRowLead}`}>
-                  <span className={styles.team}>Team Riptide</span>
-                  <span className={styles.score}>23</span>
-                </div>
-              </div>
-              <Link href="/" className={styles.eventLink}>
-                See the bracket <Arrow />
-              </Link>
-            </div>
           </div>
         </div>
       </div>

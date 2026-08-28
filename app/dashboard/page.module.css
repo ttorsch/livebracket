@@ -184,6 +184,8 @@
 
 /* ── More menu ──────────────────────────────────────────────────── */
 .moreWrap { position: relative; }
+/* Only the mobile bar drops items into the menu; the rail shows them. */
+.moreItemMobileOnly { display: none; }
 .morePopup {
   position: absolute;
   bottom: 58px;
@@ -234,6 +236,13 @@
 .main {
   flex: 1;
   min-width: 0;
+  /* Definite, so the column stops widening to fit its widest child. As a
+     stretched item of the column-flex .page below 961px, min-width: 0 was
+     not enough on its own: a row whose max-content ran past the screen —
+     the search field beside the status select — pushed .main past the
+     viewport and gave the page a sideways scroll. Ignored above 961px,
+     where .page is a row and flex-basis decides the width. */
+  width: 100%;
   /* The site's shared measure — /tournament/[id], the dashboard detail
      page and the create wizard all cap their content the same way, and
      this page used to be the one that ran full-bleed. */
@@ -257,6 +266,27 @@
   color: var(--coral-500, #EB6F43);
   margin-bottom: 4px;
 }
+/* The create action reads as an invitation to add something rather than
+   as the page's loudest control — the same dashed-outline language the
+   registration form uses for "Add more fields" and "Add Photo".
+
+   !important throughout because the design-system Button builds its
+   palette as an inline style object, which a class cannot otherwise
+   reach. That also makes its JS hover state moot, so the hover below
+   has to restate the whole thing. */
+.newTournamentBtn {
+  background: transparent !important;
+  border: 1.5px dashed var(--coral-500, #EB6F43) !important;
+  color: var(--coral-500, #EB6F43) !important;
+  box-shadow: none !important;
+}
+
+.newTournamentBtn:hover {
+  background: var(--coral-50, #FFFBFA) !important;
+  border-color: var(--coral-600, #E44F1C) !important;
+  color: var(--coral-600, #E44F1C) !important;
+}
+
 .headerTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
@@ -754,76 +784,22 @@
   font-size: 14px;
 }
 
-.filterDropdown {
-  position: relative;
+/* The search field and the status filter. Wide screens give the search
+   the whole row and put the pill tabs (.filterTabs) underneath; narrow
+   ones drop the tabs and sit a native select beside the search. */
+.searchRow {
+  margin-bottom: 18px;
+}
+.searchWrap {
+  min-width: 0;
+}
+
+/* Deliberately close to bare: the platform draws its own control and
+   picker here, so the only thing set is how much of the row it takes. */
+.filterSelect {
   display: none;
-  margin-bottom: 20px;
+  min-width: 0;
 }
-.filterDropdownTrigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: var(--radius-lg, 14px);
-  border: none;
-  background: var(--sand-200, #EFEAE0);
-  font-family: var(--font-text, 'DM Sans', sans-serif);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary, #3A414D);
-  white-space: nowrap;
-  cursor: pointer;
-}
-.filterDropdownTrigger span:first-child {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.filterDropdownTrigger svg {
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-  color: var(--text-muted, #7A8294);
-}
-.filterChevronOpen { transform: rotate(180deg); }
-.filterDropdownMenu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  z-index: 20;
-  list-style: none;
-  margin: 0;
-  padding: 6px;
-  border-radius: var(--radius-lg, 14px);
-  border: 1px solid var(--sand-300, #E7E2D9);
-  background: var(--sand-50, #fff);
-  box-shadow: 0 12px 32px rgba(20, 24, 30, 0.14);
-}
-.filterDropdownItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: var(--radius-md, 10px);
-  border: none;
-  background: transparent;
-  font-family: var(--font-text, 'DM Sans', sans-serif);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary, #3A414D);
-  cursor: pointer;
-  text-align: left;
-}
-.filterDropdownItem:hover { background: var(--sand-100, #F4F1EA); }
-.filterDropdownItemActive,
-.filterDropdownItemActive:hover {
-  background: var(--coral-500, #EB6F43);
-  color: #fff;
-}
-.filterDropdownItemActive .filterCount { background: rgba(255, 255, 255, 0.22); }
 
 /* ── Compact tournament rows ──────────────────────────────────── */
 .rowList {
@@ -1284,13 +1260,42 @@
   .sidebar { align-self: auto; border-radius: 0; }
   .railSpacer { display: none; }
 
-  /* No rail to toggle, so the brand slot goes back to being Home. */
+  /* ── The mobile bar ──────────────────────────────────────────
+     Four controls, split: the tournament list and notifications on the
+     left, the menu and profile on the right. Everything the bar cannot
+     hold moves into the menu rather than being dropped.
+
+     `display: contents` on the nav is what makes that possible — the
+     profile button lives inside .sideNav while the menu button is its
+     sibling, so they can only be ordered against each other once the
+     nav stops being a box of its own. */
+  .sidebar { background: var(--sand-100, #F5F1EA); }
+  .sideNav { display: contents; }
+
+  /* Home leaves the bar: the four controls below are the whole of it,
+     and this tab is already the dashboard's own home. */
   .brand { display: none; }
-  .brandHome {
-    display: inline-flex;
-    padding: 0;
-    flex-shrink: 0;
-    color: var(--ink-900, #14181E);
+  .brandHome { display: none; }
+
+  .navTournaments { order: 1; }
+  .navNotifications { order: 2; }
+  .moreWrap {
+    display: flex;
+    order: 3;
+    /* Splits the bar — everything after this sits on the right. */
+    margin-left: auto;
+  }
+  .navProfile { order: 4; }
+
+  .moreItemMobileOnly { display: block; }
+
+  /* The bar is pinned to the top here, so its menu drops down from the
+     trigger rather than rising off the screen edge. */
+  .morePopup {
+    top: calc(100% + 10px);
+    bottom: auto;
+    left: auto;
+    right: 0;
   }
   .brandHomeIcon {
     display: inline-flex;
@@ -1315,12 +1320,11 @@
     height: calc(20px - var(--compact-t, 0) * 3px);
     transition: width var(--nav-dur, 200ms) ease-in, height var(--nav-dur, 200ms) ease-in;
   }
-  /* Seven icons will not fit a phone bar. Search and Create are dropped
-     because the page already carries both — the search field sits in the
-     list, and New Tournament is in the header. More has no destinations
-     yet, so it goes too. */
-  .sideLinkDesktopOnly,
-  .moreWrap { display: none; }
+  /* A phone bar holds four. Search and Create are dropped because the
+     page already carries both — the search field sits in the list, and
+     New Tournament is in the header. History moves into the menu. */
+  .sideLinkDesktopOnly { display: none; }
+
   .sideBadge {
     top: -4px;
     left: 10px;
@@ -1343,15 +1347,26 @@
   .heroContent { padding: 22px; }
   .heroActions a { flex: 1; justify-content: center; }
   .rowMain { gap: 14px; padding: 14px 16px; flex-wrap: wrap; }
-  .rowThumb { width: 52px; height: 52px; border-radius: 14px; }
+  /* No poster on a phone. It is decorative — the span is aria-hidden and
+     carries either the cover image or an initials disc — and at this width
+     the title, location and division count are what the row is for. */
+  .rowThumb { display: none; }
   .rowTitle { font-size: 16px; white-space: normal; }
-  .rowInfo { flex-basis: calc(100% - 66px - 32px); }
+  /* Was `100% - 66px - 32px`: the 66px reserved the thumb and its gap,
+     the 32px is the row's own padding. With the thumb gone only the
+     padding comes off, or the text would stop short of the card edge. */
+  .rowInfo { flex-basis: calc(100% - 32px); }
   .rowActions { order: 4; width: 100%; justify-content: flex-start; }
   .rowChevron { order: 3; }
   .divStatGrid { grid-template-columns: 1fr; }
   .filterTabs { display: none; }
-  .filterDropdown { display: block; width: max-content; min-width: 30vw; max-width: 100%; }
-  .filterDropdownMenu { right: auto; width: max-content; min-width: 100%; }
+  /* 70/30 across the row, expressed as grow factors over a zero basis.
+     A percentage basis would have made each item's intrinsic width its
+     own content — the placeholder string and the longest option — and
+     .main sizes to that, which pushed the page wider than the screen. */
+  .searchRow { display: flex; align-items: center; gap: 10px; }
+  .searchWrap { flex: 7 1 0; }
+  .filterSelect { display: block; flex: 3 1 0; }
   .newTournamentBtn {
     border-radius: 16px !important;
     height: 56px !important;

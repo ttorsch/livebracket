@@ -55,6 +55,7 @@ import {
 } from '../../../../../lib/divisionEligibility';
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
 import RosterFields, { type RosterPlayer } from '@/components/registration/RosterFields';
+import { SKILL_LEVELS } from '@/lib/registrationFields';
 import {
   BASE_REG_FIELDS, FORMAT_PLAYERS, targetFor, type RegField, type RegFieldType, type PresetKey,
 } from '../../../../../lib/registrationFields';
@@ -176,7 +177,7 @@ const PRESETS: { key: PresetKey; label: string; build: () => RegField }[] = [
   {
     key: 'skill',
     label: 'Skill Level',
-    build: () => ({ id: 'preset-skill', label: 'Skill Level', type: 'select', options: ['Novice', 'Intermediate', 'Advanced', 'Open'], required: false, preset: 'skill' }),
+    build: () => ({ id: 'preset-skill', label: 'Skill Level', type: 'select', options: [...SKILL_LEVELS], required: false, preset: 'skill' }),
   },
   {
     key: 'hometown',
@@ -513,6 +514,10 @@ function regFieldSection(field: RegField): 'contact' | 'players' {
 }
 
 function regFieldTypeLabel(field: RegField): string {
+  /* Nationality is stored as plain text but rendered as a country picker,
+   * so the setup screen describes the control the player gets, not the
+   * column type. */
+  if (field.preset === 'nationality') return 'country dropdown';
   if (field.type === 'select') return `${field.options?.length ?? 0}-option dropdown`;
   if (field.type === 'paragraph') return 'paragraph';
   if (field.type === 'phone') return 'phone';
@@ -1234,7 +1239,7 @@ export default function OrganizerSetup() {
     const defaultSize = sizes.includes('M') ? 'M' : sizes[0];
     setAddTeamPlayers(
       Array.from({ length: size }, () => ({
-        name: '', shirtSize: defaultSize, nationality: '', club: '', userId: null,
+        name: '', shirtSize: defaultSize, skill: '', nationality: '', club: '', userId: null,
       }))
     );
     setAddTeamContact({ email: '', phone: '' });
@@ -1261,6 +1266,7 @@ export default function OrganizerSetup() {
 
     const natKey = divisionCustomKey(activeDivision.regFields, 'nationality', 'nationality');
     const clubKey = divisionCustomKey(activeDivision.regFields, 'hometown', 'hometown');
+    const skillKey = divisionCustomKey(activeDivision.regFields, 'skill', 'skill');
     /* The one contact goes onto every player row, exactly as public
        registration sends it. */
     const players = addTeamPlayers.map(p => ({
@@ -1272,6 +1278,7 @@ export default function OrganizerSetup() {
       custom: {
         ...(p.nationality.trim() ? { [natKey]: p.nationality.trim() } : {}),
         ...(p.club.trim() ? { [clubKey]: p.club.trim() } : {}),
+        ...(p.skill.trim() ? { [skillKey]: p.skill.trim() } : {}),
       },
     }));
 
@@ -1690,19 +1697,11 @@ export default function OrganizerSetup() {
               </Link>
               <h1 className={styles.title}>Tournament Setup</h1>
             </div>
+            {/* No cover here. On a phone the card's job is the title, the
+                dates and the status — the poster took a quarter of the row
+                to repeat what the event page already shows, and the
+                desktop header keeps it (with the full-size view). */}
             <div className={styles.mobileEventCard}>
-              {basicInfo?.imageUrl ? (
-                <button
-                  type="button"
-                  className={styles.mobilePosterButton}
-                  onClick={() => setLightboxOpen(true)}
-                  aria-label="View cover image full size"
-                >
-                  <img src={basicInfo.imageUrl} alt="" className={styles.mobileEventLogo} />
-                </button>
-              ) : (
-                <div className={styles.mobileEventLogo} />
-              )}
               <div className={styles.mobileEventBody}>
                 <div className={styles.mobileEventTitle}>{displayTitle || 'Untitled tournament'}</div>
                 <div className={styles.mobileEventMeta}>
@@ -3399,7 +3398,7 @@ export default function OrganizerSetup() {
                 onPlayerChange={updateAddTeamPlayer}
                 contact={addTeamContact}
                 onContactChange={patch => setAddTeamContact(c => ({ ...c, ...patch }))}
-                sizes={divisionApparelSizes(activeDivision.regFields)}
+                fields={activeDivision.regFields}
                 required={{}}
               />
             </div>

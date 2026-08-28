@@ -30,18 +30,18 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/page.tsx": {
-    "mtime": 1787916171.2712455,
-    "ast_hash": "99a329d150f17ef9c1416f179a43afff",
+    "mtime": 1787923086.307094,
+    "ast_hash": "098c5fcb5a70cc0eec7ee9ad2fde84db",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/page.tsx": {
-    "mtime": 1787916661.6666849,
-    "ast_hash": "78ed3843c33633cf6dfb2a86fb5292f0",
+    "mtime": 1787922135.563776,
+    "ast_hash": "0ea441c2c3d459160548633c63b83b8b",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/register/page.tsx": {
-    "mtime": 1787912417.5965273,
-    "ast_hash": "4af5c061c405b86dfd38a3c34b2d2bc8",
+    "mtime": 1787925432.9563055,
+    "ast_hash": "551549e027be12a3f77b4e7df913c21f",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/page.tsx": {
@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/setup/page.tsx": {
-    "mtime": 1787912238.7344387,
-    "ast_hash": "012a9485d210f1dcaf7caa3981b16dee",
+    "mtime": 1787925072.1314285,
+    "ast_hash": "88d70451a9ebc9fb3f0f7c9d8cd6f7c3",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/icon.svg": {
@@ -820,8 +820,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/lib/registrationFields.ts": {
-    "mtime": 1787735638.2344325,
-    "ast_hash": "ca6a12604f9b4889c480b11c9fc27288",
+    "mtime": 1787925072.1384103,
+    "ast_hash": "df99df0aef343eac9c0c1fc77c21891a",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/lib/matchClock.test.ts": {
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/auth/useSignInHref.ts": {
-    "mtime": 1787893316.5115356,
-    "ast_hash": "7d58b2b378953b23491da134ccba107f",
+    "mtime": 1787922917.0543184,
+    "ast_hash": "cad2aff4d7f15c71472d7a8b33885521",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/auth/AuthShell.tsx": {
@@ -1105,8 +1105,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/registration/RosterFields.tsx": {
-    "mtime": 1787912417.5748982,
-    "ast_hash": "e284664d6433ea417d6643d79a193da1",
+    "mtime": 1787925390.8995166,
+    "ast_hash": "592644c2d23760ee73c2f60a8244c641",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/lib/roundFormat.ts": {
@@ -1122,6 +1122,11 @@
   "/Users/torsmacair/livebracket/app/api/me/stats/route.ts": {
     "mtime": 1787914095.812334,
     "ast_hash": "c887d2be498a2ef0b12d10fde3f030ff",
+    "semantic_hash": ""
+  },
+  "/Users/torsmacair/livebracket/lib/countries.ts": {
+    "mtime": 1787925006.1721437,
+    "ast_hash": "a66e6ccd8fa8cc4d1275baf643d4d3e5",
     "semantic_hash": ""
   }
 }

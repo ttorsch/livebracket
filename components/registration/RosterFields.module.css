@@ -19,6 +19,7 @@
    internal spacing regardless of what their own parent's gap is. */
 .root {
   container-type: inline-size;
+  container-name: roster;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -71,7 +72,13 @@
 .playerGrid { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start;
 }
 
+/* A container in its own right: the roster decides how many cards fit
+   across, but a control inside a card has to size against the CARD. Named,
+   because an unnamed nested container would silently capture the roster's
+   own queries below. */
 .playerCard {
+  container-type: inline-size;
+  container-name: playercard;
   background: var(--sand-100);
   border-radius: 20px;
   padding: 18px;
@@ -262,7 +269,7 @@
  * keeps the public form switching to two-up at precisely the viewport it
  * always did, while the modal now switches on its own width instead of
  * inheriting a threshold measured against something else. */
-@container (min-width: 696px) {
+@container roster (min-width: 696px) {
   .contactGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px;
   }
 
@@ -301,4 +308,33 @@
 
 .playerSearchSignIn:hover {
   text-decoration: underline;
+}
+
+/* ── Dropdowns ─────────────────────────────────────────────────────
+   A native select draws its own arrow hard against the right edge,
+   which crowds the 14px corner radius and looks nothing like the
+   chevron on the country picker sitting next to it. Suppressing it and
+   drawing our own puts the two dropdowns in the same row on the same
+   metrics: 14px in from the edge, vertically centred, with the text
+   padded clear of it. */
+.selectWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.select {
+  composes: input;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+.selectChevron {
+  position: absolute;
+  right: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
 }

@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, X } from 'lucide-react';
+import { ChevronDown, Search, X } from 'lucide-react';
 import { Avatar, SegmentedControl } from '@/components/livebracket-ds';
 import { useSignInHref } from '@/components/auth/useSignInHref';
+import { type RegField, SKILL_LEVELS } from '@/lib/registrationFields';
+import CountrySelect from './CountrySelect';
 import styles from './RosterFields.module.css';
 
 /* The roster half of a team entry — the team contact block and one card
@@ -21,12 +23,16 @@ import styles from './RosterFields.module.css';
 export interface RosterPlayer {
   name: string;
   shirtSize: string;
+  skill: string;
   nationality: string;
   club: string;
   /* Set when the slot was filled by player-ID search. Names an account;
    * does not speak for one — the invite does that. */
   userId?: string | null;
 }
+
+/* Where a division offers no apparel question of its own. */
+const DEFAULT_SIZES = ['S', 'M', 'L', 'XL'];
 
 export interface RosterContact {
   email: string;
@@ -38,9 +44,11 @@ interface RosterFieldsProps {
   onPlayerChange: (index: number, patch: Partial<RosterPlayer>) => void;
   contact: RosterContact;
   onContactChange: (patch: Partial<RosterContact>) => void;
-  /* The division's own apparel options, so a division offering XS–XXL is
-   * not quietly forced onto the default four. */
-  sizes: string[];
+  /* The division's own questions. The form renders the presets this
+   * division actually added and nothing else — it used to hardcode
+   * apparel, nationality and club regardless, so a division that never
+   * asked for a nationality got the box anyway. */
+  fields: RegField[];
   required?: {
     name?: boolean;
     contact?: boolean;
@@ -67,11 +75,23 @@ export default function RosterFields({
   onPlayerChange,
   contact,
   onContactChange,
-  sizes,
+  fields,
   required = {},
   signedIn = true,
 }: RosterFieldsProps) {
   const signInHref = useSignInHref('player');
+
+  /* The four presets this division may have added, looked up once. The
+   * `required` prop is gone from these — each field carries its own flag,
+   * which is what the organizer actually toggled. */
+  const preset = (key: RegField['preset']) => fields.find(f => f.preset === key) ?? null;
+  const apparel = preset('apparel');
+  const skill = preset('skill');
+  const nationality = preset('nationality');
+  const hometown = preset('hometown');
+
+  const apparelOptions = apparel?.options?.length ? apparel.options : DEFAULT_SIZES;
+  const skillOptions = skill?.options?.length ? skill.options : [...SKILL_LEVELS];
   /* Search state is per card and lives here rather than in either page,
    * which is most of why this is a component at all. */
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -248,45 +268,82 @@ export default function RosterFields({
               />
             </label>
 
-            <div className={styles.playerExtras}>
-              <div className={styles.field}>
-                <span className={styles.fieldLabel}>Apparel size</span>
-                <SegmentedControl
-                  options={sizes}
-                  value={player.shirtSize}
-                  onChange={val => onPlayerChange(i, { shirtSize: val })}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${sizes.length}, minmax(0, 1fr))`,
-                    width: '100%',
-                  }}
-                />
+            {/* Only the presets this division added. Each one has a
+                defined control — the point of a preset is that the same
+                question looks and answers the same way across events. */}
+            {(apparel || skill || nationality || hometown) && (
+              <div className={styles.playerExtras}>
+                {apparel && (
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>
+                      {apparel.label} {apparel.required && <span className={styles.req}>*</span>}
+                    </span>
+                    <SegmentedControl
+                      options={apparelOptions}
+                      value={player.shirtSize}
+                      onChange={val => onPlayerChange(i, { shirtSize: val })}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${apparelOptions.length}, minmax(0, 1fr))`,
+                        width: '100%',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {skill && (
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>
+                      {skill.label} {skill.required && <span className={styles.req}>*</span>}
+                    </span>
+                    {/* A dropdown rather than apparel's segmented pills:
+                        five word-length labels never fit a card's width in
+                        one row, and wrapping them to two rows made the
+                        control taller than the answer is worth. */}
+                    <div className={styles.selectWrap}>
+                      <select
+                        className={styles.select}
+                        value={player.skill}
+                        onChange={e => onPlayerChange(i, { skill: e.target.value })}
+                      >
+                        <option value="">Select a level</option>
+                        {skillOptions.map(level => (
+                          <option key={level} value={level}>{level}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={15} className={styles.selectChevron} aria-hidden="true" />
+                    </div>
+                  </div>
+                )}
+
+                <div className={styles.playerExtraPair}>
+                  {nationality && (
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>
+                        {nationality.label} {nationality.required && <span className={styles.req}>*</span>}
+                      </span>
+                      <CountrySelect
+                        value={player.nationality}
+                        onChange={country => onPlayerChange(i, { nationality: country })}
+                      />
+                    </label>
+                  )}
+                  {hometown && (
+                    <label className={styles.field}>
+                      <span className={styles.fieldLabel}>
+                        {hometown.label} {hometown.required && <span className={styles.req}>*</span>}
+                      </span>
+                      <input
+                        className={styles.input}
+                        placeholder="KLV"
+                        value={player.club}
+                        onChange={e => onPlayerChange(i, { club: e.target.value })}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
-              <div className={styles.playerExtraPair}>
-                <label className={styles.field}>
-                  <span className={styles.fieldLabel}>
-                    Nationality {required.nationality && <span className={styles.req}>*</span>}
-                  </span>
-                  <input
-                    className={styles.input}
-                    placeholder="Thailand"
-                    value={player.nationality}
-                    onChange={e => onPlayerChange(i, { nationality: e.target.value })}
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span className={styles.fieldLabel}>
-                    Club / hometown {required.club && <span className={styles.req}>*</span>}
-                  </span>
-                  <input
-                    className={styles.input}
-                    placeholder="KLV"
-                    value={player.club}
-                    onChange={e => onPlayerChange(i, { club: e.target.value })}
-                  />
-                </label>
-              </div>
-            </div>
+            )}
           </div>
         ))}
       </div>

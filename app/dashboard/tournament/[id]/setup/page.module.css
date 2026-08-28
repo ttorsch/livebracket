@@ -2468,14 +2468,6 @@
   box-shadow: 0 10px 30px -12px rgba(20, 31, 46, 0.12);
   margin-bottom: 16px;
 }
-.mobileEventLogo {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  object-fit: cover;
-  flex-shrink: 0;
-  background: rgba(20, 31, 46, 0.05);
-}
 .mobileEventBody {
   flex: 1;
   min-width: 0;
@@ -3025,14 +3017,6 @@
 .posterButton:hover .posterZoomHint,
 .posterButton:focus-visible .posterZoomHint { opacity: 1; }
 
-.mobilePosterButton {
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: zoom-in;
-  line-height: 0;
-  flex-shrink: 0;
-}
 
 .lightboxOverlay {
   position: fixed;

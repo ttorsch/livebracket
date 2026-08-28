@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Home, Clock,
+  LayoutList, Menu,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
@@ -255,8 +255,6 @@ export default function OrganizerDashboard() {
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const searchWrapRef = useRef<HTMLDivElement>(null);
 
@@ -304,17 +302,6 @@ export default function OrganizerDashboard() {
       document.removeEventListener('keydown', onKey);
     };
   }, [moreOpen]);
-
-  useEffect(() => {
-    if (!filterMenuOpen) return;
-    const onClickOutside = (e: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-        setFilterMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [filterMenuOpen]);
 
   // Mobile navbar morph, driven by scroll *events* rather than scroll
   // *distance*: --enter-t and --compact-t are always snapped straight to
@@ -488,7 +475,12 @@ export default function OrganizerDashboard() {
           </span>
           <span className={styles.brandName}>LIVE BRACKET</span>
         </button>
-        <Link href="/" className={styles.brandHome} aria-label="Live Bracket home">
+        {/* Mobile only — below 960px the rail becomes a bar with nothing to
+            collapse, so this slot replaces the brand button (see the CSS).
+            "Home" here means the organizer's own dashboard, not the public
+            site: someone inside the organizer area who taps a house wants
+            their events list, not the marketing page. */}
+        <Link href="/dashboard" className={styles.brandHome} aria-label="Dashboard home">
           <Home size={22} className={styles.brandHomeIcon} aria-hidden="true" />
         </Link>
 
@@ -499,11 +491,14 @@ export default function OrganizerDashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('tournament')}
-            className={`${styles.sideLink} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}
+            className={`${styles.sideLink} ${styles.navTournaments} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}
             title="My Tournament"
           >
             <span className={styles.sideIcon}>
-              <Icon name="trophy" size={23} strokeWidth={activeTab === 'tournament' ? 2.6 : 1.75} />
+              {/* A list, not a trophy. The trophy read as "prizes" or
+                  "winners"; this tab is the organizer's list of their own
+                  events, and a list icon says that without a caption. */}
+              <LayoutList size={23} strokeWidth={activeTab === 'tournament' ? 2.6 : 1.75} />
             </span>
             <span className={styles.sideLabel}>My Tournament</span>
           </button>
@@ -525,7 +520,7 @@ export default function OrganizerDashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`${styles.sideLink} ${activeTab === 'history' ? styles.sideLinkActive : ''}`}
+            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly} ${activeTab === 'history' ? styles.sideLinkActive : ''}`}
             title="History"
           >
             <span className={styles.sideIcon}>
@@ -537,7 +532,7 @@ export default function OrganizerDashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('notifications')}
-            className={`${styles.sideLink} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}
+            className={`${styles.sideLink} ${styles.navNotifications} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}
             title="Notifications"
           >
             <span className={styles.sideIcon}>
@@ -568,7 +563,7 @@ export default function OrganizerDashboard() {
               profile at /profile, which the site header links to. */}
           <button
             type="button"
-            className={styles.sideLink}
+            className={`${styles.sideLink} ${styles.navProfile}`}
             title="Organizer profile"
             onClick={() => setProfileOpen(true)}
           >
@@ -588,6 +583,17 @@ export default function OrganizerDashboard() {
         <div className={styles.moreWrap} ref={moreRef}>
           {moreOpen && (
             <div className={styles.morePopup} role="menu">
+              {/* History has no room in the mobile bar, so the menu is where
+                  it lives there. Hidden on desktop, where the rail still
+                  shows it directly. */}
+              <button
+                type="button"
+                className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
+                role="menuitem"
+                onClick={() => { setActiveTab('history'); setMoreOpen(false); }}
+              >
+                History
+              </button>
               {/* Nothing behind these yet — shown disabled rather than as
                   links that go nowhere. */}
               {MORE_ITEMS.map(label => (
@@ -614,12 +620,12 @@ export default function OrganizerDashboard() {
             onClick={() => setMoreOpen(v => !v)}
             aria-expanded={moreOpen}
             aria-haspopup="menu"
-            title="More"
+            title="Menu"
           >
             <span className={styles.sideIcon}>
-              <Icon name="filter" size={23} strokeWidth={1.9} />
+              <Menu size={23} strokeWidth={1.9} />
             </span>
-            <span className={styles.sideLabel}>More</span>
+            <span className={styles.sideLabel}>Menu</span>
           </button>
         </div>
       </aside>
@@ -630,7 +636,13 @@ export default function OrganizerDashboard() {
         <div className={styles.header}>
           <div>
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
-            <h1 className={styles.headerTitle}>Welcome back{organizer ? `, ${organizer.name.split(' ')[0]}` : ''}</h1>
+            {/* The organizer's own name, not a greeting. The session copy
+                is the fallback because it is server-rendered and therefore
+                already there — /api/organizer resolves a moment later, so
+                leading with it would flash an empty heading. */}
+            <h1 className={styles.headerTitle}>
+              {organizer?.name ?? organizerIdentity?.name ?? 'Organizer'}
+            </h1>
           </div>
           <Button
             variant="primary"
@@ -710,16 +722,39 @@ export default function OrganizerDashboard() {
                 <h2 className={styles.sectionTitle}>All Tournaments</h2>
               </div>
 
-              {/* Wrapped so the sidebar's Search item can reach the input —
-                  SearchField is a plain function component, so a ref passed
-                  to it would not forward. */}
-              <div ref={searchWrapRef}>
-                <SearchField
-                  placeholder="Search tournaments, locations, divisions"
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  style={{ marginBottom: 18, background: 'var(--sand-200)' }}
-                />
+              {/* Narrow screens run the search and the status filter on one
+                  row (70/30); wide ones give the search the full width and
+                  use the pill tabs below instead of the select. */}
+              <div className={styles.searchRow}>
+                {/* Wrapped so the sidebar's Search item can reach the input —
+                    SearchField is a plain function component, so a ref passed
+                    to it would not forward. */}
+                <div ref={searchWrapRef} className={styles.searchWrap}>
+                  <SearchField
+                    placeholder="Search tournaments, locations, divisions"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    style={{ background: 'var(--sand-200)' }}
+                  />
+                </div>
+
+                {/* A native select, so the picker, its motion and its chrome
+                    are the platform's rather than ours. */}
+                <select
+                  className={styles.filterSelect}
+                  aria-label="Filter tournaments by status"
+                  value={statusFilter ?? 'all'}
+                  onChange={e => setStatusFilter(e.target.value as StatusKey)}
+                >
+                  {STATUS_FILTERS.map(f => {
+                    const count = tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, f.key)).length;
+                    return (
+                      <option key={f.key} value={f.key}>
+                        {f.label} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div className={styles.filterTabs}>
@@ -737,59 +772,6 @@ export default function OrganizerDashboard() {
                     </button>
                   );
                 })}
-              </div>
-
-              <div className={styles.filterDropdown} ref={filterMenuRef}>
-                <motion.button
-                  type="button"
-                  className={styles.filterDropdownTrigger}
-                  aria-haspopup="listbox"
-                  aria-expanded={filterMenuOpen}
-                  onClick={() => setFilterMenuOpen(o => !o)}
-                  whileTap={{ scale: 0.92 }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-                >
-                  <span>
-                    {STATUS_FILTERS.find(f => f.key === statusFilter)?.label || 'All'}
-                    <span className={styles.filterCount}>
-                      {tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, statusFilter)).length}
-                    </span>
-                  </span>
-                  <ChevronDown size={18} className={filterMenuOpen ? styles.filterChevronOpen : ''} />
-                </motion.button>
-                <AnimatePresence>
-                  {filterMenuOpen && (
-                    <motion.ul
-                      className={styles.filterDropdownMenu}
-                      role="listbox"
-                      style={{ transformOrigin: 'top left' }}
-                      initial={{ opacity: 0, scale: 0.3, borderRadius: 999 }}
-                      animate={{ opacity: 1, scale: 1, borderRadius: 16 }}
-                      exit={{ opacity: 0, scale: 0.3, borderRadius: 999, transition: { duration: 0.28, ease: 'easeIn' } }}
-                      transition={{ type: 'spring', stiffness: 105, damping: 11 }}
-                    >
-                      {STATUS_FILTERS.map(f => {
-                        const count = tournaments.filter(t => !liveIds.has(t.id) && matchesFilter(t, f.key)).length;
-                        const active = statusFilter === f.key;
-                        return (
-                          <li key={f.key} role="option" aria-selected={active}>
-                            <button
-                              type="button"
-                              className={`${styles.filterDropdownItem} ${active ? styles.filterDropdownItemActive : ''}`}
-                              onClick={() => {
-                                setStatusFilter(active ? null : f.key);
-                                setFilterMenuOpen(false);
-                              }}
-                            >
-                              {f.label}
-                              <span className={styles.filterCount}>{count}</span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </motion.ul>
-                  )}
-                </AnimatePresence>
               </div>
 
               <div className={styles.rowList}>

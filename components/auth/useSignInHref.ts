@@ -59,10 +59,12 @@ export function useRestoreScrollPosition(
 
         if (!isNaN(top) && top > 0) {
           restoredRef.current = true;
+          window.scrollTo({ top, behavior: 'instant' });
           requestAnimationFrame(() => {
+            window.scrollTo({ top, behavior: 'instant' });
             setTimeout(() => {
               window.scrollTo({ top, behavior: 'instant' });
-            }, 30);
+            }, 60);
           });
         }
         sessionStorage.removeItem(key);

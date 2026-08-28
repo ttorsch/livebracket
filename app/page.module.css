@@ -397,8 +397,7 @@
 
 .heroNearYouBtn {
   display: inline-flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
   background: none;
   border: none;
   padding: 0;
@@ -407,13 +406,23 @@
   text-align: left;
   width: 100%;
 }
+.nearYouContent {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.nearYouTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .liveDotRed {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--status-live, #F16767);
   flex-shrink: 0;
-  margin-top: 5px;
   animation: pulseDot 1.8s infinite;
 }
 @keyframes pulseDot {
@@ -422,25 +431,26 @@
 }
 
 .nearYouBold {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 800;
   color: #14181E;
   white-space: nowrap;
-  flex-shrink: 0;
   line-height: 1.35;
+}
+.nearYouLocationRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 15px;
 }
 .nearYouSub {
   font-size: 13px;
   font-weight: 500;
   color: #7A8294;
-  flex: 1 1 auto;
-  min-width: 0;
   line-height: 1.35;
 }
 .nearYouArrow {
   color: #7A8294;
-  margin-left: 2px;
-  margin-top: 2px;
   flex-shrink: 0;
   transition: transform 0.15s, color 0.15s;
 }
@@ -734,7 +744,7 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     width: 100%;
-    padding-left: 0;
+    padding-left: 15px;
     gap: 0;
   }
   .heroStatItem:first-child {

@@ -113,6 +113,10 @@
   align-items: center;
   gap: 10px;
 }
+
+/* Wide screens keep the way back below the header (.backLink); this
+   copy only shows on narrow ones, where the row carries it. */
+.headerBack { display: none; }
 .headerLink {
   font-size: 14px;
   font-weight: 600;
@@ -1264,10 +1268,43 @@
 
 /* ── Narrow screens ──────────────────────────────────────────── */
 @media (max-width: 860px) {
-  .siteHeader {
-    position: relative;
-    top: auto;
-    z-index: auto;
+  /* One row carries all three: the way back on the left, then the
+     wordmark and the account control paired at the right end. */
+  .siteHeaderInner {
+    align-items: center;
+    gap: 10px;
+  }
+  .headerBack {
+    display: inline-flex;
+    align-items: center;
+    margin-right: auto;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+  .headerBack:hover { color: var(--text-primary); }
+  .brand {
+    margin-left: 0;
+    gap: 0;
+  }
+  /* The wordmark carries the brand here — the mark on its own read as a
+     stray icon parked next to the avatar. */
+  .brandMark {
+    display: none;
+  }
+  .brandWord {
+    display: inline;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .headerNav {
+    margin-left: 0;
+  }
+  /* The header row above now carries the way back. */
+  .backLink {
+    display: none;
   }
   .tabBar {
     position: relative;

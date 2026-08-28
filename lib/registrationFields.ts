@@ -98,3 +98,18 @@ export function rosterSize(format: string, maxRosterSize: unknown): number {
   const max = typeof maxRosterSize === 'number' && Number.isFinite(maxRosterSize) ? Math.trunc(maxRosterSize) : min;
   return Math.max(min, Math.min(max, 12));
 }
+
+/* The skill ladder offered by the Skill Level preset.
+ *
+ * Fixed rather than organizer-editable: the presets exist so a division
+ * can add a common question without inventing one, and a shared ladder is
+ * the point — two events that both ask for "skill level" should mean the
+ * same thing by it. An organizer who wants their own wording adds a
+ * custom question instead. */
+export const SKILL_LEVELS = [
+  'Beginner',
+  'Intermediate',
+  'Advanced',
+  'Professional',
+  'Olympic medal',
+] as const;

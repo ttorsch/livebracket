@@ -25,8 +25,10 @@ const DONE = STEPS.length; // the confirmation panel sits one past the last step
 interface PlayerAnswers {
   name: string;
   shirtSize: string;
+  skill: string;
   nationality: string;
   club: string;
+  userId?: string | null;
 }
 
 const DEFAULT_SIZES = ['S', 'M', 'L', 'XL'];
@@ -50,7 +52,7 @@ function isPresetRequired(div: DetailDivision | undefined, preset: PresetKey): b
   return div?.regFields.find(f => f.preset === preset)?.required ?? false;
 }
 
-const emptyPlayer = (size: string): PlayerAnswers => ({ name: '', shirtSize: size, nationality: '', club: '' });
+const emptyPlayer = (size: string): PlayerAnswers => ({ name: '', shirtSize: size, skill: '', nationality: '', club: '', userId: null });
 
 /* "Sep 26, 2026" from a stored 'YYYY-MM-DD'. Read in UTC to match how the
    rest of the app renders dates — a browser west of Greenwich would
@@ -127,7 +129,6 @@ export default function TournamentRegister() {
   );
 
   const selectedDiv: DetailDivision | undefined = openDivisions.find(d => d.id === divisionId);
-  const sizes = apparelSizes(selectedDiv);
 
   /* Each division brings its own roster size, so picking one starts the
      roster over rather than carrying rows the new division has no seat for. */
@@ -151,8 +152,12 @@ export default function TournamentRegister() {
 
   const teamName = joinTeamName(players.map(p => p.name));
 
+  /* A preset only blocks the step when the division actually asked for it
+   * — isPresetRequired is false for a question that is not on the form at
+   * all, so an absent preset can never hold the roster hostage. */
   const natRequired = isPresetRequired(selectedDiv, 'nationality');
   const clubRequired = isPresetRequired(selectedDiv, 'hometown');
+  const skillRequired = isPresetRequired(selectedDiv, 'skill');
 
   const canStep1 = !!selectedDiv;
   const canStep2 =
@@ -162,7 +167,8 @@ export default function TournamentRegister() {
     players.every(p =>
       p.name.trim() &&
       (!natRequired || p.nationality.trim()) &&
-      (!clubRequired || p.club.trim()));
+      (!clubRequired || p.club.trim()) &&
+      (!skillRequired || p.skill.trim()));
   const canStep3 = rules && pdpa;
 
   /* The one contact goes onto every player row: the division's base form
@@ -174,6 +180,7 @@ export default function TournamentRegister() {
     setSubmitError(null);
     const natKey = customKey(selectedDiv, 'nationality', 'nationality');
     const clubKey = customKey(selectedDiv, 'hometown', 'hometown');
+    const skillKey = customKey(selectedDiv, 'skill', 'skill');
     try {
       const res = await fetch(`/api/tournaments/${slug}/register`, {
         method: 'POST',
@@ -188,6 +195,7 @@ export default function TournamentRegister() {
             custom: {
               ...(p.nationality.trim() ? { [natKey]: p.nationality.trim() } : {}),
               ...(p.club.trim() ? { [clubKey]: p.club.trim() } : {}),
+              ...(p.skill.trim() ? { [skillKey]: p.skill.trim() } : {}),
             },
           })),
         }),
@@ -273,8 +281,8 @@ export default function TournamentRegister() {
     selectedDiv
       ? `${selectedDiv.label} · ${selectedDiv.registrationFee.toLocaleString()} THB per team`
       : 'Pick a division to continue',
-    'Email, phone and every player name are required',
-    canStep3 ? 'Ready to submit' : 'Tick both agreements to submit',
+    '',
+    '',
     waitlisted
       ? 'You’re on the waitlist — nothing to pay yet'
       : `Confirmation sent${closesOn ? ` · Entries close ${closesOn}` : ''}`,
@@ -409,10 +417,6 @@ export default function TournamentRegister() {
               <div className={styles.panelHead}>
                 <div className={styles.panelHeadText}>
                   <h2 className={styles.stepTitle}>Enter players</h2>
-                  <p className={styles.stepSub}>
-                    {selectedDiv.label} is a {selectedDiv.formatTypeOnSand} division — {players.length} player
-                    {players.length === 1 ? '' : 's'} on the roster. Names are required.
-                  </p>
                 </div>
               </div>
 
@@ -421,7 +425,7 @@ export default function TournamentRegister() {
                 onPlayerChange={updatePlayer}
                 contact={contact}
                 onContactChange={patch => setContact(c => ({ ...c, ...patch }))}
-                sizes={sizes}
+                fields={selectedDiv.regFields}
                 required={{ name: true, contact: true, nationality: natRequired, club: clubRequired }}
                 /* The search panel explains itself when signed out rather
                    than the control disappearing. */
@@ -466,7 +470,7 @@ export default function TournamentRegister() {
                         </span>
                       </div>
                     ))}
-                    <div className={styles.reviewRow}>
+                    <div className={`${styles.reviewRow} ${styles.reviewRowContact}`}>
                       <span className={styles.reviewRowLabel}>Contact</span>
                       <span className={styles.reviewRowValue}>
                         <span className={styles.reviewValue}>{contact.email.trim() || 'No email yet'}</span>
@@ -501,8 +505,6 @@ export default function TournamentRegister() {
                   )}
                 </div>
               </div>
-
-              {selectedDiv.rules && <div className={styles.rulesBlock}>{selectedDiv.rules}</div>}
 
               <div className={styles.consentList}>
                 <label className={styles.consentRow}>
@@ -643,15 +645,10 @@ function Hero({ slug, tournament, stepLabel }: {
        is still where the photo belongs. */
     <div className={`${styles.hero} ${styles.heroFallback}`}>
       <div className={styles.heroOverlay} aria-hidden="true" />
-      <HeroBar />
+      <HeroBar slug={slug} />
 
       <div className={styles.heroContent}>
-        <Link href={`/tournament/${slug}`} className={styles.backPill}>
-          <span className={styles.backPillIcon}>
-            <Icon name="arrowRight" size={16} />
-          </span>
-          Back to event
-        </Link>
+        <BackToEvent slug={slug} className={styles.backPillLead} />
 
         <div className={styles.heroTags}>
           <Badge>Registration open</Badge>
@@ -680,10 +677,29 @@ function Hero({ slug, tournament, stepLabel }: {
   );
 }
 
+/* The way back. Points at the event being registered for, not the
+   events list — the arrow says "back", and losing the return path
+   mid-registration is the worse trade. Rendered twice: narrow screens
+   show the top-bar copy, alongside the wordmark and the account
+   control; wide ones show the copy leading the hero column, where its
+   left edge lines up with the status badge and title. Two elements
+   rather than one moved by CSS, because they sit in different
+   containers. */
+function BackToEvent({ slug, className }: { slug: string; className: string }) {
+  return (
+    <Link href={`/tournament/${slug}`} className={`${styles.backPill} ${className}`}>
+      <span className={styles.backPillIcon}>
+        <Icon name="arrowRight" size={16} />
+      </span>
+      Events
+    </Link>
+  );
+}
+
 /* ── Top bar ──────────────────────────────────────────────────────
    Overlaid on the photo from 768px up and sitting on sand below it —
    the wordmark colour follows via --lb-logo-ink. */
-function HeroBar() {
+function HeroBar({ slug }: { slug: string }) {
   const signInHref = useSignInHref();
   const router = useRouter();
   const { signedIn } = useSession();
@@ -692,20 +708,35 @@ function HeroBar() {
       <Link href="/" className={styles.heroBrand} aria-label="Live Bracket home">
         <Logo variant="lockup" size={30} color="var(--lb-logo-ink)" />
       </Link>
-      {signedIn ? (
-        <AccountButton onNavigate={() => saveScrollPosition()} />
-      ) : (
-        <Button
-          variant="general"
-          size="small"
-          onClick={() => {
-            saveScrollPosition();
-            router.push(signInHref);
-          }}
-        >
-          Log in
-        </Button>
-      )}
+
+      <BackToEvent slug={slug} className={styles.backPillBar} />
+
+      {/* Narrow screens have no room for the full lockup, but going home
+          should not disappear with it — the wordmark alone sits beside
+          the sign-in control, matching the event page's narrow header. A
+          separate element rather than a prop swap because `variant` is
+          not something CSS can switch, and both being in the DOM means
+          no wrong-logo flash on first paint. */}
+      <Link href="/" className={styles.heroBrandWord} aria-label="Live Bracket home">
+        <Logo variant="wordmark" size={25} color="var(--lb-logo-ink)" />
+      </Link>
+
+      <div className={styles.heroNavActions}>
+        {signedIn ? (
+          <AccountButton onNavigate={() => saveScrollPosition()} />
+        ) : (
+          <Button
+            variant="general"
+            size="small"
+            onClick={() => {
+              saveScrollPosition();
+              router.push(signInHref);
+            }}
+          >
+            Log in
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -716,14 +747,9 @@ function Shell({ slug, children }: { slug: string; children: React.ReactNode }) 
     <div className={styles.page}>
       <div className={`${styles.hero} ${styles.heroFallback}`}>
         <div className={styles.heroOverlay} aria-hidden="true" />
-        <HeroBar />
+        <HeroBar slug={slug} />
         <div className={styles.heroContent}>
-          <Link href={`/tournament/${slug}`} className={styles.backPill}>
-            <span className={styles.backPillIcon}>
-              <Icon name="arrowRight" size={16} />
-            </span>
-            Back to event
-          </Link>
+          <BackToEvent slug={slug} className={styles.backPillLead} />
           <h1 className={styles.heroTitle}>Register a team</h1>
         </div>
       </div>

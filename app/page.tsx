@@ -612,7 +612,11 @@ function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide
 
             {/* Footer */}
             <div className={styles.completedFooter}>
-              <Link href={`/tournament/${currentSlide.tournamentId}`} className={styles.completedLink}>
+              <Link
+                href={`/tournament/${currentSlide.tournamentId}`}
+                className={styles.completedLink}
+                onClick={() => saveScrollPosition('/')}
+              >
                 View Standing
               </Link>
             </div>
@@ -671,6 +675,20 @@ export default function LiveBracketHome() {
   const [eventsLoaded, setEventsLoaded] = useState(false);
 
   useRestoreScrollPosition(eventsLoaded);
+
+  useEffect(() => {
+    const handleSave = () => {
+      if (typeof window !== 'undefined' && window.scrollY > 0) {
+        saveScrollPosition('/');
+      }
+    };
+    window.addEventListener('scroll', handleSave, { passive: true });
+    window.addEventListener('pagehide', handleSave);
+    return () => {
+      window.removeEventListener('scroll', handleSave);
+      window.removeEventListener('pagehide', handleSave);
+    };
+  }, []);
 
   const divisionsCount = useMemo(() => {
     const fromEvents = events.reduce((sum, t) => sum + (t.divisions?.length || 0), 0);
@@ -1105,10 +1123,18 @@ export default function LiveBracketHome() {
                     document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                 >
-                  <span className={styles.liveDotRed} />
-                  <span className={styles.nearYouBold}>{matchesNearYouCount} {matchesNearYouCount === 1 ? 'match' : 'matches'} near you</span>
-                  <span className={styles.nearYouSub}>{userLoc}</span>
-                  <ArrowRight size={14} className={styles.nearYouArrow} />
+                  <div className={styles.nearYouContent}>
+                    <div className={styles.nearYouTitleRow}>
+                      <span className={styles.liveDotRed} />
+                      <span className={styles.nearYouBold}>
+                        {matchesNearYouCount} {matchesNearYouCount === 1 ? 'match' : 'matches'} near you
+                      </span>
+                    </div>
+                    <div className={styles.nearYouLocationRow}>
+                      <span className={styles.nearYouSub}>{userLoc}</span>
+                      <ArrowRight size={13} className={styles.nearYouArrow} />
+                    </div>
+                  </div>
                 </button>
 
                 <div className={styles.heroStatsRow}>
@@ -1266,7 +1292,11 @@ export default function LiveBracketHome() {
               <div className={styles.grid}>
                 {filteredActiveUpcoming.map((t) => (
                   <article key={t.id} className={styles.card}>
-                    <Link href={`/tournament/${t.id}`} className={styles.cardLink}>
+                    <Link
+                      href={`/tournament/${t.id}`}
+                      className={styles.cardLink}
+                      onClick={() => saveScrollPosition('/')}
+                    >
                       <div className={styles.cardMedia}>
                         <img src={t.image} alt={t.title} className={styles.cardPoster} />
                       </div>
@@ -1342,6 +1372,7 @@ export default function LiveBracketHome() {
                       <Link
                         href={t.status === 'live' || t.status === 'finished' ? `/tournament/${t.id}` : `/tournament/${t.id}/register`}
                         className={styles.cardRegisterBtn}
+                        onClick={() => saveScrollPosition('/')}
                       >
                         {t.status === 'live' ? 'View Bracket' : t.status === 'finished' ? 'View Standings' : 'Register Team'}
                       </Link>
