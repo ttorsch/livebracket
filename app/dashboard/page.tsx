@@ -16,6 +16,7 @@ import {
   type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
 } from '../../lib/data';
 import { supabase } from '../../lib/supabase';
+import { useSession } from '../../components/auth/AuthProvider';
 import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 import { joinTeamName } from '../../lib/teamName';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
@@ -229,6 +230,10 @@ export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState<'tournament' | 'history' | 'notifications'>('tournament');
   const [tournaments, setTournaments] = useState<DashboardTournament[]>([]);
   const [organizer, setOrganizer] = useState<Organizer | null>(null);
+  /* Resolved on the server in app/layout.tsx and handed down by
+   * AuthProvider — the dashboard used to re-fetch /api/auth/session for
+   * this one id on every mount. */
+  const { organizerId } = useSession();
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -366,20 +371,18 @@ export default function OrganizerDashboard() {
     /* The organizer id has to arrive before the tournaments can be asked
      * for — the listing is scoped to it now, rather than returning every
      * event in the database the way it did under the single demo
-     * organizer. app/dashboard/layout.tsx has already established that
-     * whoever is here is an organizer, so this only fails on a network
-     * error. */
+     * organizer. It comes from the session the root layout already
+     * resolved, so there is no round trip to wait on; and
+     * app/dashboard/layout.tsx has established that whoever is here is an
+     * organizer, so this only fails on a network error. */
     let cancelled = false;
+    if (!organizerId) return;
 
     (async () => {
       try {
-        const session = await fetch('/api/auth/session', { cache: 'no-store' }).then(r => r.json());
-        if (cancelled || !session.organizerId) return;
-
-
         const [org, rows] = await Promise.all([
           fetch('/api/organizer').then(r => r.json()),
-          getDashboardTournaments(session.organizerId),
+          getDashboardTournaments(organizerId),
         ]);
         if (cancelled) return;
         setOrganizer(org);
@@ -390,7 +393,7 @@ export default function OrganizerDashboard() {
     })();
 
     return () => { cancelled = true; };
-  }, []);
+  }, [organizerId]);
 
   const handleLogout = async () => {
     try {

@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { getSessionInfo } from '../lib/auth';
+import { AuthProvider } from '../components/auth/AuthProvider';
 import '../components/livebracket-ds/styles.css';
 import './globals.css';
 
@@ -21,11 +23,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+/* Resolving the session here is what lets every header render its
+ * signed-in state on the first paint instead of flipping a moment after
+ * hydration. The cost is that these pages render dynamically rather than
+ * being served from the static shell — acceptable, since the homepage and
+ * the tournament pages already fetch their own data on the client. */
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSessionInfo();
+
   return (
     <html lang="en">
       <head>
@@ -37,7 +46,7 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning className="livebracket-app">
-        {children}
+        <AuthProvider initialSession={session}>{children}</AuthProvider>
       </body>
     </html>
   );

@@ -161,6 +161,12 @@ function LiveBracketLoginInner() {
       const res = await fetch('/api/auth/session', { cache: 'no-store' });
       const session = await res.json();
 
+      /* A password sign-in never passes through /auth/callback, so this is
+       * where it picks up any team registered anonymously with this
+       * address. Fire-and-forget: the sign-in does not wait on it, and a
+       * failure costs nothing but a later retry. */
+      void fetch('/api/auth/claim', { method: 'POST' }).catch(() => {});
+
       if (!session.signedIn) {
         setErrorMsg('Signed in, but the session could not be established. Try again.');
         setLoading(false);

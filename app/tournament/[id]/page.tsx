@@ -13,6 +13,8 @@ import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../li
 import { registrationState, nextOpening, isPublic, type Phase } from '../../../lib/tournamentLifecycle';
 import { ageLimitLabel } from '../../../lib/divisionEligibility';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../components/auth/useSignInHref';
+import { useSession } from '../../../components/auth/AuthProvider';
+import AccountButton from '../../../components/auth/AccountButton';
 
 // Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
@@ -849,6 +851,7 @@ export default function TournamentPage() {
 
 function SiteHeader({ onSignInClick }: { onSignInClick?: () => void }) {
   const signInHref = useSignInHref();
+  const { signedIn } = useSession();
   return (
     <header className={styles.siteHeader}>
       <div className={styles.siteHeaderInner}>
@@ -870,19 +873,31 @@ function SiteHeader({ onSignInClick }: { onSignInClick?: () => void }) {
         </Link>
 
         <nav className={styles.headerNav}>
-          <Link
-            href={signInHref}
-            onClick={() => {
-              if (onSignInClick) {
-                onSignInClick();
-              } else {
-                saveScrollPosition();
-              }
-            }}
-            className={styles.btnGeneral}
-          >
-            Log in
-          </Link>
+          {signedIn ? (
+            <AccountButton
+              onNavigate={() => {
+                if (onSignInClick) {
+                  onSignInClick();
+                } else {
+                  saveScrollPosition();
+                }
+              }}
+            />
+          ) : (
+            <Link
+              href={signInHref}
+              onClick={() => {
+                if (onSignInClick) {
+                  onSignInClick();
+                } else {
+                  saveScrollPosition();
+                }
+              }}
+              className={styles.btnGeneral}
+            >
+              Log in
+            </Link>
+          )}
         </nav>
       </div>
     </header>

@@ -2,6 +2,7 @@ import 'server-only';
 import { type User } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from './supabaseServer';
 import { supabaseAdmin } from './supabaseAdmin';
+import { type Role, type SessionInfo, SIGNED_OUT } from './session';
 
 export interface Organizer {
   id: string;
@@ -9,14 +10,19 @@ export interface Organizer {
   email: string;
   name: string;
   club: string | null;
+  hometown: string | null;
+  avatar_url: string | null;
 }
 
 /* Roles are additive, not exclusive. Every account is a player — that is
  * the baseline of having signed up at all. An `organizers` row adds the
  * organizer capability on top; it never replaces the player one. So the
  * answer to "what is this account" is a set, and the login tabs choose a
- * destination rather than an identity. */
-export type Role = 'player' | 'organizer';
+ * destination rather than an identity.
+ *
+ * The type itself lives in lib/session.ts: this module is server-only, and
+ * client components need to name a Role too. */
+export type { Role };
 
 export function rolesFor(organizer: Organizer | null): Role[] {
   return organizer ? ['player', 'organizer'] : ['player'];
@@ -33,17 +39,14 @@ export async function getCurrentUser(): Promise<User | null> {
   return data.user ?? null;
 }
 
-/* The organizer row owned by this auth user, or null if they are a player.
- *
- * This — not user_metadata — is what "is an organizer" means. Metadata is
- * writable by the browser holding the session (supabase.auth.updateUser),
- * so anything that reads a role out of it is reading a claim the user made
- * about themselves. A row in `organizers` is written only by the service
- * role, from this module. */
+/* Find the organizer row belonging to this auth user, if they have one.
+ * Uses the service role client so the lookup is not bound to RLS —
+ * critical during the provisionOrganizer step where the user is signed in
+ * but does not yet own the row they are about to link. */
 export async function getOrganizerForUser(userId: string): Promise<Organizer | null> {
   const { data, error } = await supabaseAdmin
     .from('organizers')
-    .select('id, auth_user_id, email, name, club')
+    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
     .eq('auth_user_id', userId)
     .maybeSingle();
 
@@ -62,6 +65,55 @@ export async function getCurrentRoles(): Promise<Role[]> {
   const user = await getCurrentUser();
   if (!user) return [];
   return rolesFor(await getOrganizerForUser(user.id));
+}
+
+/* The whole session in the shape the UI wants it, resolved on the server.
+ *
+ * The single source for both the root layout (which seeds AuthProvider, so
+ * the header renders signed-in on the first paint rather than flipping) and
+ * GET /api/auth/session (which the client uses to re-read after signing in
+ * or out). Two callers, one answer.
+ *
+ * Never throws. A missing or misconfigured Supabase returns "signed out"
+ * the same way middleware.ts fails open — a broken env var should not take
+ * the public pages down with it. */
+export async function getSessionInfo(): Promise<SessionInfo> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return SIGNED_OUT;
+
+    const organizer = await getOrganizerForUser(user.id);
+
+    return {
+      signedIn: true,
+      roles: rolesFor(organizer),
+      userId: user.id,
+      organizerId: organizer?.id ?? null,
+      email: user.email ?? null,
+      name:
+        organizer?.name ??
+        (user.user_metadata?.full_name as string | undefined) ??
+        (user.user_metadata?.name as string | undefined) ??
+        null,
+      club:
+        organizer?.club ??
+        (user.user_metadata?.club as string | undefined) ??
+        null,
+      hometown:
+        organizer?.hometown ??
+        (user.user_metadata?.hometown as string | undefined) ??
+        (user.user_metadata?.location as string | undefined) ??
+        null,
+      avatarUrl:
+        organizer?.avatar_url ??
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null,
+    };
+  } catch (err) {
+    console.error('Failed to resolve session:', err);
+    return SIGNED_OUT;
+  }
 }
 
 /* The one place an organizers row is ever created. Idempotent, and safe to
@@ -89,7 +141,7 @@ async function provisionOrganizer(
 
   const { data: byEmail } = await supabaseAdmin
     .from('organizers')
-    .select('id, auth_user_id, email, name, club')
+    .select('id, auth_user_id, email, name, club, avatar_url')
     .eq('email', email)
     .maybeSingle();
 
@@ -104,7 +156,7 @@ async function provisionOrganizer(
       .from('organizers')
       .update({ auth_user_id: user.id, ...(opts.club?.trim() ? { club: opts.club.trim() } : {}) })
       .eq('id', row.id)
-      .select('id, auth_user_id, email, name, club')
+      .select('id, auth_user_id, email, name, club, avatar_url')
       .single();
     if (adoptError) throw new Error(`Failed to link organizer: ${adoptError.message}`);
     return adopted as Organizer;
@@ -113,7 +165,7 @@ async function provisionOrganizer(
   const { data, error } = await supabaseAdmin
     .from('organizers')
     .insert({ auth_user_id: user.id, email, name, club })
-    .select('id, auth_user_id, email, name, club')
+    .select('id, auth_user_id, email, name, club, avatar_url')
     .single();
 
   if (error) {
@@ -187,4 +239,68 @@ export async function requireTournamentOwner(
     throw new AuthError('You do not own this tournament', 403);
   }
   return { organizer, tournamentId: data.id as string };
+}
+
+/* ── Claiming anonymous registrations ─────────────────────────────
+ *
+ * Registration does not require an account, so a team's row may carry no
+ * `registered_by` at all. This links those rows to an account afterwards,
+ * matching the account's own address against the contact email the team
+ * gave on the registration form.
+ *
+ * Three rules keep that from attaching a team to the wrong person:
+ *
+ *  1. It runs only in an authenticated context, and only ever matches the
+ *     caller's own address. There is no lookup in the other direction —
+ *     nothing resolves an arbitrary email to an account — so an anonymous
+ *     form submission can never bind itself to someone else's login.
+ *  2. The address must be confirmed. An unverified sign-up could otherwise
+ *     type a stranger's email and inherit their registrations.
+ *  3. Only unowned rows move. A team already claimed is never reassigned,
+ *     so the first (verified) claimant keeps it and a later one silently
+ *     gets nothing rather than stealing it.
+ *
+ * What it does not defend against is a shared address — a captain who
+ * enters their own email for a whole team, or a couple using one inbox,
+ * ends up owning every team registered with it. That is the accepted
+ * trade of matching on email: for the common case it is exactly right,
+ * and the fix for the rest is for the team to register signed in.
+ *
+ * Best-effort by design: a failure here is a profile listing that is
+ * missing a row, never a blocked sign-in. Callers do not await a result. */
+export async function claimTeamsForUser(user: User): Promise<number> {
+  const email = user.email?.trim().toLowerCase();
+  if (!email) return 0;
+
+  /* Rule 2. `email_confirmed_at` covers the password flow; an OAuth account
+   * arrives with the provider's verification already recorded. */
+  if (!user.email_confirmed_at && !user.confirmed_at) return 0;
+
+  const { data: playerRows, error: playerError } = await supabaseAdmin
+    .from('players')
+    .select('team_id, email')
+    .ilike('email', email);
+  if (playerError) throw new Error(`Failed to match registrations: ${playerError.message}`);
+
+  /* ilike has no wildcards here so it is a plain case-insensitive equality,
+   * but the address is re-checked rather than trusted: a stray % or _ in an
+   * email would otherwise turn the filter into a pattern. */
+  const teamIds = [
+    ...new Set(
+      (playerRows ?? [])
+        .filter((r) => (r.email as string | null)?.trim().toLowerCase() === email)
+        .map((r) => r.team_id as string)
+    ),
+  ];
+  if (teamIds.length === 0) return 0;
+
+  const { data: claimed, error: claimError } = await supabaseAdmin
+    .from('teams')
+    .update({ registered_by: user.id })
+    .in('id', teamIds)
+    .is('registered_by', null) // Rule 3.
+    .select('id');
+  if (claimError) throw new Error(`Failed to claim registrations: ${claimError.message}`);
+
+  return claimed?.length ?? 0;
 }

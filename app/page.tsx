@@ -26,6 +26,8 @@ import {
   type HomepageStats,
 } from '@/lib/data';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '@/components/auth/useSignInHref';
+import { useSession } from '@/components/auth/AuthProvider';
+import AccountButton from '@/components/auth/AccountButton';
 
 type Status = 'live' | 'upcoming' | 'finished';
 
@@ -638,6 +640,11 @@ export default function LiveBracketHome() {
   // "Sign in" returns the visitor to this page, not to /profile.
   const signInHref = useSignInHref('player');
   const createHref = useSignInHref('organizer');
+  /* Signed in, both of those controls are answers to a question already
+   * settled — and "Sign In" was worse than useless: middleware bounced it
+   * straight back here, so the page reloaded and still said Sign In. They
+   * give way to the account button. */
+  const { signedIn } = useSession();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [query, setQuery] = useState('');
@@ -959,20 +966,26 @@ export default function LiveBracketHome() {
 
           {/* Right Action Buttons */}
           <div className={styles.navRightActions}>
-            <Link
-              href={signInHref}
-              onClick={() => saveScrollPosition()}
-              className={styles.navSignInLink}
-            >
-              Sign In
-            </Link>
-            <Link
-              href={createHref}
-              onClick={() => saveScrollPosition()}
-              className={styles.navCreateBtn}
-            >
-              Create a tournament
-            </Link>
+            {signedIn ? (
+              <AccountButton onNavigate={() => saveScrollPosition()} />
+            ) : (
+              <>
+                <Link
+                  href={signInHref}
+                  onClick={() => saveScrollPosition()}
+                  className={styles.navSignInLink}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href={createHref}
+                  onClick={() => saveScrollPosition()}
+                  className={styles.navCreateBtn}
+                >
+                  Create a tournament
+                </Link>
+              </>
+            )}
 
             {/* Mobile Search Button */}
             <button 
@@ -1021,26 +1034,41 @@ export default function LiveBracketHome() {
         {/* Mobile Menu Dropdown */}
         {menuOpen && (
           <div className={styles.mobileMenuDropdown}>
-            <Link 
-              href={signInHref} 
-              className={styles.mobileNavSignInLink}
-              onClick={() => {
-                saveScrollPosition();
-                setMenuOpen(false);
-              }}
-            >
-              Sign In
-            </Link>
-            <Link 
-              href={createHref} 
-              className={styles.mobileNavCreateBtn}
-              onClick={() => {
-                saveScrollPosition();
-                setMenuOpen(false);
-              }}
-            >
-              Create a tournament
-            </Link>
+            {signedIn ? (
+              <Link
+                href="/profile"
+                className={styles.mobileNavSignInLink}
+                onClick={() => {
+                  saveScrollPosition();
+                  setMenuOpen(false);
+                }}
+              >
+                My profile
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={signInHref}
+                  className={styles.mobileNavSignInLink}
+                  onClick={() => {
+                    saveScrollPosition();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href={createHref}
+                  className={styles.mobileNavCreateBtn}
+                  onClick={() => {
+                    saveScrollPosition();
+                    setMenuOpen(false);
+                  }}
+                >
+                  Create a tournament
+                </Link>
+              </>
+            )}
           </div>
         )}
       </header>

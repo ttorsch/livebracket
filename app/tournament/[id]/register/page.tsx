@@ -11,6 +11,8 @@ import { joinTeamName } from '../../../../lib/teamName';
 import type { PresetKey } from '../../../../lib/registrationFields';
 import { divisionRegistrationState } from '../../../../lib/tournamentLifecycle';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../../components/auth/useSignInHref';
+import { useSession } from '../../../../components/auth/AuthProvider';
+import AccountButton from '../../../../components/auth/AccountButton';
 
 const STEPS = ['Division', 'Players', 'Review'];
 const DONE = STEPS.length; // the confirmation panel sits one past the last step
@@ -81,12 +83,25 @@ export default function TournamentRegister() {
   const [step, setStep] = useState(0);
   const [divisionId, setDivisionId] = useState('');
   const [contact, setContact] = useState({ email: '', phone: '' });
+  /* Signed in, the form already knows who is filling it in. The API reads
+   * the session itself and links the team there — this only saves the
+   * typing, so it stays an ordinary editable default: someone registering
+   * a team on a friend's behalf can overwrite it. */
+  const session = useSession();
   const [players, setPlayers] = useState<PlayerAnswers[]>([]);
   const [rules, setRules] = useState(false);
   const [pdpa, setPdpa] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<SubmitResult | null>(null);
+
+  /* Only fills a field the visitor has not touched, and only once their
+   * session is known — a late-arriving session must never overwrite an
+   * address they already typed. */
+  useEffect(() => {
+    if (!session.email) return;
+    setContact(c => (c.email ? c : { ...c, email: session.email! }));
+  }, [session.email]);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +129,13 @@ export default function TournamentRegister() {
     const size = apparelSizes(div);
     const initial = size.includes('M') ? 'M' : size[0];
     setDivisionId(div.id);
-    setPlayers(Array.from({ length: div.rosterSize }, () => emptyPlayer(initial)));
+    setPlayers(
+      Array.from({ length: div.rosterSize }, (_, i) => {
+        const player = emptyPlayer(initial);
+        // Player 1 is whoever is filling the form in, when we know them.
+        return i === 0 && session.name ? { ...player, name: session.name } : player;
+      }),
+    );
   };
 
   const updatePlayer = (i: number, patch: Partial<PlayerAnswers>) => {
@@ -734,21 +755,26 @@ function Hero({ slug, tournament, stepLabel }: {
 function HeroBar() {
   const signInHref = useSignInHref();
   const router = useRouter();
+  const { signedIn } = useSession();
   return (
     <div className={styles.heroBar}>
       <Link href="/" className={styles.heroBrand} aria-label="Live Bracket home">
         <Logo variant="lockup" size={30} color="var(--lb-logo-ink)" />
       </Link>
-      <Button
-        variant="general"
-        size="small"
-        onClick={() => {
-          saveScrollPosition();
-          router.push(signInHref);
-        }}
-      >
-        Log in
-      </Button>
+      {signedIn ? (
+        <AccountButton onNavigate={() => saveScrollPosition()} />
+      ) : (
+        <Button
+          variant="general"
+          size="small"
+          onClick={() => {
+            saveScrollPosition();
+            router.push(signInHref);
+          }}
+        >
+          Log in
+        </Button>
+      )}
     </div>
   );
 }

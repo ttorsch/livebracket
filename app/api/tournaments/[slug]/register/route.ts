@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
+import { getCurrentUser } from '../../../../../lib/auth';
 import { joinTeamName } from '../../../../../lib/teamName';
 import { normalizeRegFields, rosterSize, targetFor, FORMAT_PLAYERS } from '../../../../../lib/registrationFields';
 import { divisionRegistrationState, PHASE } from '../../../../../lib/tournamentLifecycle';
@@ -16,6 +17,13 @@ import { divisionRegistrationState, PHASE } from '../../../../../lib/tournamentL
  * Every rule the form enforces is enforced again here. The form is a
  * client component and can be bypassed; the cap, the registration
  * window and the division's own required fields cannot be.
+ *
+ * Signing in is not required. When there is a session the team is linked
+ * to it (`registered_by`) so it shows up on that player's profile; when
+ * there is not, the row is simply unowned and can be claimed later by
+ * matching the contact email — see claimTeamsForUser in lib/auth.ts.
+ * Nothing about what gets written depends on being signed in, so the
+ * anonymous path stays exactly as open as it was.
  */
 
 interface PlayerBody {
@@ -121,9 +129,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const names = playersIn.map(p => (p.name ?? '').trim());
+
+  /* Read from the session, never from the body: an owner the client could
+   * name is an owner the client could forge onto someone else's account. */
+  const user = await getCurrentUser().catch(() => null);
+
   const { data: team, error: teamError } = await supabaseAdmin
     .from('teams')
-    .insert({ division_id: division.id, name: joinTeamName(names), status, payment_cleared: false })
+    .insert({
+      division_id: division.id,
+      name: joinTeamName(names),
+      status,
+      payment_cleared: false,
+      registered_by: user?.id ?? null,
+    })
     .select('id')
     .single();
   if (teamError) return bad(teamError.message, 500);
