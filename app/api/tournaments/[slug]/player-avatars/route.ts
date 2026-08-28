@@ -11,7 +11,7 @@ export async function GET(
   }
 
   try {
-    // 1. Get tournament and its divisions & teams
+    // 1. Get tournament and its divisions, teams, and players with user_id
     const { data: tournament, error: tError } = await supabaseAdmin
       .from('tournaments')
       .select(`
@@ -20,9 +20,8 @@ export async function GET(
           id,
           teams (
             id,
-            name,
             registered_by,
-            players ( id, name, email )
+            players ( id, user_id )
           )
         )
       `)
@@ -35,58 +34,57 @@ export async function GET(
 
     const avatars: Record<string, string> = {};
     const userIds = new Set<string>();
-    const playerNames = new Set<string>();
 
     for (const division of tournament.divisions || []) {
       for (const team of (division as any).teams || []) {
         if (team.registered_by) {
           userIds.add(team.registered_by);
         }
-        // Add names from team.name and players
-        const teamParts = (team.name || '').split('/').map((s: string) => s.trim()).filter(Boolean);
-        for (const p of teamParts) playerNames.add(p.toLowerCase());
-
         for (const player of team.players || []) {
-          if (player.name) playerNames.add(player.name.trim().toLowerCase());
-        }
-      }
-    }
-
-    // 2. Resolve avatars from organizers table
-    const { data: organizers } = await supabaseAdmin
-      .from('organizers')
-      .select('auth_user_id, name, avatar_url')
-      .not('avatar_url', 'is', null);
-
-    if (organizers) {
-      for (const org of organizers) {
-        if (!org.avatar_url) continue;
-        if (org.auth_user_id) avatars[org.auth_user_id] = org.avatar_url;
-        if (org.name) avatars[org.name.trim().toLowerCase()] = org.avatar_url;
-      }
-    }
-
-    // 3. Resolve avatars from auth.users metadata
-    try {
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 500 });
-      if (usersData?.users) {
-        for (const u of usersData.users) {
-          const avatarUrl =
-            (u.user_metadata?.avatar_url as string | undefined) ??
-            (u.user_metadata?.picture as string | undefined) ??
-            null;
-
-          if (avatarUrl) {
-            avatars[u.id] = avatarUrl;
-            const name =
-              (u.user_metadata?.full_name as string | undefined) ??
-              (u.user_metadata?.name as string | undefined);
-            if (name) avatars[name.trim().toLowerCase()] = avatarUrl;
+          if (player.user_id) {
+            userIds.add(player.user_id);
           }
         }
       }
-    } catch {
-      // Ignore if listUsers is not permitted
+    }
+
+    if (userIds.size === 0) {
+      return NextResponse.json({ avatars: {} });
+    }
+
+    // 2. Resolve avatars from profiles table strictly by user_id
+    const { data: profiles } = await supabaseAdmin
+      .from('profiles')
+      .select('id, player_id, avatar_url')
+      .in('id', Array.from(userIds))
+      .not('avatar_url', 'is', null);
+
+    if (profiles) {
+      for (const p of profiles) {
+        if (p.avatar_url) {
+          avatars[p.id] = p.avatar_url;
+          if (p.player_id) avatars[p.player_id] = p.avatar_url;
+        }
+      }
+    }
+
+    // 3. Fallback to auth.users user_metadata for missing user IDs
+    const missingIds = Array.from(userIds).filter(id => !avatars[id]);
+    for (const uId of missingIds) {
+      try {
+        const { data: uData } = await supabaseAdmin.auth.admin.getUserById(uId);
+        if (uData?.user) {
+          const avatarUrl =
+            (uData.user.user_metadata?.avatar_url as string | undefined) ??
+            (uData.user.user_metadata?.picture as string | undefined) ??
+            null;
+          if (avatarUrl) {
+            avatars[uId] = avatarUrl;
+          }
+        }
+      } catch {
+        // Ignore single user lookup failure
+      }
     }
 
     return NextResponse.json({ avatars });

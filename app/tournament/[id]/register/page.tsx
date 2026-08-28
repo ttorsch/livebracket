@@ -140,7 +140,9 @@ export default function TournamentRegister() {
       Array.from({ length: div.rosterSize }, (_, i) => {
         const player = emptyPlayer(initial);
         // Player 1 is whoever is filling the form in, when we know them.
-        return i === 0 && session.name ? { ...player, name: session.name } : player;
+        return i === 0 && session.signedIn
+          ? { ...player, name: session.name || '', userId: session.userId }
+          : player;
       }),
     );
   };
@@ -187,8 +189,9 @@ export default function TournamentRegister() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           divisionId: selectedDiv.id,
-          players: players.map(p => ({
+          players: players.map((p, idx) => ({
             name: p.name.trim(),
+            userId: p.userId ?? (idx === 0 && session.signedIn ? session.userId : null),
             email: contact.email.trim(),
             phone: contact.phone.trim(),
             shirtSize: p.shirtSize,

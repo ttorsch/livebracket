@@ -2,7 +2,7 @@ import * as React from "react";
 
 export interface BadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "style"> {
   /** @default "live" */
-  variant?: "live" | "highlight" | "status" | "outline";
+  variant?: "live" | "open" | "highlight" | "status" | "outline";
   children?: React.ReactNode;
   style?: React.CSSProperties;
 }

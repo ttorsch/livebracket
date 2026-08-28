@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Trophy, Unlock, Users, X } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Trophy, Unlock, Users, X, ImagePlus } from 'lucide-react';
 import styles from './page.module.css';
-import { Button } from '../../../../components/livebracket-ds';
+import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
 import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
+import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../../../lib/tournamentLifecycle';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
 
@@ -235,14 +236,8 @@ export default function OrganizerBracketPage() {
   const [loading, setLoading] = useState(true);
 
   const [activeDiv, setActiveDiv] = useState<string>('');
-  const [teamsOpen, setTeamsOpen] = useState(true);
-  const [poolPlayOpen, setPoolPlayOpen] = useState(true);
-  const [drawConfigOpen, setDrawConfigOpen] = useState(true);
-  const [poolResultsOpen, setPoolResultsOpen] = useState(true);
-  const [standingsOpen, setStandingsOpen] = useState(true);
-  const [round2Open, setRound2Open] = useState(true);
-  const [bracketConfigOpen, setBracketConfigOpen] = useState(true);
-  const [bracketOpen, setBracketOpen] = useState(true);
+  const [round1Tab, setRound1Tab] = useState<'config' | 'result' | 'standings'>('config');
+  const [round2Tab, setRound2Tab] = useState<'config' | 'bracket'>('bracket');
   const [seedsByDiv, setSeedsByDiv] = useState<Record<string, SeedTeam[]>>({});
   const [configByDiv, setConfigByDiv] = useState<Record<string, DrawSettings>>({});
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
@@ -275,6 +270,31 @@ export default function OrganizerBracketPage() {
   const [backHidden, setBackHidden] = useState(false);
   const lastScrollY = useRef(0);
   const drawResultRef = useRef<HTMLDivElement | null>(null);
+
+  const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/tournaments/${slug}/player-avatars`)
+      .then(res => res.json())
+      .then(data => {
+        if (!cancelled && data?.avatars) {
+          setPlayerAvatars(data.avatars);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      setBackHidden(y > 80 && y > lastScrollY.current);
+      lastScrollY.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const load = useCallback(async (preferDiv?: string) => {
     const data = await getTournamentDetail(slug);
@@ -328,16 +348,6 @@ export default function OrganizerBracketPage() {
     load().finally(() => setLoading(false));
   }, [load]);
 
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      setBackHidden(y > 80 && y > lastScrollY.current);
-      lastScrollY.current = y;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   const division = useMemo(() => {
     if (!detail) return null;
     return detail.divisions.find(d => d.id === activeDiv) ?? detail.divisions[0] ?? null;
@@ -356,7 +366,7 @@ export default function OrganizerBracketPage() {
     const nextLocked = !isDrawLocked;
     setLockedByDiv(prev => ({ ...prev, [activeDiv]: nextLocked }));
     if (nextLocked) {
-      setDrawConfigOpen(false);
+      setRound1Tab('result');
     }
     try {
       await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
@@ -653,24 +663,42 @@ export default function OrganizerBracketPage() {
   }
 
   const totalTeams = detail.divisions.reduce((sum, d) => sum + d.filled, 0);
+  const totalCap = detail.divisions.reduce((sum, d) => sum + d.teams, 0);
   const isLive = detail.date === 'Today';
-  const heroImage = FALLBACK_HERO;
 
-  // Master toggle for Round 1: showing opens every sub-section too, so the
-  // chevron always means "show all / hide all" regardless of sub-toggle state.
-  const togglePoolPlayAll = () => {
-    const next = !poolPlayOpen;
-    setPoolPlayOpen(next);
-    setDrawConfigOpen(next);
-    setPoolResultsOpen(next);
+  const computeSingleStatus = (): { label: string; variant: 'live' | 'open' | 'highlight' | 'status' | 'outline' } => {
+    if (!detail || detail.phase === PHASE.draft || !isPublic(detail.phase as Phase)) {
+      return { label: 'Draft', variant: 'status' };
+    }
+    if (detail.phase === 3 || isLive) {
+      return { label: 'Live', variant: 'live' };
+    }
+    if (detail.phase === 4) {
+      return { label: 'Completed', variant: 'status' };
+    }
+    if (!division) {
+      return { label: 'Announced', variant: 'highlight' };
+    }
+    const regState = divisionRegistrationState(
+      {
+        registrationOpens: division.registrationOpens || '',
+        registrationCloses: division.registrationCloses || '',
+      },
+      new Date(),
+    );
+    if (regState === 'opens-soon') {
+      return { label: 'Announced', variant: 'highlight' };
+    }
+    if (regState === 'closed') {
+      return { label: 'Registration Closed', variant: 'status' };
+    }
+    if (division.teams > 0 && division.filled >= division.teams) {
+      return { label: 'Waitlist Open', variant: 'highlight' };
+    }
+    return { label: 'Registration Open', variant: 'open' };
   };
 
-  const toggleBracketAll = () => {
-    const next = !round2Open;
-    setRound2Open(next);
-    setBracketConfigOpen(next);
-    setBracketOpen(next);
-  };
+  const statusBadge = computeSingleStatus();
 
   const setConfig = (patch: Partial<DrawSettings>) => {
     setConfigByDiv({ ...configByDiv, [activeDiv]: { ...config, ...patch } });
@@ -738,8 +766,8 @@ export default function OrganizerBracketPage() {
       await load(division.id);
       setAnimDiv(division.id);
       setDrawTick(t => t + 1);
-      setPoolResultsOpen(true);
-      setBracketOpen(true);
+      setRound1Tab('result');
+      setRound2Tab('bracket');
       setTimeout(() => {
         drawResultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
@@ -774,7 +802,7 @@ export default function OrganizerBracketPage() {
         throw new Error(body?.error ?? `Apply failed (${res.status})`);
       }
       await load(division.id);
-      setBracketOpen(true);
+      setRound2Tab('bracket');
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : 'Failed to apply the crossing config');
     } finally {
@@ -811,88 +839,170 @@ export default function OrganizerBracketPage() {
         <ArrowLeft size={18} />
       </Link>
 
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className={styles.hero}>
-        <div className={styles.heroInner}>
-          <div className={styles.heroContent}>
-            {isLive && (
-              <div className={styles.heroTopRow}>
-                <span className={styles.livePill}>
-                  <span className={styles.livePillDot} aria-hidden="true" />
-                  Live Now
-                </span>
+      {/* ── Top Header & Tournament Header Card ──────────────────── */}
+      <div className={styles.headerContainer}>
+        {/* Mobile View (Header & Event Card) */}
+        <div className={styles.mobileOnly}>
+          <div className={styles.headerArea}>
+            <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
+              <ArrowLeft size={18} />
+            </Link>
+            <h1 className={styles.title}>Bracket Generator</h1>
+          </div>
+          <div className={styles.mobileEventCard}>
+            <div className={styles.mobileEventBody}>
+              <div className={styles.mobileEventTitle}>{detail.title || 'Untitled tournament'}</div>
+              <div className={styles.mobileEventMeta}>
+                <Calendar size={13} />
+                <span>{detail.date}</span>
               </div>
-            )}
-            <h1 className={styles.heroTitle}>{detail.title}</h1>
-            <div className={styles.heroMeta}>
-              <span className={styles.heroMetaPill}><Calendar size={15} /> {detail.date}</span>
-              <span className={styles.heroMetaPill}><MapPin size={15} /> {detail.location}</span>
-              <span className={styles.heroMetaPill}>
-                <Users size={15} /> {detail.divisions.length} Division{detail.divisions.length === 1 ? '' : 's'} · {totalTeams} Teams
-              </span>
+              {detail.location && (
+                <div className={styles.mobileEventMeta}>
+                  <MapPin size={13} />
+                  <span>{detail.location}</span>
+                </div>
+              )}
+              <div style={{ marginTop: 6 }}>
+                <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+              </div>
             </div>
-            {detail.description && <p className={styles.heroDesc}>{detail.description}</p>}
           </div>
         </div>
-      </section>
 
-      {/* ── Sticky division bar ──────────────────────────────── */}
-      <div className={styles.stickyBar}>
-        <div className={styles.stickyInner}>
-          <div className={styles.divisionsGroup}>
-            <span className={styles.divisionsLabel}>
-              <Trophy size={20} />
-              <span>Divisions</span>
-            </span>
-            <div className={styles.segmented}>
+        {/* Desktop View (Header, Card, Division Cards) */}
+        <div className={styles.desktopOnly}>
+          <div className={styles.setupHeaderRow}>
+            <div>
+              <p className={styles.setupEyebrow}>ORGANIZER</p>
+              <h1 className={styles.desktop2aTitle}>Bracket Generator</h1>
+            </div>
+          </div>
+
+          <Card padding={0} radius="xl" className={styles.desktop2aHeaderCard}>
+            <div className={styles.desktop2aHeaderCardBody}>
+              {detail.imageUrl ? (
+                <img src={detail.imageUrl} alt="" className={styles.desktop2aPoster} />
+              ) : (
+                <div className={styles.desktop2aPosterPlaceholder}>
+                  <ImagePlus size={28} opacity={0.6} />
+                </div>
+              )}
+
+              <div className={styles.desktop2aHeaderTextCol}>
+                <div className={styles.desktop2aBadgeRow}>
+                  <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                </div>
+
+                <h2 className={styles.desktop2aEventTitle}>{detail.title || 'Untitled tournament'}</h2>
+
+                <div className={styles.desktop2aMetaCol}>
+                  <div className={styles.desktop2aMetaItem}>
+                    <Icon name="calendar" size={16} />
+                    <span>{detail.date}</span>
+                  </div>
+                  {detail.location && (
+                    <div className={styles.desktop2aMetaItem}>
+                      <Icon name="location" size={16} />
+                      <span>{detail.location}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {totalCap > 0 && (
+                <div className={styles.headerSeats}>
+                  <p className={styles.headerSeatsValue}>{totalTeams}/{totalCap}</p>
+                  <p className={styles.headerSeatsLabel}>
+                    seats filled across {detail.divisions.length} division{detail.divisions.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── Sticky Division Bar (Desktop & Mobile) ──────────────────── */}
+      {detail.divisions.length > 0 && (
+        <div className={styles.stickyDivisionBar}>
+          <div className={styles.stickyDivisionInner}>
+            <div className={styles.segmentedControl}>
               {detail.divisions.map(d => (
                 <button
                   key={d.id}
                   type="button"
                   className={`${styles.segBtn} ${d.id === activeDiv ? styles.segBtnActive : ''}`}
                   onClick={() => { setActiveDiv(d.id); setPendingSeed(null); setSaveError(null); }}
+                  aria-pressed={d.id === activeDiv}
                 >
                   {d.label}
                 </button>
               ))}
             </div>
-          </div>
-          <div className={styles.stickyActions}>
             <Link
               href={`/dashboard/tournament/${detail.slug}/schedule`}
-              className={`${styles.teamsCountPill} ${styles.scheduleLink}`}
+              className={styles.scheduleLinkBtn}
               style={{ textDecoration: 'none' }}
+              aria-label="Schedule"
             >
-              <Calendar size={15} /> Schedule
+              <Calendar size={16} />
+              <span className={styles.scheduleBtnText}>Schedule</span>
             </Link>
           </div>
         </div>
-      </div>
+      )}
 
       <main className={styles.main}>
         {/* ── Registered teams ───────────────────────────────── */}
         <section className={styles.section}>
-          <div className={styles.sectionHead} onClick={() => setTeamsOpen(v => !v)}>
-            <div>
-              <h2 className={styles.sectionTitle}>Registered Teams</h2>
-              <p className={styles.sectionSub}>
-                {division?.label ?? 'Division'} · {confirmedTeams.length} teams confirmed
-              </p>
+          <div className={styles.sectionHead}>
+            <div className={styles.sectionTitleRow}>
+              <div className={styles.iconHeader}>
+                <Users size={22} />
+              </div>
+              <div>
+                <h2 className={styles.sectionTitle}>Registered Teams</h2>
+                <p className={styles.sectionSub}>
+                  {division?.label ?? 'Division'} · {confirmedTeams.length} teams confirmed
+                </p>
+              </div>
             </div>
-            <button type="button" className={`${styles.toggleBtn} ${styles.toggleBtnIcon}`} aria-label="Toggle teams">
-              <span className={`${styles.chevron} ${teamsOpen ? styles.chevronOpen : ''}`}>
-                <ChevronDown size={18} />
-              </span>
-            </button>
           </div>
-          <div className={`${styles.teamsWrap} ${teamsOpen ? styles.teamsWrapOpen : styles.teamsWrapClosed}`}>
+          <div className={styles.teamsWrap}>
             {confirmedTeams.length > 0 ? (
               <div className={styles.teamsGrid}>
-                {confirmedTeams.map(team => (
-                  <div key={team.id} className={styles.teamCard}>
-                    <span className={styles.teamName}>{team.name}</span>
-                  </div>
-                ))}
+                {confirmedTeams.map(team => {
+                  const parsedNames = parseTeamPlayers(team.name);
+                  const playerItems = (team as any).players && (team as any).players.length > 0
+                    ? (team as any).players
+                    : parsedNames.map((n, idx) => ({
+                        id: `${team.id}-${idx}`,
+                        name: n,
+                        userId: null,
+                      }));
+
+                  return (
+                    <div
+                      key={team.id}
+                      className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardMuted : ''}`}
+                    >
+                      <div className={styles.teamCardHeader}>
+                        <div className={styles.teamPlayersList}>
+                          {playerItems.map((player: { id: string; name: string; userId?: string | null }, idx: number) => {
+                            const avatarKey = player.userId || (idx === 0 && team.registeredBy ? team.registeredBy : undefined);
+                            const avatarUrl = avatarKey ? playerAvatars[avatarKey] : undefined;
+                            return (
+                              <div key={player.id || idx} className={styles.teamPlayerRow}>
+                                <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
+                                <span className={styles.teamPlayerName}>{player.name}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className={styles.emptyNote}>No teams registered in this division yet.</div>
@@ -903,74 +1013,55 @@ export default function OrganizerBracketPage() {
         {/* ── Round 1: pool play ─────────────────────────────── */}
         {hasRoundRobin && (
           <section className={styles.section}>
-            <div className={styles.sectionHead} onClick={togglePoolPlayAll}>
-              <div>
-                <h2 className={styles.sectionTitle}>
-                  Round 1 <span style={{ color: 'var(--ink-500)' }}>· {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat}</span>
-                </h2>
-                <p className={styles.sectionSub}>
-                  {firstRoundFormat === 'round_robin'
-                    ? 'Every team plays against all other teams in their pool to rank and advance to the knockout stage.'
-                    : 'Initial round matches.'}
-                </p>
+            <div className={styles.sectionHead}>
+              <div className={styles.sectionTitleRow}>
+                <div className={styles.roundBadge}>R1</div>
+                <div>
+                  <h2 className={styles.sectionTitle}>
+                    <span className={styles.roundPrefix}>Round 1</span>
+                    <span className={styles.roundDot}>·</span>
+                    <span className={styles.roundFormat}>
+                      {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat}
+                    </span>
+                  </h2>
+                </div>
               </div>
-              <div className={styles.headBtns} onClick={e => e.stopPropagation()}>
-                {isRoundRobin && !isDrawLocked && (
-                  <button
-                    type="button"
-                    className={styles.toggleBtn}
-                    aria-label="Toggle draw configuration"
-                    onClick={() => setDrawConfigOpen(v => !v)}
-                  >
-                    <span>Draw Config</span>
-                    <span className={`${styles.chevron} ${drawConfigOpen ? styles.chevronOpen : ''}`}>
-                      <ChevronDown size={18} />
-                    </span>
-                  </button>
-                )}
-                {isRoundRobin && poolGroups.length > 0 && (
-                  <button
-                    type="button"
-                    className={styles.toggleBtn}
-                    aria-label="Toggle draw result"
-                    onClick={() => setPoolResultsOpen(v => !v)}
-                  >
-                    <span>Draw Result</span>
-                    <span className={`${styles.chevron} ${poolResultsOpen ? styles.chevronOpen : ''}`}>
-                      <ChevronDown size={18} />
-                    </span>
-                  </button>
-                )}
-                {isRoundRobin && poolGroups.length > 0 && (
-                  <button
-                    type="button"
-                    className={styles.toggleBtn}
-                    aria-label="Toggle standing table"
-                    onClick={() => setStandingsOpen(v => !v)}
-                  >
-                    <span>Standing Table</span>
-                    <span className={`${styles.chevron} ${standingsOpen ? styles.chevronOpen : ''}`}>
-                      <ChevronDown size={18} />
-                    </span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={`${styles.toggleBtn} ${styles.toggleBtnIcon}`}
-                  aria-label={poolPlayOpen ? 'Hide all of pool play' : 'Show all of pool play'}
-                  onClick={togglePoolPlayAll}
-                >
-                  <span className={`${styles.chevron} ${poolPlayOpen ? styles.chevronOpen : ''}`}>
-                    <ChevronDown size={18} />
-                  </span>
-                </button>
+              <div className={styles.headBtns}>
+                <div className={styles.tabUnderlineGroup}>
+                  {isRoundRobin && !isDrawLocked && (
+                    <button
+                      type="button"
+                      className={`${styles.tabUnderlineBtn} ${round1Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
+                      onClick={() => setRound1Tab('config')}
+                    >
+                      Draw Config
+                    </button>
+                  )}
+                  {isRoundRobin && (
+                    <button
+                      type="button"
+                      className={`${styles.tabUnderlineBtn} ${round1Tab === 'result' ? styles.tabUnderlineBtnActive : ''}`}
+                      onClick={() => setRound1Tab('result')}
+                    >
+                      Draw Result
+                    </button>
+                  )}
+                  {isRoundRobin && (
+                    <button
+                      type="button"
+                      className={`${styles.tabUnderlineBtn} ${round1Tab === 'standings' ? styles.tabUnderlineBtnActive : ''}`}
+                      onClick={() => setRound1Tab('standings')}
+                    >
+                      Standing Table
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-            <div className={`${styles.roundWrap} ${poolPlayOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            <div className={styles.roundWrap}>
             {isRoundRobin ? (
             <>
-            {!isDrawLocked && (
-              <div className={`${styles.roundWrap} ${drawConfigOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            {round1Tab === 'config' && !isDrawLocked && (
             <div className={styles.poolRow}>
               <div className={styles.seedCard}>
                 <h3 className={styles.cardTitle}>Top Seed</h3>
@@ -1001,8 +1092,8 @@ export default function OrganizerBracketPage() {
                           setDropdownOpen(!dropdownOpen);
                         }
                       }}
+                      aria-label="Toggle seed dropdown"
                       disabled={unseededTeams.length === 0}
-                      aria-label="Toggle dropdown"
                     >
                       <ChevronDown size={18} />
                     </button>
@@ -1044,6 +1135,7 @@ export default function OrganizerBracketPage() {
                     Add Top Seed
                   </Button>
                 </div>
+
                 <div className={styles.seedList}>
                   {seeds.map((team, i) => (
                     <div
@@ -1123,11 +1215,9 @@ export default function OrganizerBracketPage() {
                 </div>
               </div>
             </div>
-            </div>
             )}
 
-            {poolGroups.length > 0 && (
-              <div className={`${styles.roundWrap} ${poolResultsOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            {round1Tab === 'result' && (
               <div ref={drawResultRef} className={styles.poolsWrap}>
                 <div className={styles.poolsHead}>
                   <div className={styles.poolsHeadLeft}>
@@ -1154,6 +1244,11 @@ export default function OrganizerBracketPage() {
                     )}
                   </button>
                 </div>
+                {poolGroups.length === 0 ? (
+                  <div className={styles.emptyNote}>
+                    No pool draw generated yet. Use the Draw Config tab to create your pool draw.
+                  </div>
+                ) : (
                 <div className={styles.poolsGrid} key={drawTick}>
                   {poolGroups.map(pool => (
                     <div
@@ -1172,25 +1267,29 @@ export default function OrganizerBracketPage() {
                             className={`${styles.poolTeamRow} ${poolAnim ? styles.poolTeamAnim : ''}`}
                             style={poolAnim ? { animationDelay: `${poolAnim.teamDelay.get(t.id) ?? 0}s` } : undefined}
                           >
-                            {t.name}
+                            {formatTeamFirstName(t.name)}
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+                )}
               </div>
             )}
 
-            {poolGroups.length > 0 && (
-              <div className={`${styles.roundWrap} ${standingsOpen ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
+            {round1Tab === 'standings' && (
               <div className={styles.poolsWrap}>
                 <div className={styles.poolsHead}>
                   <div className={styles.poolsHeadLeft}>
                     <h3 className={styles.cardTitle}>Standing Table</h3>
                   </div>
                 </div>
+                {poolStandings.length === 0 ? (
+                  <div className={styles.emptyNote}>
+                    No standing tables yet. Rankings and tables appear once pools are drawn and matches are scored.
+                  </div>
+                ) : (
                 <div className={styles.poolsGrid}>
                   {poolStandings.map(pool => (
                     <div key={pool.name} className={styles.poolCard}>
@@ -1212,7 +1311,7 @@ export default function OrganizerBracketPage() {
                           {pool.standings.map((s, i) => (
                             <tr key={s.teamId}>
                               <td>{i + 1}</td>
-                              <td className={styles.standingsTeam}>{s.name}</td>
+                              <td className={styles.standingsTeam}>{formatTeamFirstName(s.name)}</td>
                               <td>{s.wins}</td>
                               <td>{s.losses}</td>
                               <td>{s.pointsFor - s.pointsAgainst > 0 ? '+' : ''}{s.pointsFor - s.pointsAgainst}</td>
@@ -1223,7 +1322,7 @@ export default function OrganizerBracketPage() {
                     </div>
                   ))}
                 </div>
-              </div>
+                )}
               </div>
             )}
             </>
@@ -1239,67 +1338,41 @@ export default function OrganizerBracketPage() {
         {/* ── Round 2: single elimination ────────────────────── */}
         {hasKnockout && (
           <section className={styles.section}>
-            <div className={styles.sectionHead} onClick={toggleBracketAll}>
-              <div>
-                <h2 className={styles.sectionTitle}>
-                  {hasRoundRobin ? 'Round 2' : 'Round 1'}{' '}
-                  <span style={{ color: 'var(--ink-500)' }}>
-                    · {FORMAT_LABELS[knockoutFormat] ?? knockoutFormat ?? 'Single Elimination'}
-                  </span>
-                </h2>
-                <p className={styles.sectionSub}>
-                  {hasRoundRobin
-                    ? 'Seed advancing teams from pool play into the single elimination knockout bracket.'
-                    : 'Single elimination knockout bracket.'}
-                </p>
+            <div className={styles.sectionHead}>
+              <div className={styles.sectionTitleRow}>
+                <div className={styles.roundBadge}>{hasRoundRobin ? 'R2' : 'R1'}</div>
+                <div>
+                  <h2 className={styles.sectionTitle}>
+                    <span className={styles.roundPrefix}>{hasRoundRobin ? 'Round 2' : 'Round 1'}</span>
+                    <span className={styles.roundDot}>·</span>
+                    <span className={styles.roundFormat}>
+                      {FORMAT_LABELS[knockoutFormat] ?? knockoutFormat ?? 'Single Elimination'}
+                    </span>
+                  </h2>
+                </div>
               </div>
-              <div className={styles.headBtns} onClick={e => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className={styles.toggleBtn}
-                  aria-label="Toggle bracket configuration"
-                  onClick={() => setBracketConfigOpen(v => !v)}
-                >
-                  <span>Bracket Config</span>
-                  <span className={`${styles.chevron} ${bracketConfigOpen ? styles.chevronOpen : ''}`}>
-                    <ChevronDown size={18} />
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={styles.toggleBtn}
-                  aria-label="Toggle bracket view"
-                  onClick={() => setBracketOpen(v => !v)}
-                >
-                  <span>Bracket</span>
-                  <span className={`${styles.chevron} ${bracketOpen ? styles.chevronOpen : ''}`}>
-                    <ChevronDown size={18} />
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.toggleBtn} ${styles.toggleBtnIcon}`}
-                  aria-label={round2Open ? 'Hide all of bracket' : 'Show all of bracket'}
-                  onClick={toggleBracketAll}
-                >
-                  <span className={`${styles.chevron} ${round2Open ? styles.chevronOpen : ''}`}>
-                    <ChevronDown size={18} />
-                  </span>
-                </button>
+              <div className={styles.headBtns}>
+                <div className={styles.tabUnderlineGroup}>
+                  <button
+                    type="button"
+                    className={`${styles.tabUnderlineBtn} ${round2Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
+                    onClick={() => setRound2Tab('config')}
+                  >
+                    Bracket Config
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.tabUnderlineBtn} ${round2Tab === 'bracket' ? styles.tabUnderlineBtnActive : ''}`}
+                    onClick={() => setRound2Tab('bracket')}
+                  >
+                    Bracket
+                  </button>
+                </div>
               </div>
             </div>
-            <div className={`${styles.roundWrap} ${round2Open ? styles.roundWrapOpen : styles.roundWrapClosed}`}>
-            {bracketConfigOpen && (
+            <div className={styles.roundWrap}>
+            {round2Tab === 'config' && (
               <>
-                <p className={styles.sectionSubSpaced}>
-                  {firstRoundMatches * 2 || 'No'}-team {knockoutFormat === 'double' ? 'double' : 'single'} elimination · {division?.label ?? '—'} ·{' '}
-                  {bracket?.fromDb
-                    ? 'generated draw'
-                    : hasRoundRobin
-                      ? 'projected from current seeding'
-                      : `empty bracket · ${confirmedTeams.length} teams · draw to place`}
-                </p>
-
                 {/* Seed / Draw Configuration for pure Single Elimination (no pool play) */}
                 {!hasRoundRobin && (
                   <div className={styles.poolRow} style={{ marginBottom: 24 }}>
@@ -1459,65 +1532,57 @@ export default function OrganizerBracketPage() {
                 {hasRoundRobin && (
                   <div className={styles.poolRow} style={{ marginBottom: 24, gap: 24, display: 'flex', alignItems: 'flex-start' }}>
                     {/* Left Pane: Bracket Crossing Settings Card */}
-                    <div className={styles.configCard} style={{ width: 340, flexShrink: 0 }}>
+                    <div className={styles.crossingCard}>
                       <h3 className={styles.cardTitle}>Bracket Crossing Settings</h3>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                         <div>
                           <label className={styles.fieldLabel}>Teams Advancing per Pool</label>
-                          <div className={styles.fieldRow}>
-                            <input
-                              type="number"
-                              min={1}
-                              max={4}
-                              value={config.advance}
-                              onChange={e => {
-                                let v = parseInt(e.target.value, 10);
-                                if (isNaN(v)) v = 1;
-                                setConfig({ advance: Math.max(1, Math.min(4, v)) });
-                              }}
-                              className={styles.numInput}
-                            />
-                            <span className={styles.fieldSummary}>
-                              {advancing.teams} teams advance
-                              {advancing.byes > 0 && ` · ${advancing.bracketSize}-team bracket · ${advancing.byes} ${advancing.byes === 1 ? 'bye' : 'byes'}`}
+                          <div className={styles.infoSpecBox}>
+                            <div className={styles.infoSpecRow}>
+                              <span className={styles.infoSpecTitle}>Top {config.advance} from each pool</span>
+                              <span className={styles.infoSpecPill}>{advancing.teams} teams advance</span>
+                            </div>
+                            <span className={styles.infoSpecDesc}>
+                              {advancing.bracketSize}-team bracket{advancing.byes > 0 ? ` · ${advancing.byes} ${advancing.byes === 1 ? 'bye' : 'byes'}` : ''}
                             </span>
                           </div>
                         </div>
-                        {/* Crossing is part of the division's format, set when
-                            the division is created so everything is settled
-                            before registration opens. Shown here as what the
-                            draw will apply, not as another place to change it. */}
+
                         <div>
                           <label className={styles.fieldLabel}>Bracket Crossing Logic</label>
-                          <p className={styles.fieldSummary}>
-                            {config.crossing === 'static' ? 'Static Cross-Bracket A1–D4' : 'FIVB Standard Draw'}
-                          </p>
-                          <p className={styles.fieldNote}>
-                            Determines how pool finishers are seeded into the knockout round. Change it in the
-                            division&apos;s Format &amp; Rules.
-                          </p>
+                          <div className={styles.infoSpecBox}>
+                            <span className={styles.infoSpecTitle}>
+                              {config.crossing === 'static' ? 'Static Cross-Bracket (A1–D4)' : 'FIVB Standard Crossing'}
+                            </span>
+                            <span className={styles.infoSpecDesc}>
+                              Determines how pool winners &amp; runners-up seed into the knockout round.
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <label className={styles.fieldLabel} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={config.thirdPlace}
-                              onChange={e => setConfig({ thirdPlace: e.target.checked })}
-                              style={{ width: 16, height: 16, accentColor: 'var(--orange, #EE7A4C)' }}
-                            />
-                            Play off for 3rd place
-                          </label>
-                          <p className={styles.fieldNote}>
-                            Adds one match between the two beaten semifinalists. The schedule plays it before the final.
-                          </p>
-                        </div>
-                        <div className={styles.drawBtnWrap}>
+
+                        <label className={styles.checkboxCard}>
+                          <input
+                            type="checkbox"
+                            checked={config.thirdPlace}
+                            onChange={e => setConfig({ thirdPlace: e.target.checked })}
+                            className={styles.checkboxInput}
+                          />
+                          <div className={styles.checkboxTextCol}>
+                            <span className={styles.checkboxTitle}>Play off for 3rd place</span>
+                            <span className={styles.checkboxSubtitle}>
+                              Adds a match between the two beaten semifinalists before the final.
+                            </span>
+                          </div>
+                        </label>
+
+                        <div className={styles.drawBtnWrap} style={{ marginTop: 4 }}>
                           <Button
                             variant="primary"
                             size="medium"
                             fullWidth
                             loading={applying}
                             onClick={applyCrossing}
+                            style={{ height: 48, borderRadius: 999 }}
                           >
                             Apply Crossing Config
                           </Button>
@@ -1527,13 +1592,13 @@ export default function OrganizerBracketPage() {
                     </div>
 
                     {/* Right Pane: Pool Rankings */}
-                    <div className={styles.seedCard} style={{ flex: 1 }}>
+                    <div className={styles.poolRankingsCard}>
                       <h3 className={styles.cardTitle}>Pool Rankings</h3>
                       {!hasPoolResults ? (
-                        <p className={styles.emptyNote}>
+                        <div className={styles.emptyDashedNote}>
                           No pool results yet. Rankings appear here once matches have been played — until then
                           there is nothing to rank, only the draw.
-                        </p>
+                        </div>
                       ) : (
                       <div className={styles.poolsGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                         {rankingPools.map(pool => (
@@ -1590,7 +1655,7 @@ export default function OrganizerBracketPage() {
                                         whiteSpace: 'nowrap',
                                       }}
                                     >
-                                      {t.name}
+                                      {formatTeamFirstName(t.name)}
                                     </span>
                                   </div>
                                 );
@@ -1611,7 +1676,7 @@ export default function OrganizerBracketPage() {
               </>
             )}
 
-            {bracketOpen && (
+            {round2Tab === 'bracket' && (
               <>
                 {bracket ? (
                   <div className={styles.bracketScroll}>
@@ -1675,6 +1740,52 @@ export default function OrganizerBracketPage() {
           </section>
         )}
       </main>
+    </div>
+  );
+}
+
+function formatTeamFirstName(name: string): string {
+  if (!name) return '';
+  const players = name.split('/').map(p => p.trim()).filter(Boolean);
+  if (players.length === 0) return name;
+  const firstNames = players.map(p => {
+    const parts = p.split(/\s+/).filter(Boolean);
+    return parts[0] || p;
+  });
+  return firstNames.join('/');
+}
+
+function parseTeamPlayers(name: string): string[] {
+  const parts = name.split('/').map(s => s.trim()).filter(Boolean);
+  return parts.length > 0 ? parts : [name];
+}
+
+function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
+
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const initial = words.length > 1
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : (name.trim()[0]?.toUpperCase() || '?');
+
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className={styles.playerAvatarImg}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={styles.playerAvatar} aria-hidden="true">
+      <span>{initial}</span>
     </div>
   );
 }

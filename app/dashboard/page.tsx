@@ -11,7 +11,7 @@ import CreateTournamentModal from './CreateTournamentModal';
 import OrganizerProfileModal from './OrganizerProfileModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
 import ScorekeeperQrCards, { useScorekeeperLinks, useQrPdfExport } from '../../components/ScorekeeperQrCards';
-import { Button, SearchField, Icon } from '../../components/livebracket-ds';
+import { Button, SearchField, Icon, Badge } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
   type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
@@ -22,6 +22,7 @@ import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 import { joinTeamName } from '../../lib/teamName';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
 import { nextPerCourt } from '../../lib/scorekeeperLinks';
+import { isPublic, type Phase, registrationState } from '../../lib/tournamentLifecycle';
 
 interface Organizer {
   name: string;
@@ -52,40 +53,71 @@ const STATUS_FILTERS = [
 
 type StatusKey = (typeof STATUS_FILTERS)[number]['key'];
 
-function phaseToStatus(phase: number): 'coming-up' | 'announced' | 'draft' {
-  switch (phase) {
-    case 3: return 'coming-up';
-    case 4: return 'coming-up';
-    case 2: return 'announced';
-    default: return 'draft';
-  }
-}
-
-function statusPill(t: CardTournament): { label: string; cls: string } {
-  if (t.phase === 3) return { label: 'Registration open', cls: styles.pillOpen };
-  if (t.phase === 4) return { label: 'Registration closed', cls: styles.pillClosed };
-  if (t.phase === 2) return { label: 'Announced', cls: styles.pillAnnounced };
-  return { label: 'Draft', cls: styles.pillDraft };
-}
-
 type CardTournament = DashboardTournament;
 
 function isCompleted(t: CardTournament): boolean {
   return (t.endDate || t.startDate) < TODAY;
 }
 
-// Registration is open while live (phase 3); closed the day before (phase 4).
+function getTournamentStatus(t: CardTournament): {
+  key: 'draft' | 'announced' | 'open' | 'waitlist' | 'closed' | 'completed';
+  label: string;
+  variant: 'status' | 'highlight' | 'open' | 'live' | 'outline';
+} {
+  // 1. Draft phase (not public)
+  if (t.phase === 1 || !isPublic(t.phase as Phase)) {
+    return { key: 'draft', label: 'Draft', variant: 'status' };
+  }
+
+  // 2. Completed (past end date)
+  if (isCompleted(t)) {
+    return { key: 'completed', label: 'Completed', variant: 'status' };
+  }
+
+  // 3. Derived from divisions for published tournament
+  if (!t.divisions || t.divisions.length === 0) {
+    return { key: 'announced', label: 'Announced', variant: 'highlight' };
+  }
+
+  const regState = registrationState(
+    t.divisions.map((d) => ({
+      registrationOpens: d.registrationOpens || '',
+      registrationCloses: d.registrationCloses || '',
+    })),
+    new Date(),
+  );
+
+  if (regState === 'opens-soon') {
+    return { key: 'announced', label: 'Announced', variant: 'highlight' };
+  }
+
+  if (regState === 'closed') {
+    return { key: 'closed', label: 'Registration closed', variant: 'status' };
+  }
+
+  // regState is 'open'
+  // Check if all divisions are full
+  const allFull = t.divisions.every((d) => d.cap > 0 && d.filled >= d.cap);
+  if (allFull) {
+    return { key: 'waitlist', label: 'Waitlist open', variant: 'highlight' };
+  }
+
+  return { key: 'open', label: 'Registration open', variant: 'open' };
+}
+
 function matchesFilter(t: CardTournament, key: StatusKey | null): boolean {
   // Default (no filter selected): upcoming events only — completed
   // tournaments stay hidden until their filter is chosen. Drafts show, so a
   // freshly created tournament is visible immediately.
   if (key === null) return !isCompleted(t);
   if (key === 'all') return true;
-  if (key === 'draft') return phaseToStatus(t.phase) === 'draft';
+  const status = getTournamentStatus(t);
+  if (key === 'draft') return status.key === 'draft';
   if (isCompleted(t)) return false;
-  if (key === 'open') return t.phase === 3;
-  if (key === 'closed') return t.phase === 4;
-  return phaseToStatus(t.phase) === key;
+  if (key === 'open') return status.key === 'open' || status.key === 'waitlist';
+  if (key === 'closed') return status.key === 'closed';
+  if (key === 'announced') return status.key === 'announced';
+  return true;
 }
 
 // Nearest upcoming event first; past events after, most recent first.
@@ -1007,7 +1039,7 @@ function TournamentRow({
   setQrOpen: (v: string | null) => void;
   hideQr?: boolean;
 }) {
-  const pill = statusPill(t);
+  const status = getTournamentStatus(t);
   const isLive = isLiveNow(t);
 
   return (
@@ -1035,19 +1067,26 @@ function TournamentRow({
 
         <span className={styles.rowInfo}>
           <span className={styles.rowPills}>
-            <span className={`${styles.pill} ${pill.cls}`}>{pill.label}</span>
+            <Badge variant={status.variant}>{status.label}</Badge>
             {isLive && (
               <span className={styles.rowLive}>
                 <span className={styles.rowLiveDot} aria-hidden="true" /> Live
               </span>
             )}
-            <span className={styles.rowDate}>{t.date}</span>
           </span>
           <span className={styles.rowTitle}>{t.title}</span>
           <span className={styles.rowMeta}>
-            <span>{t.location}</span>
-            <span className={styles.rowMetaDot} aria-hidden="true">•</span>
-            <span>{t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
+            <span className={styles.rowMetaItem}>
+              <Calendar size={14} className={styles.rowMetaIcon} aria-hidden="true" />
+              <span>{t.date}</span>
+            </span>
+            <span className={styles.rowMetaItem}>
+              <MapPin size={14} className={styles.rowMetaIcon} aria-hidden="true" />
+              <span>{t.location}</span>
+            </span>
+            <span className={styles.rowMetaItem}>
+              <span>{t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
+            </span>
           </span>
         </span>
 

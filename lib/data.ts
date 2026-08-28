@@ -19,6 +19,8 @@ export interface DashboardDivision {
   name: string;
   cap: number;
   filled: number;
+  registrationOpens?: string;
+  registrationCloses?: string;
 }
 
 export interface DashboardTournament {
@@ -330,6 +332,7 @@ function formatDateRange(startDate: string, endDate: string | null, isOneDay: bo
 interface DivisionRow {
   name: string;
   division_team_cap: number;
+  settings?: Record<string, unknown> | null;
   teams: { status: string }[];
 }
 
@@ -349,7 +352,7 @@ interface TournamentRow {
 
 const TOURNAMENT_CARD_SELECT =
   'slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, ' +
-  'organizers(name), divisions(name, division_team_cap, teams(status))';
+  'organizers(name), divisions(name, division_team_cap, settings, teams(status))';
 
 function toDashboardTournament(t: TournamentRow): DashboardTournament {
   return {
@@ -363,11 +366,16 @@ function toDashboardTournament(t: TournamentRow): DashboardTournament {
     imageUrl: t.image_url,
     cancelled: !!t.cancelled_at,
     organizerName: t.organizers?.name ?? null,
-    divisions: t.divisions.map((d) => ({
-      name: d.name,
-      cap: d.division_team_cap,
-      filled: d.teams.filter((team) => team.status !== 'waitlist').length,
-    })),
+    divisions: (t.divisions ?? []).map((d) => {
+      const settings = (d.settings ?? {}) as Record<string, unknown>;
+      return {
+        name: d.name,
+        cap: d.division_team_cap,
+        filled: (d.teams ?? []).filter((team) => team.status !== 'waitlist').length,
+        registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
+        registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
+      };
+    }),
   };
 }
 
@@ -921,11 +929,22 @@ function readRoundMinutes(blob: Record<string, unknown> | null | undefined): num
   return typeof v === 'number' && v > 0 ? Math.trunc(v) : DEFAULT_MATCH_MINUTES;
 }
 
+export interface DetailTeam {
+  id: string;
+  name: string;
+  seed: number;
+  status: string;
+  registeredBy?: string | null;
+  players?: { id: string; name: string; userId?: string | null }[];
+}
+
 interface TeamRow {
   id: string;
   name: string;
   seed: number;
   status: string;
+  registered_by?: string | null;
+  players?: { id: string; name: string; user_id?: string | null }[];
 }
 
 interface DetailDivisionRow {
@@ -973,7 +992,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
   const rest = `
       divisions (
         id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings,
-        teams ( id, name, seed, status, registered_by ),
+        teams ( id, name, seed, status, registered_by, players ( id, name, user_id ) ),
         rounds (
           id, sequence, format, name, scoring_rules,
           matches (
@@ -1041,6 +1060,11 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
             seed: team.seed,
             status: team.status,
             registeredBy: (team as any).registered_by ?? null,
+            players: (team.players || []).map((p) => ({
+              id: p.id,
+              name: p.name,
+              userId: p.user_id ?? null,
+            })),
           })),
         bracket: [...d.rounds]
           .sort((a, b) => a.sequence - b.sequence)

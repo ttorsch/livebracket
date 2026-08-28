@@ -176,8 +176,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (teamError) return bad(teamError.message, 500);
 
   const now = new Date().toISOString();
-  const playerRows = playersIn.map(p => {
-    const userId = typeof p.userId === 'string' && p.userId.trim() ? p.userId.trim() : null;
+  const playerRows = playersIn.map((p, idx) => {
+    const rawUserId = typeof p.userId === 'string' && p.userId.trim() ? p.userId.trim() : null;
+    const userId = rawUserId ?? (idx === 0 && user ? user.id : null);
     const isRegistrant = Boolean(userId && user && userId === user.id);
 
     return {

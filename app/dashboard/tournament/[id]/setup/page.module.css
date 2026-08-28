@@ -1715,6 +1715,7 @@
   flex-direction: column;
   justify-content: space-between;
   min-height: 64px;
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -1726,12 +1727,16 @@
   color: #7A8294;
   text-transform: uppercase;
   margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .creamTileInputRow {
   display: flex;
   align-items: baseline;
   gap: 6px;
+  min-width: 0;
 }
 
 .creamTileNumberInput {
@@ -1745,6 +1750,7 @@
   outline: none;
   width: auto;
   max-width: 65px;
+  min-width: 0;
   padding: 0;
 }
 
@@ -1766,6 +1772,7 @@
   font-size: 12.5px;
   font-weight: 500;
   color: var(--text-secondary, #3A414D);
+  white-space: nowrap;
 }
 
 .creamTileSelectRow {
@@ -1774,6 +1781,7 @@
   justify-content: space-between;
   position: relative;
   width: 100%;
+  min-width: 0;
 }
 
 .creamTileSelect {
@@ -1785,10 +1793,14 @@
   color: #14181E;
   outline: none;
   width: 100%;
+  min-width: 0;
   cursor: pointer;
   appearance: none;
   padding: 0;
   padding-right: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .creamTileChevron {
@@ -1997,6 +2009,29 @@
   .modalStepLine {
     margin: 0 4px;
     min-width: 10px;
+  }
+  .tileGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .creamTile {
+    padding: 8px 10px;
+    min-height: 56px;
+  }
+  .creamTileLabel {
+    font-size: 9.5px;
+    margin-bottom: 2px;
+  }
+  .creamTileNumberInput {
+    font-size: 16px;
+    max-width: 50px;
+  }
+  .creamTileSuffix {
+    font-size: 11.5px;
+  }
+  .creamTileSelect {
+    font-size: 13.5px;
+    padding-right: 16px;
   }
 }
 
@@ -3345,103 +3380,72 @@
 }
 .readinessAction:hover { text-decoration: underline; }
 
-/* ── Division cards (replacing the pill row) ──────────────────────── */
-.divisionCardRow {
+/* ── Desktop Division Navigation ──────────────────────────────────── */
+.divisionNavRow {
   display: flex;
-  gap: 14px;
-  align-items: stretch;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 24px;
 }
-.divisionCard {
-  flex: 1 1 320px;
-  min-width: 280px;
-  text-align: left;
-  cursor: pointer;
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: #fff;
-  border: 2px solid transparent;
-  box-shadow: 0 1px 2px rgba(20, 24, 30, 0.06), 0 8px 24px rgba(20, 24, 30, 0.04);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  transition: border-color 0.15s ease;
-}
-.divisionCardActive { border-color: var(--orange, #EE7A4C); }
-.divisionRing,
-.divisionRingLarge {
+
+.divisionSegmented {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: rgba(238, 122, 76, 0.12);
-  color: var(--orange-600, #E0623A);
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.divisionRing { width: 56px; height: 56px; font-size: 15px; }
-.divisionRingLarge { width: 60px; height: 60px; font-size: 16px; }
-.divisionCardText {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.divisionCardName {
-  font-family: var(--font-heading);
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--ink-1, #14181E);
-}
-.divisionCardMeta {
-  font-size: 12.5px;
-  color: var(--ink-2, #7A8294);
-}
-.divisionCardState {
-  margin-left: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
   gap: 4px;
-  text-align: right;
+  padding: 4px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--sand-200, #EAE5DC);
+  max-width: calc(100% - 170px);
+  overflow-x: auto;
 }
-.divisionCardStateFull {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--orange-600, #E0623A);
-}
-.divisionCardStateOpen {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-1, #14181E);
-}
-.divisionCardWait {
-  font-size: 11.5px;
-  color: var(--ink-2, #7A8294);
-}
-.divisionCardAdd {
-  width: 190px;
-  cursor: pointer;
-  padding: 18px;
-  border-radius: 18px;
+
+.divisionSegment {
+  border: none;
   background: transparent;
-  border: 1.5px dashed rgba(238, 122, 76, 0.5);
-  display: flex;
-  flex-direction: column;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary, #4B5563);
+  padding: 9px 22px;
+  border-radius: var(--radius-pill, 999px);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.divisionSegment:hover:not(.divisionSegmentActive) {
+  color: var(--text-primary, #14181E);
+}
+
+.divisionSegmentActive {
+  background: var(--color-primary, #EB6F43);
+  color: #FFFFFF;
+  box-shadow: 0 2px 10px rgba(235, 111, 67, 0.35);
+}
+
+.addDivisionBtn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 7px;
+  padding: 9px 20px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1.5px dashed var(--color-primary, #EB6F43);
+  background: transparent;
+  color: var(--color-primary, #EB6F43);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13.5px;
   font-weight: 700;
-  color: var(--orange, #EE7A4C);
-  transition: background 0.15s ease;
+  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
-.divisionCardAdd:hover { background: rgba(238, 122, 76, 0.06); }
+
+.addDivisionBtn:hover {
+  background: rgba(235, 111, 67, 0.08);
+  transform: translateY(-1px);
+}
 
 /* ── Teams table controls ─────────────────────────────────────────── */
 .teamsControls {
@@ -3882,10 +3886,10 @@
   box-shadow: 0 0 0 3px var(--focus-ring, rgba(235, 111, 67, 0.45));
 }
 
-/* Tiles reflow from three-up to one-up on their own. */
+/* 2-column tiles in modal */
 .tileGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 

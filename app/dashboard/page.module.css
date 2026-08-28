@@ -935,18 +935,36 @@
 }
 .rowMeta {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
   font-size: 13px;
   color: var(--text-secondary, #3A414D);
-  flex-wrap: wrap;
 }
-.rowMetaDot { color: var(--sand-400, #D9D4C9); }
+.rowMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rowMetaIcon {
+  color: var(--text-muted, #7A8294);
+  flex-shrink: 0;
+}
 
 .rowActions {
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+.rowActions::-webkit-scrollbar {
+  display: none;
+}
+.rowActions > * {
   flex-shrink: 0;
 }
 .iconBtn {
@@ -1357,7 +1375,13 @@
      carries either the cover image or an initials disc — and at this width
      the title, location and division count are what the row is for. */
   .rowThumb { display: none; }
-  .rowTitle { font-size: 16px; white-space: normal; }
+  .rowTitle {
+    font-size: 23px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    white-space: normal;
+  }
   /* Was `100% - 66px - 32px`: the 66px reserved the thumb and its gap,
      the 32px is the row's own padding. With the thumb gone only the
      padding comes off, or the text would stop short of the card edge. */

@@ -47,6 +47,7 @@ import {
 import { computeReadiness, type ReadinessItem } from '../../../../../lib/setupReadiness';
 import {
   PHASE, PHASE_LABEL, registrationCloseDefault, canDelete, DELETE_COPY, isPublic, type Phase,
+  divisionRegistrationState,
 } from '../../../../../lib/tournamentLifecycle';
 import { joinTeamName } from '../../../../../lib/teamName';
 import {
@@ -1526,12 +1527,47 @@ export default function OrganizerSetup() {
   const teamCap = activeDivision?.divisionTeamCap ?? 0;
   const fillRatio = teamCap > 0 ? Math.min(1, confirmedTeams.length / teamCap) : 0;
   const isDivisionFull = teamCap > 0 && confirmedTeams.length >= teamCap;
-  const eventBadgeLabel = !activeDivision
-    ? null
-    : isDivisionFull
-      ? (waitlistTeamsList.length > 0 ? 'Waitlist Open' : 'Registration Full')
-      : 'Registration Open';
-  const eventBadgeVariant = eventBadgeLabel === 'Registration Full' ? 'status' : 'live';
+
+  // Unified single status computation (Option A: Active Division Context)
+  const computeSingleStatus = (): { label: string; variant: 'live' | 'open' | 'highlight' | 'status' | 'outline' } => {
+    // 1. If tournament is in Draft phase (private setup)
+    if (!basicInfo || basicInfo.phase === PHASE.draft || !isPublic(basicInfo.phase as Phase)) {
+      return { label: 'Draft', variant: 'status' };
+    }
+
+    // 2. If no division is loaded yet
+    if (!activeDivision) {
+      return { label: 'Announced', variant: 'highlight' };
+    }
+
+    const regState = divisionRegistrationState(
+      {
+        registrationOpens: activeDivision.registrationOpenDate || '',
+        registrationCloses: activeDivision.registrationCloseDate || '',
+      },
+      new Date(),
+    );
+
+    if (regState === 'opens-soon') {
+      return { label: 'Announced', variant: 'highlight' };
+    }
+
+    if (regState === 'closed') {
+      return { label: 'Registration Closed', variant: 'status' };
+    }
+
+    // regState is 'open', check capacity
+    if (isDivisionFull) {
+      if (waitlistTeamsList.length > 0 || activeDivision.waitlistCap !== 0) {
+        return { label: 'Waitlist Open', variant: 'highlight' };
+      }
+      return { label: 'Registration Full', variant: 'status' };
+    }
+
+    return { label: 'Registration Open', variant: 'open' };
+  };
+
+  const unifiedStatus = computeSingleStatus();
 
   // Registration-detail modal paging. The index is the position in
   // registeredTeams, so ↑/↓ walks the confirmed list straight into the
@@ -1746,24 +1782,9 @@ export default function OrganizerSetup() {
                     <span>{displayLocation}</span>
                   </div>
                 )}
-                {basicInfo && (
-                  <span className={styles.statusPill} data-phase={basicInfo.phase} style={{ marginTop: 4 }}>
-                    {PHASE_LABEL[basicInfo.phase as Phase] ?? 'Draft'}
-                  </span>
-                )}
-                {eventBadgeLabel && (
-                  <span
-                    className={`${styles.mobileEventBadge} ${
-                      isDivisionFull && waitlistTeamsList.length === 0
-                        ? styles.mobileEventBadgeFull
-                        : !isDivisionFull
-                          ? styles.mobileEventBadgeOpen
-                          : ''
-                    }`}
-                  >
-                    {eventBadgeLabel}
-                  </span>
-                )}
+                <div style={{ marginTop: 6 }}>
+                  <Badge variant={unifiedStatus.variant}>{unifiedStatus.label}</Badge>
+                </div>
               </div>
             </div>
           </div>
@@ -1819,16 +1840,9 @@ export default function OrganizerSetup() {
                 )}
 
                 <div className={styles.desktop2aHeaderTextCol}>
-                  {(basicInfo || eventBadgeLabel) && (
-                    <div className={styles.desktop2aBadgeRow}>
-                      {basicInfo && (
-                        <span className={styles.statusPill} data-phase={basicInfo.phase}>
-                          {PHASE_LABEL[basicInfo.phase as Phase] ?? 'Draft'}
-                        </span>
-                      )}
-                      {eventBadgeLabel && <Badge variant={eventBadgeVariant}>{eventBadgeLabel}</Badge>}
-                    </div>
-                  )}
+                  <div className={styles.desktop2aBadgeRow}>
+                    <Badge variant={unifiedStatus.variant}>{unifiedStatus.label}</Badge>
+                  </div>
 
                   <h2 className={styles.desktop2aEventTitle}>{displayTitle || 'Untitled tournament'}</h2>
 
@@ -1876,31 +1890,27 @@ export default function OrganizerSetup() {
               </div>
             ) : (
               <>
-                <div className={styles.divisionCardRow}>
-                  {divisionCards.map(card => (
-                    <button
-                      key={card.id}
-                      type="button"
-                      className={`${styles.divisionCard} ${card.active ? styles.divisionCardActive : ''}`}
-                      onClick={() => setActiveDivisionId(card.id)}
-                      aria-pressed={card.active}
-                    >
-                      <span className={styles.divisionRing}>{card.count}</span>
-                      <span className={styles.divisionCardText}>
-                        <span className={styles.divisionCardName}>{card.name}</span>
-                        <span className={styles.divisionCardMeta}>{card.meta}</span>
-                      </span>
-                      <span className={styles.divisionCardState}>
-                        <span className={card.stateFull ? styles.divisionCardStateFull : styles.divisionCardStateOpen}>
-                          {card.stateLabel}
-                        </span>
-                        <span className={styles.divisionCardWait}>{card.waitLabel}</span>
-                      </span>
-                    </button>
-                  ))}
-                  <button type="button" className={styles.divisionCardAdd} onClick={handleOpenCreateModal}>
-                    <Plus size={20} />
-                    Add Division
+                <div className={styles.divisionNavRow}>
+                  <div className={styles.divisionSegmented} role="tablist" aria-label="Select division">
+                    {divisions.map(d => {
+                      const active = d.id === activeDivisionId;
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          className={`${styles.divisionSegment} ${active ? styles.divisionSegmentActive : ''}`}
+                          onClick={() => setActiveDivisionId(d.id)}
+                        >
+                          {d.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button type="button" className={styles.addDivisionBtn} onClick={handleOpenCreateModal}>
+                    <Plus size={16} />
+                    <span>Add Division</span>
                   </button>
                 </div>
 

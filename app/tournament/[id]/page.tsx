@@ -739,7 +739,15 @@ export default function TournamentPage() {
             <FillCard division={activeDivision} />
             <div className={styles.teamsGrid}>
               {activeDivision.teamsList.map(team => {
-                const players = parseTeamPlayers(team.name);
+                const parsedNames = parseTeamPlayers(team.name);
+                const playerItems = team.players && team.players.length > 0
+                  ? team.players
+                  : parsedNames.map((n, idx) => ({
+                      id: `${team.id}-${idx}`,
+                      name: n,
+                      userId: null,
+                    }));
+
                 return (
                   <div
                     key={team.id}
@@ -747,15 +755,13 @@ export default function TournamentPage() {
                   >
                     <div className={styles.teamCardHeader}>
                       <div className={styles.teamPlayersList}>
-                        {players.map((playerName, idx) => {
-                          const nameKey = playerName.toLowerCase().trim();
-                          const avatarUrl =
-                            playerAvatars[nameKey] ||
-                            (idx === 0 && team.registeredBy ? playerAvatars[team.registeredBy] : undefined);
+                        {playerItems.map((player, idx) => {
+                          const avatarKey = player.userId || (idx === 0 && team.registeredBy ? team.registeredBy : undefined);
+                          const avatarUrl = avatarKey ? playerAvatars[avatarKey] : undefined;
                           return (
-                            <div key={idx} className={styles.teamPlayerRow}>
-                              <PlayerAvatar name={playerName} avatarUrl={avatarUrl} />
-                              <span className={styles.teamPlayerName}>{playerName}</span>
+                            <div key={player.id || idx} className={styles.teamPlayerRow}>
+                              <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
+                              <span className={styles.teamPlayerName}>{player.name}</span>
                             </div>
                           );
                         })}
