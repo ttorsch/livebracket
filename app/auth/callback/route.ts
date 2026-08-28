@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '../../../lib/supabaseServer';
 import { ensureOrganizerForUser, claimTeamsForUser } from '../../../lib/auth';
+import { ensureProfileForUser } from '../../../lib/profiles';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 /* The single landing point for every link Supabase sends a user back on:
@@ -68,6 +69,15 @@ export async function GET(request: NextRequest) {
       isOrganizer = (await ensureOrganizerForUser(effectiveUser)) !== null;
     } catch (err) {
       console.error('Failed to provision organizer on callback:', err);
+    }
+
+    /* Every account gets its player profile here, so it is searchable by
+     * player ID from the moment it exists rather than from the first time
+     * it happens to open /profile. */
+    try {
+      await ensureProfileForUser(user);
+    } catch (err) {
+      console.error('Failed to provision profile on callback:', err);
     }
 
     /* The same first authenticated moment is where any team they entered

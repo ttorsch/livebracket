@@ -8,10 +8,44 @@ interface ImportPlayer {
   name: string;
   phone?: string;
   email?: string;
+  shirtSize?: string;
+  /* The division's non-core questions (nationality, club/hometown, and
+   * anything the organizer wrote), keyed by reg_field id — the same bag
+   * public registration writes, so the two paths read back identically
+   * on the organizer's side. */
+  custom?: Record<string, string>;
 }
 
 interface ImportTeam {
   players: ImportPlayer[];
+}
+
+/* Which caller this is, because they do not deserve the same benefit of
+ * the doubt.
+ *
+ * 'manual' is the organizer typing a team into the Add Team modal: they
+ * are looking at the form, so a half-filled roster is a decision. Only a
+ * name is asked for, and only one, since the team is named by joining
+ * its players and a team with no names would render blank everywhere.
+ *
+ * 'import' is a CSV, where a blank row is much more likely a malformed
+ * file than an intent — and quietly turning it into a placeholder team
+ * that eats a division slot is hard to notice and tedious to undo. It
+ * keeps the stricter rule, and is the default so that any future caller
+ * has to opt into leniency deliberately. */
+type AddTeamMode = 'manual' | 'import';
+
+/* A row the organizer tabbed past and left completely alone. Dropped
+ * rather than stored, so an empty slot does not become a nameless player
+ * on the roster. */
+function isBlankPlayer(p: ImportPlayer): boolean {
+  return (
+    !p.name?.trim() &&
+    !p.phone?.trim() &&
+    !p.email?.trim() &&
+    !p.shirtSize?.trim() &&
+    !Object.values(p.custom ?? {}).some((v) => typeof v === 'string' && v.trim())
+  );
 }
 
 async function findDivision(slug: string, divisionId: string) {
@@ -37,16 +71,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } catch (err) {
     return authErrorResponse(err);
   }
-  const body = (await request.json()) as { teams?: ImportTeam[] };
+  const body = (await request.json()) as { teams?: ImportTeam[]; mode?: AddTeamMode };
+  const mode: AddTeamMode = body.mode === 'manual' ? 'manual' : 'import';
 
-  const teamsIn = Array.isArray(body.teams) ? body.teams : [];
-  if (teamsIn.length === 0) {
+  const rawTeams = Array.isArray(body.teams) ? body.teams : [];
+  if (rawTeams.length === 0) {
     return NextResponse.json({ error: 'No teams provided' }, { status: 400 });
   }
-  for (const t of teamsIn) {
-    if (!Array.isArray(t.players) || t.players.length === 0 || t.players.some((p) => !p.name?.trim())) {
+
+  const teamsIn: ImportTeam[] = [];
+  for (const t of rawTeams) {
+    if (!Array.isArray(t.players) || t.players.length === 0) {
       return NextResponse.json({ error: 'Every team needs at least one player with a name' }, { status: 400 });
     }
+
+    if (mode === 'import') {
+      if (t.players.some((p) => !p.name?.trim())) {
+        return NextResponse.json({ error: 'Every team needs at least one player with a name' }, { status: 400 });
+      }
+      teamsIn.push(t);
+      continue;
+    }
+
+    /* Manual: everything is optional except having someone to name the
+     * team after. Untouched rows go, half-filled ones stay. */
+    const players = t.players.filter((p) => !isBlankPlayer(p));
+    if (!players.some((p) => p.name?.trim())) {
+      return NextResponse.json(
+        { error: 'Add at least one player name — the team is named after its players.' },
+        { status: 400 }
+      );
+    }
+    teamsIn.push({ players });
   }
 
   let division;
@@ -84,9 +140,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const playerRows = t.players.map((p) => ({
       team_id: teamRow.id,
-      name: p.name.trim(),
+      name: (p.name ?? '').trim(),
       phone: p.phone?.trim() || null,
       email: p.email?.trim() || null,
+      shirt_size: p.shirtSize?.trim() || null,
+      custom_fields: Object.fromEntries(
+        Object.entries(p.custom ?? {}).filter(([, v]) => typeof v === 'string' && v.trim())
+      ),
     }));
     const { error: playersError } = await supabaseAdmin.from('players').insert(playerRows);
     if (playersError) return NextResponse.json({ error: playersError.message }, { status: 500 });

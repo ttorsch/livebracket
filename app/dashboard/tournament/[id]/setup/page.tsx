@@ -55,6 +55,7 @@ import {
   type DivisionGender, type AgeLimit,
 } from '../../../../../lib/divisionEligibility';
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
+import RosterFields, { type RosterPlayer } from '@/components/registration/RosterFields';
 import {
   BASE_REG_FIELDS, FORMAT_PLAYERS, type RegField, type RegFieldType, type PresetKey,
 } from '../../../../../lib/registrationFields';
@@ -422,6 +423,32 @@ const parseTeamsCsv = (text: string): ImportTeamRow[] => {
   return teams;
 };
 
+
+/* ── Add Team modal ────────────────────────────────────────────────
+   Mirrors the fields public registration asks each player for, so both
+   paths write the same shape. Apparel sizes and the nationality /
+   club-hometown keys come from the division's own reg_fields, exactly
+   as the registration form resolves them — a division offering XS–XXL
+   is not quietly forced onto the default four, and answers read back
+   under the key the organizer's own question uses. */
+/* The modal renders the public form's own roster component, so the
+ * player shape is that component's. Contact is one pair per team, the
+ * way registration collects it — the API writes it onto every player
+ * row either way. */
+type AddTeamPlayer = RosterPlayer;
+
+const ADD_TEAM_DEFAULT_SIZES = ['S', 'M', 'L', 'XL'];
+
+function divisionApparelSizes(regFields: RegField[] | undefined): string[] {
+  const field = regFields?.find(f => f.preset === 'apparel');
+  return field?.options?.length ? field.options : ADD_TEAM_DEFAULT_SIZES;
+}
+
+function divisionCustomKey(regFields: RegField[] | undefined, preset: PresetKey, fallback: string): string {
+  return regFields?.find(f => f.preset === preset)?.id ?? fallback;
+}
+
+
 export default function OrganizerSetup() {
   const params = useParams();
   const router = useRouter();
@@ -487,7 +514,13 @@ export default function OrganizerSetup() {
 
   // Manual "Add Team" modal
   const [showAddTeamModal, setShowAddTeamModal] = useState(false);
-  const [addTeamPlayers, setAddTeamPlayers] = useState<{ name: string; phone: string; email: string }[]>([]);
+  /* The same answers public registration collects, so a team the
+   * organizer types in is indistinguishable from one that registered
+   * itself. The difference is what is enforced, not what is asked:
+   * nothing here is required except one name to build the team name
+   * from. */
+  const [addTeamPlayers, setAddTeamPlayers] = useState<AddTeamPlayer[]>([]);
+  const [addTeamContact, setAddTeamContact] = useState({ email: '', phone: '' });
   const [addTeamSaving, setAddTeamSaving] = useState(false);
   const [addTeamError, setAddTeamError] = useState('');
 
@@ -1126,12 +1159,21 @@ export default function OrganizerSetup() {
   const openAddTeamModal = () => {
     if (!activeDivision) return;
     const size = activeDivision.maxRosterSize || FORMAT_PLAYERS[activeDivision.formatTypeOnSand] || 2;
-    setAddTeamPlayers(Array.from({ length: size }, () => ({ name: '', phone: '', email: '' })));
+    const sizes = divisionApparelSizes(activeDivision.regFields);
+    // Same default the registration form picks: M when the division
+    // offers it, otherwise whatever comes first.
+    const defaultSize = sizes.includes('M') ? 'M' : sizes[0];
+    setAddTeamPlayers(
+      Array.from({ length: size }, () => ({
+        name: '', shirtSize: defaultSize, nationality: '', club: '', userId: null,
+      }))
+    );
+    setAddTeamContact({ email: '', phone: '' });
     setAddTeamError('');
     setShowAddTeamModal(true);
   };
 
-  const updateAddTeamPlayer = (idx: number, patch: Partial<{ name: string; phone: string; email: string }>) => {
+  const updateAddTeamPlayer = (idx: number, patch: Partial<AddTeamPlayer>) => {
     setAddTeamPlayers(prev => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   };
 
@@ -1140,11 +1182,29 @@ export default function OrganizerSetup() {
     const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
     if (!tournamentId) return;
 
-    const players = addTeamPlayers.filter(p => p.name.trim());
-    if (players.length === 0) {
-      setAddTeamError('Add at least one player with a name.');
+    /* Only the team name is enforced, and only because a team is named by
+     * joining its players — everything else the organizer leaves blank
+     * stays blank. Rows they never touched are dropped server-side. */
+    if (!addTeamPlayers.some(p => p.name.trim())) {
+      setAddTeamError('Add at least one player name — the team is named after its players.');
       return;
     }
+
+    const natKey = divisionCustomKey(activeDivision.regFields, 'nationality', 'nationality');
+    const clubKey = divisionCustomKey(activeDivision.regFields, 'hometown', 'hometown');
+    /* The one contact goes onto every player row, exactly as public
+       registration sends it. */
+    const players = addTeamPlayers.map(p => ({
+      name: p.name.trim(),
+      phone: addTeamContact.phone.trim(),
+      email: addTeamContact.email.trim(),
+      shirtSize: p.shirtSize,
+      userId: p.userId ?? undefined,
+      custom: {
+        ...(p.nationality.trim() ? { [natKey]: p.nationality.trim() } : {}),
+        ...(p.club.trim() ? { [clubKey]: p.club.trim() } : {}),
+      },
+    }));
 
     setAddTeamSaving(true);
     setAddTeamError('');
@@ -1152,7 +1212,8 @@ export default function OrganizerSetup() {
       const res = await fetch(`/api/tournaments/${tournamentId}/divisions/${activeDivision.id}/teams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teams: [{ players }] }),
+        // 'manual' relaxes the per-player name rule the CSV importer keeps.
+        body: JSON.stringify({ mode: 'manual', teams: [{ players }] }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed to add team');
@@ -3227,44 +3288,40 @@ export default function OrganizerSetup() {
       {/* ── ADD TEAM MODAL ────────────────────────────────────────── */}
       {showAddTeamModal && activeDivision && (
         <div className={styles.modalOverlay} onClick={() => setShowAddTeamModal(false)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+          {/* 812 = the 768px the roster measures inside the registration
+              card on desktop, plus this modal's own 44px of body padding —
+              so the fields come out exactly the size they are on the
+              public form. Narrower viewports shrink it, and the roster's
+              container query then stacks the players just as the public
+              form does on a phone. */}
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: 812 }}>
             <div className={styles.modalHeader}>
               <h3>Add Team — {activeDivision.name}</h3>
               <button className={styles.modalCloseBtn} onClick={() => setShowAddTeamModal(false)}><X size={18} /></button>
             </div>
             <div className={styles.modalBody}>
               {addTeamError && <div className={styles.modalFormError}>{addTeamError}</div>}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {addTeamPlayers.map((p, idx) => (
-                  <div key={idx}>
-                    <label className={styles.fieldLabel}>Player {idx + 1}{idx === 0 ? ' *' : ''}</label>
-                    <div className={styles.twoCol} style={{ gridTemplateColumns: '1.4fr 1fr', marginTop: 6 }}>
-                      <input
-                        className={styles.input}
-                        type="text"
-                        placeholder="Full name"
-                        value={p.name}
-                        onChange={e => updateAddTeamPlayer(idx, { name: e.target.value })}
-                      />
-                      <input
-                        className={styles.input}
-                        type="tel"
-                        placeholder="Phone"
-                        value={p.phone}
-                        onChange={e => updateAddTeamPlayer(idx, { phone: e.target.value })}
-                      />
-                    </div>
-                    <input
-                      className={styles.input}
-                      type="email"
-                      placeholder="Email (optional)"
-                      style={{ marginTop: 8, width: '100%' }}
-                      value={p.email}
-                      onChange={e => updateAddTeamPlayer(idx, { email: e.target.value })}
-                    />
-                  </div>
-                ))}
-              </div>
+
+              {/* The one rule left. Said once at the top rather than as an
+                  asterisk per field, because everything else really is
+                  optional and a form full of markers implies otherwise. */}
+              <p className={styles.addTeamHint}>
+                Every field is optional — fill in as much as you have. One player
+                name is needed, since the team is named after its players.
+              </p>
+
+              {/* The public registration form's own roster component: same
+                  fields, same player-ID search, same layout. The organizer
+                  differs only in what is enforced, which is the `required`
+                  prop — everything false here. */}
+              <RosterFields
+                players={addTeamPlayers}
+                onPlayerChange={updateAddTeamPlayer}
+                contact={addTeamContact}
+                onContactChange={patch => setAddTeamContact(c => ({ ...c, ...patch }))}
+                sizes={divisionApparelSizes(activeDivision.regFields)}
+                required={{}}
+              />
             </div>
             <div className={styles.modalFooter}>
               <button className={styles.btnGhost} onClick={() => setShowAddTeamModal(false)}>Cancel</button>

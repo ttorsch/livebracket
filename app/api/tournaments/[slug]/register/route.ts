@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { getCurrentUser } from '../../../../../lib/auth';
+import { publicProfilesByIds } from '../../../../../lib/profiles';
 import { joinTeamName } from '../../../../../lib/teamName';
 import { normalizeRegFields, rosterSize, targetFor, FORMAT_PLAYERS } from '../../../../../lib/registrationFields';
 import { divisionRegistrationState, PHASE } from '../../../../../lib/tournamentLifecycle';
@@ -32,6 +33,10 @@ interface PlayerBody {
   email?: string;
   shirtSize?: string;
   custom?: Record<string, string>;
+  /* Set when this slot was filled by player-ID search. It names an
+   * account; it does not speak for one, which is what the invite is
+   * for. */
+  userId?: string;
 }
 
 interface RegisterBody {
@@ -134,6 +139,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
    * name is an owner the client could forge onto someone else's account. */
   const user = await getCurrentUser().catch(() => null);
 
+  /* ── Invited accounts ──────────────────────────────────────────
+   * A userId here is a claim that a slot belongs to some account. It is
+   * checked for existence and for duplicates, and then written as a
+   * *pending* invite — never as an accepted one — so naming somebody
+   * gives the registrant nothing except the ability to ask. The named
+   * account confirms or rejects it from their own profile, and until
+   * they do the public page draws them greyed.
+   *
+   * The one exception is the registrant themselves: you do not invite
+   * yourself, so your own slot is accepted outright. */
+  const invitedIds = playersIn
+    .map(p => (typeof p.userId === 'string' ? p.userId.trim() : ''))
+    .filter(Boolean);
+
+  if (new Set(invitedIds).size !== invitedIds.length) {
+    return bad('The same player is on this team twice');
+  }
+
+  const knownProfiles = await publicProfilesByIds(invitedIds);
+  if (knownProfiles.size !== new Set(invitedIds).size) {
+    return bad('One of the selected players could not be found');
+  }
+
   const { data: team, error: teamError } = await supabaseAdmin
     .from('teams')
     .insert({
@@ -147,16 +175,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .single();
   if (teamError) return bad(teamError.message, 500);
 
-  const playerRows = playersIn.map(p => ({
-    team_id: team.id,
-    name: (p.name ?? '').trim(),
-    phone: p.phone?.trim() || null,
-    email: p.email?.trim() || null,
-    shirt_size: p.shirtSize?.trim() || null,
-    custom_fields: Object.fromEntries(
-      Object.entries(p.custom ?? {}).filter(([, v]) => typeof v === 'string' && v.trim()),
-    ),
-  }));
+  const now = new Date().toISOString();
+  const playerRows = playersIn.map(p => {
+    const userId = typeof p.userId === 'string' && p.userId.trim() ? p.userId.trim() : null;
+    const isRegistrant = Boolean(userId && user && userId === user.id);
+
+    return {
+      team_id: team.id,
+      name: (p.name ?? '').trim(),
+      phone: p.phone?.trim() || null,
+      email: p.email?.trim() || null,
+      shirt_size: p.shirtSize?.trim() || null,
+      custom_fields: Object.fromEntries(
+        Object.entries(p.custom ?? {}).filter(([, v]) => typeof v === 'string' && v.trim()),
+      ),
+      user_id: userId,
+      invite_status: !userId ? 'none' : isRegistrant ? 'accepted' : 'pending',
+      invited_at: userId && !isRegistrant ? now : null,
+      responded_at: isRegistrant ? now : null,
+    };
+  });
   const { error: playersError } = await supabaseAdmin.from('players').insert(playerRows);
   if (playersError) {
     // A team with no players is invisible on every surface but still eats a

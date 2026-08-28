@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { MapPin, Calendar, Users, Clock, Share2, Check } from 'lucide-react';
 import styles from './page.module.css';
+import { roundFormatLabel, isGroupFormat } from '@/lib/roundFormat';
 import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
   type DetailDivision,
@@ -38,17 +39,11 @@ function getTitleInitials(title: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-const FORMAT_LABEL: Record<string, string> = {
-  'round-robin': 'Round Robin',
-  'single-elim': 'Single Elimination',
-  'double-elim': 'Double Elimination',
-};
-
-const formatLabel = (f: string) => FORMAT_LABEL[f] ?? f;
-
-/* A round that ranks teams against each other rather than knocking them out —
-   the only kind that produces a standings table. */
-const isGroupFormat = (f: string) => f === 'round-robin' || f === 'pool';
+/* Labels and the group/knockout question both come from lib/roundFormat,
+   which is keyed to the values rounds.format actually holds. The map that
+   used to live here was keyed 'single-elim'/'double-elim' — values the
+   schema does not allow — so every knockout round fell through to its raw
+   column value and displayed as "single". */
 
 /* ── Standings, tallied from the matches themselves ───────────────
  *
@@ -172,7 +167,7 @@ function buildRoundViews(division: DetailDivision, advanceCount: number): RoundV
       key: `${i}-${round.format}`,
       n: i + 1,
       eyebrow: `Round ${i + 1}`,
-      name: formatLabel(round.format),
+      name: roundFormatLabel(round.format),
       sets,
       facts,
     };
@@ -242,6 +237,21 @@ export default function TournamentPage() {
         setActiveDiv((prev) => prev || data.divisions[0].id);
       }
     }).catch(console.error);
+  }, [slug]);
+
+  const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/tournaments/${slug}/player-avatars`)
+      .then(res => res.json())
+      .then(data => {
+        if (!cancelled && data?.avatars) {
+          setPlayerAvatars(data.avatars);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [slug]);
 
   useEffect(() => {
@@ -736,17 +746,23 @@ export default function TournamentPage() {
                   >
                     <div className={styles.teamCardHeader}>
                       <div className={styles.teamPlayersList}>
-                        {players.map((playerName, idx) => (
-                          <div key={idx} className={styles.teamPlayerRow}>
-                            <PlayerAvatar name={playerName} />
-                            <span className={styles.teamPlayerName}>{playerName}</span>
-                          </div>
-                        ))}
+                        {players.map((playerName, idx) => {
+                          const nameKey = playerName.toLowerCase().trim();
+                          const avatarUrl =
+                            playerAvatars[nameKey] ||
+                            (idx === 0 && team.registeredBy ? playerAvatars[team.registeredBy] : undefined);
+                          return (
+                            <div key={idx} className={styles.teamPlayerRow}>
+                              <PlayerAvatar name={playerName} avatarUrl={avatarUrl} />
+                              <span className={styles.teamPlayerName}>{playerName}</span>
+                            </div>
+                          );
+                        })}
                       </div>
 
-                      {team.status !== 'confirmed' && (
+                      {team.status === 'waitlist' && (
                         <span className={styles.teamTag}>
-                          {team.status === 'waitlist' ? 'Waitlist' : 'Unpaid'}
+                          Waitlist
                         </span>
                       )}
                     </div>
@@ -1022,6 +1038,11 @@ function parseTeamPlayers(name: string): string[] {
 
 function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
+
   const words = name.trim().split(/\s+/).filter(Boolean);
   const initial = words.length > 1
     ? (words[0][0] + words[1][0]).toUpperCase()

@@ -703,6 +703,7 @@ export interface DetailTeam {
   name: string;
   seed: number;
   status: string;
+  registeredBy?: string | null;
 }
 
 // One knockout slot as the bracket crossing defines it: "whoever finishes
@@ -972,7 +973,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
   const rest = `
       divisions (
         id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings,
-        teams ( id, name, seed, status ),
+        teams ( id, name, seed, status, registered_by ),
         rounds (
           id, sequence, format, name, scoring_rules,
           matches (
@@ -1034,7 +1035,13 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         filled: d.teams.filter((team) => team.status !== 'waitlist').length,
         teamsList: [...d.teams]
           .sort((a, b) => a.seed - b.seed)
-          .map((team) => ({ id: team.id, name: formatTeamName(team.name), seed: team.seed, status: team.status })),
+          .map((team) => ({
+            id: team.id,
+            name: formatTeamName(team.name),
+            seed: team.seed,
+            status: team.status,
+            registeredBy: (team as any).registered_by ?? null,
+          })),
         bracket: [...d.rounds]
           .sort((a, b) => a.sequence - b.sequence)
           .map((r) => ({

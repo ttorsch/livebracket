@@ -3806,3 +3806,15 @@
   color: var(--text-secondary, #3A414D);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Add Team modal ────────────────────────────────────────────────
+   The roster itself is components/registration/RosterFields, which
+   carries its own styles — the same ones the public form uses. All this
+   file adds is the line explaining what is (and is not) required. */
+
+.addTeamHint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}

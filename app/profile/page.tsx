@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Camera, Shield, MapPin } from 'lucide-react';
+import { Camera, Shield, MapPin, Copy, Check, Bell, MessageSquare, Settings, LogOut } from 'lucide-react';
 import {
   Avatar,
   Badge,
@@ -152,7 +152,26 @@ export default function PlayerProfile() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* The stored id from the profiles row, not one derived from the auth
+   * uuid: a hash cannot be searched (it is one-way, so a lookup would
+   * mean hashing every account) and is not unique. This is the number
+   * /api/players/lookup actually resolves, so the one shown here is the
+   * one a teammate can use. */
+  const playerId = session.playerId;
+
+  const handleCopyPlayerId = async () => {
+    if (!playerId) return;
+    try {
+      await navigator.clipboard.writeText(playerId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy player ID:', err);
+    }
+  };
 
   useEffect(() => {
     if (!isEditing) {
@@ -305,17 +324,39 @@ export default function PlayerProfile() {
         <div className={styles.topbarActions}>
           <button
             type="button"
-            className={styles.topbarLink}
+            className={styles.topbarIconButton}
+            title="Notifications"
+            aria-label="Notifications"
             onClick={() => {}}
           >
-            Settings
+            <Bell size={21} strokeWidth={1.8} />
           </button>
           <button
             type="button"
-            className={styles.topbarLink}
+            className={styles.topbarIconButton}
+            title="Chat"
+            aria-label="Chat"
+            onClick={() => {}}
+          >
+            <MessageSquare size={21} strokeWidth={1.8} />
+          </button>
+          <button
+            type="button"
+            className={styles.topbarIconButton}
+            title="Settings"
+            aria-label="Settings"
+            onClick={() => {}}
+          >
+            <Settings size={21} strokeWidth={1.8} />
+          </button>
+          <button
+            type="button"
+            className={styles.topbarIconButton}
+            title="Log Out"
+            aria-label="Log Out"
             onClick={handleLogout}
           >
-            Sign Out
+            <LogOut size={21} strokeWidth={1.8} />
           </button>
         </div>
       </div>
@@ -447,6 +488,19 @@ export default function PlayerProfile() {
                   </span>
                 )}
               </div>
+              <div className={styles.playerIdRow}>
+                <span className={styles.playerIdLabel}>Player ID:</span>
+                <span className={styles.playerIdValue}>{playerId}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyPlayerId}
+                  className={styles.copyBtn}
+                  title={copied ? 'Copied!' : 'Copy Player ID'}
+                  aria-label="Copy Player ID"
+                >
+                  {copied ? <Check size={14} color="#16a34a" /> : <Copy size={14} />}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -493,28 +547,7 @@ export default function PlayerProfile() {
       {/* ── Content ───────────────────────────────────────────────── */}
       <div className={`${styles.shell} ${styles.content}`}>
 
-        {/* Payment banner — real, and only when something is owed. */}
-        {paymentDue && tab !== 'starred' && (
-          <Card radius="lg" padding={20}>
-            <div className={styles.payRow}>
-              <span className={styles.payIcon}>
-                <Icon name="calendar" size={21} color="var(--ink-900)" />
-              </span>
-              <div className={styles.payText}>
-                <span className={styles.payTitle}>Entry fee due for {paymentDue.title}</span>
-                <span className={styles.paySub}>
-                  {paymentDue.divisionName} · Pay the organizer to keep your spot in the draw
-                </span>
-              </div>
-              <div className={styles.payRight}>
-                <span className={styles.payAmount}>฿{money.format(paymentDue.fee)}</span>
-                <Link href={`/tournament/${paymentDue.slug}`}>
-                  <Button variant="primary">View event</Button>
-                </Link>
-              </div>
-            </div>
-          </Card>
-        )}
+
 
         {/* ── Overview ────────────────────────────────────────────── */}
         {tab === 'overview' && (
@@ -536,27 +569,6 @@ export default function PlayerProfile() {
                     />
                   ))}
                 </div>
-              </Card>
-
-              <Card radius="xl" padding={24}>
-                <div className={styles.cardHeadTight}>
-                  <h2 className={styles.cardTitle}>Partners</h2>
-                  <span className={styles.cardNote}>Sample data</span>
-                </div>
-                {SAMPLE_PARTNERS.map(p => (
-                  <div key={p.name} className={styles.partnerRow}>
-                    <Avatar name={p.name} size={36} />
-                    <div className={styles.partnerText}>
-                      <span className={styles.partnerName}>{p.name}</span>
-                      <span className={styles.partnerMeta}>{p.meta}</span>
-                    </div>
-                    <span className={styles.partnerRecord}>{p.record}</span>
-                    <div className={styles.partnerBar}>
-                      <div className={styles.partnerBarFill} style={{ width: p.pct }} />
-                    </div>
-                    <span className={styles.partnerPct}>{p.pct}</span>
-                  </div>
-                ))}
               </Card>
             </div>
 
@@ -624,6 +636,27 @@ export default function PlayerProfile() {
                     <span className={styles.perfFactValue}>5 matches</span>
                   </div>
                 </div>
+              </Card>
+
+              <Card radius="xl" padding={24}>
+                <div className={styles.cardHeadTight}>
+                  <h2 className={styles.cardTitle}>Partners</h2>
+                  <span className={styles.cardNote}>Sample data</span>
+                </div>
+                {SAMPLE_PARTNERS.map(p => (
+                  <div key={p.name} className={styles.partnerRow}>
+                    <Avatar name={p.name} size={36} />
+                    <div className={styles.partnerText}>
+                      <span className={styles.partnerName}>{p.name}</span>
+                      <span className={styles.partnerMeta}>{p.meta}</span>
+                    </div>
+                    <span className={styles.partnerRecord}>{p.record}</span>
+                    <div className={styles.partnerBar}>
+                      <div className={styles.partnerBarFill} style={{ width: p.pct }} />
+                    </div>
+                    <span className={styles.partnerPct}>{p.pct}</span>
+                  </div>
+                ))}
               </Card>
             </div>
           </div>

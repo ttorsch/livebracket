@@ -24,6 +24,10 @@ export interface SessionInfo {
   club: string | null;
   hometown: string | null;
   avatarUrl: string | null;
+  /* The 8-digit code this account shares so a teammate can add them to a
+   * roster. Null only before the profile row exists — every signed-in
+   * account has one from its first authenticated moment. */
+  playerId: string | null;
 }
 
 export const SIGNED_OUT: SessionInfo = {
@@ -36,6 +40,7 @@ export const SIGNED_OUT: SessionInfo = {
   club: null,
   hometown: null,
   avatarUrl: null,
+  playerId: null,
 };
 
 export function isOrganizer(session: SessionInfo): boolean {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getOrganizerForUser, getSessionInfo } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { ensureProfileForUser } from '@/lib/profiles';
 
 export async function PATCH(request: NextRequest) {
   const user = await getCurrentUser();
@@ -51,13 +52,33 @@ export async function PATCH(request: NextRequest) {
       if (name !== undefined) orgUpdate.name = name;
       if (avatarUrl !== undefined) orgUpdate.avatar_url = avatarUrl;
       if (club !== undefined) orgUpdate.club = club;
-      if (hometown !== undefined) orgUpdate.hometown = hometown;
 
       if (Object.keys(orgUpdate).length > 0) {
         await supabaseAdmin
           .from('organizers')
           .update(orgUpdate)
           .eq('id', organizer.id);
+      }
+    }
+
+    /* The profiles row is what getSessionInfo reads first, so an edit that
+     * only reached user_metadata would appear to do nothing. Written last
+     * and by id — player_id is never touched here, because an id the owner
+     * can rewrite is an id someone else's invite can follow. */
+    await ensureProfileForUser(user);
+    const profileUpdate: Record<string, string> = {};
+    if (name !== undefined) profileUpdate.name = name;
+    if (avatarUrl !== undefined) profileUpdate.avatar_url = avatarUrl;
+    if (club !== undefined) profileUpdate.club = club;
+    if (hometown !== undefined) profileUpdate.hometown = hometown;
+
+    if (Object.keys(profileUpdate).length > 0) {
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update({ ...profileUpdate, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      if (profileError) {
+        return NextResponse.json({ error: profileError.message }, { status: 500 });
       }
     }
 

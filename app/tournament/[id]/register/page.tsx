@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Check, AlertCircle } from 'lucide-react';
-import { Badge, Button, Icon, Logo, SegmentedControl } from '@/components/livebracket-ds';
+import { Badge, Button, Icon, Logo } from '@/components/livebracket-ds';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
 import { joinTeamName } from '../../../../lib/teamName';
@@ -12,6 +12,7 @@ import type { PresetKey } from '../../../../lib/registrationFields';
 import { divisionRegistrationState } from '../../../../lib/tournamentLifecycle';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../../components/auth/useSignInHref';
 import { useSession } from '../../../../components/auth/AuthProvider';
+import RosterFields from '../../../../components/registration/RosterFields';
 import AccountButton from '../../../../components/auth/AccountButton';
 
 const STEPS = ['Division', 'Players', 'Review'];
@@ -97,11 +98,16 @@ export default function TournamentRegister() {
 
   /* Only fills a field the visitor has not touched, and only once their
    * session is known — a late-arriving session must never overwrite an
-   * address they already typed. */
-  useEffect(() => {
-    if (!session.email) return;
+   * address they already typed.
+   *
+   * Adjusted during render rather than in an effect, so the prefilled
+   * address is there on the first paint instead of appearing a frame
+   * later in an input the visitor may already be typing into. */
+  const [seenSessionEmail, setSeenSessionEmail] = useState<string | null>(null);
+  if (session.email && seenSessionEmail !== session.email) {
+    setSeenSessionEmail(session.email);
     setContact(c => (c.email ? c : { ...c, email: session.email! }));
-  }, [session.email]);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +147,7 @@ export default function TournamentRegister() {
   const updatePlayer = (i: number, patch: Partial<PlayerAnswers>) => {
     setPlayers(prev => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   };
+
 
   const teamName = joinTeamName(players.map(p => p.name));
 
@@ -409,94 +416,17 @@ export default function TournamentRegister() {
                 </div>
               </div>
 
-              <div className={styles.fieldSet}>
-                <span className={styles.sectionLabel}>Team contact</span>
-                <div className={styles.contactGrid}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Email <span className={styles.req}>*</span></span>
-                    <input
-                      className={styles.input}
-                      type="email"
-                      autoComplete="email"
-                      placeholder="captain@email.com"
-                      value={contact.email}
-                      onChange={e => setContact(c => ({ ...c, email: e.target.value }))}
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Phone / WhatsApp <span className={styles.req}>*</span></span>
-                    <input
-                      className={styles.input}
-                      type="tel"
-                      autoComplete="tel"
-                      placeholder="+66 __ ___ ____"
-                      value={contact.phone}
-                      onChange={e => setContact(c => ({ ...c, phone: e.target.value }))}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className={styles.playerGrid}>
-                {players.map((player, i) => (
-                  <div key={i} className={styles.playerCard}>
-                    <div className={styles.playerHead}>
-                      <span className={styles.playerNum}>{i + 1}</span>
-                      <span className={styles.playerName}>Player {i + 1}</span>
-                    </div>
-
-                    <label className={styles.field}>
-                      <span className={styles.fieldLabel}>Full name <span className={styles.req}>*</span></span>
-                      <input
-                        className={styles.input}
-                        placeholder={i === 0 ? 'e.g. Anna Sirisai' : 'e.g. Mai Chaiyo'}
-                        value={player.name}
-                        onChange={e => updatePlayer(i, { name: e.target.value })}
-                      />
-                    </label>
-
-                    <div className={styles.playerExtras}>
-                      <div className={styles.field}>
-                        <span className={styles.fieldLabel}>Apparel size</span>
-                        <SegmentedControl
-                          options={sizes}
-                          value={player.shirtSize}
-                          onChange={val => updatePlayer(i, { shirtSize: val })}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: `repeat(${sizes.length}, minmax(0, 1fr))`,
-                            width: '100%',
-                          }}
-                        />
-                      </div>
-                      <div className={styles.playerExtraPair}>
-                        <label className={styles.field}>
-                          <span className={styles.fieldLabel}>
-                            Nationality {natRequired && <span className={styles.req}>*</span>}
-                          </span>
-                          <input
-                            className={styles.input}
-                            placeholder="Thailand"
-                            value={player.nationality}
-                            onChange={e => updatePlayer(i, { nationality: e.target.value })}
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          <span className={styles.fieldLabel}>
-                            Club / hometown {clubRequired && <span className={styles.req}>*</span>}
-                          </span>
-                          <input
-                            className={styles.input}
-                            placeholder="KLV"
-                            value={player.club}
-                            onChange={e => updatePlayer(i, { club: e.target.value })}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <RosterFields
+                players={players}
+                onPlayerChange={updatePlayer}
+                contact={contact}
+                onContactChange={patch => setContact(c => ({ ...c, ...patch }))}
+                sizes={sizes}
+                required={{ name: true, contact: true, nationality: natRequired, club: clubRequired }}
+                /* Searching needs a session; an anonymous visitor can still
+                   register by typing names. */
+                searchEnabled={session.signedIn}
+              />
 
               {/* Teams are named after their players everywhere in Live
                   Bracket — the bracket, the schedule, the score screen —
@@ -706,10 +636,12 @@ function Hero({ slug, tournament, stepLabel }: {
     : `${rosterSizes[0]}–${rosterSizes[rosterSizes.length - 1]} players per team`;
 
   return (
-    <div
-      className={`${styles.hero} ${tournament.imageUrl ? '' : styles.heroFallback}`}
-      style={tournament.imageUrl ? { backgroundImage: `url(${tournament.imageUrl})` } : undefined}
-    >
+    /* The registration hero deliberately does not carry the tournament's
+       cover photo. A busy action shot behind a form competes with the
+       thing the page is for — the coral-into-ink wash keeps the white
+       hero type legible and the eye on the steps below. The event page
+       is still where the photo belongs. */
+    <div className={`${styles.hero} ${styles.heroFallback}`}>
       <div className={styles.heroOverlay} aria-hidden="true" />
       <HeroBar />
 
@@ -723,7 +655,6 @@ function Hero({ slug, tournament, stepLabel }: {
 
         <div className={styles.heroTags}>
           <Badge>Registration open</Badge>
-          <span className={styles.heroStep}>{stepLabel}</span>
         </div>
 
         <h1 className={styles.heroTitle}>{tournament.title}</h1>

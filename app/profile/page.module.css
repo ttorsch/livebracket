@@ -51,24 +51,29 @@
 .topbarActions {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 20px;
 }
 
-.topbarLink {
+.topbarIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
-  padding: 0;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 600;
-  font-size: 15px;
+  padding: 6px;
   color: var(--text-primary, #14181e);
   cursor: pointer;
-  text-decoration: none;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  border-radius: 6px;
+  transition: opacity 0.15s ease, transform 0.1s ease, color 0.15s ease;
 }
 
-.topbarLink:hover {
-  opacity: 0.7;
+.topbarIconButton:hover {
+  opacity: 0.65;
+  transform: translateY(-1px);
+}
+
+.topbarIconButton:active {
+  transform: scale(0.95);
 }
 
 /* ── Identity ────────────────────────────────────────────────────── */
@@ -128,12 +133,44 @@
   gap: 7px;
 }
 
-.divisionBadges {
-  display: flex;
+.playerIdRow {
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--text-secondary, #7a8294);
   margin-top: 2px;
+}
+
+.playerIdLabel {
+  font-weight: 500;
+}
+
+.playerIdValue {
+  font-family: var(--font-mono, 'SFMono-Regular', Consolas, monospace);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-primary, #14181e);
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #7a8294);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.copyBtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary, #14181e);
 }
 
 .editProfileBtn {

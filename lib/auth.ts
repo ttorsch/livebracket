@@ -3,6 +3,7 @@ import { type User } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from './supabaseServer';
 import { supabaseAdmin } from './supabaseAdmin';
 import { type Role, type SessionInfo, SIGNED_OUT } from './session';
+import { getProfile } from './profiles';
 
 export interface Organizer {
   id: string;
@@ -10,7 +11,7 @@ export interface Organizer {
   email: string;
   name: string;
   club: string | null;
-  hometown: string | null;
+  hometown?: string | null;
   avatar_url: string | null;
 }
 
@@ -46,11 +47,14 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function getOrganizerForUser(userId: string): Promise<Organizer | null> {
   const { data, error } = await supabaseAdmin
     .from('organizers')
-    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
+    .select('id, auth_user_id, email, name, club, avatar_url')
     .eq('auth_user_id', userId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to load organizer: ${error.message}`);
+  if (error) {
+    console.error(`Failed to load organizer: ${error.message}`);
+    return null;
+  }
   return (data as Organizer | null) ?? null;
 }
 
@@ -82,38 +86,68 @@ export async function getSessionInfo(): Promise<SessionInfo> {
     const user = await getCurrentUser();
     if (!user) return SIGNED_OUT;
 
-    const organizer = await getOrganizerForUser(user.id);
+    /* The profile is the player-facing identity and the organizers row is
+     * the capability; an account can have one, both, or (briefly, before
+     * /auth/callback runs) neither. Read together so the session is one
+     * answer rather than two half-answers. */
+    const [organizer, profile] = await Promise.all([
+      getOrganizerForUser(user.id),
+      getProfile(user.id),
+    ]);
 
     return {
       signedIn: true,
       roles: rolesFor(organizer),
       userId: user.id,
+      playerId: profile?.player_id ?? null,
       organizerId: organizer?.id ?? null,
       email: user.email ?? null,
+      /* Profile first: it is the account's own player-facing identity and
+       * the only one of these three the owner edits directly. The
+       * organizers row comes next (an organizer's public name), and
+       * user_metadata last — it is a claim the browser can write, kept
+       * only so accounts predating the profiles table still render. */
       name:
+        profile?.name ??
         organizer?.name ??
         (user.user_metadata?.full_name as string | undefined) ??
         (user.user_metadata?.name as string | undefined) ??
         null,
       club:
+        profile?.club ??
         organizer?.club ??
         (user.user_metadata?.club as string | undefined) ??
         null,
       hometown:
+        profile?.hometown ??
         organizer?.hometown ??
         (user.user_metadata?.hometown as string | undefined) ??
         (user.user_metadata?.location as string | undefined) ??
         null,
       avatarUrl:
+        profile?.avatar_url ??
         organizer?.avatar_url ??
         (user.user_metadata?.avatar_url as string | undefined) ??
         (user.user_metadata?.picture as string | undefined) ??
         null,
     };
   } catch (err) {
+    /* Next signals "this route must render dynamically" by throwing from
+     * cookies(). That is control flow, not a failure — swallowing it
+     * would both spam the build log and hide the bailout from Next, so
+     * it goes back up untouched. */
+    if (isDynamicUsageError(err)) throw err;
+
     console.error('Failed to resolve session:', err);
     return SIGNED_OUT;
   }
+}
+
+/* Next marks the bailout with a digest rather than an exported class, so
+ * this is the documented way to recognise one from library code. */
+function isDynamicUsageError(err: unknown): boolean {
+  const digest = (err as { digest?: unknown } | null)?.digest;
+  return typeof digest === 'string' && digest.startsWith('DYNAMIC_SERVER_USAGE');
 }
 
 /* The one place an organizers row is ever created. Idempotent, and safe to
