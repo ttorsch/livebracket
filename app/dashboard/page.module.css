@@ -81,17 +81,19 @@
 /* The brand slot doubles as Home only on the mobile bar. */
 .brandHome { display: none; }
 .brandMark {
-  width: 38px;
-  height: 38px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
-  display: inline-flex;
+  filter: drop-shadow(0 4px 10px rgba(242, 103, 73, 0.45));
 }
 .brandMark svg { width: 100%; height: 100%; }
 .brandName {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.05em;
   color: var(--ink-900, #14181E);
   white-space: nowrap;
 }

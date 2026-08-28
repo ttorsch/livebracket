@@ -470,14 +470,14 @@ function formatDateRange(start: string, end?: string): string {
 /* Status pill copy. Long form rides the desktop poster, short form the
    mobile row. "Filling" once any division passes 80% of its seats. */
 function statusLabels(t: Tournament): { long: string; short: string } {
-  if (t.status === 'live') return { long: 'Live now', short: 'Live' };
+  if (t.status === 'live') return { long: 'Live now', short: 'Live now' };
   if (t.status === 'finished') return { long: 'Finished', short: 'Finished' };
   const fullest = (t.registrations || []).reduce(
     (max, r) => (r.total > 0 ? Math.max(max, r.filled / r.total) : max),
     0
   );
-  if (fullest >= 0.8) return { long: 'Filling fast', short: 'Filling' };
-  return { long: 'Registration open', short: 'Open' };
+  if (fullest >= 0.8) return { long: 'Filling fast', short: 'Filling fast' };
+  return { long: 'Open Registration', short: 'Open Registration' };
 }
 
 function toEventCard(t: DashboardTournament, index: number, organizerName: string | null): Tournament {
@@ -966,9 +966,7 @@ export default function LiveBracketHome() {
 
           {/* Right Action Buttons */}
           <div className={styles.navRightActions}>
-            {signedIn ? (
-              <AccountButton onNavigate={() => saveScrollPosition()} />
-            ) : (
+            {!signedIn && (
               <>
                 <Link
                   href={signInHref}
@@ -999,17 +997,24 @@ export default function LiveBracketHome() {
               <Search size={18} />
             </button>
 
-            {/* Mobile Hamburger Menu Button (Rightmost) */}
-            <button
-              className={styles.mobileMenuToggle}
-              onClick={() => {
-                setMenuOpen(!menuOpen);
-                if (!menuOpen) setMobileSearchOpen(false);
-              }}
-              aria-label="Toggle navigation menu"
-            >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+            {/* Signed-in Profile Button */}
+            {signedIn && (
+              <AccountButton onNavigate={() => saveScrollPosition()} />
+            )}
+
+            {/* Signed-out Mobile Hamburger Menu Button (Rightmost) */}
+            {!signedIn && (
+              <button
+                className={styles.mobileMenuToggle}
+                onClick={() => {
+                  setMenuOpen(!menuOpen);
+                  if (!menuOpen) setMobileSearchOpen(false);
+                }}
+                aria-label="Toggle navigation menu"
+              >
+                {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            )}
           </div>
         </div>
         
@@ -1031,44 +1036,29 @@ export default function LiveBracketHome() {
           </div>
         )}
 
-        {/* Mobile Menu Dropdown */}
-        {menuOpen && (
+        {/* Mobile Menu Dropdown (Signed-out visitor menu) */}
+        {!signedIn && menuOpen && (
           <div className={styles.mobileMenuDropdown}>
-            {signedIn ? (
-              <Link
-                href="/profile"
-                className={styles.mobileNavSignInLink}
-                onClick={() => {
-                  saveScrollPosition();
-                  setMenuOpen(false);
-                }}
-              >
-                My profile
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href={signInHref}
-                  className={styles.mobileNavSignInLink}
-                  onClick={() => {
-                    saveScrollPosition();
-                    setMenuOpen(false);
-                  }}
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href={createHref}
-                  className={styles.mobileNavCreateBtn}
-                  onClick={() => {
-                    saveScrollPosition();
-                    setMenuOpen(false);
-                  }}
-                >
-                  Create a tournament
-                </Link>
-              </>
-            )}
+            <Link
+              href={signInHref}
+              className={styles.mobileNavSignInLink}
+              onClick={() => {
+                saveScrollPosition();
+                setMenuOpen(false);
+              }}
+            >
+              Sign In
+            </Link>
+            <Link
+              href={createHref}
+              className={styles.mobileNavCreateBtn}
+              onClick={() => {
+                saveScrollPosition();
+                setMenuOpen(false);
+              }}
+            >
+              Create a tournament
+            </Link>
           </div>
         )}
       </header>

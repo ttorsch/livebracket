@@ -12,6 +12,8 @@ export interface SegmentedControlProps extends Omit<React.HTMLAttributes<HTMLDiv
   /** Selected value (defaults to first option). */
   value?: string;
   onChange?: (value: string) => void;
+  fullWidth?: boolean;
+  className?: string;
   style?: React.CSSProperties;
 }
 

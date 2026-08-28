@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Camera, Shield, MapPin, Copy, Check, Bell, MessageSquare, Settings, LogOut } from 'lucide-react';
+import { Camera, Shield, MapPin, Copy, Check, Bell, MessageSquare, Settings, LogOut, Pencil } from 'lucide-react';
 import {
   Avatar,
   Badge,
@@ -473,6 +473,15 @@ export default function PlayerProfile() {
             <div className={styles.identityText}>
               <div className={styles.nameRow}>
                 <h1 className={styles.name}>{displayName}</h1>
+                <button
+                  type="button"
+                  className={styles.editProfileIconButton}
+                  onClick={() => setIsEditing(true)}
+                  title="Edit Profile"
+                  aria-label="Edit Profile"
+                >
+                  <Pencil size={16} strokeWidth={1.8} />
+                </button>
               </div>
               <div className={styles.metaRow}>
                 {session.club && (
@@ -506,15 +515,6 @@ export default function PlayerProfile() {
         )}
 
         <div className={styles.identityRight}>
-          {!isEditing && (
-            <button
-              type="button"
-              className={styles.editProfileBtn}
-              onClick={() => setIsEditing(true)}
-            >
-              Edit Profile
-            </button>
-          )}
           <div className={styles.statRow}>
             <div className={styles.stat}>
               <span className={styles.statNum}>{regsLoading ? '–' : tournamentCount}</span>
@@ -542,6 +542,7 @@ export default function PlayerProfile() {
           options={TABS}
           value={tab}
           onChange={value => setTab(value as Tab)}
+          fullWidth
         />
       </div>
 

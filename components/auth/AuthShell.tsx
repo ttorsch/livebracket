@@ -35,7 +35,7 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand} aria-label="Live Bracket — home">
           <span className={styles.brandMark}><BrandMark /></span>
-          Live Bracket
+          LIVE BRACKET
         </Link>
         <Link href="/" className={styles.topBack}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">

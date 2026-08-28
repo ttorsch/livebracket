@@ -486,7 +486,7 @@ export default function OrganizerDashboard() {
   <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
 </svg>
           </span>
-          <span className={styles.brandName}>Live Bracket</span>
+          <span className={styles.brandName}>LIVE BRACKET</span>
         </button>
         <Link href="/" className={styles.brandHome} aria-label="Live Bracket home">
           <Home size={22} className={styles.brandHomeIcon} aria-hidden="true" />

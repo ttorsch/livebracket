@@ -30,13 +30,13 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/page.tsx": {
-    "mtime": 1787896511.9116848,
-    "ast_hash": "357e0fbdc60dd57a7a996fc7c6c9a611",
+    "mtime": 1787916171.2712455,
+    "ast_hash": "99a329d150f17ef9c1416f179a43afff",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/page.tsx": {
-    "mtime": 1787909827.5745494,
-    "ast_hash": "77f63231439295412df35708e23e5c15",
+    "mtime": 1787916661.6666849,
+    "ast_hash": "78ed3843c33633cf6dfb2a86fb5292f0",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/register/page.tsx": {
@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/page.tsx": {
-    "mtime": 1787913179.6621606,
-    "ast_hash": "4173077698be506ff020a2764df31253",
+    "mtime": 1787916672.622096,
+    "ast_hash": "c2798b56c2904434d14ae017634bfb20",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/create/page.tsx": {
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/profile/page.tsx": {
-    "mtime": 1787913868.8850448,
-    "ast_hash": "b223b11fd94cca21f1f58ad272bc712e",
+    "mtime": 1787915703.841057,
+    "ast_hash": "22ddaae37eb3fd120757f12b8e0dba1c",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/design-system/Simulator.tsx": {
@@ -80,8 +80,8 @@
     "semantic_hash": "4fea3897dd283446357818edae109298"
   },
   "/Users/torsmacair/livebracket/app/login/page.tsx": {
-    "mtime": 1787896586.6543186,
-    "ast_hash": "b24d6a9d6e6d3a7900d68a79b703b7c8",
+    "mtime": 1787916683.8406334,
+    "ast_hash": "97ede99129dc4ff7b7eb3baf97c9b707",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/.claude/settings.local.json": {
@@ -100,9 +100,9 @@
     "semantic_hash": "f003b4608d57c1a9632b2aca23cd7b50"
   },
   "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SegmentedControl.jsx": {
-    "mtime": 1782448024.5994468,
-    "ast_hash": "6115fa5891cca049a6b306a6231538b8",
-    "semantic_hash": "6115fa5891cca049a6b306a6231538b8"
+    "mtime": 1787915692.0359552,
+    "ast_hash": "f21dba48c2b9ed003d85c65b0ed1ca4d",
+    "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SearchField.jsx": {
     "mtime": 1782448024.600368,
@@ -110,9 +110,9 @@
     "semantic_hash": "fa6bf22f6b2cc286934f9853555b4e8a"
   },
   "/Users/torsmacair/livebracket/components/livebracket-ds/forms/SegmentedControl.d.ts": {
-    "mtime": 1782448024.600846,
-    "ast_hash": "aee7cd670b8102b16c796a292a5e76e5",
-    "semantic_hash": "aee7cd670b8102b16c796a292a5e76e5"
+    "mtime": 1787915697.3942773,
+    "ast_hash": "42be817dd29b4d059c8ec1ec6be3185c",
+    "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/livebracket-ds/buttons/Button.jsx": {
     "mtime": 1782450067.9262128,
@@ -125,9 +125,9 @@
     "semantic_hash": "e4ae48bae6be646a4fd85b82bfea6536"
   },
   "/Users/torsmacair/livebracket/components/livebracket-ds/brand/Logo.jsx": {
-    "mtime": 1782450402.0474925,
-    "ast_hash": "49020b01893c625b3e213dd1f08f9288",
-    "semantic_hash": "49020b01893c625b3e213dd1f08f9288"
+    "mtime": 1787916657.274292,
+    "ast_hash": "fe09f6804fad544c2c0fc0d3d8a79ab7",
+    "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/livebracket-ds/brand/Logo.d.ts": {
     "mtime": 1782448024.6055562,
@@ -985,8 +985,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/components/auth/AuthShell.tsx": {
-    "mtime": 1787889453.0355928,
-    "ast_hash": "3e320cbed11e1063c9e75c3ba2ec2fe7",
+    "mtime": 1787916697.4849517,
+    "ast_hash": "bb99f156f62991bd06271784d79127c8",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/lib/supabaseServer.ts": {

@@ -6,15 +6,17 @@ import React from "react";
  * neutral track. Used for Latest / Starting Soon / Add Favorite
  * style filters. Each option may carry an icon node.
  */
-export function SegmentedControl({ options = [], value, onChange, style, ...rest }) {
+export function SegmentedControl({ options = [], value, onChange, fullWidth = false, className, style, ...rest }) {
   const opts = options.map((o) => (typeof o === "string" ? { label: o, value: o } : o));
   const selected = value ?? opts[0]?.value;
 
   return (
     <div
       role="tablist"
+      className={className}
       style={{
-        display: "inline-flex",
+        display: fullWidth ? "flex" : "inline-flex",
+        width: fullWidth ? "100%" : undefined,
         alignItems: "center",
         gap: 4,
         padding: 4,
@@ -37,6 +39,8 @@ export function SegmentedControl({ options = [], value, onChange, style, ...rest
             style={{
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
+              flex: fullWidth ? 1 : undefined,
               gap: 6,
               border: "none",
               cursor: "pointer",

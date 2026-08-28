@@ -173,6 +173,29 @@
   color: var(--text-primary, #14181e);
 }
 
+.editProfileIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  color: var(--text-secondary, #7a8294);
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+
+.editProfileIconButton:hover {
+  color: var(--text-primary, #14181e);
+  transform: translateY(-1px);
+}
+
+.editProfileIconButton:active {
+  transform: scale(0.92);
+}
+
 .editProfileBtn {
   display: inline-flex;
   align-items: center;
@@ -947,9 +970,20 @@
     gap: 26px;
     padding-top: 32px;
   }
-  .identityRight { align-items: flex-start; }
-  .statRow { justify-content: flex-start; }
-  .stat { align-items: flex-start; }
+  .identityRight {
+    width: 100%;
+    align-items: stretch;
+  }
+  .statRow {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0;
+  }
+  .stat {
+    flex: 1;
+    align-items: center;
+    text-align: center;
+  }
   .name { font-size: 34px; }
 
   .payRow { flex-wrap: wrap; gap: 16px; }
@@ -966,18 +1000,36 @@
 }
 
 @media (max-width: 700px) {
-  /* The wordmark plus a labelled button plus two icon buttons is wider
-     than a phone. Give the actions their own row rather than shrinking
-     the dashboard link away — an organizer needs it most on a phone. */
-  .topbar { flex-wrap: wrap; gap: 14px; }
-  .topbarActions { width: 100%; justify-content: flex-end; }
+  .topbar {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    width: 100%;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .brand :global(.lb-wordmark) {
+    display: none;
+  }
+  .topbarActions {
+    display: contents;
+  }
+  .topbarIconButton {
+    padding: 8px;
+    border-radius: 8px;
+  }
 }
 
 @media (max-width: 620px) {
   .shell { padding-left: 16px; padding-right: 16px; }
   .starredGrid { grid-template-columns: 1fr; }
   .name { font-size: 28px; }
-  .statRow { gap: 20px; }
   .statNum, .statNumAccent, .statNumEmpty { font-size: 28px; }
   .metaRow { gap: 12px; font-size: 13.5px; }
   .partnerRecord, .partnerBar { display: none; }

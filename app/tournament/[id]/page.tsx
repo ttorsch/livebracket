@@ -885,7 +885,7 @@ function SiteHeader({ onSignInClick }: { onSignInClick?: () => void }) {
               <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
             </svg>
           </span>
-          <span className={styles.brandWord}>Live Bracket</span>
+          <span className={styles.brandWord}>LIVE BRACKET</span>
         </Link>
 
         <nav className={styles.headerNav}>
