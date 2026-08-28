@@ -338,9 +338,6 @@ export default function TournamentRegister() {
               <div className={styles.panelHead}>
                 <div className={styles.panelHeadText}>
                   <h2 className={styles.stepTitle}>Choose a division</h2>
-                  <p className={styles.stepSub}>
-                    Fees are per team and paid at check-in. You can switch divisions until the entry deadline.
-                  </p>
                 </div>
                 {sharedClose && (
                   <div className={styles.deadline}>
@@ -461,22 +458,32 @@ export default function TournamentRegister() {
                     <span className={styles.sectionLabel}>Team</span>
                     <button type="button" className={styles.editLink} onClick={() => setStep(1)}>Edit</button>
                   </div>
+                  {/* The numbered badge carries "Player 1" the way it does on
+                      the step before, which frees the full width for the name
+                      and keeps long values off a second line. */}
                   <div className={styles.reviewRows}>
-                    {players.map((p, i) => (
-                      <div key={i} className={styles.reviewRow}>
-                        <span className={styles.reviewRowLabel}>Player {i + 1}</span>
-                        <span className={styles.reviewRowValue}>
-                          <span className={styles.reviewValue}>{p.name.trim() || `Player ${i + 1} — not set`}</span>
-                          <span className={styles.reviewMeta}>
-                            {[p.nationality.trim(), p.club.trim(), `Size ${p.shirtSize}`].filter(Boolean).join(' · ')}
+                    {players.map((p, i) => {
+                      const name = p.name.trim();
+                      const meta = [p.nationality.trim(), p.club.trim(), `Size ${p.shirtSize}`]
+                        .filter(Boolean).join(' · ');
+                      return (
+                        <div key={i} className={styles.reviewRow}>
+                          <span className={styles.reviewNum}>{i + 1}</span>
+                          <span className={styles.reviewRowValue}>
+                            <span className={`${styles.reviewValue} ${name ? '' : styles.reviewValueEmpty}`}>
+                              {name || 'Not filled in yet'}
+                            </span>
+                            <span className={styles.reviewMeta}>{meta}</span>
                           </span>
-                        </span>
-                      </div>
-                    ))}
-                    <div className={`${styles.reviewRow} ${styles.reviewRowContact}`}>
-                      <span className={styles.reviewRowLabel}>Contact</span>
+                        </div>
+                      );
+                    })}
+                    <div className={styles.reviewContact}>
+                      <span className={styles.reviewContactLabel}>Contact</span>
                       <span className={styles.reviewRowValue}>
-                        <span className={styles.reviewValue}>{contact.email.trim() || 'No email yet'}</span>
+                        <span className={`${styles.reviewValue} ${contact.email.trim() ? '' : styles.reviewValueEmpty}`}>
+                          {contact.email.trim() || 'No email yet'}
+                        </span>
                         <span className={styles.reviewMeta}>{contact.phone.trim() || 'No phone given'}</span>
                       </span>
                     </div>

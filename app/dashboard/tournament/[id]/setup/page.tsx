@@ -2216,6 +2216,17 @@ export default function OrganizerSetup() {
                           {card.name}
                         </button>
                       ))}
+                      {/* Adding a division belongs at the end of the list
+                          it adds to. Dashed, so it reads as the slot for
+                          one more rather than as a division itself. */}
+                      <button
+                        type="button"
+                        className={styles.mobileDivAdd}
+                        onClick={handleOpenCreateModal}
+                      >
+                        <Plus size={15} />
+                        <span>New Division</span>
+                      </button>
                     </div>
                   )}
 

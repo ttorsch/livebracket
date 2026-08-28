@@ -481,11 +481,19 @@
 .nextMatch { color: rgba(255, 255, 255, 0.9); font-size: 14px; font-weight: 600; }
 
 /* ── Division picker ─────────────────────────────────────────── */
+/* The wrapper only becomes a box on mobile (see the 860px block);
+   here it steps out of the layout so nothing shifts. */
+.controlRail { display: contents; }
+
 .divisionSection {
   padding-top: 24px;
   display: flex;
   align-items: center;
   overflow-x: auto;
+  /* Sideways only — the hairline overflow was letting it drift vertically. */
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
   scrollbar-width: thin;
 }
 .divisionSection::-webkit-scrollbar { height: 8px; }
@@ -538,6 +546,9 @@
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
   scrollbar-width: thin;
 }
 .tabBarInner::-webkit-scrollbar { height: 8px; }
@@ -1306,14 +1317,34 @@
   .backLink {
     display: none;
   }
+  /* The title is the page's anchor — it holds its weight on a phone. */
+  .title {
+    font-size: 30px;
+    line-height: 1.14;
+  }
+  /* Division picker and tabs travel as one rail pinned under the header. */
+  .controlRail {
+    display: block;
+    position: sticky;
+    top: 62px;
+    z-index: 20;
+    /* Opaque, like the header above it — a translucent rail let the cards
+       underneath read straight through the tab labels. */
+    background: var(--surface-app, #F5F1EA);
+    padding-bottom: 2px;
+  }
   .tabBar {
-    position: relative;
-    top: auto;
+    position: static;
     z-index: auto;
+    margin-top: 10px;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .divisionSection {
     width: 100%;
     box-sizing: border-box;
+    padding-top: 12px;
   }
   .segmented {
     width: 100%;

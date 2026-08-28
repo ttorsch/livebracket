@@ -2521,6 +2521,7 @@
   .container {
     padding: 0 16px;
   }
+
 }
 
 .mobileEventCard {
@@ -3735,6 +3736,66 @@
   color: var(--ink-1, #14181E);
 }
 .mobileDivTabActive { background: var(--orange, #EE7A4C); color: #fff; }
+
+/* The add button closes the rail. Dashed and unfilled so it reads as an
+   empty slot rather than as another division. */
+.mobileDivAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 0;
+  border-radius: 999px;
+  border: 1.5px dashed var(--color-primary, #EB6F43);
+  background: transparent;
+  color: var(--color-primary, #EB6F43);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Declared after every base rule above, so these win on source order. */
+@media (max-width: 680px) {
+  /* The toggle governs everything below it, so it stays put while that
+     content scrolls. Nothing is pinned above it on a phone — the back
+     button and title scroll away — so it rides at top: 0. Negative
+     gutters carry its background out to the screen edges past the
+     container's 16px padding, and the page colour is opaque on purpose:
+     a translucent bar let the cards underneath read through the labels. */
+  .mobileDivTabs {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin: 0 -16px 14px;
+    padding: 10px 16px;
+    background: #F5F1EA;
+    border-bottom: 1px solid rgba(20, 31, 46, 0.08);
+    /* Sideways only, and no scrollbar — the part-shown pill at the right
+       edge is the affordance saying there is more of the rail. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+    scrollbar-width: none;
+  }
+  .mobileDivTabs::-webkit-scrollbar { display: none; }
+
+  /* Sized so 2.2 sit in the screen: the row is the full 100vw with 16px
+     of padding each side, and two 8px gaps fall between the three that
+     are at least partly in view. Fixed rather than flex:1, which split
+     the width evenly and left nothing cut off to scroll toward. */
+  .mobileDivTab,
+  .mobileDivAdd {
+    flex: 0 0 calc((100vw - 32px - 16px) / 2.2);
+    padding-left: 8px;
+    padding-right: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 .mobileTeamCol { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .mobileTeamPhone { font-size: 11.5px; color: var(--ink-2, #7A8294); font-variant-numeric: tabular-nums; }
 .mobileMoveUpBtn {

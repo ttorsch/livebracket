@@ -689,15 +689,6 @@
   border-bottom: 1px solid var(--border-hairline);
 }
 
-.reviewRowContact {
-  background: var(--sand-100);
-}
-
-/* Last row in the card, so its divider would draw a line against the
-   card's own rounded edge. */
-.reviewRowContact:last-child {
-  border-bottom: none;
-}
 .editLink {
   background: none;
   border: 0;
@@ -709,24 +700,55 @@
 .editLink:hover { color: var(--color-primary-hover); }
 
 .reviewRows { display: flex; flex-direction: column; }
+
+/* A roster line: badge on the left, name and its details stacked beside
+   it. Everything reads down one left edge, so a long name or address
+   uses the card's full width instead of breaking mid-word. */
 .reviewRow {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--border-hairline);
 }
-.reviewRow:last-child { border-bottom: none; }
-.reviewRowLabel { font: 500 15px/1.3 var(--font-text); color: var(--text-secondary); flex: none; }
+.reviewNum {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--ink-900);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 12px/1 var(--font-text);
+  flex: none;
+}
 .reviewRowValue {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  text-align: right;
   min-width: 0;
 }
-.reviewValue { font: 600 16px/1.2 var(--font-text); color: var(--text-primary); overflow-wrap: anywhere; }
-.reviewMeta { font: 400 13px/1.2 var(--font-text); color: var(--text-muted); overflow-wrap: anywhere; }
+.reviewValue { font: 600 16px/1.25 var(--font-text); color: var(--text-primary); overflow-wrap: break-word; }
+/* A blank still has to read as a blank, not as the team's name. */
+.reviewValueEmpty { font-weight: 500; color: var(--text-muted); }
+.reviewMeta { font: 400 13px/1.25 var(--font-text); color: var(--text-muted); overflow-wrap: break-word; }
+
+/* Contact closes the card the way the header opens it — same warm sand,
+   so the white roster rows sit between two edges. */
+.reviewContact {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 18px;
+  background: var(--sand-100);
+}
+.reviewContactLabel {
+  font: 600 11px/1 var(--font-text);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 
 /* The design leads the mobile review with the division and its fee, and
    puts it beside the roster on desktop. */
@@ -1000,7 +1022,30 @@
   .reviewGrid { grid-template-columns: 1.35fr 1fr; }
   .reviewTeam { border-radius: 22px; }
   .reviewTeamHead { padding: 18px 22px; }
-  .reviewRow { padding: 16px 22px; }
+  /* Two to a row here — the card is wide enough that one player per line
+     left a column of empty space beside every name. */
+  .reviewRows {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .reviewRow {
+    padding: 16px 22px;
+    border-right: 1px solid var(--border-hairline);
+    /* Side by side, the two cells stretch to a shared height. Centring
+       would float a short name against a wrapped one; both start at the
+       top instead, so the names sit on the same line. */
+    align-items: flex-start;
+  }
+  /* Pulls the badge back onto the centre of that first line. */
+  .reviewRow .reviewNum { margin-top: -2px; }
+  /* The right-hand seat in each pair, and any odd player left alone on
+     the last line, have no neighbour to be divided from. Contact is the
+     final child, so the last roster row is the one before it. */
+  .reviewRow:nth-child(2n),
+  .reviewRow:nth-last-child(2) {
+    border-right: none;
+  }
+  .reviewContact { grid-column: 1 / -1; padding: 16px 22px; }
   .reviewFee { order: 0; border-radius: 22px; padding: 22px; gap: 18px; }
   .reviewFeeDivision { font-size: 22px; }
   .reviewFeeRowLabel { font-size: 15px; }

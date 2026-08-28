@@ -553,7 +553,11 @@ export default function TournamentPage() {
         </section>
       )}
 
-      {/* ── Division picker ───────────────────────────────────── */}
+      {/* ── Division picker + tabs ───────────────────────────────
+           On mobile these two ride together in one sticky rail under the
+           header; on desktop the wrapper is display:contents so the tab bar
+           keeps its own sticky behaviour. */}
+      <div className={styles.controlRail}>
       {tournament.divisions.length > 0 && (
         <section className={styles.divisionSection}>
           <div className={styles.segmented}>
@@ -585,6 +589,7 @@ export default function TournamentPage() {
             </button>
           ))}
         </div>
+      </div>
       </div>
 
       <main className={styles.main}>
