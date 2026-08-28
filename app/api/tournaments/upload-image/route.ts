@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { requireOrganizer } from '../../../../lib/auth';
+import { authErrorResponse } from '../../../../lib/authResponse';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
+  try {
+    /* Organizer-only, but not tied to a tournament — the upload happens
+     * while the event is still being filled in and has no slug yet. */
+    await requireOrganizer();
+  } catch (err) {
+    return authErrorResponse(err);
+  }
+
   const form = await request.formData();
   const file = form.get('file');
 

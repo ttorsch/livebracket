@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
 import { joinTeamName, formatTeamName } from '../../../../../../../lib/teamName';
+import { requireTournamentOwner } from '../../../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../../../lib/authResponse';
 
 interface ImportPlayer {
   name: string;
@@ -29,6 +31,12 @@ async function findDivision(slug: string, divisionId: string) {
 // first-come into the cap, everything after it waitlisted.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
   const { slug, divisionId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as { teams?: ImportTeam[] };
 
   const teamsIn = Array.isArray(body.teams) ? body.teams : [];

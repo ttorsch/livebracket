@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
 import type { CrossSlot } from '../../../../../../../lib/data';
+import { requireTournamentOwner } from '../../../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../../../lib/authResponse';
 
 // Persists the organizer's draw for one division: seed order on teams,
 // draw configuration on divisions.settings.draw, and (optionally) the
@@ -477,6 +479,12 @@ function buildKnockout(opts: {
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
   const { slug, divisionId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as DrawBody;
 
   const pools = Math.max(1, Math.min(8, Math.trunc(body.pools) || 1));
@@ -783,6 +791,12 @@ interface PatchDrawBody {
 // Lightweight autosave for top seeds and lock state
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
   const { slug, divisionId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as PatchDrawBody;
 
   let division;

@@ -17,7 +17,7 @@ import {
 import styles from './page.module.css';
 import { DateChip } from '@/components/livebracket-ds';
 import {
-  getDashboardTournaments,
+  getPublicTournaments,
   getRecentlyCompletedDivisions,
   getHomepageStats,
   todayLocal,
@@ -688,15 +688,18 @@ export default function LiveBracketHome() {
 
   useEffect(() => {
     Promise.all([
-      getDashboardTournaments(),
+      getPublicTournaments(),
       getRecentlyCompletedDivisions(14),
-      fetch('/api/organizer').then(r => r.json()).catch(() => null),
       getHomepageStats(),
     ])
-      .then(([rows, slides, organizer, statsData]) => {
+      .then(([rows, slides, statsData]) => {
+        /* Each card is labelled with the organizer who owns that event.
+         * This used to call /api/organizer once and stamp the same name on
+         * everything — harmless when the database held one organizer, wrong
+         * the moment a second signs up. */
         const cards = rows
           .filter(t => t.phase >= 2)
-          .map((t, i) => toEventCard(t, i, organizer?.name ?? null));
+          .map((t, i) => toEventCard(t, i, t.organizerName));
         setEvents(cards);
         setCompletedSlides(slides);
         if (statsData) {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../../lib/supabaseAdmin';
 import { formatTeamName } from '../../../../../../../../lib/teamName';
+import { requireTournamentOwner } from '../../../../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../../../../lib/authResponse';
 
 /* ── One registered team ──────────────────────────────────────────
  *
@@ -76,6 +78,12 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string; divisionId: string; teamId: string }> },
 ) {
   const { slug, divisionId, teamId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as { paymentCleared?: boolean; promote?: boolean };
 
   let existing;
@@ -116,6 +124,12 @@ export async function DELETE(
   { params }: { params: Promise<{ slug: string; divisionId: string; teamId: string }> },
 ) {
   const { slug, divisionId, teamId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
 
   let existing;
   try {

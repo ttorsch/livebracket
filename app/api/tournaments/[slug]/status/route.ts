@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { isPhase, retirementFor, selectablePhases, type Phase } from '../../../../../lib/tournamentLifecycle';
+import { requireTournamentOwner } from '../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../lib/authResponse';
 
 /* Where a tournament's lifecycle changes.
  *
@@ -12,6 +14,12 @@ import { isPhase, retirementFor, selectablePhases, type Phase } from '../../../.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = await request.json().catch(() => ({}));
   const { phase: wantPhase, action } = body as { phase?: unknown; action?: unknown };
 

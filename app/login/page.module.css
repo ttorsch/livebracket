@@ -226,6 +226,7 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--blue, #204ECF);
+  text-decoration: none;
 }
 .forgot:hover { text-decoration: underline; }
 

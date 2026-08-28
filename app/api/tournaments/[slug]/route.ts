@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { canDelete, type Phase } from '../../../../lib/tournamentLifecycle';
+import { requireTournamentOwner } from '../../../../lib/auth';
+import { authErrorResponse } from '../../../../lib/authResponse';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = await request.json();
   const { title, location, startDate, endDate, isOneDay, description, imageUrl } = body;
 
@@ -48,6 +56,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
  */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
 
   const { data: current, error: readError } = await supabaseAdmin
     .from('tournaments')

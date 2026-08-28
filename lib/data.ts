@@ -31,6 +31,7 @@ export interface DashboardTournament {
   phase: number;
   imageUrl: string | null;
   cancelled: boolean;
+  organizerName: string | null;
   divisions: DashboardDivision[];
 }
 
@@ -343,22 +344,15 @@ interface TournamentRow {
   image_url: string | null;
   cancelled_at: string | null;
   divisions: DivisionRow[];
+  organizers: { name: string } | null;
 }
 
-export async function getDashboardTournaments(): Promise<DashboardTournament[]> {
-  const { data, error } = await supabase
-    .from('tournaments')
-    .select('slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, divisions(name, division_team_cap, teams(status))')
-    // Archived and deleted events are gone from every list by definition;
-    // cancelled ones stay, because the organizer still has to see what they
-    // called off.
-    .is('archived_at', null)
-    .is('deleted_at', null)
-    .order('start_date', { ascending: true });
+const TOURNAMENT_CARD_SELECT =
+  'slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, ' +
+  'organizers(name), divisions(name, division_team_cap, teams(status))';
 
-  if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
-
-  return ((data ?? []) as unknown as TournamentRow[]).map((t) => ({
+function toDashboardTournament(t: TournamentRow): DashboardTournament {
+  return {
     id: t.slug,
     title: t.title,
     date: t.start_date === todayLocal() ? 'Today' : formatDateRange(t.start_date, t.end_date, t.is_one_day),
@@ -368,12 +362,52 @@ export async function getDashboardTournaments(): Promise<DashboardTournament[]> 
     phase: t.phase,
     imageUrl: t.image_url,
     cancelled: !!t.cancelled_at,
+    organizerName: t.organizers?.name ?? null,
     divisions: t.divisions.map((d) => ({
       name: d.name,
       cap: d.division_team_cap,
       filled: d.teams.filter((team) => team.status !== 'waitlist').length,
     })),
-  }));
+  };
+}
+
+/* The organizer's own events. `organizerId` comes from the session (see
+ * /api/auth/session and lib/auth.ts) — before real auth this listed every
+ * tournament in the database, which was only ever correct because there
+ * was exactly one organizer. */
+export async function getDashboardTournaments(organizerId: string): Promise<DashboardTournament[]> {
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select(TOURNAMENT_CARD_SELECT)
+    .eq('organizer_id', organizerId)
+    // Archived and deleted events are gone from every list by definition;
+    // cancelled ones stay, because the organizer still has to see what they
+    // called off.
+    .is('archived_at', null)
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true });
+
+  if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
+
+  return ((data ?? []) as unknown as TournamentRow[]).map(toDashboardTournament);
+}
+
+/* The public listing behind the homepage: every organizer's events, not
+ * just yours. Deliberately a separate function from the dashboard one — an
+ * optional "scope to me" argument on a single function is the kind of thing
+ * that gets left off by accident and leaks one organizer's drafts into
+ * another's list. Callers filter by phase for what is fit to show. */
+export async function getPublicTournaments(): Promise<DashboardTournament[]> {
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select(TOURNAMENT_CARD_SELECT)
+    .is('archived_at', null)
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true });
+
+  if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
+
+  return ((data ?? []) as unknown as TournamentRow[]).map(toDashboardTournament);
 }
 
 export interface CompletedDivisionSlide {

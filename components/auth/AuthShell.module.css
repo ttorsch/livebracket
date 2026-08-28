@@ -1,0 +1,239 @@
+/* ═══════════════════════════════════════════════════════════════
+   Live Bracket — shared shell for the standalone auth screens
+   Mirrors app/login/page.module.css (same hero, glass, field and
+   button treatment) in a single-column layout.
+   ════════════════════════════════════════════════════════════════ */
+
+.page {
+  --lb-navy: #0E1722;
+  background: var(--lb-navy);
+  color: var(--ink-1, #14181E);
+  overflow-x: hidden;
+  min-height: 100svh;
+}
+
+/* ── Top bar ──────────────────────────────────────────────────── */
+.topbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 22px 28px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+  text-decoration: none;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+.brandMark { display: block; width: 30px; height: 30px; }
+.brandMark svg { width: 100%; height: 100%; display: block; }
+
+.topBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  transition: background 0.18s;
+}
+.topBack:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* ── Hero ─────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 24px 80px;
+}
+.heroBg { position: absolute; inset: 0; z-index: 0; }
+.heroImg { width: 100%; height: 100%; object-fit: cover; }
+.heroScrim {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 22, 40, 0.42) 0%, rgba(10, 22, 40, 0.18) 38%, rgba(10, 22, 40, 0.5) 100%);
+}
+
+.glassPanel {
+  position: relative;
+  z-index: 2;
+  width: min(468px, 100%);
+  padding: 16px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 30px 80px -30px rgba(8, 18, 35, 0.6);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 20px;
+  padding: 36px 34px;
+  box-shadow: 0 10px 30px -16px rgba(8, 18, 35, 0.4);
+}
+.title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 25px;
+  color: var(--lb-navy);
+  margin-bottom: 8px;
+}
+.subtitle {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted, #7A8294);
+  margin-bottom: 22px;
+}
+
+.footer {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line, #E7E2D9);
+  text-align: center;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13.5px;
+  color: var(--muted, #7A8294);
+}
+
+/* ── Form primitives (kept in step with the login card) ───────── */
+.form { display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field span {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2, #3A414D);
+}
+.field input {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line, #E7E2D9);
+  background: #fff;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 15px;
+  color: var(--ink-1, #14181E);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus {
+  outline: none;
+  border-color: var(--blue, #204ECF);
+  box-shadow: 0 0 0 3px rgba(32, 78, 207, 0.14);
+}
+.hint {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 12px;
+  color: var(--muted, #7A8294);
+}
+
+.submit {
+  margin-top: 6px;
+  padding: 15px 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--lb-navy);
+  color: #fff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.submit:hover { filter: brightness(0.9); }
+.submit:disabled { opacity: 0.7; cursor: default; }
+.submit:active { transform: scale(0.96); transition: transform 0.05s linear; }
+
+.link {
+  color: var(--blue, #204ECF);
+  font-weight: 700;
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+
+.alertError {
+  background: rgba(255, 59, 59, 0.1);
+  color: #ff3b3b;
+  border: 1px solid rgba(255, 59, 59, 0.2);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* ── Confirmation / "check your inbox" state ──────────────────── */
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 8px 4px 4px;
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-2, #3A414D);
+}
+.doneIcon {
+  display: grid;
+  place-items: center;
+  width: 52px; height: 52px;
+  border-radius: 999px;
+  background: rgba(31, 184, 86, 0.14);
+  color: #1FB856;
+}
+.doneIconWarn {
+  background: rgba(255, 59, 59, 0.12);
+  color: #ff3b3b;
+}
+.doneActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+.primaryAction {
+  display: block;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--lb-navy);
+  color: #fff;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  transition: filter 0.15s;
+}
+.primaryAction:hover { filter: brightness(0.9); }
+
+@media (max-width: 560px) {
+  .card { padding: 28px 22px; }
+  .hero { padding: 104px 16px 56px; }
+  .topbar { padding: 18px 16px; }
+}

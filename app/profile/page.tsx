@@ -43,23 +43,15 @@ export default function PlayerProfile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    /* Role assignment used to happen here, writing user_metadata from the
+     * browser after an OAuth hop. It now belongs to the server
+     * (/auth/callback → ensureOrganizerForUser), because a role the client
+     * can write is a role the client can grant itself. This page only
+     * reads. */
     async function loadSession() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
-
-        if (user && typeof window !== 'undefined') {
-          const pendingRole = sessionStorage.getItem('oauth_signup_role');
-          if (pendingRole && !user.user_metadata?.role) {
-            const { data: updated } = await supabase.auth.updateUser({
-              data: { role: pendingRole }
-            });
-            if (updated.user) {
-              setUser(updated.user);
-            }
-            sessionStorage.removeItem('oauth_signup_role');
-          }
-        }
       } catch (err) {
         console.error('Error fetching user session:', err);
       } finally {
@@ -72,9 +64,14 @@ export default function PlayerProfile() {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      window.location.href = '/login';
+      /* Clearing the browser session is only half of it — the auth cookie
+       * has to go too, or middleware and every server component keep
+       * treating this visitor as signed in. */
+      await fetch('/api/auth/signout', { method: 'POST' });
     } catch (err) {
       console.error('Logout error:', err);
+    } finally {
+      window.location.href = '/login';
     }
   };
 

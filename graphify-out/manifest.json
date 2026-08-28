@@ -25,13 +25,13 @@
     "semantic_hash": "9b77af189a21a7a64e4bd7a426f64176"
   },
   "/Users/torsmacair/livebracket/app/layout.tsx": {
-    "mtime": 1782812590.3574448,
-    "ast_hash": "312e3ade37e509bd831da4efc1d39222",
-    "semantic_hash": "312e3ade37e509bd831da4efc1d39222"
+    "mtime": 1787854845.2325954,
+    "ast_hash": "22e872bff99c8d5874fff4caca2d138c",
+    "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/page.tsx": {
-    "mtime": 1787851417.7693124,
-    "ast_hash": "e3eeac88bc60fbc0c383d42d043cfa92",
+    "mtime": 1787852314.368899,
+    "ast_hash": "f014479cab5db6c9fec108efde23a49e",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/page.tsx": {
@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/tournament/[id]/register/page.tsx": {
-    "mtime": 1787736109.9728112,
-    "ast_hash": "839b35f3a55702d99ab1017d528fdbda",
+    "mtime": 1787854992.3761463,
+    "ast_hash": "0f26702af9c3efd31077b797955f2fb8",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/page.tsx": {
@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/dashboard/tournament/[id]/setup/page.tsx": {
-    "mtime": 1787841497.5410798,
-    "ast_hash": "c12d0cd60cb071fc5532993e9f1d22cc",
+    "mtime": 1787854085.564064,
+    "ast_hash": "c533d1bc6c072df92f79a5d594fb75c2",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/icon.svg": {
@@ -455,13 +455,13 @@
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/route.ts": {
-    "mtime": 1787833324.7170868,
-    "ast_hash": "7d26480b39904a4658d41784cb1b3f5c",
+    "mtime": 1787854094.6674743,
+    "ast_hash": "65ab21713b041e1bb52aa08381780a5a",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/[divisionId]/route.ts": {
-    "mtime": 1787833324.7167008,
-    "ast_hash": "89299113fdea7c536c6b1bbd0c357e0a",
+    "mtime": 1787854094.6679265,
+    "ast_hash": "214ab08352080debbe48ff3a5dcf0ffc",
     "semantic_hash": ""
   },
   "/Users/torsmacair/livebracket/app/api/tournaments/[slug]/divisions/[divisionId]/draw/route.ts": {

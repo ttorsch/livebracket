@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
+import { type SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -13,7 +14,13 @@ function getSupabase(): SupabaseClient {
     );
   }
   if (!client) {
-    client = createClient(supabaseUrl, supabaseAnonKey);
+    // createBrowserClient (rather than plain createClient) stores the session
+    // in cookies instead of localStorage. That is the whole reason auth works
+    // server-side at all: middleware, server components and route handlers
+    // read the same cookie, so `getUser()` on the server sees the person who
+    // signed in in the browser. Swapping this back to createClient silently
+    // blinds every server-side auth check.
+    client = createBrowserClient(supabaseUrl, supabaseAnonKey);
   }
   return client;
 }

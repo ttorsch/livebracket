@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../lib/supabaseAdmin';
 import { formatTeamName } from '../../../../../../lib/teamName';
+import { requireTournamentOwner } from '../../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../../lib/authResponse';
 
 interface DivisionBody {
   name: string;
@@ -82,6 +84,12 @@ async function findDivision(slug: string, divisionId: string) {
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
   const { slug, divisionId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as DivisionBody;
 
   if (!body.name?.trim()) {
@@ -219,6 +227,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
   const { slug, divisionId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
 
   try {
     if (!(await findDivision(slug, divisionId))) {
@@ -238,7 +252,13 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string; divisionId: string }> }
 ) {
-  const { divisionId } = await params;
+  const { slug, divisionId } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
 
   const { data, error } = await supabaseAdmin
     .from('teams')

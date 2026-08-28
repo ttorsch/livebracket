@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
+import { requireTournamentOwner } from '../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../lib/authResponse';
 
 const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'];
 const roundLabel = (i: number) => (ORDINALS[i] ? `${ORDINALS[i]} Round` : `Round ${i + 1}`);
@@ -79,6 +81,12 @@ function toSettings(body: DivisionBody) {
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as DivisionBody;
 
   if (!body.name?.trim()) {

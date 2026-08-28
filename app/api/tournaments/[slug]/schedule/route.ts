@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
+import { requireTournamentOwner } from '../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../lib/authResponse';
 
 // Persists the tournament's schedule: the global config + per-division
 // dedicated-court overrides (PATCH), and the generated court/time assignments
@@ -123,6 +125,12 @@ function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unkno
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as ConfigBody;
 
   // 1. Save the tournament-level schedule config.
@@ -187,6 +195,12 @@ function addDaysUTC(dateStr: string, n: number): string {
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const body = (await request.json()) as AssignBody;
   const assignments = Array.isArray(body.assignments) ? body.assignments : [];
 

@@ -10,8 +10,13 @@
   color: var(--ink-900, #14181E);
   /* Gutter for the fixed rail at its collapsed width (78px + its 16px
      inset). It stays this wide however far the rail expands, which is
-     what keeps the page still on hover. */
+     what keeps the page still on hover.
+
+     Mirrored on the right so .main's centred measure lands on the true
+     viewport centre — the same place every other page's 1240px column
+     sits — instead of being pushed 47px right by a one-sided gutter. */
   padding-left: 94px;
+  padding-right: 94px;
 }
 
 /* ── Sidebar (hover-expanding rail) ──────────────────────────────
@@ -227,7 +232,12 @@
 .main {
   flex: 1;
   min-width: 0;
-  padding: 40px 48px 80px;
+  /* The site's shared measure — /tournament/[id], the dashboard detail
+     page and the create wizard all cap their content the same way, and
+     this page used to be the one that ran full-bleed. */
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 40px 24px 80px;
 }
 
 .header {
@@ -1232,7 +1242,7 @@
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 960px) {
   /* No rail here, so no gutter to reserve. */
-  .page { flex-direction: column; padding-left: 0; }
+  .page { flex-direction: column; padding-left: 0; padding-right: 0; }
   .sidebar {
     width: auto;
     height: auto;

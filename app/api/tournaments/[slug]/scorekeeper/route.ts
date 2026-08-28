@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { formatTeamName } from '../../../../../lib/teamName';
+import { requireTournamentOwner } from '../../../../../lib/auth';
+import { authErrorResponse } from '../../../../../lib/authResponse';
 
 /* Organizer-side listing of scorekeeper links, one per match, so the
  * dashboard can render a real QR for each court.
  *
  * SECURITY NOTE: the tokens this returns are the scorekeeper credentials —
- * anyone holding one can score that match. The endpoint is only as protected
- * as the organizer dashboard itself, which today is not protected at all
- * (the whole app runs as a single hardcoded DEMO_ORGANIZER_ID with no
- * login). Once real auth lands, this route must be gated to the tournament's
- * owning organizer. */
+ * anyone holding one can score that match. That is why the guard below is
+ * ownership, not merely authentication: any signed-in organizer must not be
+ * able to pull the scoring tokens for someone else's event. */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  try {
+    // Owning this tournament is the permission; being signed in is not.
+    await requireTournamentOwner(slug);
+  } catch (err) {
+    return authErrorResponse(err);
+  }
   const scope = request.nextUrl.searchParams.get('scope') ?? 'pending';
 
   const { data: tournament, error: tError } = await supabaseAdmin

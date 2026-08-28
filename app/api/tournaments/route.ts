@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { slugify } from '../../../lib/slug';
-
-// Single demo organizer until real auth exists — matches how the rest of
-// the app (dashboard, seed data) treats one organizer today.
-const DEMO_ORGANIZER_ID = '00000000-0000-0000-0001-000000000001';
+import { requireOrganizer } from '../../../lib/auth';
+import { authErrorResponse } from '../../../lib/authResponse';
 
 export async function POST(request: NextRequest) {
+  let organizerId: string;
+  try {
+    // Whoever is signed in owns what they create. This replaced a hardcoded
+    // demo organizer id, so an unauthenticated POST now fails rather than
+    // quietly writing into someone else's account.
+    organizerId = (await requireOrganizer()).id;
+  } catch (err) {
+    return authErrorResponse(err);
+  }
+
   const body = await request.json();
   const { title, location, startDate, endDate, isOneDay, description, imageUrl, phase } = body;
 
@@ -31,7 +39,7 @@ export async function POST(request: NextRequest) {
       .from('tournaments')
       .insert({
         slug,
-        organizer_id: DEMO_ORGANIZER_ID,
+        organizer_id: organizerId,
         title,
         location,
         start_date: startDate,

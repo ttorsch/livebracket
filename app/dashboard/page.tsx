@@ -15,6 +15,7 @@ import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
   type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
 } from '../../lib/data';
+import { supabase } from '../../lib/supabase';
 import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 import { joinTeamName } from '../../lib/teamName';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
@@ -34,9 +35,10 @@ function isLiveNow(t: CardTournament): boolean {
 }
 
 /* Map tournament phase → filter status */
-/* The More menu's destinations, none of which exist yet — rendered
- * disabled so the shape is there without pretending to lead somewhere. */
-const MORE_ITEMS = ['Settings', 'Saved brackets', 'Switch club', 'Log out'];
+/* The More menu's destinations. The first three still lead nowhere and stay
+ * disabled; "Log out" is real now that there is a session to end, and is the
+ * organizer's only way out of the dashboard. */
+const MORE_ITEMS = ['Settings', 'Saved brackets', 'Switch club'];
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
@@ -361,9 +363,46 @@ export default function OrganizerDashboard() {
   }, []);
 
   useEffect(() => {
-    getDashboardTournaments().then(setTournaments).catch(console.error);
-    fetch('/api/organizer').then(r => r.json()).then(setOrganizer).catch(console.error);
+    /* The organizer id has to arrive before the tournaments can be asked
+     * for — the listing is scoped to it now, rather than returning every
+     * event in the database the way it did under the single demo
+     * organizer. app/dashboard/layout.tsx has already established that
+     * whoever is here is an organizer, so this only fails on a network
+     * error. */
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const session = await fetch('/api/auth/session', { cache: 'no-store' }).then(r => r.json());
+        if (cancelled || !session.organizerId) return;
+
+        const [org, rows] = await Promise.all([
+          fetch('/api/organizer').then(r => r.json()),
+          getDashboardTournaments(session.organizerId),
+        ]);
+        if (cancelled) return;
+        setOrganizer(org);
+        setTournaments(rows);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      /* Both halves matter: signOut() clears the browser copy, the route
+       * clears the cookie that middleware and the server components read. */
+      await fetch('/api/auth/signout', { method: 'POST' });
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      window.location.href = '/login';
+    }
+  };
 
   const liveTournaments = useMemo(
     () => tournaments.filter(isLiveNow),
@@ -538,6 +577,14 @@ export default function OrganizerDashboard() {
                   {label}
                 </button>
               ))}
+              <button
+                type="button"
+                className={styles.moreItem}
+                role="menuitem"
+                onClick={handleLogout}
+              >
+                Log out
+              </button>
             </div>
           )}
           <button

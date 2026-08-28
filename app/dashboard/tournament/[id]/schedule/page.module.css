@@ -1627,7 +1627,10 @@
   border-bottom: 1px solid var(--sand-300, #EAE5DD);
 }
 .genInner {
-  max-width: 1240px;
+  /* 1440 is this page's measure — the hero, the sticky bar, the day bar
+     and .main all use it. A narrower cap here re-centred the panel and
+     left its controls 100px inside the toolbar above it. */
+  max-width: 1440px;
   margin: 0 auto;
   padding: 20px 40px 24px;
 }
@@ -1991,7 +1994,7 @@
   color: #fff;
 }
 .previewInner {
-  max-width: 1240px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 12px 40px;
   display: flex;
@@ -2065,7 +2068,7 @@
 .previewSave:disabled { opacity: 0.6; cursor: default; }
 
 .saveMsg {
-  max-width: 1240px;
+  max-width: 1440px;
   margin: 12px auto 0;
   padding: 0 40px;
   font-size: 13px;

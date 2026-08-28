@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
 import styles from './page.module.css';
 import { supabase } from '@/lib/supabase';
@@ -61,15 +61,27 @@ function FacebookIcon() {
   );
 }
 
-export default function LiveBracketLogin() {
+function LiveBracketLoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  /* Where middleware.ts wanted to send them before it bounced them here.
+   * Only same-origin paths are honoured — an attacker-supplied absolute
+   * URL would turn the login into an open redirect. */
+  const rawNext = searchParams.get('next');
+  const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
+
   const [role, setRole] = useState<Role>('organizer');
-  const [email, setEmail] = useState('organizer@livebracket.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(
+    searchParams.get('reset') === '1'
+      ? 'Password updated. Log in with your new password.'
+      : null
+  );
 
   // ── Sign-up modal state ────────────────────────────────────────
   const [signupOpen, setSignupOpen] = useState(false);
@@ -86,13 +98,6 @@ export default function LiveBracketLogin() {
     setRole(newRole);
     setErrorMsg(null);
     setSuccessMsg(null);
-    if (newRole === 'organizer') {
-      setEmail('organizer@livebracket.com');
-      setPassword('password123');
-    } else {
-      setEmail('player@livebracket.com');
-      setPassword('password123');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,7 +107,7 @@ export default function LiveBracketLogin() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -113,18 +118,32 @@ export default function LiveBracketLogin() {
         return;
       }
 
-      // Check role from metadata if it exists
-      const userRole = data.user?.user_metadata?.role;
-      if (userRole && userRole !== role) {
-        await supabase.auth.signOut();
-        setErrorMsg(`Account exists, but is registered as a ${userRole}. Please switch role tabs.`);
+      /* Which role this account actually has is a server question — the
+       * organizers table decides it, not the tab that was clicked and not
+       * user_metadata, which this browser could have written itself. */
+      const res = await fetch('/api/auth/session', { cache: 'no-store' });
+      const session = await res.json();
+
+      if (!session.signedIn) {
+        setErrorMsg('Signed in, but the session could not be established. Try again.');
         setLoading(false);
         return;
       }
 
-      router.push(role === 'organizer' ? '/dashboard' : '/profile');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An error occurred during sign in.');
+      if (session.role !== role) {
+        await supabase.auth.signOut();
+        await fetch('/api/auth/signout', { method: 'POST' });
+        setErrorMsg(
+          `That account is registered as a ${session.role}. Switch to the ${session.role} tab to sign in.`
+        );
+        setLoading(false);
+        return;
+      }
+
+      router.push(nextPath ?? session.redirectTo);
+      router.refresh();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'An error occurred during sign in.');
     } finally {
       setLoading(false);
     }
@@ -135,21 +154,28 @@ export default function LiveBracketLogin() {
     setSuccessMsg(null);
     setLoading(true);
     try {
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('oauth_signup_role', role);
-      }
+      /* OAuth must return through /auth/callback so the code is exchanged
+       * for a session server-side; pointing it at a page instead leaves the
+       * server with no cookie and the visitor looking signed out. The role
+       * rides along as the intent used to provision an organizer row on
+       * first arrival (see ensureOrganizerForUser). */
+      const callback = new URL('/auth/callback', window.location.origin);
+      callback.searchParams.set('role', role);
+      if (nextPath) callback.searchParams.set('next', nextPath);
+
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider.toLowerCase() as any,
+        provider: provider.toLowerCase() as 'google' | 'facebook',
         options: {
-          redirectTo: `${window.location.origin}/profile`,
-        }
+          redirectTo: callback.toString(),
+          queryParams: { prompt: 'select_account' },
+        },
       });
       if (error) {
         setErrorMsg(error.message);
+        setLoading(false);
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'SSO failed');
-    } finally {
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Sign-in with that provider failed.');
       setLoading(false);
     }
   };
@@ -176,15 +202,17 @@ export default function LiveBracketLogin() {
         ? `${suName.trim()} ${suSurname.trim()}`
         : suName.trim();
 
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: suIdentifier.trim(),
         password: suPassword,
         options: {
-          data: {
-            full_name: fullName,
-            role: role,
-          }
-        }
+          /* `role` here is an intent, not a permission. The server reads it
+           * once, in ensureOrganizerForUser, to decide whether to create
+           * this person their own organizers row — which is exactly what
+           * the button they pressed promises. Nothing authorises off it. */
+          data: { full_name: fullName, role },
+          emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
+        },
       });
 
       if (error) {
@@ -196,33 +224,38 @@ export default function LiveBracketLogin() {
       closeSignup();
       setEmail(suIdentifier.trim());
       setPassword('');
-      setSuccessMsg("Account created successfully!\nPlease confirm on your email");
-    } catch (err: any) {
-      setSuError(err.message || 'An error occurred during account creation.');
+      setSuccessMsg('Account created. Check your email for the confirmation link.');
+    } catch (err) {
+      setSuError(err instanceof Error ? err.message : 'An error occurred during account creation.');
     } finally {
       setSuLoading(false);
     }
   };
 
+  /* Signing up with Google/Facebook and signing in with them are the same
+   * OAuth round trip — the provider, not us, knows whether the account is
+   * new. The only difference is which spinner turns, so the modal reuses
+   * the sign-in path and reports errors into its own slot. */
   const handleSsoSignup = async (provider: 'Google' | 'Facebook') => {
     setSuError(null);
     setSuLoading(true);
     try {
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('oauth_signup_role', role);
-      }
+      const callback = new URL('/auth/callback', window.location.origin);
+      callback.searchParams.set('role', role);
+
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider.toLowerCase() as any,
+        provider: provider.toLowerCase() as 'google' | 'facebook',
         options: {
-          redirectTo: `${window.location.origin}/profile`,
-        }
+          redirectTo: callback.toString(),
+          queryParams: { prompt: 'select_account' },
+        },
       });
       if (error) {
         setSuError(error.message);
+        setSuLoading(false);
       }
-    } catch (err: any) {
-      setSuError(err.message || 'SSO sign-up failed.');
-    } finally {
+    } catch (err) {
+      setSuError(err instanceof Error ? err.message : 'Sign-up with that provider failed.');
       setSuLoading(false);
     }
   };
@@ -328,6 +361,9 @@ export default function LiveBracketLogin() {
               <button type="submit" className={styles.signIn} disabled={loading}>
                 {loading ? 'Processing...' : `Sign in as ${role}`}
               </button>
+              <Link href="/forgot-password" className={styles.forgot}>
+                Forgot your password?
+              </Link>
             </form>
 
             <div className={styles.divider} aria-hidden="true">or continue with</div>
@@ -515,5 +551,15 @@ export default function LiveBracketLogin() {
         </div>
       )}
     </div>
+  );
+}
+
+/* useSearchParams opts the tree into client-side rendering, so the page has
+ * to hand Next a boundary to prerender in its place. */
+export default function LiveBracketLogin() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100svh', background: '#0E1722' }} />}>
+      <LiveBracketLoginInner />
+    </Suspense>
   );
 }

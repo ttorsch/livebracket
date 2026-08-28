@@ -6,7 +6,9 @@
 }
 
 .container {
-  max-width: 1200px;
+  /* The site's shared measure, same as /tournament/[id] and the
+     organizer dashboard. */
+  max-width: 1240px;
   margin: 0 auto;
   padding: 0 24px;
 }
