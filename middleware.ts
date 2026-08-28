@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { signInDestination } from './lib/authRedirect';
 
 /* Routes only a signed-in user may open. Anything not listed here stays
  * public — the tournament pages, the score-keeper screens (which carry
@@ -70,20 +71,17 @@ export async function middleware(request: NextRequest) {
     homeUrl.search = '';
 
     /* Already signed in and landing on the login form — usually from a
-     * "Sign in" control they did not need. Send them back where they were
-     * rather than to a dashboard they did not ask for. Same-origin only:
-     * an absolute `next` would make this an open redirect. */
-    const wanted = request.nextUrl.searchParams.get('next');
-    if (wanted && wanted.startsWith('/') && !wanted.startsWith('//') && !isAuthOnly(wanted)) {
-      homeUrl.pathname = wanted;
-      return NextResponse.redirect(homeUrl);
-    }
-
-    /* Otherwise fall back to the surface the tab asked for. This is only a
-     * landing choice, never a permission one — /dashboard verifies the
-     * organizer capability itself in app/dashboard/layout.tsx. */
-    homeUrl.pathname =
-      request.nextUrl.searchParams.get('role') === 'organizer' ? '/dashboard' : '/profile';
+     * "Sign in" control they did not need. The same rule the login form
+     * uses decides where they go: a player resumes the page they were on,
+     * an organizer gets their dashboard rather than whatever public page
+     * the link happened to carry. Hostile and looping `next` values are
+     * refused inside signInDestination.
+     *
+     * A landing choice only, never a permission one — /dashboard verifies
+     * the organizer capability itself in app/dashboard/layout.tsx. */
+    const wantedRole =
+      request.nextUrl.searchParams.get('role') === 'organizer' ? 'organizer' : 'player';
+    homeUrl.pathname = signInDestination(wantedRole, request.nextUrl.searchParams.get('next'));
     return NextResponse.redirect(homeUrl);
   }
 

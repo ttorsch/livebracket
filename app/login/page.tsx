@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
 import styles from './page.module.css';
 import { supabase } from '@/lib/supabase';
+import { signInDestination } from '@/lib/authRedirect';
 
 type Role = 'player' | 'organizer';
 
@@ -170,7 +171,7 @@ function LiveBracketLoginInner() {
        * always works — everyone who has an account is a player — so it just
        * resumes wherever they were before signing in. */
       if (role === 'player') {
-        router.push(nextPath ?? '/profile');
+        router.push(signInDestination('player', nextPath));
         router.refresh();
         return;
       }
@@ -184,7 +185,7 @@ function LiveBracketLoginInner() {
         return;
       }
 
-      router.push(nextPath ?? '/dashboard');
+      router.push(signInDestination('organizer', nextPath));
       router.refresh();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'An error occurred during sign in.');
@@ -209,7 +210,7 @@ function LiveBracketLoginInner() {
         setLoading(false);
         return;
       }
-      router.push(nextPath ?? '/dashboard');
+      router.push(signInDestination('organizer', nextPath));
       router.refresh();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Could not create the organizer profile.');
@@ -222,7 +223,7 @@ function LiveBracketLoginInner() {
   const cancelOrganizerSetup = () => {
     setNeedsOrganizer(false);
     setErrorMsg(null);
-    router.push(nextPath ?? '/profile');
+    router.push(signInDestination('player', nextPath));
   };
 
   const handleSso = async (provider: 'Google' | 'Facebook') => {
