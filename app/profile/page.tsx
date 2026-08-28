@@ -11,7 +11,6 @@ import {
   DateChip,
   Icon,
   Logo,
-  MatchCard,
   SegmentedControl,
 } from '@/components/livebracket-ds';
 import styles from './page.module.css';
@@ -38,42 +37,27 @@ import type { MyRegistration } from '@/app/api/me/registrations/route';
  *              sitting beside a real one is worse than an obvious gap.
  */
 
-/* ── Sample data ─────────────────────────────────────────────────── */
+/* ── Types ────────────────────────────────────────────────────────── */
 
-const SAMPLE_PLAYER = {
-  location: 'Khao Lak, Thailand',
-  since: 'Jan 2024',
-};
+export interface PartnerStat {
+  name: string;
+  avatarUrl: string | null;
+  meta: string;
+  record: string;
+  pct: string;
+}
 
-const SAMPLE_MATCHES = [
-  {
-    round: 'Khao Lak Open 2026 · Final',
-    teamA: { name: 'Tor / Niran', sets: [21, 19, 15], score: 2 },
-    teamB: { name: 'Lukas / Felix', sets: [18, 21, 11], score: 1 },
-  },
-  {
-    round: 'Khao Lak Open 2026 · Semifinal',
-    teamA: { name: 'Tor / Niran', sets: [21, 21], score: 2 },
-    teamB: { name: 'Aroon / Kit', sets: [17, 19], score: 0 },
-  },
-  {
-    round: 'Sunset Shootout 3v3 · Quarterfinal',
-    teamA: { name: 'Ploy / Mali', sets: [21, 21], score: 2 },
-    teamB: { name: 'Tor / Dao', sets: [19, 16], score: 0 },
-  },
-];
-
-const SAMPLE_PARTNERS = [
-  { name: 'Niran Chaiwat', meta: 'Men Open · 5 tournaments', record: '12–4', pct: '75%' },
-  { name: 'Dao Pitsanu', meta: 'Mixed · 2 tournaments', record: '5–5', pct: '50%' },
-  { name: 'Kit Anurak', meta: 'Men B · 1 tournament', record: '2–3', pct: '40%' },
-];
-
-const SAMPLE_STARRED = [
-  { id: 'khao-lak-open-2027', name: 'Khao Lak Open 2027', place: 'Memories Beach · Phang Nga', dates: 'Mar 13 – Mar 14, 2027', status: 'Live', badgeVariant: 'live' as const, action: 'Watch live' },
-  { id: 'andaman-masters', name: 'Andaman Masters', place: 'Nang Thong Beach', dates: 'Nov 21 – Nov 22, 2026', status: 'Registration', badgeVariant: 'highlight' as const, action: 'Register Team' },
-  { id: 'bang-niang-doubles', name: 'Bang Niang Doubles', place: 'Bang Niang Beach', dates: 'Jan 23, 2027', status: 'Upcoming', badgeVariant: 'status' as const, action: 'View details' },
-];
+export interface PlayerStats {
+  matchesCount: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  setsWon: number;
+  setsLost: number;
+  bestFinish: string | null;
+  longestStreak: number;
+  partners: PartnerStat[];
+}
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -260,20 +244,36 @@ export default function PlayerProfile() {
   const [regsLoading, setRegsLoading] = useState(true);
   const [regsError, setRegsError] = useState<string | null>(null);
 
+  const [stats, setStats] = useState<PlayerStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
   useEffect(() => {
-    /* Scoped to the session on the server, so there is no id to pass and
-     * none that would be trusted if there were. */
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/me/registrations', { cache: 'no-store' });
-        if (!res.ok) throw new Error('Could not load your events');
-        const data = await res.json();
-        if (!cancelled) setRegistrations(data.registrations ?? []);
+        const [regRes, statsRes] = await Promise.all([
+          fetch('/api/me/registrations', { cache: 'no-store' }),
+          fetch('/api/me/stats', { cache: 'no-store' }),
+        ]);
+
+        if (regRes.ok) {
+          const regData = await regRes.json();
+          if (!cancelled) setRegistrations(regData.registrations ?? []);
+        } else {
+          if (!cancelled) setRegsError('Could not load your events');
+        }
+
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          if (!cancelled) setStats(statsData.stats ?? null);
+        }
       } catch (err) {
         if (!cancelled) setRegsError(err instanceof Error ? err.message : 'Could not load your events');
       } finally {
-        if (!cancelled) setRegsLoading(false);
+        if (!cancelled) {
+          setRegsLoading(false);
+          setStatsLoading(false);
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -481,10 +481,10 @@ export default function PlayerProfile() {
                     {session.club}
                   </span>
                 )}
-                {(session.hometown || SAMPLE_PLAYER.location) && (
+                {session.hometown && (
                   <span className={styles.metaItem}>
                     <MapPin size={16} color="var(--color-primary)" />
-                    {session.hometown || SAMPLE_PLAYER.location}
+                    {session.hometown}
                   </span>
                 )}
               </div>
@@ -522,13 +522,14 @@ export default function PlayerProfile() {
             </div>
             <div className={styles.statDivider} />
             <div className={styles.stat}>
-              {/* Needs finalized match results — see the note at the top. */}
-              <span className={styles.statNumEmpty} title="Not available yet">—</span>
+              <span className={styles.statNum}>{statsLoading ? '–' : (stats?.wins ?? 0)}</span>
               <span className={styles.statLabel}>Wins</span>
             </div>
             <div className={styles.statDivider} />
             <div className={styles.stat}>
-              <span className={styles.statNumEmpty} title="Not available yet">—</span>
+              <span className={styles.statNum}>
+                {statsLoading ? '–' : (stats && stats.matchesCount > 0 ? `${stats.winRate}%` : '0%')}
+              </span>
               <span className={styles.statLabel}>Win rate</span>
             </div>
           </div>
@@ -547,31 +548,9 @@ export default function PlayerProfile() {
       {/* ── Content ───────────────────────────────────────────────── */}
       <div className={`${styles.shell} ${styles.content}`}>
 
-
-
         {/* ── Overview ────────────────────────────────────────────── */}
         {tab === 'overview' && (
           <div className={styles.overviewGrid}>
-            <div className={styles.col}>
-              <Card radius="xl" padding={24}>
-                <div className={styles.cardHead}>
-                  <h2 className={styles.cardTitle}>Recent Results</h2>
-                  <span className={styles.cardNote}>Sample data</span>
-                </div>
-                <div className={styles.matchList}>
-                  {SAMPLE_MATCHES.map(m => (
-                    <MatchCard
-                      key={m.round}
-                      round={m.round}
-                      teamA={m.teamA}
-                      teamB={m.teamB}
-                      style={{ boxShadow: 'none', background: 'var(--sand-100)', padding: 16 }}
-                    />
-                  ))}
-                </div>
-              </Card>
-            </div>
-
             <div className={styles.col}>
               <Card radius="xl" padding={24}>
                 <h2 className={styles.cardTitleSpaced}>Next Up</h2>
@@ -607,56 +586,83 @@ export default function PlayerProfile() {
               </Card>
 
               <Card radius="xl" padding={24}>
-                <div className={styles.cardHeadTight} style={{ marginBottom: 20 }}>
-                  <h2 className={styles.cardTitle}>Performance</h2>
-                  <span className={styles.cardNote}>Sample data</span>
-                </div>
-                <div className={styles.perfList}>
-                  <div className={styles.perfRow}>
-                    <span className={styles.perfLabel}>Sets won</span>
-                    <div className={styles.perfTrack}>
-                      <div className={styles.perfFill} style={{ width: '65%' }} />
-                    </div>
-                    <span className={styles.perfVal}>41</span>
-                  </div>
-                  <div className={styles.perfRow}>
-                    <span className={styles.perfLabel}>Sets lost</span>
-                    <div className={styles.perfTrack}>
-                      <div className={styles.perfFillMuted} style={{ width: '35%' }} />
-                    </div>
-                    <span className={styles.perfVal}>22</span>
-                  </div>
-                  <div className={styles.hairline} />
-                  <div className={styles.perfFact}>
-                    <span className={styles.perfFactLabel}>Best finish</span>
-                    <span className={styles.perfFactValue}>Winner · Khao Lak Open 2026</span>
-                  </div>
-                  <div className={styles.perfFact}>
-                    <span className={styles.perfFactLabel}>Longest streak</span>
-                    <span className={styles.perfFactValue}>5 matches</span>
-                  </div>
-                </div>
-              </Card>
-
-              <Card radius="xl" padding={24}>
                 <div className={styles.cardHeadTight}>
                   <h2 className={styles.cardTitle}>Partners</h2>
-                  <span className={styles.cardNote}>Sample data</span>
                 </div>
-                {SAMPLE_PARTNERS.map(p => (
-                  <div key={p.name} className={styles.partnerRow}>
-                    <Avatar name={p.name} size={36} />
-                    <div className={styles.partnerText}>
-                      <span className={styles.partnerName}>{p.name}</span>
-                      <span className={styles.partnerMeta}>{p.meta}</span>
-                    </div>
-                    <span className={styles.partnerRecord}>{p.record}</span>
-                    <div className={styles.partnerBar}>
-                      <div className={styles.partnerBarFill} style={{ width: p.pct }} />
-                    </div>
-                    <span className={styles.partnerPct}>{p.pct}</span>
+                {statsLoading && <div className={styles.skeleton} />}
+                {!statsLoading && (!stats || stats.partners.length === 0) && (
+                  <div className={styles.emptyState} style={{ padding: '24px 0' }}>
+                    <Icon name="users" size={24} color="var(--text-muted)" />
+                    <span>No partner match history yet</span>
                   </div>
-                ))}
+                )}
+                {!statsLoading && stats && stats.partners.length > 0 &&
+                  stats.partners.map(p => (
+                    <div key={p.name} className={styles.partnerRow}>
+                      <Avatar name={p.name} src={p.avatarUrl ?? undefined} size={36} />
+                      <div className={styles.partnerText}>
+                        <span className={styles.partnerName}>{p.name}</span>
+                        <span className={styles.partnerMeta}>{p.meta}</span>
+                      </div>
+                      <span className={styles.partnerRecord}>{p.record}</span>
+                      <div className={styles.partnerBar}>
+                        <div className={styles.partnerBarFill} style={{ width: p.pct }} />
+                      </div>
+                      <span className={styles.partnerPct}>{p.pct}</span>
+                    </div>
+                  ))}
+              </Card>
+            </div>
+
+            <div className={styles.col}>
+              <Card radius="xl" padding={24}>
+                <div className={styles.cardHeadTight} style={{ marginBottom: 20 }}>
+                  <h2 className={styles.cardTitle}>Performance</h2>
+                </div>
+                {statsLoading && <div className={styles.skeleton} />}
+                {!statsLoading && (
+                  <div className={styles.perfList}>
+                    {(() => {
+                      const setsWon = stats?.setsWon ?? 0;
+                      const setsLost = stats?.setsLost ?? 0;
+                      const totalSets = setsWon + setsLost;
+                      const wonPct = totalSets > 0 ? Math.round((setsWon / totalSets) * 100) : 0;
+                      const lostPct = totalSets > 0 ? 100 - wonPct : 0;
+
+                      return (
+                        <>
+                          <div className={styles.perfRow}>
+                            <span className={styles.perfLabel}>Sets won</span>
+                            <div className={styles.perfTrack}>
+                              <div className={styles.perfFill} style={{ width: `${wonPct}%` }} />
+                            </div>
+                            <span className={styles.perfVal}>{setsWon}</span>
+                          </div>
+                          <div className={styles.perfRow}>
+                            <span className={styles.perfLabel}>Sets lost</span>
+                            <div className={styles.perfTrack}>
+                              <div className={styles.perfFillMuted} style={{ width: `${lostPct}%` }} />
+                            </div>
+                            <span className={styles.perfVal}>{setsLost}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                    <div className={styles.hairline} />
+                    <div className={styles.perfFact}>
+                      <span className={styles.perfFactLabel}>Best finish</span>
+                      <span className={styles.perfFactValue}>{stats?.bestFinish || '—'}</span>
+                    </div>
+                    <div className={styles.perfFact}>
+                      <span className={styles.perfFactLabel}>Longest streak</span>
+                      <span className={styles.perfFactValue}>
+                        {stats?.longestStreak
+                          ? `${stats.longestStreak} match${stats.longestStreak === 1 ? '' : 'es'}`
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </Card>
             </div>
           </div>
@@ -726,29 +732,15 @@ export default function PlayerProfile() {
           </Card>
         )}
 
-        {/* ── Starred — sample, pending a starred-events table ─────── */}
+        {/* ── Starred ─────────────────────────────────────────────── */}
         {tab === 'starred' && (
-          <div className={styles.starredGrid}>
-            {SAMPLE_STARRED.map(s => (
-              <Card key={s.id} radius="xl" padding={22}>
-                <div className={styles.starredInner}>
-                  <div className={styles.starredHead}>
-                    <Badge variant={s.badgeVariant}>{s.status}</Badge>
-                    <Icon name="starFilled" size={20} color="var(--color-primary)" />
-                  </div>
-                  <div className={styles.starredText}>
-                    <span className={styles.starredTitle}>{s.name}</span>
-                    <span className={styles.starredPlace}>{s.place}</span>
-                  </div>
-                  <div className={styles.hairline} />
-                  <div className={styles.starredFoot}>
-                    <span className={styles.starredDates}>{s.dates}</span>
-                    <span className={styles.starredAction}>{s.action}</span>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <Card radius="xl" padding={32}>
+            <div className={styles.emptyState}>
+              <Icon name="star" size={28} color="var(--text-muted)" />
+              <span>No starred tournaments yet</span>
+              <Link href="/" className={styles.emptyLink}>Browse events to star</Link>
+            </div>
+          </Card>
         )}
       </div>
     </div>

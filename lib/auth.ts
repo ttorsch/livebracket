@@ -47,7 +47,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function getOrganizerForUser(userId: string): Promise<Organizer | null> {
   const { data, error } = await supabaseAdmin
     .from('organizers')
-    .select('id, auth_user_id, email, name, club, avatar_url')
+    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
     .eq('auth_user_id', userId)
     .maybeSingle();
 
@@ -102,34 +102,43 @@ export async function getSessionInfo(): Promise<SessionInfo> {
       playerId: profile?.player_id ?? null,
       organizerId: organizer?.id ?? null,
       email: user.email ?? null,
-      /* Profile first: it is the account's own player-facing identity and
-       * the only one of these three the owner edits directly. The
-       * organizers row comes next (an organizer's public name), and
-       * user_metadata last — it is a claim the browser can write, kept
-       * only so accounts predating the profiles table still render. */
+      /* These four are the PLAYER identity, and the organizers row is
+       * deliberately not in the chain: the two profiles are separate, so
+       * an organizer's public name must never stand in for the player's
+       * on a roster, or vice versa. The organizer's own copy is returned
+       * beside them, under `organizer`.
+       *
+       * Profile first — it is what the owner edits. user_metadata is the
+       * fallback, kept only so accounts predating the profiles table
+       * still render; it is a claim the browser can write. */
       name:
         profile?.name ??
-        organizer?.name ??
         (user.user_metadata?.full_name as string | undefined) ??
         (user.user_metadata?.name as string | undefined) ??
         null,
       club:
         profile?.club ??
-        organizer?.club ??
         (user.user_metadata?.club as string | undefined) ??
         null,
       hometown:
         profile?.hometown ??
-        organizer?.hometown ??
         (user.user_metadata?.hometown as string | undefined) ??
         (user.user_metadata?.location as string | undefined) ??
         null,
       avatarUrl:
         profile?.avatar_url ??
-        organizer?.avatar_url ??
         (user.user_metadata?.avatar_url as string | undefined) ??
         (user.user_metadata?.picture as string | undefined) ??
         null,
+      organizer: organizer
+        ? {
+            id: organizer.id,
+            name: organizer.name ?? null,
+            hometown: organizer.hometown ?? null,
+            club: organizer.club ?? null,
+            avatarUrl: organizer.avatar_url ?? null,
+          }
+        : null,
     };
   } catch (err) {
     /* Next signals "this route must render dynamically" by throwing from
@@ -175,7 +184,7 @@ async function provisionOrganizer(
 
   const { data: byEmail } = await supabaseAdmin
     .from('organizers')
-    .select('id, auth_user_id, email, name, club, avatar_url')
+    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
     .eq('email', email)
     .maybeSingle();
 
@@ -190,7 +199,7 @@ async function provisionOrganizer(
       .from('organizers')
       .update({ auth_user_id: user.id, ...(opts.club?.trim() ? { club: opts.club.trim() } : {}) })
       .eq('id', row.id)
-      .select('id, auth_user_id, email, name, club, avatar_url')
+      .select('id, auth_user_id, email, name, club, hometown, avatar_url')
       .single();
     if (adoptError) throw new Error(`Failed to link organizer: ${adoptError.message}`);
     return adopted as Organizer;
@@ -199,7 +208,7 @@ async function provisionOrganizer(
   const { data, error } = await supabaseAdmin
     .from('organizers')
     .insert({ auth_user_id: user.id, email, name, club })
-    .select('id, auth_user_id, email, name, club, avatar_url')
+    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
     .single();
 
   if (error) {

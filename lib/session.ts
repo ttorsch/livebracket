@@ -13,12 +13,30 @@
 
 export type Role = 'player' | 'organizer';
 
+/* The organizer identity, kept apart from the player one above.
+ *
+ * The same account can be both, and the two are deliberately not the same
+ * person as far as the app is concerned: a player profile is who you are
+ * on a roster, an organizer profile is who runs the event — the name and
+ * photo printed on the public event page. Editing one never touches the
+ * other, which is why these are separate fields rather than one identity
+ * with a fallback. */
+export interface OrganizerIdentity {
+  id: string;
+  name: string | null;
+  hometown: string | null;
+  club: string | null;
+  avatarUrl: string | null;
+}
+
 export interface SessionInfo {
   signedIn: boolean;
   roles: Role[];
   userId: string | null;
   /* Their own organizer id, so the dashboard can scope its listing. */
   organizerId: string | null;
+  /* Null for an account that only plays. */
+  organizer: OrganizerIdentity | null;
   email: string | null;
   name: string | null;
   club: string | null;
@@ -35,6 +53,7 @@ export const SIGNED_OUT: SessionInfo = {
   roles: [],
   userId: null,
   organizerId: null,
+  organizer: null,
   email: null,
   name: null,
   club: null,

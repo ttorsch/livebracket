@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
+import OrganizerProfileModal from './OrganizerProfileModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
 import ScorekeeperQrCards, { useScorekeeperLinks, useQrPdfExport } from '../../components/ScorekeeperQrCards';
 import { Button, SearchField, Icon } from '../../components/livebracket-ds';
@@ -232,8 +233,11 @@ export default function OrganizerDashboard() {
   const [organizer, setOrganizer] = useState<Organizer | null>(null);
   /* Resolved on the server in app/layout.tsx and handed down by
    * AuthProvider — the dashboard used to re-fetch /api/auth/session for
-   * this one id on every mount. */
-  const { organizerId } = useSession();
+   * this one id on every mount. `organizer` here is the ORGANIZER
+   * identity, which is a different profile from the player one the site
+   * header shows; see lib/session.ts. */
+  const { organizerId, organizer: organizerIdentity } = useSession();
+  const [profileOpen, setProfileOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -559,14 +563,24 @@ export default function OrganizerDashboard() {
             <span className={styles.sideLabel}>Create</span>
           </button>
 
-          <Link href="/profile" className={styles.sideLink} title="Profile">
+          {/* Inside the dashboard, "Profile" means the organizer identity —
+              the name and photo on the public event pages — not the player
+              profile at /profile, which the site header links to. */}
+          <button
+            type="button"
+            className={styles.sideLink}
+            title="Organizer profile"
+            onClick={() => setProfileOpen(true)}
+          >
             <span className={styles.sideIcon}>
               <span className={styles.sideAvatar}>
-                {organizer?.avatar_url ? <img src={organizer.avatar_url} alt="" /> : '🏐'}
+                {organizerIdentity?.avatarUrl
+                  ? <img src={organizerIdentity.avatarUrl} alt="" />
+                  : '🏐'}
               </span>
             </span>
             <span className={styles.sideLabel}>Profile</span>
-          </Link>
+          </button>
         </nav>
 
         <div className={styles.railSpacer} />
@@ -832,6 +846,15 @@ export default function OrganizerDashboard() {
       </main>
 
       <CreateTournamentModal open={createOpen} onClose={() => setCreateOpen(false)} />
+
+      <OrganizerProfileModal
+        open={profileOpen}
+        organizer={organizerIdentity}
+        onClose={() => setProfileOpen(false)}
+        /* Mirrors the save into the header's own copy so the greeting and
+           the rail avatar update without waiting for a refetch. */
+        onSaved={saved => setOrganizer(o => (o ? { ...o, name: saved.name ?? o.name, avatar_url: saved.avatarUrl } : o))}
+      />
     </div>
   );
 }

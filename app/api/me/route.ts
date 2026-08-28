@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, getOrganizerForUser, getSessionInfo } from '@/lib/auth';
+import { getCurrentUser, getSessionInfo } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { ensureProfileForUser } from '@/lib/profiles';
 
@@ -45,21 +45,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: userError.message }, { status: 500 });
     }
 
-    // If this user is also an organizer, sync the organizers table
-    const organizer = await getOrganizerForUser(user.id);
-    if (organizer) {
-      const orgUpdate: Record<string, any> = {};
-      if (name !== undefined) orgUpdate.name = name;
-      if (avatarUrl !== undefined) orgUpdate.avatar_url = avatarUrl;
-      if (club !== undefined) orgUpdate.club = club;
-
-      if (Object.keys(orgUpdate).length > 0) {
-        await supabaseAdmin
-          .from('organizers')
-          .update(orgUpdate)
-          .eq('id', organizer.id);
-      }
-    }
+    /* Deliberately does NOT touch the organizers row. This endpoint edits
+     * the PLAYER profile, and the organizer profile is a separate identity
+     * with its own editor (PATCH /api/organizer) — the same account can be
+     * both, and changing your name on a roster must not rename the person
+     * running the event on every public page. */
 
     /* The profiles row is what getSessionInfo reads first, so an edit that
      * only reached user_metadata would appear to do nothing. Written last
