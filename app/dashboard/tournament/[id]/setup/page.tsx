@@ -36,7 +36,7 @@ import {
   FileSpreadsheet,
   Download,
   Search,
-  Link2
+  Link2, Share2
 } from 'lucide-react';
 import styles from './page.module.css';
 import DateRangePicker from '../../../../../components/DateRangePicker';
@@ -584,7 +584,7 @@ export default function OrganizerSetup() {
   // Which division is currently selected in the top toggle, and which (if any)
   // the modal is editing (null = creating a new division).
   const [activeDivisionId, setActiveDivisionId] = useState<string | null>(null);
-  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(true);
   const [registeredTeams, setRegisteredTeams] = useState<RegisteredTeamRow[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
   const [editingDivisionId, setEditingDivisionId] = useState<string | null>(null);
@@ -1617,6 +1617,26 @@ export default function OrganizerSetup() {
     else openBasicInfoEdit();
   };
 
+  /* Share the public event page. The native sheet is the right control on
+   * a phone, and dismissing it is a decision rather than a failure — so a
+   * cancelled share does nothing rather than silently copying instead.
+   * Everywhere without a share sheet falls back to the clipboard. */
+  const shareEvent = async () => {
+    if (typeof window === 'undefined') return;
+    if (!navigator.share) {
+      copyLiveLink();
+      return;
+    }
+    try {
+      await navigator.share({
+        title: displayTitle || 'Tournament',
+        url: `${window.location.origin}/tournament/${slug}`,
+      });
+    } catch {
+      /* Dismissed, or the sheet refused — either way, say nothing. */
+    }
+  };
+
   const copyLiveLink = () => {
     if (typeof window === 'undefined') return;
     navigator.clipboard.writeText(`${window.location.origin}/tournament/${slug}`).then(
@@ -1702,6 +1722,18 @@ export default function OrganizerSetup() {
                 to repeat what the event page already shows, and the
                 desktop header keeps it (with the full-size view). */}
             <div className={styles.mobileEventCard}>
+              {/* Editing the event's own details — title, dates, location,
+                  phase. The division below has its own edit action; this
+                  one is deliberately on the card it edits. */}
+              <button
+                type="button"
+                className={styles.mobileEventEditBtn}
+                onClick={openBasicInfoEdit}
+                aria-label="Edit tournament details"
+                title="Edit tournament details"
+              >
+                <Pencil size={15} />
+              </button>
               <div className={styles.mobileEventBody}>
                 <div className={styles.mobileEventTitle}>{displayTitle || 'Untitled tournament'}</div>
                 <div className={styles.mobileEventMeta}>
@@ -2058,48 +2090,84 @@ export default function OrganizerSetup() {
                         </div>
 
                         <div className={styles.sectionBody}>
+                          {/* Section 1: Capacity & Format */}
                           <div className={styles.summaryGrid} style={{ gridTemplateColumns: '1fr 1fr' }}>
                             <div className={styles.summaryItem}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
                             <div className={styles.summaryItem}><span>Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
-                            <div className={styles.summaryItem}><span>Gender</span><strong>{activeDivision.genderEligibility}</strong></div>
-                            <div className={styles.summaryItem}><span>Age limit</span><strong>{ageLimitLabel(activeDivision.ageLimit)}</strong></div>
                             <div className={styles.summaryItem}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
                             <div className={styles.summaryItem}><span>Opens</span><strong>{activeDivision.registrationOpenDate ? safeFormatDate(activeDivision.registrationOpenDate) : 'Immediately'}</strong></div>
                           </div>
 
                           <hr className={styles.divider} />
 
-                          <div className={styles.fieldGroup}>
-                            <label className={styles.fieldLabel}>Competition rounds</label>
-                            <div className={styles.roundList}>
-                              {activeDivision.rounds.map((r, i) => (
-                                <div key={r.id} className={styles.roundRow}>
-                                  <span className={styles.roundIndex}>R{i + 1}</span>
-                                  <span className={styles.roundLabelText}>
-                                    {ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—'}
-                                  </span>
-                                </div>
-                              ))}
+                          {/* Section 2: Eligibility, Net Height & Rules */}
+                          <div className={styles.summaryGrid} style={{ gridTemplateColumns: '1fr 1fr' }}>
+                            <div className={styles.summaryItem}><span>Gender</span><strong>{activeDivision.genderEligibility}</strong></div>
+                            <div className={styles.summaryItem}><span>Age limit</span><strong>{ageLimitLabel(activeDivision.ageLimit)}</strong></div>
+                            <div className={styles.summaryItem}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
+                          </div>
+
+                          {activeDivision.rules && (
+                            <div className={styles.fieldGroup} style={{ marginTop: 8 }}>
+                              <span className={styles.summaryLabelSubtle}>Rules</span>
+                              <p className={styles.summaryText} style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>{activeDivision.rules}</p>
                             </div>
+                          )}
+
+                          <hr className={styles.divider} />
+
+                          {/* Section 3: Fee (Larger highlight) */}
+                          <div className={styles.feeHighlight}>
+                            <span className={styles.feeHighlightLabel}>Registration Fee</span>
+                            <span className={styles.feeHighlightValue}>
+                              {activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}
+                            </span>
                           </div>
 
                           <hr className={styles.divider} />
 
-                          <div className={styles.feeRow}>
-                            <span className={styles.feeLabel}>Fee</span>
-                            <span className={styles.feeValue}>
-                              {activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}
-                            </span>
-                            <span className={styles.feeLabel} style={{ marginLeft: 'auto' }}>Net</span>
-                            <span className={styles.feeValue}>{activeDivision.netHeight}</span>
-                          </div>
+                          {/* Section 4: Competition rounds */}
+                          <div className={styles.fieldGroup}>
+                            <label className={styles.fieldLabel}>Competition rounds</label>
+                            <div className={styles.roundList}>
+                              {activeDivision.rounds.map((r, i) => {
+                                const formatLabel = ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—';
+                                const sets = r.scoring?.setsBestOf || 3;
+                                const matchText = sets === 1 ? '1 Set' : `Best of ${sets}`;
+                                const pts = r.scoring?.pointsPerSet || 21;
+                                const deciding = r.scoring?.decidingSetPoints || 15;
+                                const winBy2 = r.scoring?.winBy2 !== false;
+                                const cap = r.scoring?.hardCap || 0;
+                                const scorePattern = sets === 1 ? `To ${pts}` : sets === 5 ? `${pts}-${pts}-${pts}-${pts}-${deciding}` : `${pts}-${pts}-${deciding}`;
+                                const scoreLine = `${scorePattern}${winBy2 ? ' (win by 2)' : ''}${cap > 0 ? ` cap ${cap}` : ''}`;
+                                const isRoundRobin = r.format === 'round-robin';
+                                const nextRound = activeDivision.rounds[i + 1] ?? null;
+                                const showAdvance = isRoundRobin && nextRound !== null;
+                                const showCrossing = showAdvance && nextRound.format !== 'round-robin';
 
-                          {activeDivision.rules && (
-                            <div className={styles.fieldGroup}>
-                              <label className={styles.fieldLabel}>Rules</label>
-                              <p className={styles.summaryText} style={{ fontSize: 13, lineHeight: 1.5 }}>{activeDivision.rules}</p>
+                                return (
+                                  <div key={r.id} className={styles.roundCard}>
+                                    <div className={styles.roundCardHead}>
+                                      <span className={styles.roundIndex}>R{i + 1}</span>
+                                      <span className={styles.roundTitleText}>{formatLabel}</span>
+                                    </div>
+                                    <div className={styles.roundDetailsList}>
+                                      <div className={styles.roundDetailLine}>{matchText}</div>
+                                      <div className={styles.roundDetailLine}>{scoreLine}</div>
+                                      {showAdvance && (
+                                        <div className={styles.roundDetailLine}>Top {activeDivision.advancePerPool || 2} advance</div>
+                                      )}
+                                      {showCrossing && (
+                                        <div className={styles.roundDetailLine}>
+                                          Crossing: {activeDivision.crossing === 'static' ? 'Static Cross-Bracket' : 'FIVB'}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          )}
+                          </div>
 
                           <hr className={styles.divider} />
 
@@ -2135,7 +2203,7 @@ export default function OrganizerSetup() {
                           onClick={() => setActiveDivisionId(card.id)}
                           aria-pressed={card.active}
                         >
-                          {card.name} {card.count}
+                          {card.name}
                         </button>
                       ))}
                     </div>
@@ -2143,23 +2211,52 @@ export default function OrganizerSetup() {
 
                   {activeDivision && (
                     <>
-                      <div className={styles.mobileStatRow}>
-                        <div className={styles.mobileStat}>
-                          <span className={styles.mobileStatValue}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
-                          <span className={styles.mobileStatLabel}>Teams</span>
+                      {/* Registration sits with the division toggle rather
+                          than in the stat row: it is the one number here
+                          that moves, and a bar answers "how full" at a
+                          glance where "3/16" has to be read and divided.
+                          The row below keeps the four settings, which do
+                          not change on their own. */}
+                      <div className={styles.mobileFillRow}>
+                        <div className={styles.mobileFillHead}>
+                          <span className={styles.mobileFillCount}>
+                            {confirmedTeams.length}/{activeDivision.divisionTeamCap} teams
+                          </span>
+                          <span className={styles.mobileFillNote}>
+                            {isDivisionFull
+                              ? 'Division full'
+                              : `${activeDivision.divisionTeamCap - confirmedTeams.length} spots left`}
+                          </span>
                         </div>
-                        <div className={styles.mobileStat}>
-                          <span className={styles.mobileStatValue}>{activeDivision.registrationFee === 0 ? 'Free' : `฿${activeDivision.registrationFee}`}</span>
-                          <span className={styles.mobileStatLabel}>Fee</span>
+                        <div className={styles.mobileTeamsBar}>
+                          <div
+                            className={styles.mobileTeamsBarFill}
+                            style={{ width: `${fillRatio * 100}%` }}
+                          />
                         </div>
-                        <div className={styles.mobileStat}>
-                          <span className={styles.mobileStatValue}>{activeDivision.formatTypeOnSand}</span>
-                          <span className={styles.mobileStatLabel}>Format</span>
-                        </div>
-                        <div className={styles.mobileStat}>
-                          <span className={styles.mobileStatValue}>{activeDivision.maxRosterSize}</span>
-                          <span className={styles.mobileStatLabel}>Roster</span>
-                        </div>
+                      </div>
+
+                      {/* The four settings that used to sit here — gender,
+                          fee, format, roster — are all in Division Details
+                          just below, which is open by default. Repeating
+                          them cost a row and gave the phone view no way to
+                          act on anything; these two are what the screen is
+                          for. */}
+                      <div className={styles.mobileActionRow}>
+                        <button
+                          type="button"
+                          className={styles.mobileActionBtn}
+                          onClick={() => handleEditDivision(activeDivision.id)}
+                        >
+                          <Pencil size={15} /> Edit division
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.mobileActionBtn}
+                          onClick={shareEvent}
+                        >
+                          <Share2 size={15} /> {liveLinkCopied ? 'Link copied' : 'Share'}
+                        </button>
                       </div>
 
                       <div className={styles.mobileDetailsCard}>
@@ -2173,15 +2270,84 @@ export default function OrganizerSetup() {
                         </button>
                         {!detailsCollapsed && (
                           <div className={styles.mobileDetailsBody}>
-                            <div className={styles.mobileDetailRow}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
-                            <div className={styles.mobileDetailRow}><span>On-Sand Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
-                            <div className={styles.mobileDetailRow}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
-                            <div className={styles.mobileDetailRow}><span>Registration Fee</span><strong>{activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}</strong></div>
-                            <div className={styles.mobileDetailRow}><span>Registration Opens</span><strong>{activeDivision.registrationOpenDate ? safeFormatDate(activeDivision.registrationOpenDate) : 'Immediately'}</strong></div>
-                            <div className={styles.mobileDetailRow}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
+                            {/* Section 1: Capacity & Format */}
+                            <div className={styles.summaryGrid} style={{ gridTemplateColumns: '1fr 1fr' }}>
+                              <div className={styles.summaryItem}><span>Team Cap</span><strong>{activeDivision.divisionTeamCap} teams</strong></div>
+                              <div className={styles.summaryItem}><span>Format</span><strong>{activeDivision.formatTypeOnSand}</strong></div>
+                              <div className={styles.summaryItem}><span>Max Roster</span><strong>{activeDivision.maxRosterSize} players</strong></div>
+                              <div className={styles.summaryItem}><span>Opens</span><strong>{activeDivision.registrationOpenDate ? safeFormatDate(activeDivision.registrationOpenDate) : 'Immediately'}</strong></div>
+                            </div>
+
+                            <hr className={styles.divider} />
+
+                            {/* Section 2: Eligibility, Net Height & Rules */}
+                            <div className={styles.summaryGrid} style={{ gridTemplateColumns: '1fr 1fr' }}>
+                              <div className={styles.summaryItem}><span>Gender</span><strong>{activeDivision.genderEligibility}</strong></div>
+                              <div className={styles.summaryItem}><span>Age limit</span><strong>{ageLimitLabel(activeDivision.ageLimit)}</strong></div>
+                              <div className={styles.summaryItem}><span>Net Height</span><strong>{activeDivision.netHeight}</strong></div>
+                            </div>
+
                             {activeDivision.rules && (
-                              <p className={styles.mobileDetailRules}>{activeDivision.rules}</p>
+                              <div className={styles.fieldGroup} style={{ marginTop: 6 }}>
+                                <span className={styles.summaryLabelSubtle}>Rules</span>
+                                <p className={styles.summaryText} style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>{activeDivision.rules}</p>
+                              </div>
                             )}
+
+                            <hr className={styles.divider} />
+
+                            {/* Section 3: Fee (Larger highlight) */}
+                            <div className={styles.feeHighlight}>
+                              <span className={styles.feeHighlightLabel}>Registration Fee</span>
+                              <span className={styles.feeHighlightValue}>
+                                {activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}
+                              </span>
+                            </div>
+
+                            <hr className={styles.divider} />
+
+                            {/* Section 4: Competition rounds */}
+                            <div className={styles.fieldGroup}>
+                              <label className={styles.fieldLabel}>Competition rounds</label>
+                              <div className={styles.roundList}>
+                                {activeDivision.rounds.map((r, i) => {
+                                  const formatLabel = ROUND_FORMATS.find(f => f.value === r.format)?.label ?? '—';
+                                  const sets = r.scoring?.setsBestOf || 3;
+                                  const matchText = sets === 1 ? '1 Set' : `Best of ${sets}`;
+                                  const pts = r.scoring?.pointsPerSet || 21;
+                                  const deciding = r.scoring?.decidingSetPoints || 15;
+                                  const winBy2 = r.scoring?.winBy2 !== false;
+                                  const cap = r.scoring?.hardCap || 0;
+                                  const scorePattern = sets === 1 ? `To ${pts}` : sets === 5 ? `${pts}-${pts}-${pts}-${pts}-${deciding}` : `${pts}-${pts}-${deciding}`;
+                                  const scoreLine = `${scorePattern}${winBy2 ? ' (win by 2)' : ''}${cap > 0 ? ` cap ${cap}` : ''}`;
+                                  const isRoundRobin = r.format === 'round-robin';
+                                  const nextRound = activeDivision.rounds[i + 1] ?? null;
+                                  const showAdvance = isRoundRobin && nextRound !== null;
+                                  const showCrossing = showAdvance && nextRound.format !== 'round-robin';
+
+                                  return (
+                                    <div key={r.id} className={styles.roundCard}>
+                                      <div className={styles.roundCardHead}>
+                                        <span className={styles.roundIndex}>R{i + 1}</span>
+                                        <span className={styles.roundTitleText}>{formatLabel}</span>
+                                      </div>
+                                      <div className={styles.roundDetailsList}>
+                                        <div className={styles.roundDetailLine}>{matchText}</div>
+                                        <div className={styles.roundDetailLine}>{scoreLine}</div>
+                                        {showAdvance && (
+                                          <div className={styles.roundDetailLine}>Top {activeDivision.advancePerPool || 2} advance</div>
+                                        )}
+                                        {showCrossing && (
+                                          <div className={styles.roundDetailLine}>
+                                            Crossing: {activeDivision.crossing === 'static' ? 'Static Cross-Bracket' : 'FIVB'}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2190,9 +2356,6 @@ export default function OrganizerSetup() {
                         <div className={styles.mobileTeamsHeader}>
                           <h3>Registered Teams</h3>
                           <span className={styles.mobileTeamsCount}>{confirmedTeams.length}/{activeDivision.divisionTeamCap}</span>
-                        </div>
-                        <div className={styles.mobileTeamsBar}>
-                          <div className={styles.mobileTeamsBarFill} style={{ width: `${fillRatio * 100}%` }} />
                         </div>
                         {teamsLoading ? (
                           <p className={styles.summaryText}>Loading registered teams…</p>

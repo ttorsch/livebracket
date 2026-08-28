@@ -255,7 +255,6 @@ export default function OrganizerDashboard() {
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
-  const navRef = useRef<HTMLElement>(null);
   const searchWrapRef = useRef<HTMLDivElement>(null);
 
   /* Search has no view of its own: it takes you to the list the field
@@ -303,60 +302,6 @@ export default function OrganizerDashboard() {
     };
   }, [moreOpen]);
 
-  // Mobile navbar morph, driven by scroll *events* rather than scroll
-  // *distance*: --enter-t and --compact-t are always snapped straight to
-  // 0 or 1, never a fraction. Tying them proportionally to scrollY used
-  // to leave the bar visibly stuck mid-morph if the user scrolled a
-  // little and stopped; flipping a flag and letting the existing 200ms
-  // CSS transition run to completion means every scroll always ends in
-  // a fully-settled state. --enter-t: 1 once scrolled away from the very
-  // top, 0 back at the top. --compact-t: 1 the moment a downward scroll
-  // is detected, 0 the moment an upward scroll is detected (regardless
-  // of depth) — direction only, not position. Written straight to the
-  // DOM (not React state) so it stays glued to scroll events without a
-  // re-render per pixel.
-  useEffect(() => {
-    const topThreshold = 4;
-    let lastY = window.scrollY;
-    let wasScrolled = lastY > topThreshold;
-
-    const handleScroll = () => {
-      if (window.innerWidth >= 960) return;
-      const y = window.scrollY;
-      const nav = navRef.current;
-      if (!nav) return;
-
-      const isScrolled = y > topThreshold;
-      // Returning all the way to the top gets a slower, more deliberate
-      // morph back to the flush rectangle header; every other transition
-      // (compacting, expanding mid-page) stays quick. Only touch --nav-dur
-      // when the scrolled/not-scrolled state actually flips — html has
-      // scroll-behavior: smooth, so a single scroll gesture fires many
-      // scroll events, and re-evaluating on every one of them was
-      // stomping the slow duration back to fast before it could finish.
-      if (isScrolled !== wasScrolled) {
-        const returningToTop = wasScrolled && !isScrolled;
-        nav.style.setProperty('--nav-dur', returningToTop ? '550ms' : '200ms');
-        wasScrolled = isScrolled;
-      }
-
-      nav.style.setProperty('--enter-t', isScrolled ? '1' : '0');
-      if (y > lastY) {
-        nav.style.setProperty('--compact-t', isScrolled ? '1' : '0');
-      } else if (y < lastY) {
-        nav.style.setProperty('--compact-t', '0');
-      }
-      lastY = y;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll, { passive: true });
-    handleScroll();
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-    };
-  }, []);
 
   useEffect(() => {
     /* The organizer id has to arrive before the tournaments can be asked
@@ -446,10 +391,7 @@ export default function OrganizerDashboard() {
   return (
     <div className={styles.page}>
       {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside
-        ref={navRef}
-        className={`${styles.sidebar} ${pinned ? styles.sidebarPinned : ''}`}
-      >
+      <aside className={`${styles.sidebar} ${pinned ? styles.sidebarPinned : ''}`}>
         {/* Desktop: the logo row is the rail's collapse handle, per the
             design. Mobile: the bar has no rail, so the same slot is the
             Home link it has always been — see the 960px block in the CSS. */}

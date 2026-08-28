@@ -2287,21 +2287,50 @@
 .summaryItem {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 .summaryItem span {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 8.5px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--ink-2, #7A8294);
 }
 .summaryItem strong {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 14.5px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--ink-1, #14181E);
+}
+.summaryLabelSubtle {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2, #7A8294);
+  display: block;
+}
+.feeHighlight {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.feeHighlightLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2, #7A8294);
+}
+.feeHighlightValue {
+  font-family: var(--font-heading, 'DM Sans', sans-serif);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink-1, #14181E);
+  line-height: 1.15;
 }
 .summaryChips {
   display: flex;
@@ -2460,6 +2489,9 @@
 }
 
 .mobileEventCard {
+  /* Positioning context for .mobileEventEditBtn, which sits in the
+     card's top-right corner. */
+  position: relative;
   display: flex;
   gap: 12px;
   background: #fff;
@@ -2478,6 +2510,9 @@
   font-size: 16px;
   color: var(--ink-1, #14181E);
   margin-bottom: 6px;
+  /* Clears the edit button in the corner. Only the title needs the
+     inset — the meta rows and pills sit below it and keep full width. */
+  padding-right: 40px;
 }
 .mobileEventMeta {
   display: flex;
@@ -2566,7 +2601,21 @@
   color: var(--ink-1, #14181E);
 }
 .mobileDetailsBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 0 16px 16px;
+}
+.mobileDetailsBody .divider {
+  margin: 0;
+}
+.mobileDetailsBody .fieldLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2, #7A8294);
 }
 .mobileDetailRow {
   display: flex;
@@ -2614,17 +2663,108 @@
   font-size: 14px;
   color: var(--orange, #EE7A4C);
 }
+/* ── Division fill, under the mobile division toggle ───────────────
+   The registered count moved out of the stat row and up here as a bar:
+   it is the only figure in that group that changes, and "how full is
+   this division" is a proportion, which a bar states and a fraction
+   makes you work out. The bar itself reuses .mobileTeamsBar below, so
+   the two places that show fill stay identical. */
+/* ── Mobile event card actions ─────────────────────────────────── */
+
+.mobileEventEditBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(20, 31, 46, 0.10);
+  background: #FFFFFF;
+  color: var(--ink-900, #14181E);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mobileEventEditBtn:hover {
+  background: var(--sand-100, #F5F1EA);
+  border-color: rgba(20, 31, 46, 0.2);
+}
+
+/* Replaced the gender/fee/format/roster tiles. White on the sand page so
+   they read as controls rather than as another panel of figures. */
+.mobileActionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.mobileActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(20, 31, 46, 0.08);
+  background: #FFFFFF;
+  color: var(--ink-900, #14181E);
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mobileActionBtn:hover {
+  background: var(--sand-100, #F5F1EA);
+  border-color: rgba(20, 31, 46, 0.18);
+}
+
+.mobileActionBtn:active { transform: scale(0.99); }
+
+.mobileFillRow {
+  width: 95%;
+  margin: 2px auto 16px;
+}
+
+.mobileFillHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.mobileFillCount {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink-900, #14181E);
+}
+
+.mobileFillNote {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(20, 31, 46, 0.5);
+}
+
 .mobileTeamsBar {
-  height: 4px;
-  border-radius: 2px;
+  width: 100%;
+  margin: 8px 0 4px;
+  height: 5px;
+  border-radius: 999px;
   background: rgba(20, 31, 46, 0.08);
-  margin-bottom: 4px;
   overflow: hidden;
 }
 .mobileTeamsBarFill {
   height: 100%;
   background: var(--orange, #EE7A4C);
-  border-radius: 2px;
+  border-radius: 999px;
   transition: width 0.3s;
 }
 .mobileTeamRow {
@@ -2794,6 +2934,20 @@
   gap: 24px;
   position: sticky;
   top: 24px;
+}
+.desktop2aSidebar .sectionBody {
+  gap: 10px;
+}
+.desktop2aSidebar .fieldLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2, #7A8294);
+}
+.desktop2aSidebar .divider {
+  margin: 0;
 }
 
 
@@ -3452,26 +3606,49 @@
   margin-bottom: 18px;
 }
 .roundList { display: flex; flex-direction: column; gap: 8px; }
-.roundRow {
+.roundCard {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: var(--sand-100, #F7F4EE);
 }
+.roundCardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .roundIndex {
   font-family: var(--font-heading);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--orange, #EE7A4C);
 }
-.roundLabelText { font-size: 13px; font-weight: 500; color: var(--ink-1, #14181E); }
+.roundTitleText {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+}
+.roundDetailsList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 24px;
+}
+.roundDetailLine {
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 12px;
+  color: var(--ink-2, #5A6275);
+  line-height: 1.4;
+}
 .feeRow { display: flex; align-items: baseline; gap: 10px; }
 .feeLabel {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-2, #7A8294);
 }

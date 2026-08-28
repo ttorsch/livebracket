@@ -794,11 +794,32 @@
   min-width: 0;
 }
 
-/* Deliberately close to bare: the platform draws its own control and
-   picker here, so the only thing set is how much of the row it takes. */
+/* The closed control is dressed as the search pill beside it — same
+   fill, radius, height and type — so the row reads as one pair. The
+   picker it opens is still the platform's; appearance: none only drops
+   the OS chrome on the button, which is why the chevron is drawn here.
+   Its colour is literal because a data URI cannot read a custom
+   property. */
 .filterSelect {
   display: none;
   min-width: 0;
+  box-sizing: border-box;
+  height: 48px;
+  /* Tighter than the search pill's 18px either side: at 30% of a phone
+     screen the control is ~95px, and the label needs every pixel. */
+  padding: 0 30px 0 16px;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  background-color: var(--sand-200, #EFEAE0);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237A8294' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 15px;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
 /* ── Compact tournament rows ──────────────────────────────────── */
@@ -1234,26 +1255,15 @@
     flex-wrap: nowrap;
     align-items: center;
     justify-content: space-between;
-    transition:
-      margin var(--nav-dur, 200ms) ease-in,
-      padding var(--nav-dur, 200ms) ease-in,
-      border-radius var(--nav-dur, 200ms) ease-in,
-      box-shadow var(--nav-dur, 200ms) ease-in;
-    margin:
-      calc(var(--enter-t, 0) * 10px)
-      calc(var(--enter-t, 0) * 12px + var(--compact-t, 0) * 12vw)
-      0;
-    padding:
-      calc(12px - var(--enter-t, 0) * 2px - var(--compact-t, 0) * 2px)
-      calc(14px - var(--compact-t, 0) * 4px);
+    /* A plain bar across the top. It used to detach into a floating pill
+       on scroll — margins in, corners to 999px, a shadow underneath —
+       and shrink again on the way down. All of that is gone: the bar is
+       flush, square and the same size wherever the page is scrolled to,
+       so nothing about it moves while you read. */
+    margin: 0;
+    padding: 12px 14px;
     gap: 8px;
-    border-radius: calc(var(--enter-t, 0) * 999px); /* clamps to a true half-height pill once floated */
-    box-shadow:
-      0
-      calc(var(--enter-t, 0) * 16px)
-      calc(var(--enter-t, 0) * 40px)
-      calc(var(--enter-t, 0) * -12px)
-      rgba(8, 18, 35, calc(var(--enter-t, 0) * 0.55));
+    box-shadow: none;
   }
   /* The rail's own geometry is undone here — a horizontal bar has no
      width to collapse, no spacers to centre against, and must not clip. */
@@ -1299,26 +1309,23 @@
   }
   .brandHomeIcon {
     display: inline-flex;
-    width: calc(22px - var(--compact-t, 0) * 4px);
-    height: calc(22px - var(--compact-t, 0) * 4px);
-    transition: width var(--nav-dur, 200ms) ease-in, height var(--nav-dur, 200ms) ease-in;
+    width: 22px;
+    height: 22px;
   }
   /* Unwraps the <nav> so its buttons become flat siblings of the Home
      icon, letting .sidebar's space-between distribute all five items
      evenly instead of treating the buttons as one group. */
   .sideNav { display: contents; }
   .sideLink {
-    padding: calc(9px - var(--compact-t, 0) * 3px) calc(11px - var(--compact-t, 0) * 3px);
+    padding: 9px 11px;
     font-size: 14px;
     gap: 0;
-    transition: padding var(--nav-dur, 200ms) ease-in;
   }
   .sideLabel { display: none; }
   .sideIcon { flex: none; height: auto; }
   .sideLink svg {
-    width: calc(20px - var(--compact-t, 0) * 3px);
-    height: calc(20px - var(--compact-t, 0) * 3px);
-    transition: width var(--nav-dur, 200ms) ease-in, height var(--nav-dur, 200ms) ease-in;
+    width: 20px;
+    height: 20px;
   }
   /* A phone bar holds four. Search and Create are dropped because the
      page already carries both — the search field sits in the list, and
@@ -1331,10 +1338,9 @@
     border-color: #fff;
   }
   .sideAvatar {
-    width: calc(44px - var(--compact-t, 0) * 10px);
-    height: calc(44px - var(--compact-t, 0) * 10px);
+    width: 44px;
+    height: 44px;
     font-size: 18px;
-    transition: width var(--nav-dur, 200ms) ease-in, height var(--nav-dur, 200ms) ease-in;
   }
   .main { padding: 96px 20px 60px; }
   .headerTitle { font-size: 30px; }
@@ -1360,13 +1366,15 @@
   .rowChevron { order: 3; }
   .divStatGrid { grid-template-columns: 1fr; }
   .filterTabs { display: none; }
-  /* 70/30 across the row, expressed as grow factors over a zero basis.
-     A percentage basis would have made each item's intrinsic width its
-     own content — the placeholder string and the longest option — and
-     .main sizes to that, which pushed the page wider than the screen. */
+  /* 70/30 across the row, halves of the 10px gap coming off each side.
+     A percentage basis rather than grow factors over a zero basis: the
+     select's padding sits outside a zero basis, so grow factors handed
+     it 40% of the row. Safe now that .main is a definite width — it was
+     .main sizing to content that let these percentages, indefinite
+     during intrinsic sizing, push the page wider than the screen. */
   .searchRow { display: flex; align-items: center; gap: 10px; }
-  .searchWrap { flex: 7 1 0; }
-  .filterSelect { display: block; flex: 3 1 0; }
+  .searchWrap { flex: 0 0 calc(70% - 5px); }
+  .filterSelect { display: block; flex: 0 0 calc(30% - 5px); }
   .newTournamentBtn {
     border-radius: 16px !important;
     height: 56px !important;
