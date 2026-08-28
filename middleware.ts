@@ -67,12 +67,23 @@ export async function middleware(request: NextRequest) {
 
   if (user && isAuthOnly(pathname)) {
     const homeUrl = request.nextUrl.clone();
-    /* Metadata is untrustworthy for *permission*, but this is only choosing
-     * which landing page to send someone to — and both destinations verify
-     * the role themselves. A player who forces their way to /dashboard is
-     * turned around by app/dashboard/layout.tsx, not by this line. */
-    homeUrl.pathname = user.user_metadata?.role === 'player' ? '/profile' : '/dashboard';
     homeUrl.search = '';
+
+    /* Already signed in and landing on the login form — usually from a
+     * "Sign in" control they did not need. Send them back where they were
+     * rather than to a dashboard they did not ask for. Same-origin only:
+     * an absolute `next` would make this an open redirect. */
+    const wanted = request.nextUrl.searchParams.get('next');
+    if (wanted && wanted.startsWith('/') && !wanted.startsWith('//') && !isAuthOnly(wanted)) {
+      homeUrl.pathname = wanted;
+      return NextResponse.redirect(homeUrl);
+    }
+
+    /* Otherwise fall back to the surface the tab asked for. This is only a
+     * landing choice, never a permission one — /dashboard verifies the
+     * organizer capability itself in app/dashboard/layout.tsx. */
+    homeUrl.pathname =
+      request.nextUrl.searchParams.get('role') === 'organizer' ? '/dashboard' : '/profile';
     return NextResponse.redirect(homeUrl);
   }
 

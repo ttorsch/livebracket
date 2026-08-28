@@ -89,6 +89,13 @@ function LiveBracketLoginInner() {
       : null
   );
 
+  /* Signed in, chose the Organizer tab, but this account has no organizers
+   * row yet. Rather than rejecting them — roles are additive, so nothing is
+   * wrong with the account — the form offers to add the capability. */
+  const [needsOrganizer, setNeedsOrganizer] = useState(false);
+  const [orgName, setOrgName] = useState('');
+  const [orgClub, setOrgClub] = useState('');
+
   // ── Sign-up modal state ────────────────────────────────────────
   const [signupOpen, setSignupOpen] = useState(false);
   const [suIdentifier, setSuIdentifier] = useState('');
@@ -99,6 +106,29 @@ function LiveBracketLoginInner() {
   const [suError, setSuError] = useState<string | null>(null);
 
   const content = ROLE_CONTENT[role];
+
+  /* Destination & back-label logic:
+   * If coming from a tournament/event page (/tournament/[id] or /tournament/[id]/register), label as 'Event'.
+   * Otherwise (homepage or direct visit), label as 'Home'. */
+  const isTournament =
+    Boolean(nextPath?.startsWith('/tournament')) ||
+    (typeof document !== 'undefined' && Boolean(document.referrer && document.referrer.includes('/tournament/')));
+  const backLabel = isTournament ? 'Event' : 'Home';
+
+  const handleGoBack = () => {
+    if (typeof window !== 'undefined') {
+      if (
+        window.history.length > 1 &&
+        document.referrer &&
+        document.referrer.startsWith(window.location.origin) &&
+        !document.referrer.includes('/login')
+      ) {
+        router.back();
+        return;
+      }
+    }
+    router.push(nextPath || '/');
+  };
 
   const handleRoleChange = (newRole: Role) => {
     setRole(newRole);
@@ -124,8 +154,8 @@ function LiveBracketLoginInner() {
         return;
       }
 
-      /* Which role this account actually has is a server question — the
-       * organizers table decides it, not the tab that was clicked and not
+      /* What this account can do is a server question — the organizers
+       * table decides it, not the tab that was clicked and not
        * user_metadata, which this browser could have written itself. */
       const res = await fetch('/api/auth/session', { cache: 'no-store' });
       const session = await res.json();
@@ -136,23 +166,63 @@ function LiveBracketLoginInner() {
         return;
       }
 
-      if (session.role !== role) {
-        await supabase.auth.signOut();
-        await fetch('/api/auth/signout', { method: 'POST' });
-        setErrorMsg(
-          `That account is registered as a ${session.role}. Switch to the ${session.role} tab to sign in.`
-        );
+      /* The tab is a destination, not a verdict on the account. Player
+       * always works — everyone who has an account is a player — so it just
+       * resumes wherever they were before signing in. */
+      if (role === 'player') {
+        router.push(nextPath ?? '/profile');
+        router.refresh();
+        return;
+      }
+
+      /* Organizer is a capability this account may not have yet. Staying
+       * signed in and offering to add it beats signing them back out. */
+      if (!session.roles?.includes('organizer')) {
+        setOrgName(session.name ?? '');
+        setNeedsOrganizer(true);
         setLoading(false);
         return;
       }
 
-      router.push(nextPath ?? session.redirectTo);
+      router.push(nextPath ?? '/dashboard');
       router.refresh();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'An error occurred during sign in.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateOrganizer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/organizer', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: orgName, club: orgClub || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error ?? 'Could not create the organizer profile.');
+        setLoading(false);
+        return;
+      }
+      router.push(nextPath ?? '/dashboard');
+      router.refresh();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Could not create the organizer profile.');
+      setLoading(false);
+    }
+  };
+
+  /* Backing out of the organizer step leaves them signed in — they are
+   * still a player, and that half of the account works fine. */
+  const cancelOrganizerSetup = () => {
+    setNeedsOrganizer(false);
+    setErrorMsg(null);
+    router.push(nextPath ?? '/profile');
   };
 
   const handleSso = async (provider: 'Google' | 'Facebook') => {
@@ -208,7 +278,7 @@ function LiveBracketLoginInner() {
         ? `${suName.trim()} ${suSurname.trim()}`
         : suName.trim();
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: suIdentifier.trim(),
         password: suPassword,
         options: {
@@ -223,6 +293,22 @@ function LiveBracketLoginInner() {
 
       if (error) {
         setSuError(error.message);
+        setSuLoading(false);
+        return;
+      }
+
+      /* With email confirmation on, signing up an address that already has
+       * an account does not error — Supabase returns a decoy user with no
+       * identities, so a signup form cannot be used to discover who is
+       * registered. Left unhandled it reads as success and no mail ever
+       * arrives, so detect it and send them to log in instead. Adding the
+       * organizer capability is something the login form now offers. */
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setSuError(
+          role === 'organizer'
+            ? 'An account already exists for this email. Log in instead — you can add an organizer profile straight after signing in.'
+            : 'An account already exists for this email. Log in instead, or reset your password.'
+        );
         setSuLoading(false);
         return;
       }
@@ -286,12 +372,6 @@ function LiveBracketLoginInner() {
           </span>
           Live Bracket
         </Link>
-        <Link href="/" className={styles.topBack}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M12 7H2m0 0l4 4M2 7l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Browse events
-        </Link>
       </header>
 
       {/* ── Login hero ──────────────────────────────────────────── */}
@@ -301,22 +381,41 @@ function LiveBracketLoginInner() {
           <div className={styles.heroScrim} />
         </div>
 
+        <div className={styles.modalWrapper}>
+          <button
+            type="button"
+            onClick={handleGoBack}
+            className={styles.backLink}
+            aria-label={`Go back to ${backLabel}`}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span>{backLabel}</span>
+          </button>
 
-        <div
-          className={styles.glassPanel}
-          style={{
-            backdropFilter: 'blur(18px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-          }}
-        >
+          <div
+            className={styles.glassPanel}
+            style={{
+              backdropFilter: 'blur(18px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+            }}
+          >
           {/* Left: login card */}
           <div
             className={styles.loginCard}
             style={{ '--role-accent': content.accent } as React.CSSProperties}
           >
-            <h2 className={styles.loginTitle}>{content.title}</h2>
+            <h2 className={styles.loginTitle}>
+              {needsOrganizer ? 'Set up your organizer profile' : content.title}
+            </h2>
 
-            <div className={styles.roleTabs} role="tablist" aria-label="Account type">
+            <div
+              className={styles.roleTabs}
+              role="tablist"
+              aria-label="Account type"
+              hidden={needsOrganizer}
+            >
               <button
                 role="tab"
                 aria-selected={role === 'player'}
@@ -343,6 +442,42 @@ function LiveBracketLoginInner() {
             {errorMsg && <div className={styles.alertError}>{errorMsg}</div>}
             {successMsg && <div className={styles.alertSuccess}>{successMsg}</div>}
 
+            {needsOrganizer ? (
+              <>
+                <p className={styles.stepNote}>
+                  You&apos;re signed in. This account doesn&apos;t run any events yet — add an
+                  organizer profile and you&apos;ll keep your player account exactly as it is.
+                </p>
+                <form className={styles.form} onSubmit={handleCreateOrganizer}>
+                  <label className={styles.field}>
+                    <span>Organizer&apos;s name <em className={styles.req}>*</em></span>
+                    <input
+                      type="text"
+                      value={orgName}
+                      onChange={(e) => setOrgName(e.target.value)}
+                      placeholder="Khao Lak Volley Club"
+                      required
+                      autoFocus
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>Club <span className={styles.optional}>(optional)</span></span>
+                    <input
+                      type="text"
+                      value={orgClub}
+                      onChange={(e) => setOrgClub(e.target.value)}
+                      placeholder="e.g. Khao Lak Volley"
+                    />
+                  </label>
+                  <button type="submit" className={styles.signIn} disabled={loading}>
+                    {loading ? 'Creating…' : 'Create organizer profile'}
+                  </button>
+                  <button type="button" className={styles.forgot} onClick={cancelOrganizerSetup}>
+                    Not now — continue as a player
+                  </button>
+                </form>
+              </>
+            ) : (
             <form className={styles.form} onSubmit={handleSubmit}>
               <label className={styles.field}>
                 <span>Email</span>
@@ -371,7 +506,10 @@ function LiveBracketLoginInner() {
                 Forgot your password?
               </Link>
             </form>
+            )}
 
+            {!needsOrganizer && (
+              <>
             <div className={styles.divider} aria-hidden="true">or continue with</div>
 
             <div className={styles.ssoRow}>
@@ -399,6 +537,8 @@ function LiveBracketLoginInner() {
                 Sign up now
               </button>
             </p>
+              </>
+            )}
           </div>
 
           {/* Right: slogan + live event preview */}
@@ -432,7 +572,8 @@ function LiveBracketLoginInner() {
             </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* ── Sign-up modal ───────────────────────────────────────── */}
       {signupOpen && (

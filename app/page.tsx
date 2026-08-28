@@ -25,6 +25,7 @@ import {
   type CompletedDivisionSlide,
   type HomepageStats,
 } from '@/lib/data';
+import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '@/components/auth/useSignInHref';
 
 type Status = 'live' | 'upcoming' | 'finished';
 
@@ -634,6 +635,10 @@ function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide
 }
 
 export default function LiveBracketHome() {
+  useRestoreScrollPosition();
+  // "Sign in" returns the visitor to this page, not to /profile.
+  const signInHref = useSignInHref('player');
+  const createHref = useSignInHref('organizer');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [query, setQuery] = useState('');
@@ -953,10 +958,18 @@ export default function LiveBracketHome() {
 
           {/* Right Action Buttons */}
           <div className={styles.navRightActions}>
-            <Link href="/login?role=player" className={styles.navSignInLink}>
+            <Link
+              href={signInHref}
+              onClick={() => saveScrollPosition()}
+              className={styles.navSignInLink}
+            >
               Sign In
             </Link>
-            <Link href="/login?role=organizer" className={styles.navCreateBtn}>
+            <Link
+              href={createHref}
+              onClick={() => saveScrollPosition()}
+              className={styles.navCreateBtn}
+            >
               Create a tournament
             </Link>
 
@@ -1008,16 +1021,22 @@ export default function LiveBracketHome() {
         {menuOpen && (
           <div className={styles.mobileMenuDropdown}>
             <Link 
-              href="/login?role=player" 
+              href={signInHref} 
               className={styles.mobileNavSignInLink}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                saveScrollPosition();
+                setMenuOpen(false);
+              }}
             >
               Sign In
             </Link>
             <Link 
-              href="/login?role=organizer" 
+              href={createHref} 
               className={styles.mobileNavCreateBtn}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                saveScrollPosition();
+                setMenuOpen(false);
+              }}
             >
               Create a tournament
             </Link>

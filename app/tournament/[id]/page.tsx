@@ -12,6 +12,7 @@ import {
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
 import { registrationState, nextOpening, isPublic, type Phase } from '../../../lib/tournamentLifecycle';
 import { ageLimitLabel } from '../../../lib/divisionEligibility';
+import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../components/auth/useSignInHref';
 
 // Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
@@ -218,6 +219,7 @@ function toLiveCourt(divisionLabel: string, roundName: string, m: DetailMatch): 
 }
 
 export default function TournamentPage() {
+  useRestoreScrollPosition();
   const params = useParams();
   const slug = String(params.id);
 
@@ -839,6 +841,7 @@ export default function TournamentPage() {
 /* ── Pieces ──────────────────────────────────────────────────────── */
 
 function SiteHeader() {
+  const signInHref = useSignInHref();
   return (
     <header className={styles.siteHeader}>
       <div className={styles.siteHeaderInner}>
@@ -860,7 +863,13 @@ function SiteHeader() {
         </Link>
 
         <nav className={styles.headerNav}>
-          <Link href="/login?role=player" className={styles.btnGeneral}>Log in</Link>
+          <Link
+            href={signInHref}
+            onClick={() => saveScrollPosition()}
+            className={styles.btnGeneral}
+          >
+            Log in
+          </Link>
         </nav>
       </div>
     </header>

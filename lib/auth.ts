@@ -11,7 +11,16 @@ export interface Organizer {
   club: string | null;
 }
 
+/* Roles are additive, not exclusive. Every account is a player — that is
+ * the baseline of having signed up at all. An `organizers` row adds the
+ * organizer capability on top; it never replaces the player one. So the
+ * answer to "what is this account" is a set, and the login tabs choose a
+ * destination rather than an identity. */
 export type Role = 'player' | 'organizer';
+
+export function rolesFor(organizer: Organizer | null): Role[] {
+  return organizer ? ['player', 'organizer'] : ['player'];
+}
 
 /* The signed-in user, verified against the Supabase auth server rather than
  * decoded from the cookie. Always prefer this over reading the session
@@ -49,27 +58,22 @@ export async function getCurrentOrganizer(): Promise<Organizer | null> {
   return getOrganizerForUser(user.id);
 }
 
-export async function getCurrentRole(): Promise<Role | null> {
+export async function getCurrentRoles(): Promise<Role[]> {
   const user = await getCurrentUser();
-  if (!user) return null;
-  return (await getOrganizerForUser(user.id)) ? 'organizer' : 'player';
+  if (!user) return [];
+  return rolesFor(await getOrganizerForUser(user.id));
 }
 
-/* Provision the organizer row for a user who signed up (or signed in with
- * Google/Facebook) choosing the organizer role.
+/* The one place an organizers row is ever created. Idempotent, and safe to
+ * race: two concurrent callers converge on the same row.
  *
- * The role choice arrives as `user_metadata.role`, which the user controls.
- * That is deliberate and safe: acting on it only ever creates the caller
- * their *own* organizer account, which is precisely what the "Sign up as
- * organizer" button promises. It grants no reach into anyone else's rows —
- * every organizer-scoped query filters by the id returned here. What the
- * user cannot do is write the row directly; only this service-role path can.
- *
- * Idempotent: safe to call on every sign-in. */
-export async function ensureOrganizerForUser(user: User): Promise<Organizer | null> {
-  const intendedRole = user.user_metadata?.role;
-  if (intendedRole !== 'organizer') return null;
-
+ * Adopting by email matters for two real cases — an organizer seeded before
+ * they had a login, and someone who signed up as a player first and is now
+ * adding the organizer capability to the same address. */
+async function provisionOrganizer(
+  user: User,
+  opts: { name?: string; club?: string } = {}
+): Promise<Organizer | null> {
   const existing = await getOrganizerForUser(user.id);
   if (existing) return existing;
 
@@ -77,13 +81,12 @@ export async function ensureOrganizerForUser(user: User): Promise<Organizer | nu
   if (!email) return null;
 
   const name =
+    opts.name?.trim() ||
     (user.user_metadata?.full_name as string | undefined)?.trim() ||
     (user.user_metadata?.name as string | undefined)?.trim() ||
     email.split('@')[0];
+  const club = opts.club?.trim() || null;
 
-  /* An organizers row may already exist for this email from before the user
-   * had an auth account (seeded data, or an earlier signup that never
-   * confirmed). Adopt it rather than colliding with the unique email index. */
   const { data: byEmail } = await supabaseAdmin
     .from('organizers')
     .select('id, auth_user_id, email, name, club')
@@ -91,11 +94,16 @@ export async function ensureOrganizerForUser(user: User): Promise<Organizer | nu
     .maybeSingle();
 
   if (byEmail) {
-    if ((byEmail as Organizer).auth_user_id) return byEmail as Organizer;
+    const row = byEmail as Organizer;
+    /* Already claimed by a different auth user — do not steal it. The
+     * caller sees "not an organizer" rather than someone else's account. */
+    if (row.auth_user_id && row.auth_user_id !== user.id) return null;
+    if (row.auth_user_id === user.id) return row;
+
     const { data: adopted, error: adoptError } = await supabaseAdmin
       .from('organizers')
-      .update({ auth_user_id: user.id })
-      .eq('id', (byEmail as Organizer).id)
+      .update({ auth_user_id: user.id, ...(opts.club?.trim() ? { club: opts.club.trim() } : {}) })
+      .eq('id', row.id)
       .select('id, auth_user_id, email, name, club')
       .single();
     if (adoptError) throw new Error(`Failed to link organizer: ${adoptError.message}`);
@@ -104,16 +112,39 @@ export async function ensureOrganizerForUser(user: User): Promise<Organizer | nu
 
   const { data, error } = await supabaseAdmin
     .from('organizers')
-    .insert({ auth_user_id: user.id, email, name })
+    .insert({ auth_user_id: user.id, email, name, club })
     .select('id, auth_user_id, email, name, club')
     .single();
 
   if (error) {
-    /* Two concurrent sign-ins can race to insert. The loser re-reads. */
+    // Lost an insert race; the winner's row is the answer.
     if (error.code === '23505') return getOrganizerForUser(user.id);
     throw new Error(`Failed to create organizer: ${error.message}`);
   }
   return data as Organizer;
+}
+
+/* Sign-up intent path: called from /auth/callback once, at the first
+ * authenticated moment. `user_metadata.role` is a claim the browser can
+ * write, which is fine here — acting on it only ever gives the caller their
+ * own organizer account, exactly what the button they pressed promised. It
+ * grants no reach into anyone else's rows.
+ *
+ * Deliberately NOT called when merely reading a session: provisioning is a
+ * write, and a GET that reports who you are should not also change it. */
+export async function ensureOrganizerForUser(user: User): Promise<Organizer | null> {
+  if (user.user_metadata?.role !== 'organizer') return null;
+  return provisionOrganizer(user);
+}
+
+/* Explicit path: an existing account adding the organizer capability to
+ * itself, from the login form or the signup modal. This is what makes roles
+ * additive rather than a choice made once at sign-up. */
+export async function addOrganizerToUser(
+  user: User,
+  details: { name?: string; club?: string }
+): Promise<Organizer | null> {
+  return provisionOrganizer(user, details);
 }
 
 export class AuthError extends Error {
@@ -130,7 +161,9 @@ export async function requireOrganizer(): Promise<Organizer> {
   const user = await getCurrentUser();
   if (!user) throw new AuthError('Not signed in', 401);
 
-  const organizer = (await getOrganizerForUser(user.id)) ?? (await ensureOrganizerForUser(user));
+  /* Read-only on purpose. A guard that quietly created the thing it was
+   * checking for could never actually fail. */
+  const organizer = await getOrganizerForUser(user.id);
   if (!organizer) throw new AuthError('This account is not an organizer', 403);
   return organizer;
 }

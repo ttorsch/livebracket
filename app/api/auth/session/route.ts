@@ -1,27 +1,27 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getOrganizerForUser, ensureOrganizerForUser } from '../../../../lib/auth';
+import { getCurrentUser, getOrganizerForUser, rolesFor } from '../../../../lib/auth';
 
-/* Who the caller actually is, decided on the server. The login form asks
- * this right after signing in rather than reading user_metadata, because
- * metadata is a claim the browser can write and the organizers table is
- * not. */
+/* Who the caller is, decided on the server and reported as a set — every
+ * account is a player, and an organizers row adds organizer on top.
+ *
+ * Strictly read-only: it never provisions. The login form asks this instead
+ * of reading user_metadata, because metadata is a claim the browser can
+ * write and the organizers table is not. */
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ signedIn: false, role: null, redirectTo: '/login' });
+    return NextResponse.json({ signedIn: false, roles: [], organizerId: null });
   }
 
-  let organizer = await getOrganizerForUser(user.id);
-  if (!organizer) organizer = await ensureOrganizerForUser(user);
+  const organizer = await getOrganizerForUser(user.id);
 
-  const role = organizer ? 'organizer' : 'player';
   return NextResponse.json({
     signedIn: true,
-    role,
+    roles: rolesFor(organizer),
     // Their own organizer id — the dashboard scopes its listing by it.
     organizerId: organizer?.id ?? null,
     email: user.email ?? null,
     name: organizer?.name ?? user.user_metadata?.full_name ?? null,
-    redirectTo: organizer ? '/dashboard' : '/profile',
+    club: organizer?.club ?? null,
   });
 }

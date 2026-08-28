@@ -376,6 +376,7 @@ export default function OrganizerDashboard() {
         const session = await fetch('/api/auth/session', { cache: 'no-store' }).then(r => r.json());
         if (cancelled || !session.organizerId) return;
 
+
         const [org, rows] = await Promise.all([
           fetch('/api/organizer').then(r => r.json()),
           getDashboardTournaments(session.organizerId),
@@ -577,6 +578,9 @@ export default function OrganizerDashboard() {
                   {label}
                 </button>
               ))}
+              <Link href="/profile" className={styles.moreItem} role="menuitem">
+                Player profile
+              </Link>
               <button
                 type="button"
                 className={styles.moreItem}

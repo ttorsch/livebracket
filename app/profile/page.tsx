@@ -41,6 +41,9 @@ export default function PlayerProfile() {
   const [tab, setTab] = useState<Tab>('overview');
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  /* Roles are additive, so a player may also run events. When they do, the
+   * dashboard is one click away instead of one re-login away. */
+  const [isOrganizer, setIsOrganizer] = useState(false);
 
   useEffect(() => {
     /* Role assignment used to happen here, writing user_metadata from the
@@ -52,6 +55,11 @@ export default function PlayerProfile() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+
+        const session = await fetch('/api/auth/session', { cache: 'no-store' })
+          .then(r => r.json())
+          .catch(() => null);
+        if (session?.roles?.includes('organizer')) setIsOrganizer(true);
       } catch (err) {
         console.error('Error fetching user session:', err);
       } finally {
@@ -99,6 +107,9 @@ export default function PlayerProfile() {
         </Link>
         <div className={styles.topBarActions}>
           <Link href="/" className={styles.topLink}>Browse events</Link>
+          {isOrganizer && (
+            <Link href="/dashboard" className={styles.topLink}>Organizer dashboard</Link>
+          )}
           <button className={styles.iconBtn} title="Settings"><Settings size={18} /></button>
           <button className={styles.iconBtn} title="Log out" onClick={handleLogout}><LogOut size={18} /></button>
         </div>

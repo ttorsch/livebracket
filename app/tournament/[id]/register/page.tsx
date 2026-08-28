@@ -10,6 +10,7 @@ import { getTournamentDetail, type TournamentDetail, type DetailDivision } from 
 import { joinTeamName } from '../../../../lib/teamName';
 import type { PresetKey } from '../../../../lib/registrationFields';
 import { divisionRegistrationState } from '../../../../lib/tournamentLifecycle';
+import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../../components/auth/useSignInHref';
 
 const STEPS = ['Division', 'Players', 'Review'];
 const DONE = STEPS.length; // the confirmation panel sits one past the last step
@@ -67,6 +68,7 @@ interface SubmitResult {
 }
 
 export default function TournamentRegister() {
+  useRestoreScrollPosition();
   const params = useParams();
   const router = useRouter();
   const slug = String(params.id);
@@ -729,13 +731,23 @@ function Hero({ slug, tournament, stepLabel }: {
    Overlaid on the photo from 768px up and sitting on sand below it —
    the wordmark colour follows via --lb-logo-ink. */
 function HeroBar() {
+  const signInHref = useSignInHref();
   const router = useRouter();
   return (
     <div className={styles.heroBar}>
       <Link href="/" className={styles.heroBrand} aria-label="Live Bracket home">
         <Logo variant="lockup" size={30} color="var(--lb-logo-ink)" />
       </Link>
-      <Button variant="general" size="small" onClick={() => router.push('/login?role=player')}>Log in</Button>
+      <Button
+        variant="general"
+        size="small"
+        onClick={() => {
+          saveScrollPosition();
+          router.push(signInHref);
+        }}
+      >
+        Log in
+      </Button>
     </div>
   );
 }
