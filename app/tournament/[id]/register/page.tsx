@@ -68,7 +68,6 @@ interface SubmitResult {
 }
 
 export default function TournamentRegister() {
-  useRestoreScrollPosition();
   const params = useParams();
   const router = useRouter();
   const slug = String(params.id);
@@ -76,6 +75,8 @@ export default function TournamentRegister() {
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useRestoreScrollPosition(!loading && Boolean(tournament));
 
   const [step, setStep] = useState(0);
   const [divisionId, setDivisionId] = useState('');

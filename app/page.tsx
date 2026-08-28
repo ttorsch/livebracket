@@ -635,7 +635,6 @@ function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide
 }
 
 export default function LiveBracketHome() {
-  useRestoreScrollPosition();
   // "Sign in" returns the visitor to this page, not to /profile.
   const signInHref = useSignInHref('player');
   const createHref = useSignInHref('organizer');
@@ -663,6 +662,8 @@ export default function LiveBracketHome() {
   const [completedSlides, setCompletedSlides] = useState<CompletedDivisionSlide[]>([]);
   const [realStats, setRealStats] = useState<HomepageStats>({ divisions: 0, registeredTeams: 0 });
   const [eventsLoaded, setEventsLoaded] = useState(false);
+
+  useRestoreScrollPosition(eventsLoaded);
 
   const divisionsCount = useMemo(() => {
     const fromEvents = events.reduce((sum, t) => sum + (t.divisions?.length || 0), 0);

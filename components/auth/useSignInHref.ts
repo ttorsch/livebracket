@@ -1,31 +1,68 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
-export function saveScrollPosition(path?: string) {
+export interface SavedPageState {
+  scrollY: number;
+  activeDiv?: string;
+  activeTab?: string;
+}
+
+export function saveScrollPosition(
+  path?: string,
+  extraState?: { activeDiv?: string; activeTab?: string }
+) {
   if (typeof window === 'undefined') return;
   const targetPath = path || window.location.pathname;
   try {
-    sessionStorage.setItem(`lb_scroll_${targetPath}`, window.scrollY.toString());
+    const payload: SavedPageState = {
+      scrollY: window.scrollY,
+      activeDiv: extraState?.activeDiv,
+      activeTab: extraState?.activeTab,
+    };
+    sessionStorage.setItem(`lb_scroll_${targetPath}`, JSON.stringify(payload));
   } catch {
     // Ignore storage quota or disabled errors
   }
 }
 
-export function useRestoreScrollPosition() {
+export function useRestoreScrollPosition(
+  isReady: boolean = true,
+  onRestoreState?: (state: { activeDiv?: string; activeTab?: string }) => void
+) {
   const pathname = usePathname();
+  const restoredRef = useRef(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!isReady || typeof window === 'undefined' || restoredRef.current) return;
     try {
       const key = `lb_scroll_${pathname}`;
       const saved = sessionStorage.getItem(key);
       if (saved !== null) {
-        const top = parseInt(saved, 10);
+        let top = 0;
+        let activeDiv: string | undefined;
+        let activeTab: string | undefined;
+
+        if (saved.startsWith('{')) {
+          const parsed = JSON.parse(saved) as SavedPageState;
+          top = parsed.scrollY || 0;
+          activeDiv = parsed.activeDiv;
+          activeTab = parsed.activeTab;
+        } else {
+          top = parseInt(saved, 10);
+        }
+
+        if (onRestoreState && (activeDiv || activeTab)) {
+          onRestoreState({ activeDiv, activeTab });
+        }
+
         if (!isNaN(top) && top > 0) {
+          restoredRef.current = true;
           requestAnimationFrame(() => {
-            window.scrollTo({ top, behavior: 'instant' });
+            setTimeout(() => {
+              window.scrollTo({ top, behavior: 'instant' });
+            }, 30);
           });
         }
         sessionStorage.removeItem(key);
@@ -33,7 +70,7 @@ export function useRestoreScrollPosition() {
     } catch {
       // Ignore storage errors
     }
-  }, [pathname]);
+  }, [pathname, isReady, onRestoreState]);
 }
 
 /* Builds the /login link for a public "Sign in" control.

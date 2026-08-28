@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { MapPin, Calendar, Users, Clock, Share2, Check } from 'lucide-react';
@@ -38,9 +38,8 @@ function getTitleInitials(title: string): string {
 
 const FORMAT_LABEL: Record<string, string> = {
   'round-robin': 'Round Robin',
-  pool: 'Pool Play',
-  single: 'Single Elimination',
-  double: 'Double Elimination',
+  'single-elim': 'Single Elimination',
+  'double-elim': 'Double Elimination',
 };
 
 const formatLabel = (f: string) => FORMAT_LABEL[f] ?? f;
@@ -219,7 +218,6 @@ function toLiveCourt(divisionLabel: string, roundName: string, m: DetailMatch): 
 }
 
 export default function TournamentPage() {
-  useRestoreScrollPosition();
   const params = useParams();
   const slug = String(params.id);
 
@@ -228,10 +226,19 @@ export default function TournamentPage() {
   const [activeDiv, setActiveDiv] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('Format & Rules');
 
+  const handleRestoreState = useCallback((state: { activeDiv?: string; activeTab?: string }) => {
+    if (state.activeDiv) setActiveDiv(state.activeDiv);
+    if (state.activeTab) setActiveTab(state.activeTab);
+  }, []);
+
+  useRestoreScrollPosition(Boolean(baseTournament), handleRestoreState);
+
   useEffect(() => {
     getTournamentDetail(slug).then((data) => {
       setBaseTournament(data);
-      if (data && data.divisions.length > 0) setActiveDiv(data.divisions[0].id);
+      if (data && data.divisions.length > 0) {
+        setActiveDiv((prev) => prev || data.divisions[0].id);
+      }
     }).catch(console.error);
   }, [slug]);
 
@@ -385,7 +392,7 @@ export default function TournamentPage() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader />
+      <SiteHeader onSignInClick={() => saveScrollPosition(undefined, { activeDiv, activeTab })} />
 
       {/* ── Event head ────────────────────────────────────────── */}
       <section className={styles.headSection}>
@@ -840,7 +847,7 @@ export default function TournamentPage() {
 
 /* ── Pieces ──────────────────────────────────────────────────────── */
 
-function SiteHeader() {
+function SiteHeader({ onSignInClick }: { onSignInClick?: () => void }) {
   const signInHref = useSignInHref();
   return (
     <header className={styles.siteHeader}>
@@ -865,7 +872,13 @@ function SiteHeader() {
         <nav className={styles.headerNav}>
           <Link
             href={signInHref}
-            onClick={() => saveScrollPosition()}
+            onClick={() => {
+              if (onSignInClick) {
+                onSignInClick();
+              } else {
+                saveScrollPosition();
+              }
+            }}
             className={styles.btnGeneral}
           >
             Log in
