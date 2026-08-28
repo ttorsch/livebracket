@@ -284,3 +284,21 @@
   .playerExtraPair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
+
+/* Signed out, the panel explains what the search needs instead of the
+   button simply not being there. */
+.playerSearchNote {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.playerSearchSignIn {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.playerSearchSignIn:hover {
+  text-decoration: underline;
+}

@@ -11,7 +11,6 @@ import {
   Settings, 
   Pencil,
   Globe, 
-  Lock, 
   Calendar, 
   Users,
   BookOpen, 
@@ -57,7 +56,7 @@ import {
 import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
 import RosterFields, { type RosterPlayer } from '@/components/registration/RosterFields';
 import {
-  BASE_REG_FIELDS, FORMAT_PLAYERS, type RegField, type RegFieldType, type PresetKey,
+  BASE_REG_FIELDS, FORMAT_PLAYERS, targetFor, type RegField, type RegFieldType, type PresetKey,
 } from '../../../../../lib/registrationFields';
 
 
@@ -99,10 +98,7 @@ const ROUND_FORMAT_CARDS: { value: RoundFormat; label: string; desc: string }[] 
   },
 ];
 
-const roundLabel = (i: number) => {
-  const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'];
-  return ordinals[i] ? `${ordinals[i]} Round` : `Round ${i + 1}`;
-};
+const roundLabel = (i: number) => `Round ${i + 1}`;
 
 const roundBadgeLabel = (i: number) => `R${i + 1}`;
 
@@ -449,6 +445,82 @@ function divisionCustomKey(regFields: RegField[] | undefined, preset: PresetKey,
 }
 
 
+
+/* What a round's Advancement section should show.
+ *
+ * Both answers are about the NEXT round, not this one, because that is
+ * what advancing means: teams leave this round to enter that one. A last
+ * round has nowhere to send anybody, and crossing — which seeds pool
+ * finishers into a bracket so pool winners meet late — describes nothing
+ * if what follows is another round robin.
+ *
+ * A next round whose format the organizer has not picked yet still gets
+ * the crossing control: undecided is not the same as round robin, and
+ * hiding a setting they may need would be the worse guess. */
+function advancementVisibility(rounds: TournamentRound[], index: number) {
+  const current = rounds[index];
+  const next = rounds[index + 1] ?? null;
+  return {
+    showSection: current.format === 'round-robin' && next !== null,
+    showCrossing: next !== null && next.format !== 'round-robin',
+  };
+}
+
+
+
+/* Net height is stored as a string with its unit on it ("2.43m") — that
+ * is what the public event page prints and what the schedule screens
+ * read, so the tile edits the number and puts the unit back rather than
+ * changing the stored shape.
+ *
+ * Deliberately not parseFloat: re-parsing on every keystroke would fight
+ * the organizer halfway through typing "2." by snapping it to "2". */
+function netHeightDigits(stored: string): string {
+  return stored.replace(/[^0-9.]/g, '');
+}
+
+
+
+/* ── Step 3 · Registration ─────────────────────────────────────────
+ *
+ * Registration opens today by default. The field used to be a
+ * datetime-local behind an "open immediately" switch, where an empty
+ * value meant "now" — two controls saying one thing. A date that
+ * defaults to today says it once, and the switch is gone.
+ *
+ * Read in the organizer's own timezone: "today" is the day it is where
+ * they are, not in UTC, which is a day out for most of Asia by evening. */
+function registrationOpenDefault(): string {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/* Divisions saved before this became a plain date still hold a
+ * datetime-local string, which <input type="date"> renders as blank.
+ * Trim to the date part rather than showing an empty box. */
+function toDateOnly(value: string | null | undefined): string {
+  return value && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : '';
+}
+
+/* Which half of the form a question belongs to. Contact is what the
+ * organizer needs to reach the team; everything else is asked of each
+ * player, which is how the registration form itself renders them. */
+function regFieldSection(field: RegField): 'contact' | 'players' {
+  const target = targetFor(field);
+  return target === 'email' || target === 'phone' ? 'contact' : 'players';
+}
+
+function regFieldTypeLabel(field: RegField): string {
+  if (field.type === 'select') return `${field.options?.length ?? 0}-option dropdown`;
+  if (field.type === 'paragraph') return 'paragraph';
+  if (field.type === 'phone') return 'phone';
+  if (field.type === 'email') return 'email';
+  return 'short text';
+}
+
+
 export default function OrganizerSetup() {
   const params = useParams();
   const router = useRouter();
@@ -545,7 +617,6 @@ export default function OrganizerSetup() {
   const [currency, setCurrency] = useState('THB');
   const [regOpenDate, setRegOpenDate] = useState('');
   const [regCloseDate, setRegCloseDate] = useState('');
-  const [isOpenImmediately, setIsOpenImmediately] = useState(true);
   // C. Rules & formats — each round carries its own scoring rules (a round
   // robin round might go to 21 points while the elimination round after it
   // is best of 3), so scoring lives on TournamentRound, not the division.
@@ -624,9 +695,8 @@ export default function OrganizerSetup() {
     setMaxRoster(FORMAT_PLAYERS['2v2']);
     setRegFee(800);
     setCurrency('THB');
-    setRegOpenDate('');
+    setRegOpenDate(registrationOpenDefault());
     setRegCloseDate(registrationCloseDefault(basicInfo?.startDate));
-    setIsOpenImmediately(true);
     setRounds([{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
     setDivRules('Standard FIVB Beach Volleyball rules apply.');
     setRegFields(makeBaseFields());
@@ -658,11 +728,11 @@ export default function OrganizerSetup() {
     setMaxRoster(d.maxRosterSize);
     setRegFee(d.registrationFee);
     setCurrency(d.currency);
-    setRegOpenDate(d.registrationOpenDate);
-    // Falls back to the default rather than showing an empty date on a
-    // division saved before this field existed.
+    // Both fall back to their default rather than showing an empty date on
+    // a division saved before these fields existed. An empty open date used
+    // to mean "immediately", which today expresses just as well.
+    setRegOpenDate(toDateOnly(d.registrationOpenDate) || registrationOpenDefault());
     setRegCloseDate(d.registrationCloseDate || registrationCloseDefault(basicInfo?.startDate));
-    setIsOpenImmediately(!d.registrationOpenDate);
     setRounds(d.rounds.length ? d.rounds : [{ id: 'r_' + Date.now(), format: null, scoring: defaultScoringRules(), durationMinutes: DEFAULT_MATCH_MINUTES }]);
     setDivRules(d.rules);
     setRegFields(d.regFields);
@@ -748,8 +818,7 @@ export default function OrganizerSetup() {
     if (isNew) {
       handleOpenCreateModal();
       if (draft?.regOpenDate) {
-        setRegOpenDate(draft.regOpenDate);
-        setIsOpenImmediately(false);
+        setRegOpenDate(toDateOnly(draft.regOpenDate) || registrationOpenDefault());
       }
     }
 
@@ -2390,6 +2459,26 @@ export default function OrganizerSetup() {
                       <span className={styles.creamTileSuffix}>players</span>
                     </div>
                   </div>
+
+                  {/* A property of how the court is set up, so it belongs
+                      with the format rather than buried in the advanced
+                      panel on step 3, which is where it used to live. */}
+                  <div className={styles.creamTile}>
+                    <span className={styles.creamTileLabel}>Net height</span>
+                    <div className={styles.creamTileInputRow}>
+                      <input
+                        type="number"
+                        className={styles.creamTileNumberInput}
+                        min={0}
+                        max={5}
+                        step={0.01}
+                        title="Standard: men 2.43 m, women 2.24 m"
+                        value={netHeightDigits(netHeight)}
+                        onChange={e => setNetHeight(e.target.value ? `${e.target.value}m` : '')}
+                      />
+                      <span className={styles.creamTileSuffix}>m</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className={styles.stepDivider} />
@@ -2527,48 +2616,6 @@ export default function OrganizerSetup() {
                         })}
                       </div>
 
-                      {/* Advancement Section (Only for Round Robin) */}
-                      {round.format === 'round-robin' && (
-                        <div className={styles.formatSubSection}>
-                          <div className={styles.formatSubSectionHeader}>ADVANCEMENT</div>
-                          <div className={styles.advancementGrid}>
-                            <div className={styles.creamTile}>
-                              <span className={styles.creamTileLabel}>TEAMS ADVANCING</span>
-                              <div className={styles.creamTileInputRow}>
-                                <span className={styles.creamTilePrefix}>Top</span>
-                                <input
-                                  type="number"
-                                  className={styles.creamTileNumberInput}
-                                  min={1}
-                                  max={4}
-                                  value={advancePerPool}
-                                  onChange={e => {
-                                    const v = parseInt(e.target.value, 10);
-                                    setAdvancePerPool(isNaN(v) ? 1 : Math.max(1, Math.min(4, v)));
-                                  }}
-                                />
-                                <span className={styles.creamTileSuffix}>per pool</span>
-                              </div>
-                            </div>
-
-                            <div className={styles.creamTile}>
-                              <span className={styles.creamTileLabel}>CROSSING</span>
-                              <div className={styles.creamTileSelectRow}>
-                                <select
-                                  className={styles.creamTileSelect}
-                                  value={crossing}
-                                  onChange={e => setCrossing(e.target.value)}
-                                >
-                                  <option value="fivb">FIVB Standard Draw</option>
-                                  <option value="static">Static Cross-Bracket A1–D4</option>
-                                </select>
-                                <ChevronDown size={15} className={styles.creamTileChevron} />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
                       {/* Match & Scoring Section */}
                       {round.format !== null && (
                         <div className={styles.formatSubSection}>
@@ -2677,6 +2724,51 @@ export default function OrganizerSetup() {
                           </div>
                         </div>
                       )}
+                      {/* Advancement — only when there is a round to advance
+                          into, and only from a round that pools teams. */}
+                      {advancementVisibility(rounds, i).showSection && (
+                        <div className={styles.formatSubSection}>
+                          <div className={styles.formatSubSectionHeader}>ADVANCEMENT</div>
+                          <div className={styles.advancementGrid}>
+                            <div className={styles.creamTile}>
+                              <span className={styles.creamTileLabel}>TEAMS ADVANCING</span>
+                              <div className={styles.creamTileInputRow}>
+                                <span className={styles.creamTilePrefix}>Top</span>
+                                <input
+                                  type="number"
+                                  className={styles.creamTileNumberInput}
+                                  min={1}
+                                  max={4}
+                                  value={advancePerPool}
+                                  onChange={e => {
+                                    const v = parseInt(e.target.value, 10);
+                                    setAdvancePerPool(isNaN(v) ? 1 : Math.max(1, Math.min(4, v)));
+                                  }}
+                                />
+                                <span className={styles.creamTileSuffix}>per pool</span>
+                              </div>
+                            </div>
+
+                            {advancementVisibility(rounds, i).showCrossing && (
+                              <div className={styles.creamTile}>
+                                <span className={styles.creamTileLabel}>CROSSING</span>
+                                <div className={styles.creamTileSelectRow}>
+                                  <select
+                                    className={styles.creamTileSelect}
+                                    value={crossing}
+                                    onChange={e => setCrossing(e.target.value)}
+                                  >
+                                    <option value="fivb">FIVB Standard Draw</option>
+                                    <option value="static">Static Cross-Bracket A1–D4</option>
+                                  </select>
+                                  <ChevronDown size={15} className={styles.creamTileChevron} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   ))}
                 </div>
@@ -2703,176 +2795,174 @@ export default function OrganizerSetup() {
               {/* ══ Step 3: Registration ═════════════════════════ */}
               {modalStep === 2 && (
               <>
-              {/* ── Registration Open Date ───────────────────────── */}
-              <p className={styles.modalSectionTitle}>Registration Opens</p>
-              <div className={styles.fieldGroup}>
-                <label className={styles.switchRow} style={{ marginTop: 0 }}>
-                  <span className={styles.switchText}>Open registration immediately</span>
-                  <span className={styles.switch}>
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      checked={isOpenImmediately}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setIsOpenImmediately(checked);
-                        if (checked) {
-                          setRegOpenDate('');
-                        } else {
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          tomorrow.setHours(9, 0, 0, 0);
-                          setRegOpenDate(toLocalDatetimeValue(tomorrow));
-                        }
-                      }}
-                    />
-                    <span className={styles.switchTrack}>
-                      <span className={styles.switchThumb} />
-                    </span>
+              {/* ── Registration window ─────────────────────────── */}
+              <div className={styles.stepCard}>
+                <div className={styles.stepCardHead}>
+                  <span className={styles.stepCardEyebrow}>Registration Window</span>
+                  <span className={styles.stepCardDesc}>
+                    The division takes new teams between these two dates.
                   </span>
-                </label>
+                </div>
 
-                {!isOpenImmediately && (
-                  <div style={{ marginTop: 10 }}>
+                <div className={styles.tileGrid}>
+                  <div className={styles.creamTile}>
+                    <span className={styles.creamTileLabel}>Registration opens</span>
                     <input
-                      type="datetime-local"
-                      className={styles.input}
+                      type="date"
+                      className={styles.creamTileDateInput}
                       value={regOpenDate}
                       onChange={e => setRegOpenDate(e.target.value)}
                     />
                   </div>
-                )}
-                <span className={styles.fieldHint} style={{ marginTop: 6 }}>
-                  {isOpenImmediately
-                    ? 'Registration is open immediately.'
-                    : 'Staggered window for this division only.'}
-                </span>
-              </div>
-
-              {/* ── Registration Close Date ──────────────────────── */}
-              <div className={styles.fieldGroup} style={{ marginTop: 14 }}>
-                <label className={styles.fieldLabel}>Registration closes</label>
-                <input
-                  type="date"
-                  className={styles.input}
-                  value={regCloseDate}
-                  onChange={e => setRegCloseDate(e.target.value)}
-                />
-                <span className={styles.fieldHint} style={{ marginTop: 6 }}>
-                  Defaults to a week before the tournament. After this date the division stops
-                  taking new teams.
-                </span>
-              </div>
-
-              {/* ── Per-division Registration Form ───────────────── */}
-              <p className={styles.modalSectionTitle}>Registration Form</p>
-              <p className={styles.fieldHint} style={{ marginTop: -4 }}>
-                This form is bound to this division only.
-              </p>
-
-              {/* Non-deletable Base Form block */}
-              <div className={styles.baseBlock}>
-                <div className={styles.baseBlockHeader}>
-                  <Lock size={13} /> Base Form (always collected)
+                  <div className={styles.creamTile}>
+                    <span className={styles.creamTileLabel}>Registration closes</span>
+                    <input
+                      type="date"
+                      className={styles.creamTileDateInput}
+                      value={regCloseDate}
+                      onChange={e => setRegCloseDate(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className={styles.baseBlockGrid}>
-                  {regFields.filter(f => f.core).map(f => (
-                    <div key={f.id} className={styles.coreField}>
-                      <span>{f.label}</span>
-                      <span className={styles.coreFieldTag}>Required</span>
+
+                <span className={styles.fieldHint}>
+                  {regOpenDate && regCloseDate
+                    ? `Open ${safeFormatDate(regOpenDate)} → closes ${safeFormatDate(regCloseDate)}. Closing defaults to a week before the tournament.`
+                    : 'Closing defaults to a week before the tournament. After the close date the division stops taking new teams.'}
+                </span>
+              </div>
+
+              {/* ── Registration form ───────────────────────────── */}
+              <div className={styles.stepCard}>
+                <div className={styles.stepCardHead}>
+                  <span className={styles.stepCardEyebrow}>Registration Form</span>
+                  <span className={styles.stepCardDesc}>
+                    This form is bound to this division only. Toggle <b>Required</b> on any field.
+                  </span>
+                </div>
+
+                {([
+                  { key: 'contact' as const, title: '1 · Team contact', hint: 'who the organizer reaches' },
+                  { key: 'players' as const, title: '2 · Players', hint: 'collected per player on the team' },
+                ]).map(section => {
+                  const fields = regFields.filter(f => regFieldSection(f) === section.key);
+                  if (fields.length === 0) return null;
+                  return (
+                    <div key={section.key} className={styles.regSection}>
+                      <div className={styles.regSectionHead}>
+                        <span className={styles.regSectionTitle}>{section.title}</span>
+                        <span className={styles.regSectionHint}>{section.hint}</span>
+                      </div>
+
+                      {fields.map(f => (
+                        <div key={f.id} className={styles.regFieldRow}>
+                          <div className={styles.regFieldMain}>
+                            {/* A custom question is the organizer's own wording, so
+                                its label stays editable. Core and preset fields are
+                                named by the platform and only read out. */}
+                            {f.core || f.preset ? (
+                              <div className={styles.regFieldText}>
+                                <span className={styles.regFieldLabel}>{f.label}</span>
+                                <span className={styles.regFieldType}>{regFieldTypeLabel(f)}</span>
+                              </div>
+                            ) : (
+                              <input
+                                type="text"
+                                className={styles.regFieldLabelInput}
+                                placeholder="Field label (e.g. Team walk-out song?)"
+                                value={f.label}
+                                onChange={e => updateRegField(f.id, { label: e.target.value })}
+                              />
+                            )}
+
+                            {/* The base form is always collected, so its pill states
+                                that rather than offering a choice that isn't one. */}
+                            <button
+                              type="button"
+                              className={`${styles.regRequiredPill} ${f.required ? styles.regRequiredPillOn : ''}`}
+                              disabled={f.core}
+                              title={f.core ? 'Always collected' : 'Toggle whether this answer is required'}
+                              onClick={() => updateRegField(f.id, { required: !f.required })}
+                            >
+                              Required
+                            </button>
+
+                            {f.core ? (
+                              <span className={styles.regFieldLocked} aria-label="Always collected">—</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className={styles.regFieldRemove}
+                                onClick={() => removeRegField(f.id)}
+                                aria-label={`Remove ${f.label || 'field'}`}
+                              >
+                                <X size={15} />
+                              </button>
+                            )}
+                          </div>
+
+                          {!f.core && !f.preset && (
+                            <div className={styles.regFieldEditRow}>
+                              <select
+                                className={styles.select}
+                                value={f.type}
+                                onChange={e => updateRegField(f.id, { type: e.target.value as RegFieldType })}
+                              >
+                                <option value="text">Short Text</option>
+                                <option value="paragraph">Paragraph</option>
+                                <option value="select">Multiple Choice Dropdown</option>
+                              </select>
+                              {f.type === 'select' && (
+                                <input
+                                  type="text"
+                                  className={styles.input}
+                                  placeholder="Options, comma-separated (e.g. Yes, No, Maybe)"
+                                  value={(f.options ?? []).join(', ')}
+                                  onChange={e => updateRegField(f.id, {
+                                    options: e.target.value.split(',').map(o => o.trim()).filter(Boolean),
+                                  })}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  );
+                })}
+
+                <div className={styles.regSection}>
+                  <span className={styles.regSectionTitle}>Add more fields</span>
+                  <div className={styles.regAddRow}>
+                    {/* Only what is not already on the form — a field is removed
+                        from its row above, not by toggling the chip off. */}
+                    {PRESETS.filter(p => !isPresetActive(p.key)).map(p => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        className={styles.regAddPill}
+                        onClick={() => togglePreset(p.key)}
+                      >
+                        <Plus size={14} /> {p.label}
+                      </button>
+                    ))}
+                    <button type="button" className={styles.regAddPillNeutral} onClick={addCustomQuestion}>
+                      <Plus size={14} /> Custom Question
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Quick-Add preset chips */}
-              <div className={styles.chipRow}>
-                {PRESETS.map(p => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    className={`${styles.chip} ${isPresetActive(p.key) ? styles.chipActive : ''}`}
-                    onClick={() => togglePreset(p.key)}
-                  >
-                    {isPresetActive(p.key) ? <Check size={13} /> : <Plus size={13} />} {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Appended fields (presets + custom questions) */}
-              {regFields.filter(f => !f.core).length > 0 && (
-                <div className={styles.appendedFields}>
-                  {regFields.filter(f => !f.core).map(f =>
-                    f.preset ? (
-                      <div key={f.id} className={styles.presetRow}>
-                        <span className={styles.presetRowLabel}>{f.label}</span>
-                        <span className={styles.questionType}>
-                          {f.type === 'select' ? `${f.options?.length ?? 0}-option dropdown` : 'short text'}
-                        </span>
-                        <button className={styles.btnRemove} onClick={() => removeRegField(f.id)}>
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div key={f.id} className={styles.customRow}>
-                        <div className={styles.customRowTop}>
-                          <input
-                            type="text"
-                            className={styles.input}
-                            placeholder="Field label (e.g. Team walk-out song?)"
-                            value={f.label}
-                            onChange={e => updateRegField(f.id, { label: e.target.value })}
-                          />
-                          <button className={styles.btnRemove} onClick={() => removeRegField(f.id)}>
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                        <div className={styles.customRowBottom}>
-                          <select
-                            className={styles.select}
-                            value={f.type}
-                            onChange={e => updateRegField(f.id, { type: e.target.value as RegFieldType })}
-                          >
-                            <option value="text">Short Text</option>
-                            <option value="paragraph">Paragraph</option>
-                            <option value="select">Multiple Choice Dropdown</option>
-                          </select>
-                          <label className={styles.checkboxInline}>
-                            <input
-                              type="checkbox"
-                              checked={f.required}
-                              onChange={e => updateRegField(f.id, { required: e.target.checked })}
-                            />
-                            Required
-                          </label>
-                        </div>
-                        {f.type === 'select' && (
-                          <input
-                            type="text"
-                            className={styles.input}
-                            style={{ marginTop: 8 }}
-                            placeholder="Options, comma-separated (e.g. Yes, No, Maybe)"
-                            value={(f.options ?? []).join(', ')}
-                            onChange={e => updateRegField(f.id, { options: e.target.value.split(',').map(o => o.trim()).filter(Boolean) })}
-                          />
-                        )}
-                      </div>
-                    )
-                  )}
+              {/* ── Registration response ───────────────────────── */}
+              <div className={styles.stepCard}>
+                <div className={styles.stepCardHead}>
+                  <span className={styles.stepCardEyebrow}>Registration Response</span>
+                  <span className={styles.stepCardDesc}>
+                    Shown to players right after they successfully register — e.g. a WhatsApp group
+                    invite, a Facebook page link, or a QR code to join for announcements.
+                  </span>
                 </div>
-              )}
 
-              <button type="button" className={styles.btnAdd} onClick={addCustomQuestion} style={{ marginTop: 12, width: '100%' }}>
-                <Plus size={16} /> Add Custom Question
-              </button>
-
-              {/* ── Post-registration Response ───────────────────── */}
-              <p className={styles.modalSectionTitle}>Registration Response</p>
-              <p className={styles.fieldHint} style={{ marginTop: -4 }}>
-                Shown to players right after they successfully register — e.g. a WhatsApp group invite,
-                a Facebook page link, or a QR code to join for announcements.
-              </p>
-              <div className={styles.fieldGroup}>
                 <textarea
                   className={styles.textarea}
                   rows={3}
@@ -2880,8 +2970,7 @@ export default function OrganizerSetup() {
                   value={confirmationMessage}
                   onChange={e => setConfirmationMessage(e.target.value)}
                 />
-              </div>
-              <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
+
                 {confirmationImage ? (
                   <div className={styles.confirmImagePreview}>
                     <img src={confirmationImage} alt="Registration response attachment" />
@@ -2895,8 +2984,8 @@ export default function OrganizerSetup() {
                     </button>
                   </div>
                 ) : (
-                  <label className={styles.btnAdd} style={{ width: '100%', cursor: 'pointer' }}>
-                    <ImagePlus size={16} /> Add Photo (WhatsApp QR, flyer, etc.)
+                  <label className={styles.regAddPhoto}>
+                    <Plus size={15} /> Add Photo (WhatsApp QR, flyer, etc.)
                     <input type="file" accept="image/*" hidden onChange={handleConfirmationImage} />
                   </label>
                 )}
@@ -2922,22 +3011,12 @@ export default function OrganizerSetup() {
                 {showAdvanced && (
                   <div className={styles.advancedFieldsPanel}>
                     <p style={{ fontSize: 11.5, color: '#D35400', marginBottom: 12, lineHeight: 1.4 }}>
-                      ⚠️ <strong>Missing Parameters Detected:</strong> To ensure high-quality competition scoring and player logistics, we recommend configuring these 5 additional fields:
+                      ⚠️ <strong>Missing Parameters Detected:</strong> To ensure high-quality competition scoring and player logistics, we recommend configuring these 4 additional fields:
                     </p>
 
                     <div className={styles.twoCol}>
                       <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>1. Net Height</label>
-                        <input
-                          type="text"
-                          className={styles.input}
-                          placeholder="e.g. 2.43m (Men), 2.24m (Women)"
-                          value={netHeight}
-                          onChange={e => setNetHeight(e.target.value)}
-                        />
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>2. Min Teams Count</label>
+                        <label className={styles.fieldLabel}>1. Min Teams Count</label>
                         <input
                           type="number"
                           className={styles.input}
@@ -2946,11 +3025,8 @@ export default function OrganizerSetup() {
                           onChange={e => setMinTeams(parseInt(e.target.value) || 4)}
                         />
                       </div>
-                    </div>
-
-                    <div className={styles.twoCol} style={{ marginTop: 10 }}>
                       <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>3. Waitlist Cap</label>
+                        <label className={styles.fieldLabel}>2. Waitlist Cap</label>
                         <input
                           type="number"
                           className={styles.input}
@@ -2959,20 +3035,24 @@ export default function OrganizerSetup() {
                           onChange={e => setWaitlistCap(parseInt(e.target.value) || 0)}
                         />
                       </div>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>4. Prizes &amp; Payout</label>
-                        <input
-                          type="text"
-                          className={styles.input}
-                          placeholder="e.g. Cash 1st: 50%, 2nd: 30%, 3rd: 20%"
-                          value={prizePool}
-                          onChange={e => setPrizePool(e.target.value)}
-                        />
-                      </div>
+                    </div>
+
+                    {/* Full width — it holds a whole payout breakdown, and
+                        with net height gone there is no field left to pair
+                        it with anyway. */}
+                    <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
+                      <label className={styles.fieldLabel}>3. Prizes &amp; Payout</label>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        placeholder="e.g. Cash 1st: 50%, 2nd: 30%, 3rd: 20%"
+                        value={prizePool}
+                        onChange={e => setPrizePool(e.target.value)}
+                      />
                     </div>
 
                     <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
-                      <label className={styles.fieldLabel}>5. Allow Multi-Division Play</label>
+                      <label className={styles.fieldLabel}>4. Allow Multi-Division Play</label>
                       <select
                         className={styles.select}
                         value={allowMulti ? 'yes' : 'no'}

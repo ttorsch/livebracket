@@ -423,9 +423,9 @@ export default function TournamentRegister() {
                 onContactChange={patch => setContact(c => ({ ...c, ...patch }))}
                 sizes={sizes}
                 required={{ name: true, contact: true, nationality: natRequired, club: clubRequired }}
-                /* Searching needs a session; an anonymous visitor can still
-                   register by typing names. */
-                searchEnabled={session.signedIn}
+                /* The search panel explains itself when signed out rather
+                   than the control disappearing. */
+                signedIn={session.signedIn}
               />
 
               {/* Teams are named after their players everywhere in Live

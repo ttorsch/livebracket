@@ -126,8 +126,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   for (const t of teamsIn) {
     const willWaitlist = confirmedCount >= cap;
-    const status = willWaitlist ? 'waitlist' : 'confirmed';
-    const paymentCleared = !willWaitlist;
+
+    /* Into the cap, a manually added team lands 'unpaid' — the same place
+     * a team that registers itself lands. Typing a team in records that
+     * they entered, not that they settled up, and the organizer clears
+     * payment from the roster once they have. A CSV import still arrives
+     * 'confirmed': that path is used to carry over a roster that was
+     * already sorted out elsewhere.
+     *
+     * Waitlisted is unchanged either way — past the cap there is no slot
+     * yet to have paid for. */
+    const status = willWaitlist ? 'waitlist' : mode === 'manual' ? 'unpaid' : 'confirmed';
+    const paymentCleared = !willWaitlist && mode !== 'manual';
+
+    // 'unpaid' still holds a slot, so it counts against the cap.
     if (!willWaitlist) confirmedCount++;
 
     const teamName = joinTeamName(t.players.map((p) => p.name));

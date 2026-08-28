@@ -32,8 +32,7 @@ interface DivisionBody {
   confirmationImage: string;
 }
 
-const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'];
-const roundLabel = (i: number) => (ORDINALS[i] ? `${ORDINALS[i]} Round` : `Round ${i + 1}`);
+const roundLabel = (i: number) => `Round ${i + 1}`;
 
 // Per-round match length (minutes), clamped to a sane range; defaults to 45.
 const clampMinutes = (v: number | undefined) =>

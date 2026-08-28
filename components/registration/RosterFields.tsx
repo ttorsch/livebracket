@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Search, X } from 'lucide-react';
 import { Avatar, SegmentedControl } from '@/components/livebracket-ds';
+import { useSignInHref } from '@/components/auth/useSignInHref';
 import styles from './RosterFields.module.css';
 
 /* The roster half of a team entry — the team contact block and one card
@@ -45,9 +47,12 @@ interface RosterFieldsProps {
     nationality?: boolean;
     club?: boolean;
   };
-  /* Search needs a session. The public form may be anonymous, and an
-   * organizer is by definition signed in. */
-  searchEnabled?: boolean;
+  /* Whether the visitor has a session. The lookup endpoint requires one,
+   * so this decides what the search panel offers — not whether the search
+   * exists. Hiding the control outright made the feature look like it had
+   * been removed; now it explains itself and links to sign-in. An
+   * organizer is signed in by definition, hence the default. */
+  signedIn?: boolean;
 }
 
 interface FoundPlayer {
@@ -64,8 +69,9 @@ export default function RosterFields({
   onContactChange,
   sizes,
   required = {},
-  searchEnabled = true,
+  signedIn = true,
 }: RosterFieldsProps) {
+  const signInHref = useSignInHref('player');
   /* Search state is per card and lives here rather than in either page,
    * which is most of why this is a component at all. */
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -162,20 +168,28 @@ export default function RosterFields({
                 <span className={styles.playerNum}>{i + 1}</span>
                 <span className={styles.playerName}>Player {i + 1}</span>
               </div>
-              {searchEnabled && (
-                <button
-                  type="button"
-                  className={`${styles.playerSearchBtn} ${openIdx === i ? styles.playerSearchBtnActive : ''}`}
-                  onClick={() => toggleSearch(i)}
-                  title={openIdx === i ? 'Close search' : 'Search player by ID'}
-                  aria-label="Search player by ID"
-                >
-                  {openIdx === i ? <X size={15} /> : <Search size={15} />}
-                </button>
-              )}
+              <button
+                type="button"
+                className={`${styles.playerSearchBtn} ${openIdx === i ? styles.playerSearchBtnActive : ''}`}
+                onClick={() => toggleSearch(i)}
+                title={openIdx === i ? 'Close search' : 'Search player by ID'}
+                aria-label="Search player by ID"
+              >
+                {openIdx === i ? <X size={15} /> : <Search size={15} />}
+              </button>
             </div>
 
-            {openIdx === i && (
+            {openIdx === i && !signedIn && (
+              <div className={styles.playerSearchBox}>
+                <span className={styles.playerSearchNote}>
+                  <Link href={signInHref} className={styles.playerSearchSignIn}>Sign in</Link>
+                  {' '}to add a teammate by their player ID. You can still register by
+                  typing everyone&apos;s details in.
+                </span>
+              </div>
+            )}
+
+            {openIdx === i && signedIn && (
               <div className={styles.playerSearchBox}>
                 <div className={styles.playerSearchInputRow}>
                   <input

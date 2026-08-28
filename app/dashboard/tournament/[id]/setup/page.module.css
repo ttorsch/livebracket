@@ -3818,3 +3818,246 @@
   line-height: 1.45;
   color: var(--text-muted);
 }
+
+/* ── Step 3 · Registration ─────────────────────────────────────────
+   Built to DivisionRegistrationStep.dc.html: three cards — window,
+   form, response — with the form's questions as compact rows carrying
+   a Required toggle rather than a mix of tags, chips and checkboxes. */
+
+.stepCardHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stepCardDesc {
+  font-family: var(--font-text);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+/* The date reads as a value, not as an input — the tile around it is
+   already doing the work of looking like a field. */
+.creamTileDateInput {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.regSection {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.regSectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.regSectionTitle {
+  font-family: var(--font-text);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.regSectionHint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.regFieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--sand-100);
+  border: 1px solid var(--border-hairline);
+  border-radius: 14px;
+  padding: 9px 10px 9px 13px;
+}
+
+.regFieldMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.regFieldText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.regFieldLabel {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.regFieldType {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.regFieldLabelInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border-hairline);
+  border-radius: 10px;
+  background: var(--surface-card);
+  padding: 7px 10px;
+  font-family: var(--font-text);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.regFieldLabelInput:focus {
+  border-color: var(--color-primary);
+}
+
+.regRequiredPill {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--border-hairline);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-text);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.regRequiredPillOn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary, #FFFFFF);
+}
+
+/* A base-form field is always collected, so its pill states a fact
+   instead of offering a choice that isn't one. */
+.regRequiredPill:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.regFieldRemove {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.regFieldRemove:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.regFieldLocked {
+  width: 32px;
+  flex: none;
+  text-align: center;
+  font-size: 11px;
+  color: var(--sand-400);
+}
+
+/* Only custom questions carry these — a preset's type is fixed. */
+.regFieldEditRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.regAddRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.regAddPill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1.5px dashed var(--coral-300);
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--color-primary);
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.regAddPill:hover {
+  background: var(--coral-50);
+  border-color: var(--color-primary);
+}
+
+.regAddPillNeutral {
+  composes: regAddPill;
+  border: none;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.regAddPillNeutral:hover {
+  background: var(--sand-300);
+}
+
+.regAddPhoto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1.5px dashed var(--coral-300);
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--color-primary);
+  font-family: var(--font-text);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.regAddPhoto:hover {
+  background: var(--coral-50);
+}
