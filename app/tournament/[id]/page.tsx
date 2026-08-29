@@ -232,6 +232,20 @@ export default function TournamentPage() {
   useRestoreScrollPosition(Boolean(baseTournament), handleRestoreState);
 
   useEffect(() => {
+    const handleSave = () => {
+      if (typeof window !== 'undefined' && window.scrollY > 0) {
+        saveScrollPosition(undefined, { activeDiv, activeTab });
+      }
+    };
+    window.addEventListener('scroll', handleSave, { passive: true });
+    window.addEventListener('pagehide', handleSave);
+    return () => {
+      window.removeEventListener('scroll', handleSave);
+      window.removeEventListener('pagehide', handleSave);
+    };
+  }, [activeDiv, activeTab]);
+
+  useEffect(() => {
     getTournamentDetail(slug).then((data) => {
       setBaseTournament(data);
       if (data && data.divisions.length > 0) {

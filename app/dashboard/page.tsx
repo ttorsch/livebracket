@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Home, Clock,
-  LayoutList, Menu,
+  LayoutList, Menu, Layers,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
@@ -1085,6 +1085,7 @@ function TournamentRow({
               <span>{t.location}</span>
             </span>
             <span className={styles.rowMetaItem}>
+              <Layers size={14} className={styles.rowMetaIcon} aria-hidden="true" />
               <span>{t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
             </span>
           </span>

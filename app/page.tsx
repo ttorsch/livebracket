@@ -1161,6 +1161,8 @@ export default function LiveBracketHome() {
                 />
                 <div className={styles.showcaseGradientOverlay} />
 
+                {showLiveCard ? (
+                  <>
                 {/* Top Badges */}
                 <div className={styles.showcaseTopRow}>
                   <span className={styles.showcaseLiveBadge}>
@@ -1212,6 +1214,38 @@ export default function LiveBracketHome() {
                     </div>
                   </div>
                 </div>
+                  </>
+                ) : upcomingSoon.length > 0 ? (
+                  /* Nothing is live, so the scoreboard has nothing to show.
+                     The card carries the next tournaments instead, anchored
+                     to the bottom so one or two sit where three would end
+                     rather than floating in the middle of the photo. */
+                  <>
+                    <div className={styles.showcaseTopRow}>
+                      <span className={styles.showcaseNextBadge}>Up next</span>
+                    </div>
+
+                    <div className={styles.upNextPanel}>
+                      {upcomingSoon.map(t => (
+                        <Link
+                          key={t.id}
+                          href={`/tournament/${t.id}/register`}
+                          className={styles.upNextItem}
+                        >
+                          <span className={styles.upNextChip}>
+                            <span className={styles.upNextChipMonth}>{t.chip.m}</span>
+                            <span className={styles.upNextChipDay}>{t.chip.d}</span>
+                          </span>
+                          <span className={styles.upNextText}>
+                            <span className={styles.upNextName}>{t.title}</span>
+                            <span className={styles.upNextMeta}>{t.location}</span>
+                          </span>
+                          <ArrowRight size={16} className={styles.upNextArrow} />
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
               </div>
             </div>
 

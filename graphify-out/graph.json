@@ -829,49 +829,49 @@
       "label": "SiteHeader()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L875"
+      "source_location": "L894"
     },
     {
       "id": "id_page_sharebutton",
       "label": "ShareButton()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L943"
+      "source_location": "L962"
     },
     {
       "id": "id_page_fillcard",
       "label": "FillCard()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L978"
+      "source_location": "L997"
     },
     {
       "id": "id_page_bracketcard",
       "label": "BracketCard()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1015"
+      "source_location": "L1034"
     },
     {
       "id": "id_page_emptycard",
       "label": "EmptyCard()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1043"
+      "source_location": "L1062"
     },
     {
       "id": "app_tournament_id_page_tsx_id_page_parseteamplayers",
       "label": "parseTeamPlayers()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1052"
+      "source_location": "L1071"
     },
     {
       "id": "app_tournament_id_page_tsx_id_page_playeravatar",
       "label": "PlayerAvatar()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1057"
+      "source_location": "L1076"
     },
     {
       "id": "app_tournament_id_register_page_tsx",
@@ -955,35 +955,35 @@
       "label": "Hero()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L633"
+      "source_location": "L640"
     },
     {
       "id": "register_page_backtoevent",
       "label": "BackToEvent()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L691"
+      "source_location": "L698"
     },
     {
       "id": "register_page_herobar",
       "label": "HeroBar()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L705"
+      "source_location": "L712"
     },
     {
       "id": "register_page_shell",
       "label": "Shell()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L748"
+      "source_location": "L755"
     },
     {
       "id": "register_page_statepanel",
       "label": "StatePanel()",
       "file_type": "code",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L766"
+      "source_location": "L773"
     },
     {
       "id": "app_dashboard_organizerprofilemodal_tsx",
@@ -2964,7 +2964,7 @@
       "label": "LiveBracketLogin()",
       "file_type": "code",
       "source_file": "app/login/page.tsx",
-      "source_location": "L682"
+      "source_location": "L679"
     },
     {
       "id": "mobile_page_redesign_directions_files_frame_shell_bmb88y2_js",
@@ -3966,14 +3966,14 @@
       "label": "useRestoreScrollPosition()",
       "file_type": "code",
       "source_file": "components/auth/useSignInHref.ts",
-      "source_location": "L30"
+      "source_location": "L31"
     },
     {
       "id": "auth_usesigninhref_usesigninhref",
       "label": "useSignInHref()",
       "file_type": "code",
       "source_file": "components/auth/useSignInHref.ts",
-      "source_location": "L88"
+      "source_location": "L92"
     },
     {
       "id": "components_auth_accountbutton_tsx",
@@ -11554,7 +11554,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L875",
+      "source_location": "L894",
       "weight": 1.0
     },
     {
@@ -11563,7 +11563,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L943",
+      "source_location": "L962",
       "weight": 1.0
     },
     {
@@ -11572,7 +11572,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L978",
+      "source_location": "L997",
       "weight": 1.0
     },
     {
@@ -11581,7 +11581,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1015",
+      "source_location": "L1034",
       "weight": 1.0
     },
     {
@@ -11590,7 +11590,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1043",
+      "source_location": "L1062",
       "weight": 1.0
     },
     {
@@ -11599,7 +11599,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1052",
+      "source_location": "L1071",
       "weight": 1.0
     },
     {
@@ -11608,7 +11608,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L1057",
+      "source_location": "L1076",
       "weight": 1.0
     },
     {
@@ -11628,7 +11628,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L429",
+      "source_location": "L443",
       "weight": 1.0
     },
     {
@@ -11638,7 +11638,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L449",
+      "source_location": "L463",
       "weight": 1.0
     },
     {
@@ -11648,7 +11648,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L480",
+      "source_location": "L494",
       "weight": 1.0
     },
     {
@@ -12027,7 +12027,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L633",
+      "source_location": "L640",
       "weight": 1.0
     },
     {
@@ -12036,7 +12036,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L691",
+      "source_location": "L698",
       "weight": 1.0
     },
     {
@@ -12045,7 +12045,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L705",
+      "source_location": "L712",
       "weight": 1.0
     },
     {
@@ -12054,7 +12054,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L748",
+      "source_location": "L755",
       "weight": 1.0
     },
     {
@@ -12063,7 +12063,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L766",
+      "source_location": "L773",
       "weight": 1.0
     },
     {
@@ -14873,7 +14873,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L2648",
+      "source_location": "L2659",
       "weight": 1.0
     },
     {
@@ -19328,7 +19328,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/login/page.tsx",
-      "source_location": "L682",
+      "source_location": "L679",
       "weight": 1.0
     },
     {
@@ -21391,7 +21391,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/auth/useSignInHref.ts",
-      "source_location": "L30",
+      "source_location": "L31",
       "weight": 1.0
     },
     {
@@ -21400,7 +21400,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/auth/useSignInHref.ts",
-      "source_location": "L88",
+      "source_location": "L92",
       "weight": 1.0
     },
     {
@@ -31912,7 +31912,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/login/page.tsx",
-      "source_location": "L172",
+      "source_location": "L169",
       "weight": 1.0
     },
     {
@@ -31922,7 +31922,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/login/page.tsx",
-      "source_location": "L211",
+      "source_location": "L208",
       "weight": 1.0
     },
     {
@@ -31932,7 +31932,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/login/page.tsx",
-      "source_location": "L224",
+      "source_location": "L221",
       "weight": 1.0
     },
     {
@@ -32758,7 +32758,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L303",
+      "source_location": "L317",
       "weight": 1.0
     },
     {
@@ -32769,7 +32769,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L392",
+      "source_location": "L406",
       "weight": 1.0
     },
     {
@@ -32780,7 +32780,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L614",
+      "source_location": "L633",
       "weight": 1.0
     },
     {
@@ -32791,7 +32791,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L876",
+      "source_location": "L895",
       "weight": 1.0
     },
     {
@@ -32802,7 +32802,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/tournament/[id]/page.tsx",
-      "source_location": "L877",
+      "source_location": "L896",
       "weight": 1.0
     },
     {
@@ -32846,7 +32846,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L706",
+      "source_location": "L713",
       "weight": 1.0
     },
     {
@@ -32857,7 +32857,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/tournament/[id]/register/page.tsx",
-      "source_location": "L708",
+      "source_location": "L715",
       "weight": 1.0
     },
     {
@@ -33033,7 +33033,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L2501",
+      "source_location": "L2512",
       "weight": 1.0
     },
     {
@@ -33044,7 +33044,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/dashboard/tournament/[id]/setup/page.tsx",
-      "source_location": "L3396",
+      "source_location": "L3407",
       "weight": 1.0
     },
     {

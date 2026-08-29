@@ -854,8 +854,8 @@
   border-radius: inherit;
 }
 .rowThumb {
-  width: 64px;
-  height: 64px;
+  width: 104px;
+  height: 128px;
   flex-shrink: 0;
   border-radius: 16px;
   background: linear-gradient(135deg, var(--coral-500, #EB6F43), #F4A268);

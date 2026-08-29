@@ -22,6 +22,7 @@ export function saveScrollPosition(
       activeTab: extraState?.activeTab,
     };
     sessionStorage.setItem(`lb_scroll_${targetPath}`, JSON.stringify(payload));
+    sessionStorage.setItem('lb_has_internal_history', '1');
   } catch {
     // Ignore storage quota or disabled errors
   }
@@ -59,15 +60,18 @@ export function useRestoreScrollPosition(
 
         if (!isNaN(top) && top > 0) {
           restoredRef.current = true;
-          window.scrollTo({ top, behavior: 'instant' });
-          requestAnimationFrame(() => {
-            window.scrollTo({ top, behavior: 'instant' });
+          // Apply scroll immediately and retry on subsequent layout frames
+          // to ensure async content and dynamic image heights do not clamp the scroll position.
+          const delays = [0, 40, 120, 250, 500];
+          delays.forEach((delay) => {
             setTimeout(() => {
               window.scrollTo({ top, behavior: 'instant' });
-            }, 60);
+            }, delay);
           });
         }
-        sessionStorage.removeItem(key);
+        setTimeout(() => {
+          sessionStorage.removeItem(key);
+        }, 1000);
       }
     } catch {
       // Ignore storage errors

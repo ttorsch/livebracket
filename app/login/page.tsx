@@ -110,12 +110,9 @@ function LiveBracketLoginInner() {
 
   const handleGoBack = () => {
     if (typeof window !== 'undefined') {
-      if (
-        window.history.length > 1 &&
-        document.referrer &&
-        document.referrer.startsWith(window.location.origin) &&
-        !document.referrer.includes('/login')
-      ) {
+      const hasInternalHistory = sessionStorage.getItem('lb_has_internal_history') === '1';
+      if ((hasInternalHistory || nextPath) && window.history.length > 1) {
+        sessionStorage.removeItem('lb_has_internal_history');
         router.back();
         return;
       }
