@@ -1368,91 +1368,91 @@
       "label": "ScheduleMatch",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L52"
+      "source_location": "L53"
     },
     {
       "id": "schedule_page_timekey",
       "label": "timeKey()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L76"
+      "source_location": "L77"
     },
     {
       "id": "schedule_page_adddaysutc",
       "label": "addDaysUTC()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L84"
+      "source_location": "L85"
     },
     {
       "id": "schedule_page_dayindexof",
       "label": "dayIndexOf()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L91"
+      "source_location": "L92"
     },
     {
       "id": "schedule_page_shortdate",
       "label": "shortDate()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L97"
+      "source_location": "L98"
     },
     {
       "id": "schedule_page_hoursminutes",
       "label": "hoursMinutes()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L103"
+      "source_location": "L104"
     },
     {
       "id": "schedule_page_courtnumber",
       "label": "courtNumber()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L125"
+      "source_location": "L126"
     },
     {
       "id": "schedule_page_tohhmm",
       "label": "toHHMM()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L130"
+      "source_location": "L131"
     },
     {
       "id": "schedule_page_fromhhmm",
       "label": "fromHHMM()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L138"
+      "source_location": "L139"
     },
     {
       "id": "schedule_page_relaxation_text",
       "label": "RELAXATION_TEXT",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L147"
+      "source_location": "L148"
     },
     {
       "id": "schedule_page_bufferprompt",
       "label": "BufferPrompt()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L158"
+      "source_location": "L159"
     },
     {
       "id": "schedule_page_edits",
       "label": "Edits",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L205"
+      "source_location": "L206"
     },
     {
       "id": "schedule_page_tournamentschedulepage",
       "label": "TournamentSchedulePage()",
       "file_type": "code",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L207"
+      "source_location": "L208"
     },
     {
       "id": "app_dashboard_tournament_id_setup_page_tsx",
@@ -13526,7 +13526,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L33",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -13536,7 +13536,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L33",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -13546,7 +13546,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L33",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -13556,7 +13556,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L33",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -13566,7 +13566,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L34",
+      "source_location": "L33",
       "weight": 1.0
     },
     {
@@ -13576,7 +13576,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L35",
+      "source_location": "L34",
       "weight": 1.0
     },
     {
@@ -13586,7 +13586,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L35",
+      "source_location": "L34",
       "weight": 1.0
     },
     {
@@ -13596,7 +13596,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L35",
+      "source_location": "L34",
       "weight": 1.0
     },
     {
@@ -13606,7 +13606,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L35",
+      "source_location": "L34",
       "weight": 1.0
     },
     {
@@ -13616,7 +13616,67 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
+      "source_location": "L34",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_schedule_page_tsx",
+      "target": "components_livebracket_ds_index_ts",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
       "source_location": "L35",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_schedule_page_tsx",
+      "target": "livebracket_ds_index_badge",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
+      "source_location": "L35",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_schedule_page_tsx",
+      "target": "lib_tournamentlifecycle_ts",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
+      "source_location": "L36",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_schedule_page_tsx",
+      "target": "lib_tournamentlifecycle_divisionregistrationstate",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
+      "source_location": "L36",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_schedule_page_tsx",
+      "target": "lib_tournamentlifecycle_ispublic",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
+      "source_location": "L36",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_schedule_page_tsx",
+      "target": "lib_tournamentlifecycle_phase",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
+      "source_location": "L36",
       "weight": 1.0
     },
     {
@@ -13626,7 +13686,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13636,7 +13696,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13646,7 +13706,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13656,7 +13716,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13666,7 +13726,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13676,7 +13736,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13686,7 +13746,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13696,7 +13756,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13706,7 +13766,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13716,7 +13776,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13726,7 +13786,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13736,7 +13796,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13746,7 +13806,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -13756,7 +13816,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0
     },
     {
@@ -13766,7 +13826,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0
     },
     {
@@ -13776,7 +13836,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0
     },
     {
@@ -13786,7 +13846,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0
     },
     {
@@ -13795,7 +13855,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L52",
+      "source_location": "L53",
       "weight": 1.0
     },
     {
@@ -13804,7 +13864,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L76",
+      "source_location": "L77",
       "weight": 1.0
     },
     {
@@ -13813,7 +13873,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L84",
+      "source_location": "L85",
       "weight": 1.0
     },
     {
@@ -13822,7 +13882,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L91",
+      "source_location": "L92",
       "weight": 1.0
     },
     {
@@ -13831,7 +13891,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L97",
+      "source_location": "L98",
       "weight": 1.0
     },
     {
@@ -13840,7 +13900,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L103",
+      "source_location": "L104",
       "weight": 1.0
     },
     {
@@ -13849,7 +13909,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L125",
+      "source_location": "L126",
       "weight": 1.0
     },
     {
@@ -13858,7 +13918,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L130",
+      "source_location": "L131",
       "weight": 1.0
     },
     {
@@ -13867,7 +13927,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L138",
+      "source_location": "L139",
       "weight": 1.0
     },
     {
@@ -13876,7 +13936,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L147",
+      "source_location": "L148",
       "weight": 1.0
     },
     {
@@ -13885,7 +13945,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L158",
+      "source_location": "L159",
       "weight": 1.0
     },
     {
@@ -13894,7 +13954,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L205",
+      "source_location": "L206",
       "weight": 1.0
     },
     {
@@ -13903,7 +13963,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L207",
+      "source_location": "L208",
       "weight": 1.0
     },
     {
@@ -13913,7 +13973,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L1567",
+      "source_location": "L1612",
       "weight": 1.0
     },
     {
@@ -31192,6 +31252,16 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
+      "source_location": "L34",
+      "weight": 1.0
+    },
+    {
+      "source": "app_dashboard_tournament_id_schedule_page_tsx",
+      "target": "data_display_badge_badge",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
       "source_location": "L35",
       "weight": 1.0
     },
@@ -31202,7 +31272,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31212,7 +31282,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31222,7 +31292,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31232,7 +31302,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31242,7 +31312,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31252,7 +31322,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31262,7 +31332,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31272,7 +31342,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31282,7 +31352,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0
     },
     {
@@ -31792,7 +31862,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L480",
+      "source_location": "L481",
       "weight": 1.0
     },
     {
@@ -31802,7 +31872,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L590",
+      "source_location": "L591",
       "weight": 1.0
     },
     {
@@ -31812,7 +31882,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L1032",
+      "source_location": "L1033",
       "weight": 1.0
     },
     {
@@ -32967,7 +33037,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "app/dashboard/tournament/[id]/schedule/page.tsx",
-      "source_location": "L93",
+      "source_location": "L94",
       "weight": 1.0
     },
     {

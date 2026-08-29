@@ -281,12 +281,11 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(246, 244, 240, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(20, 24, 30, 0.08);
-  box-shadow: 0 4px 16px rgba(20, 24, 30, 0.03);
-  transition: all 0.2s ease;
+  /* Flat and the same colour as .page — no tint, blur, hairline or
+     shadow, so the bar reads as part of the page rather than as a
+     surface floating over it. Opaque is what keeps the content
+     scrolling underneath from showing through. */
+  background: #F5F1EA;
   width: 100%;
 }
 .stickyDivisionInner {

@@ -15,17 +15,16 @@ import {
   ChevronUp,
   Clock,
   Grid,
+  ImagePlus,
   MapPin,
   Minus,
   Pencil,
   Plus,
   Printer,
   Save,
-  Settings,
   SlidersHorizontal,
   Table,
   Trophy,
-  Users,
   Utensils,
   Wand2,
   X,
@@ -33,6 +32,8 @@ import {
 import { planDrop, type DropTarget, type Placement } from '@/lib/schedule/dropPlan';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
+import { Badge } from '../../../../../components/livebracket-ds';
+import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../../../../lib/tournamentLifecycle';
 import {
   generateSchedule,
   scheduleInventory,
@@ -1186,8 +1187,36 @@ export default function TournamentSchedulePage() {
     return map;
   }, [detail, calendar.divOrder]);
 
-  const totalTeams = detail?.divisions.reduce((acc, d) => acc + d.filled, 0) ?? 0;
   const isLive = allMatches.some(m => m.status === 'live');
+
+  /* The same badge the Bracket Generator header shows, so one tournament
+     reads the same on both screens. Registration state belongs to a
+     division, so it follows the selected one and falls back to the first
+     while "All Divisions" is active. */
+  const badgeDivision =
+    detail?.divisions.find(d => d.id === activeDivisionId) ?? detail?.divisions[0] ?? null;
+
+  const statusBadge = ((): { label: string; variant: 'live' | 'open' | 'highlight' | 'status' | 'outline' } => {
+    if (!detail || detail.phase === PHASE.draft || !isPublic(detail.phase as Phase)) {
+      return { label: 'Draft', variant: 'status' };
+    }
+    if (detail.phase === 3 || isLive) return { label: 'Live', variant: 'live' };
+    if (detail.phase === 4) return { label: 'Completed', variant: 'status' };
+    if (!badgeDivision) return { label: 'Announced', variant: 'highlight' };
+    const regState = divisionRegistrationState(
+      {
+        registrationOpens: badgeDivision.registrationOpens || '',
+        registrationCloses: badgeDivision.registrationCloses || '',
+      },
+      new Date(),
+    );
+    if (regState === 'opens-soon') return { label: 'Announced', variant: 'highlight' };
+    if (regState === 'closed') return { label: 'Registration Closed', variant: 'status' };
+    if (badgeDivision.teams > 0 && badgeDivision.filled >= badgeDivision.teams) {
+      return { label: 'Waitlist Open', variant: 'highlight' };
+    }
+    return { label: 'Registration Open', variant: 'open' };
+  })();
 
   /* Editing belongs to the schedule, not to one way of looking at it, so the
      switch and the state of the edits ride along with both views. */
@@ -1310,49 +1339,65 @@ export default function TournamentSchedulePage() {
         <ArrowLeft size={18} />
       </Link>
 
-      {/* ── Hero Banner ───────────────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────────
+           Eyebrow and page title on left, Bracket action on right,
+           then the event card with Generate Schedule and Print Schedule buttons. */}
       <section className={styles.hero}>
         <div className={styles.heroInner}>
-          <div className={styles.heroContent}>
-            <div className={styles.heroTopRow}>
-              {isLive && (
-                <span className={styles.livePill}>
-                  <span className={styles.livePillDot} aria-hidden="true" />
-                  Live Tournament Schedule
-                </span>
-              )}
+          <div className={styles.headerTitleRow}>
+            <div className={styles.headerTitleBlock}>
+              <p className={styles.headerEyebrow}>ORGANIZER</p>
+              <h1 className={styles.heroTitle}>Schedule Generator</h1>
             </div>
-            <h1 className={styles.heroTitle}>{detail?.title ?? 'Tournament Schedule'}</h1>
-            <div className={styles.heroMeta}>
-              {detail?.date && <span className={styles.heroMetaPill}><Calendar size={15} /> {detail.date}</span>}
-              {detail?.location && <span className={styles.heroMetaPill}><MapPin size={15} /> {detail.location}</span>}
-              <span className={styles.heroMetaPill}>
-                <Users size={15} /> {detail?.divisions.length ?? 0} Divisions · {totalTeams} Teams
-              </span>
+            <div className={styles.headerActions}>
+              <Link href={`/dashboard/tournament/${slug}`} className={styles.heroGhostBtn}>
+                <Trophy size={16} /> Bracket
+              </Link>
             </div>
           </div>
 
-          <div className={styles.heroActions}>
-            <button
-              type="button"
-              className={styles.heroPrimaryBtn}
-              onClick={() => setPanelOpen(o => !o)}
-            >
-              <Wand2 size={16} /> Generate Schedule
-            </button>
-            <Link href={`/dashboard/tournament/${slug}`} className={styles.heroGhostBtn}>
-              <Trophy size={16} /> Open Bracket
-            </Link>
-            <Link href={`/dashboard/tournament/${slug}/setup`} className={styles.heroGhostBtn}>
-              <Settings size={16} /> Manage Setup
-            </Link>
-            <button
-              type="button"
-              className={styles.heroGhostBtn}
-              onClick={() => window.print()}
-            >
-              <Printer size={16} /> Print Schedule
-            </button>
+          <div className={styles.eventCard}>
+            <div className={styles.eventCardBody}>
+              {detail?.imageUrl ? (
+                <img src={detail.imageUrl} alt="" className={styles.eventPoster} />
+              ) : (
+                <div className={styles.eventPosterPlaceholder}>
+                  <ImagePlus size={28} opacity={0.6} />
+                </div>
+              )}
+
+              <div className={styles.eventTextCol}>
+                <div className={styles.eventBadgeRow}>
+                  <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                </div>
+                <h2 className={styles.eventTitle}>{detail?.title ?? 'Untitled tournament'}</h2>
+                <div className={styles.eventMetaCol}>
+                  {detail?.date && (
+                    <div className={styles.eventMetaItem}><Calendar size={16} /><span>{detail.date}</span></div>
+                  )}
+                  {detail?.location && (
+                    <div className={styles.eventMetaItem}><MapPin size={16} /><span>{detail.location}</span></div>
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.eventCardActions}>
+                <button
+                  type="button"
+                  className={styles.heroPrimaryBtn}
+                  onClick={() => setPanelOpen(o => !o)}
+                >
+                  <Wand2 size={16} /> Generate Schedule
+                </button>
+                <button
+                  type="button"
+                  className={styles.heroGhostBtn}
+                  onClick={() => window.print()}
+                >
+                  <Printer size={16} /> Print Schedule
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1360,42 +1405,70 @@ export default function TournamentSchedulePage() {
       {/* ── Sticky Control Bar ───────────────────────────────── */}
       <div className={styles.stickyBar} ref={stickyRef}>
         <div className={styles.stickyInner}>
-          {/* Division Selector — pill tabs on desktop, dropdown on mobile */}
-          <div className={`${styles.segmented} ${styles.pointerOnly}`}>
-            <button
-              type="button"
-              className={`${styles.segBtn} ${activeDivisionId === 'all' ? styles.segBtnActive : ''}`}
-              onClick={() => setActiveDivisionId('all')}
-            >
-              All Divisions
-            </button>
-            {detail?.divisions.map(d => (
-              <button
-                key={d.id}
-                type="button"
-                className={`${styles.segBtn} ${activeDivisionId === d.id ? styles.segBtnActive : ''}`}
-                onClick={() => setActiveDivisionId(d.id)}
+          {/* What you are looking at: division, day, status. The view
+              control lives apart from these on the right — it changes how
+              the same matches are drawn, it does not filter them. */}
+          <div className={styles.filterGroup}>
+            {/* Division — a dropdown at every width. A division list grows
+                with the event, and pills for six of them outran the row. */}
+            <div className={styles.selectWrap}>
+              <select
+                className={styles.select}
+                aria-label="Filter by division"
+                value={activeDivisionId}
+                onChange={e => setActiveDivisionId(e.target.value)}
               >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          <div className={`${styles.selectWrap} ${styles.mobileOnly} ${styles.mobileSelectWide}`}>
-            <select
-              className={styles.select}
-              aria-label="Filter by division"
-              value={activeDivisionId}
-              onChange={e => setActiveDivisionId(e.target.value)}
-            >
-              <option value="all">All Divisions</option>
-              {detail?.divisions.map(d => (
-                <option key={d.id} value={d.id}>{d.label}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} className={styles.selectChevron} />
+                <option value="all">All Divisions</option>
+                {detail?.divisions.map(d => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className={styles.selectChevron} />
+            </div>
+
+            {/* Day Selector (multi-day tournaments only) */}
+            {dayCount > 1 && (
+              <>
+                <span className={styles.filterDivider} aria-hidden="true" />
+                <div className={styles.segmented}>
+                  <button
+                    type="button"
+                    className={`${styles.segBtn} ${activeDay === 'all' ? styles.segBtnActive : ''}`}
+                    onClick={() => setActiveDay('all')}
+                  >
+                    All Days
+                  </button>
+                  {Array.from({ length: dayCount }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className={`${styles.segBtn} ${activeDay === i ? styles.segBtnActive : ''}`}
+                      onClick={() => setActiveDay(i)}
+                    >
+                      Day {i + 1} · {detail ? shortDate(addDaysUTC(detail.startDate, i)) : ''}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Status Filter */}
+            <div className={styles.selectWrap}>
+              <select
+                className={styles.select}
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as 'all' | 'live' | 'upcoming' | 'done')}
+              >
+                <option value="all">All Match Statuses</option>
+                <option value="live">Live Matches</option>
+                <option value="upcoming">Upcoming Matches</option>
+                <option value="done">Completed Matches</option>
+              </select>
+              <ChevronDown size={14} className={styles.selectChevron} />
+            </div>
           </div>
 
-          {/* View Mode & Status Controls */}
+          {/* View Mode — how the matches are drawn, not which ones */}
           <div className={styles.controlsGroup}>
             {/* View Mode Toggle — pill tabs on desktop, dropdown on mobile */}
             <div className={`${styles.segmented} ${styles.pointerOnly}`}>
@@ -1431,48 +1504,8 @@ export default function TournamentSchedulePage() {
                 <span className={styles.viewSwitchThumb} />
               </span>
             </label>
-
-            {/* Status Filter */}
-            <div className={styles.selectWrap}>
-              <select
-                className={styles.select}
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as 'all' | 'live' | 'upcoming' | 'done')}
-              >
-                <option value="all">All Match Statuses</option>
-                <option value="live">Live Matches</option>
-                <option value="upcoming">Upcoming Matches</option>
-                <option value="done">Completed Matches</option>
-              </select>
-              <ChevronDown size={14} className={styles.selectChevron} />
-            </div>
           </div>
         </div>
-
-        {/* Day Selector (multi-day tournaments only) */}
-        {dayCount > 1 && (
-          <div className={styles.dayBar}>
-            <div className={styles.segmented}>
-              <button
-                type="button"
-                className={`${styles.segBtn} ${activeDay === 'all' ? styles.segBtnActive : ''}`}
-                onClick={() => setActiveDay('all')}
-              >
-                All Days
-              </button>
-              {Array.from({ length: dayCount }, (_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`${styles.segBtn} ${activeDay === i ? styles.segBtnActive : ''}`}
-                  onClick={() => setActiveDay(i)}
-                >
-                  Day {i + 1} · {detail ? shortDate(addDaysUTC(detail.startDate, i)) : ''}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Generator Panel ─────────────────────────────────── */}
