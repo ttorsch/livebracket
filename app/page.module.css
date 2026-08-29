@@ -18,6 +18,11 @@
   max-width: 1240px;
   margin: 0 auto;
   padding: 0 28px;
+  /* .heroNew is a flex row, which makes this a flex item — and a flex
+     item's automatic minimum is its min-content width, so the container
+     refused to shrink below the hero CTAs and pushed ~29px of every
+     section off the right edge on a phone. */
+  min-width: 0;
 }
 
 /* ── Navigation Bar ─────────────────────────────────────────── */
@@ -856,6 +861,8 @@
   .heroCtasRow {
     display: flex;
     flex-direction: row;
+    /* Equal heights once a label wraps, so the pair still reads as a pair. */
+    align-items: stretch;
     width: 100%;
     gap: 10px;
     margin-bottom: 28px;
@@ -867,7 +874,9 @@
     text-align: center;
     padding: 12px 10px;
     font-size: 13.5px;
-    white-space: nowrap;
+    /* Was nowrap: the pair only just fits at 390px, so on a 360 or 375
+       phone "See all tournaments" ran outside its own pill. Wrapping to
+       a second line inside the pill keeps it contained at any width. */
   }
   .heroStatsRow {
     display: grid;
