@@ -4287,3 +4287,47 @@
 .regAddPhoto:hover {
   background: var(--coral-50);
 }
+
+/* ── Mobile swipe-to-remove row ───────────────────────────────────
+   Mobile rows have no width to spare for a persistent remove control, so
+   the action sits underneath and a swipe-left (or long-press) slides the
+   row off it. The action panel bleeds into the card's 16px padding so it
+   reads as reaching the card edge. */
+.mobileSwipeRow {
+  position: relative;
+  overflow: hidden;
+  margin-right: -16px;
+}
+.mobileSwipeAction {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  padding: 4px 0;
+}
+.mobileSwipeRemoveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 108px;
+  border: none;
+  border-radius: 12px 0 0 12px;
+  background: #E5484D;
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+}
+.mobileSwipeRemoveBtn:disabled { opacity: 0.6; cursor: default; }
+.mobileSwipeContent {
+  position: relative;
+  background: #fff;
+  padding-right: 16px;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  will-change: transform;
+}

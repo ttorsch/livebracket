@@ -81,18 +81,25 @@ export function useRestoreScrollPosition(
 
 /* Builds the /login link for a public "Sign in" control.
  *
- * Two things ride along. `role` picks which tab opens — a destination hint,
- * never a claim about the account. `next` is where the person already was,
+ * Three things ride along. `role` picks which tab opens — a destination hint,
+ * never a claim about the account. `mode` picks which form opens on top of
+ * that tab: a control that promises a new account ("Create a tournament")
+ * passes 'signup' so the visitor lands on the sign-up form instead of a
+ * login form they cannot yet fill in. `next` is where the person already was,
  * so signing in resumes the page they were reading (a tournament, the
  * registration form, the homepage) instead of dumping them on /profile.
  *
  * Only the pathname is carried, not the query string: the login form
  * refuses anything that is not a same-origin path, and a bare path is the
  * part that reliably identifies where they were. */
-export function useSignInHref(role: 'player' | 'organizer' = 'player'): string {
+export function useSignInHref(
+  role: 'player' | 'organizer' = 'player',
+  mode?: 'signup'
+): string {
   const pathname = usePathname();
 
   const params = new URLSearchParams({ role });
+  if (mode) params.set('mode', mode);
   if (pathname && pathname !== '/login' && !pathname.startsWith('/auth')) {
     params.set('next', pathname);
   }

@@ -339,6 +339,138 @@ function TeamRow({
   );
 }
 
+/** A mobile team row with the remove action hidden behind a swipe-left (or a
+ *  long-press, for anyone who does not think to swipe). The row itself stays
+ *  a tap target for the detail sheet, so a horizontal drag or a long-press has
+ *  to swallow the click it would otherwise fire. */
+function MobileSwipeRow({
+  open,
+  onOpenChange,
+  onRemove,
+  label,
+  disabled,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onRemove: () => void;
+  label: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const REVEAL = 92;    // px of action panel exposed when the row is latched open
+  const THRESHOLD = 44; // px of drag that latches it rather than springing back
+  const SLOP = 8;       // px before a drag commits to an axis
+
+  // null while the finger is up — the row then rests wherever `open` says.
+  // A fast flick can deliver the last touchmove and the touchend in one task,
+  // with no render in between, so the latch decision reads the ref, not state.
+  const [drag, setDrag] = useState<number | null>(null);
+  const dragRef = useRef<number | null>(null);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const axis = useRef<'none' | 'x' | 'y'>('none');
+  const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swallowClick = useRef(false);
+
+  const cancelLongPress = () => {
+    if (longPress.current) {
+      clearTimeout(longPress.current);
+      longPress.current = null;
+    }
+  };
+  useEffect(() => cancelLongPress, []);
+
+  const resting = open ? -REVEAL : 0;
+  const offset = drag ?? resting;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (disabled) return;
+    const t = e.touches[0];
+    start.current = { x: t.clientX, y: t.clientY };
+    axis.current = 'none';
+    cancelLongPress();
+    longPress.current = setTimeout(() => {
+      onOpenChange(true);
+      swallowClick.current = true;
+      start.current = null;
+    }, 500);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!start.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.current.x;
+    const dy = t.clientY - start.current.y;
+    if (axis.current === 'none') {
+      if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) return;
+      axis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      cancelLongPress();
+      // A vertical drag is the page scrolling; hand it back to the browser.
+      if (axis.current === 'y') {
+        start.current = null;
+        return;
+      }
+    }
+    dragRef.current = Math.max(-REVEAL, Math.min(0, resting + dx));
+    setDrag(dragRef.current);
+  };
+
+  const endDrag = () => {
+    cancelLongPress();
+    if (axis.current === 'x' && start.current) {
+      onOpenChange((dragRef.current ?? resting) < -THRESHOLD);
+      swallowClick.current = true;
+    }
+    dragRef.current = null;
+    setDrag(null);
+    start.current = null;
+    axis.current = 'none';
+  };
+
+  return (
+    <div className={styles.mobileSwipeRow} data-swipe-row>
+      <div className={styles.mobileSwipeAction} aria-hidden={!open}>
+        <button
+          type="button"
+          className={styles.mobileSwipeRemoveBtn}
+          tabIndex={open ? 0 : -1}
+          disabled={disabled}
+          aria-label={`Remove ${label}`}
+          onClick={e => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <Trash2 size={15} />
+          Remove
+        </button>
+      </div>
+      <div
+        className={styles.mobileSwipeContent}
+        style={{
+          transform: `translateX(${offset}px)`,
+          transition: drag === null ? 'transform 0.2s ease' : 'none',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={endDrag}
+        onTouchCancel={endDrag}
+        onClickCapture={e => {
+          // A tap on an open row closes it instead of opening the detail sheet.
+          if (swallowClick.current || open) {
+            swallowClick.current = false;
+            e.preventDefault();
+            e.stopPropagation();
+            if (open) onOpenChange(false);
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 const safeFormatDate = (d?: string, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }): string => {
   if (!d) return '';
   try {
@@ -654,6 +786,9 @@ export default function OrganizerSetup() {
   const [rowError, setRowError] = useState<string | null>(null);
   const [capBusy, setCapBusy] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<RegisteredTeamRow | null>(null);
+  // Only one mobile row may sit swiped-open at a time; a tap anywhere off the
+  // open row puts it back.
+  const [swipedTeamId, setSwipedTeamId] = useState<string | null>(null);
 
   /** Poster lightbox — clicking the cover shows it full size. */
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -1466,6 +1601,7 @@ export default function OrganizerSetup() {
       );
       if (json.warning) setRowError(json.warning);
       setConfirmRemove(null);
+      setSwipedTeamId(null);
     });
 
   /** The division as the divisions API expects it back — used to push a
@@ -1575,6 +1711,20 @@ export default function OrganizerSetup() {
   const teamDetail = teamDetailIdx != null ? registeredTeams[teamDetailIdx] ?? null : null;
   const hasPrevTeam = teamDetailIdx != null && teamDetailIdx > 0;
   const hasNextTeam = teamDetailIdx != null && teamDetailIdx < registeredTeams.length - 1;
+  useEffect(() => {
+    if (!swipedTeamId) return;
+    const onDown = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest('[data-swipe-row]')) setSwipedTeamId(null);
+    };
+    document.addEventListener('touchstart', onDown, { passive: true });
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      document.removeEventListener('touchstart', onDown);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [swipedTeamId]);
+
   const openTeamDetail = (team: RegisteredTeamRow) => {
     const idx = registeredTeams.findIndex(t => t.id === team.id);
     if (idx >= 0) setTeamDetailIdx(idx);
@@ -2385,8 +2535,15 @@ export default function OrganizerSetup() {
                         ) : (
                           <>
                             {visibleConfirmed.map((t, idx) => (
-                              <div
+                              <MobileSwipeRow
                                 key={t.id}
+                                label={t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
+                                open={swipedTeamId === t.id}
+                                onOpenChange={next => setSwipedTeamId(next ? t.id : null)}
+                                onRemove={() => setConfirmRemove(t)}
+                                disabled={rowBusy === t.id}
+                              >
+                              <div
                                 className={`${styles.mobileTeamRow} ${styles.teamRowClickable}`}
                                 role="button"
                                 tabIndex={0}
@@ -2414,6 +2571,7 @@ export default function OrganizerSetup() {
                                   {t.paymentCleared ? 'Paid' : 'Unpaid'}
                                 </button>
                               </div>
+                              </MobileSwipeRow>
                             ))}
 
                             {visibleWaitlist.length > 0 && (
@@ -2423,8 +2581,15 @@ export default function OrganizerSetup() {
                                   Waiting List · {waitlistTeamsList.length}
                                 </div>
                                 {visibleWaitlist.map((t, idx) => (
-                                  <div
+                                  <MobileSwipeRow
                                     key={t.id}
+                                    label={t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
+                                    open={swipedTeamId === t.id}
+                                    onOpenChange={next => setSwipedTeamId(next ? t.id : null)}
+                                    onRemove={() => setConfirmRemove(t)}
+                                    disabled={rowBusy === t.id}
+                                  >
+                                  <div
                                     className={`${styles.mobileTeamRow} ${styles.teamRowClickable}`}
                                     role="button"
                                     tabIndex={0}
@@ -2451,6 +2616,7 @@ export default function OrganizerSetup() {
                                       Move Up
                                     </button>
                                   </div>
+                                  </MobileSwipeRow>
                                 ))}
                               </>
                             )}

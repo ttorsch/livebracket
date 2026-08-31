@@ -643,7 +643,11 @@ function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide
 export default function LiveBracketHome() {
   // "Sign in" returns the visitor to this page, not to /profile.
   const signInHref = useSignInHref('player');
-  const createHref = useSignInHref('organizer');
+  /* Both land on the login form's Organizer tab, but on different forms:
+   * "Create a tournament" promises a new account, so it opens sign-up;
+   * "Organizer login" is for someone who already has one. */
+  const createHref = useSignInHref('organizer', 'signup');
+  const organizerHref = useSignInHref('organizer');
   /* Signed in, both of those controls are answers to a question already
    * settled — and "Sign In" was worse than useless: middleware bounced it
    * straight back here, so the page reloaded and still said Sign In. They
@@ -1076,6 +1080,16 @@ export default function LiveBracketHome() {
               }}
             >
               Create a tournament
+            </Link>
+            <Link
+              href={organizerHref}
+              className={styles.mobileNavOrganizerLink}
+              onClick={() => {
+                saveScrollPosition();
+                setMenuOpen(false);
+              }}
+            >
+              Organizer login
             </Link>
           </div>
         )}

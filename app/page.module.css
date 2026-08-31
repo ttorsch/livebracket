@@ -228,11 +228,18 @@
   padding: 0;
 }
 .mobileMenuDropdown {
+  /* Floats over the page instead of pushing it down: the nav is in flow at
+     mobile widths, so the panel is absolutely positioned under the nav row. */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1001;
   pointer-events: auto;
   padding: 16px 20px 20px;
   background: var(--surface-app, #F5F1EA);
   border-bottom: 1px solid rgba(20, 31, 46, 0.08);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 16px 32px rgba(20, 31, 46, 0.16);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -287,6 +294,26 @@
 }
 .mobileNavCreateBtn:hover {
   background: var(--color-primary-hover, #E44F1C);
+}
+
+/* Returning organizers land on the same tab as "Create a tournament", so this
+   stays a quiet text link — it is a second door, not a competing CTA. */
+.mobileNavOrganizerLink {
+  display: block;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(20, 31, 46, 0.08);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #7A8294;
+  text-align: center;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.mobileNavOrganizerLink:hover {
+  color: #14181E;
+  text-decoration: underline;
 }
 
 /* ── Hero Section (New Warm Cream Layout) ─────────────────────── */
@@ -2515,6 +2542,8 @@
     top: auto;
     left: auto;
     right: auto;
+    /* Keeps the floating mobile menu above the hero/page sections below. */
+    z-index: 1000;
     width: 100%;
     background: var(--surface-app, #F5F1EA);
     border-bottom: none;

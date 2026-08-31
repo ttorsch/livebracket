@@ -22,6 +22,7 @@ import {
   Plus,
   Printer,
   Save,
+  Settings,
   SlidersHorizontal,
   Table,
   Trophy,
@@ -215,7 +216,9 @@ export default function TournamentSchedulePage() {
   // Filters & Controls
   const [activeDivisionId, setActiveDivisionId] = useState<string>('all');
   const [activeDay, setActiveDay] = useState<number | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'court' | 'grid'>('court');
+  // Grid first: an organizer opening this page wants the whole schedule at
+  // once, and drops into a single court only when they go looking for one.
+  const [viewMode, setViewMode] = useState<'court' | 'grid'>('grid');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'done'>('all');
 
   // Generator: config, per-division D_d overrides, unsaved preview.
@@ -460,6 +463,14 @@ export default function TournamentSchedulePage() {
     const minutes = rounds.reduce((s, r) => s + r.matches.length * r.durationMinutes, 0);
     return { id: div.id, label: div.label, netHeight: div.netHeight, rounds, matches, minutes };
   }, [detail, matchListDivId, labelsByDivision]);
+
+  // Same for the generator, which is a sheet over the schedule on a phone.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPanelOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [panelOpen]);
 
   // Close the match list on Escape, the way a dialog is expected to behave.
   useEffect(() => {
@@ -1345,6 +1356,13 @@ export default function TournamentSchedulePage() {
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <div className={styles.headerTitleRow}>
+            {/* Phone-only twin of the fixed back link. The Bracket Generator
+                seats it inline beside the title instead of floating it over
+                the hero, which lets the header start at the top of the page
+                rather than reserving a band of padding to clear it. */}
+            <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
+              <ArrowLeft size={18} />
+            </Link>
             <div className={styles.headerTitleBlock}>
               <p className={styles.headerEyebrow}>ORGANIZER</p>
               <h1 className={styles.heroTitle}>Schedule Generator</h1>
@@ -1391,11 +1409,30 @@ export default function TournamentSchedulePage() {
                 </button>
                 <button
                   type="button"
-                  className={styles.heroGhostBtn}
+                  className={`${styles.heroGhostBtn} ${styles.printBtn}`}
                   onClick={() => window.print()}
                 >
                   <Printer size={16} /> Print Schedule
                 </button>
+                {/* Phone-only, in the slot Print Schedule gives up: the header's
+                    Bracket action is hidden at this width and Setup has no home
+                    on this page at all, while printing is a desk job. */}
+                <Link
+                  href={`/dashboard/tournament/${slug}`}
+                  className={styles.cardNavBtn}
+                  aria-label="Bracket"
+                  title="Bracket"
+                >
+                  <Trophy size={16} />
+                </Link>
+                <Link
+                  href={`/dashboard/tournament/${slug}/setup`}
+                  className={styles.cardNavBtn}
+                  aria-label="Tournament setup"
+                  title="Tournament setup"
+                >
+                  <Settings size={16} />
+                </Link>
               </div>
             </div>
           </div>
@@ -1411,14 +1448,14 @@ export default function TournamentSchedulePage() {
           <div className={styles.filterGroup}>
             {/* Division — a dropdown at every width. A division list grows
                 with the event, and pills for six of them outran the row. */}
-            <div className={styles.selectWrap}>
+            <div className={`${styles.selectWrap} ${styles.divisionSelectWrap}`}>
               <select
                 className={styles.select}
                 aria-label="Filter by division"
                 value={activeDivisionId}
                 onChange={e => setActiveDivisionId(e.target.value)}
               >
-                <option value="all">All Divisions</option>
+                <option value="all">Divisions</option>
                 {detail?.divisions.map(d => (
                   <option key={d.id} value={d.id}>{d.label}</option>
                 ))}
@@ -1430,7 +1467,7 @@ export default function TournamentSchedulePage() {
             {dayCount > 1 && (
               <>
                 <span className={styles.filterDivider} aria-hidden="true" />
-                <div className={styles.segmented}>
+                <div className={`${styles.segmented} ${styles.daySegmented}`}>
                   <button
                     type="button"
                     className={`${styles.segBtn} ${activeDay === 'all' ? styles.segBtnActive : ''}`}
@@ -1445,7 +1482,13 @@ export default function TournamentSchedulePage() {
                       className={`${styles.segBtn} ${activeDay === i ? styles.segBtnActive : ''}`}
                       onClick={() => setActiveDay(i)}
                     >
-                      Day {i + 1} · {detail ? shortDate(addDaysUTC(detail.startDate, i)) : ''}
+                      <span className={styles.dayPillNum}>Day {i + 1}</span>
+                      {/* The ordinal is what you pick; the date is what
+                          confirms the pick. Sized and weighted apart so the
+                          eye lands on "Day 2" and reads the date second. */}
+                      <span className={styles.dayPillDate}>
+                        {detail ? shortDate(addDaysUTC(detail.startDate, i)) : ''}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -1453,13 +1496,13 @@ export default function TournamentSchedulePage() {
             )}
 
             {/* Status Filter */}
-            <div className={styles.selectWrap}>
+            <div className={`${styles.selectWrap} ${styles.statusSelectWrap}`}>
               <select
                 className={styles.select}
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value as 'all' | 'live' | 'upcoming' | 'done')}
               >
-                <option value="all">All Match Statuses</option>
+                <option value="all">All matches</option>
                 <option value="live">Live Matches</option>
                 <option value="upcoming">Upcoming Matches</option>
                 <option value="done">Completed Matches</option>
@@ -1470,47 +1513,56 @@ export default function TournamentSchedulePage() {
 
           {/* View Mode — how the matches are drawn, not which ones */}
           <div className={styles.controlsGroup}>
-            {/* View Mode Toggle — pill tabs on desktop, dropdown on mobile */}
-            <div className={`${styles.segmented} ${styles.pointerOnly}`}>
+            {/* Two segments on a wide screen. */}
+            <div className={styles.segmented} role="group" aria-label="View mode">
               <button
                 type="button"
                 className={`${styles.segBtn} ${viewMode === 'court' ? styles.segBtnActive : ''}`}
                 onClick={() => setViewMode('court')}
+                aria-pressed={viewMode === 'court'}
               >
-                <Grid size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: '-1px' }} />
+                <Grid size={14} className={styles.segBtnIcon} />
                 By Court
               </button>
               <button
                 type="button"
                 className={`${styles.segBtn} ${viewMode === 'grid' ? styles.segBtnActive : ''}`}
                 onClick={() => setViewMode('grid')}
+                aria-pressed={viewMode === 'grid'}
               >
-                <Table size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: '-1px' }} />
+                <Table size={14} className={styles.segBtnIcon} />
                 Grid
               </button>
             </div>
-            <label className={`${styles.viewSwitch} ${styles.mobileOnly}`}>
-              <span className={styles.viewSwitchLabel}>
-                <Table size={14} /> Grid view
-              </span>
-              <input
-                type="checkbox"
-                role="switch"
-                className={styles.viewSwitchInput}
-                checked={viewMode === 'grid'}
-                onChange={e => setViewMode(e.target.checked ? 'grid' : 'court')}
-              />
-              <span className={styles.viewSwitchTrack} aria-hidden="true">
-                <span className={styles.viewSwitchThumb} />
-              </span>
-            </label>
+            {/* On a phone the same choice is one button, because grid is the
+                resting state: press it to drop into a single court, and it
+                goes orange to say that is where you are. */}
+            <button
+              type="button"
+              className={`${styles.viewToggleBtn} ${viewMode === 'court' ? styles.viewToggleBtnActive : ''}`}
+              onClick={() => setViewMode(viewMode === 'court' ? 'grid' : 'court')}
+              aria-pressed={viewMode === 'court'}
+            >
+              <Grid size={14} className={styles.viewToggleIcon} />
+              View by Court
+            </button>
           </div>
         </div>
       </div>
 
       {/* ── Generator Panel ─────────────────────────────────── */}
       {panelOpen && config && (
-        <div className={styles.genPanel}>
+        <div
+          className={styles.genPanel}
+          role="presentation"
+          onClick={e => {
+            // Only a tap on the backdrop closes it, and only where there is
+            // one: on a wide screen this element is an inline band whose
+            // gutters are not a dismiss target.
+            if (e.target !== e.currentTarget) return;
+            if (window.matchMedia('(max-width: 860px)').matches) setPanelOpen(false);
+          }}
+        >
           <div className={styles.genInner}>
             <div className={styles.genHeaderRow}>
               <div className={styles.genTitle}><SlidersHorizontal size={18} /> Schedule Generator</div>

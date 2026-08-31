@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Trophy, Unlock, Users, X, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Settings, Trophy, Unlock, Users, X, ImagePlus } from 'lucide-react';
 import styles from './page.module.css';
 import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
@@ -947,6 +947,18 @@ export default function OrganizerBracketPage() {
             >
               <Calendar size={16} />
               <span className={styles.scheduleBtnText}>Schedule</span>
+            </Link>
+            {/* Phone-only. The desktop header has room for its own routes;
+                on a phone the bar is the only thing pinned, so setup rides
+                next to the schedule. */}
+            <Link
+              href={`/dashboard/tournament/${detail.slug}/setup`}
+              className={styles.setupLinkBtn}
+              style={{ textDecoration: 'none' }}
+              aria-label="Tournament setup"
+              title="Tournament setup"
+            >
+              <Settings size={16} />
             </Link>
           </div>
         </div>

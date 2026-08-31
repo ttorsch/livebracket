@@ -44,7 +44,10 @@
 .hero {
   position: relative;
   background-color: var(--sand-100, #F5F1EA);
-  padding: 24px 40px 20px;
+  /* The Bracket Generator's header rhythm: 28px above the title, 24px below
+     the event card. Its band is the same sand as the page, so the two
+     headers read as one screen rather than two. */
+  padding: 28px 40px 24px;
   color: var(--ink-900, #14181E);
 }
 
@@ -61,10 +64,19 @@
 
 .headerTitleRow {
   display: flex;
-  align-items: flex-end;
+  /* Centred, like the Bracket Generator's title row — the Bracket link on the
+     right is a pill, and baseline-aligning it to a 44px heading sat it low. */
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
 }
+
+/* The phone's back button. Hidden until the fixed one steps aside at 860px. */
+.mobileBackBtn { display: none; }
+
+/* Route links inside the event card — phone only, where the header's own
+   Bracket action is hidden and Print Schedule stands aside for them. */
+.cardNavBtn { display: none; }
 
 .headerTitleBlock {
   padding-left: 0;
@@ -151,6 +163,8 @@
   font-size: 14px;
   line-height: 20px;
 }
+/* The phone-only twin of the header's Bracket link. Hidden by default so
+   desktop keeps the single labelled link up in the header. */
 .eventCardActions {
   display: flex;
   flex-direction: column;
@@ -292,6 +306,48 @@
   background: rgba(118, 118, 128, 0.10);
 }
 
+/* The phone's twin of the view-mode segments: one button whose pressed
+   state is the by-court view. Hidden until the mobile block turns it on. */
+.viewToggleBtn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: var(--surface-card, #FFFFFF);
+  color: var(--ink-800, #2C323D);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.viewToggleBtnActive {
+  background: var(--orange, #EE7A4C);
+  border-color: var(--orange, #EE7A4C);
+  color: #FFFFFF;
+}
+.viewToggleBtn:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 2px;
+}
+.viewToggleIcon {
+  flex: 0 0 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewToggleBtn { transition: none; }
+}
+
+/* Was an inline style on the icon, which no media query could then undo. */
+.segBtnIcon {
+  display: inline;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
 .segBtn {
   padding: 7px 16px;
   border-radius: 999px;
@@ -310,6 +366,27 @@
   color: var(--ink-900, #14181E);
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+}
+
+/* Day pills carry two things at once: which day it is, and what date that
+   lands on. Baseline-aligned so the smaller date sits on the same line as
+   the ordinal rather than floating in the middle of it. */
+.daySegmented .segBtn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.dayPillNum {
+  font-weight: inherit;
+}
+/* Dimmed with opacity rather than a fixed grey: the pill's text colour flips
+   to white when it is the active day, and a hardcoded grey would go muddy
+   against the coral. Opacity recedes correctly in every state. */
+.dayPillDate {
+  font-size: 11.5px;
+  font-weight: 500;
+  opacity: 0.62;
+  letter-spacing: 0;
 }
 
 .select {
@@ -336,93 +413,6 @@
   right: 10px;
   pointer-events: none;
   color: var(--ink-500, #8A92A0);
-}
-
-/* The view-mode filter ships as two twins: pill segments for wide screens and
-   a switch for narrow ones. Only one is ever visible — the pair swaps at the
-   tablet breakpoint, where a row of pills no longer fits without sideways
-   scrolling. Division is a dropdown at every width, and the day selector keeps
-   its segments at every width. */
-.mobileOnly {
-  display: none;
-}
-
-/* Mobile view switch — on is the grid, off is by-court. The track and thumb are
-   spans because a native checkbox can't be styled; the checkbox itself stays in
-   the DOM, visually hidden, so the control keeps its keyboard and switch
-   semantics and the label click target. */
-.viewSwitch {
-  align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
-  padding: 8px 12px 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--sand-400, #DCD7CE);
-  background: var(--surface-card, #FFFFFF);
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.viewSwitchLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-800, #2C323D);
-  white-space: nowrap;
-}
-
-.viewSwitchInput {
-  position: absolute;
-  width: 0;
-  height: 0;
-  margin: 0;
-  opacity: 0;
-}
-
-.viewSwitchTrack {
-  position: relative;
-  display: inline-block;
-  flex: 0 0 auto;
-  width: 38px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--sand-300, #EAE5DD);
-  transition: background 0.18s ease;
-}
-
-.viewSwitchThumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--surface-card, #FFFFFF);
-  box-shadow: 0 1px 3px rgba(20, 24, 30, 0.25);
-  transition: transform 0.18s ease;
-}
-
-.viewSwitchInput:checked ~ .viewSwitchTrack {
-  background: var(--orange, #EE7A4C);
-}
-
-.viewSwitchInput:checked ~ .viewSwitchTrack .viewSwitchThumb {
-  transform: translateX(16px);
-}
-
-.viewSwitchInput:focus-visible ~ .viewSwitchTrack {
-  outline: 2px solid var(--orange, #EE7A4C);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .viewSwitchTrack,
-  .viewSwitchThumb {
-    transition: none;
-  }
 }
 
 /* ── Main Layout Container ───────────────────────────────────── */
@@ -2175,23 +2165,57 @@
 
 /* ── Tablet & below ──────────────────────────────────────────── */
 @media (max-width: 860px) {
-  /* The back button is fixed on desktop, which parks it permanently on top of
-     the first filter tab once the sticky bar pins. Anchor it to the page so it
-     scrolls away with the hero instead. */
+  /* The floating back button parks itself permanently on top of the first
+     filter tab once the sticky bar pins. The Bracket Generator's answer is to
+     drop it on a phone and seat an inline one beside the title instead, so
+     nothing overlaps and the hero needs no padding to clear it. */
   .page { position: relative; }
-  .backLink {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 40px;
-    height: 40px;
+  .backLink { display: none; }
+  .mobileBackBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(20, 31, 46, 0.06);
+    color: var(--ink-900, #14181E);
+    flex-shrink: 0;
+    text-decoration: none;
   }
 
-  .hero { padding: 60px 16px 24px; }
-  .heroInner { gap: 18px; }
-  .headerTitleRow { flex-wrap: wrap; align-items: center; gap: 12px; }
-  .heroTitle { font-size: 26px; margin-bottom: 0; }
-  .eventCardBody { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .hero { padding: 20px 16px 24px; }
+  .heroInner { gap: 16px; }
+  /* Back button, then title — one line, so it must not wrap. The row's
+     desktop space-between has nothing left to push apart once .headerActions
+     is hidden, and it stranded the title against the right edge. */
+  .headerTitleRow { flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 12px; }
+  .headerTitleBlock { min-width: 0; }
+  /* The eyebrow is a desktop label on the Bracket Generator too: on a phone
+     the title alone carries the page and the row stays one line tall. */
+  .headerEyebrow { display: none; }
+  .heroTitle { font-size: 22px; margin-bottom: 0; }
+
+  /* The compact event card: tighter radius and padding, and lifted off the
+     sand on a soft shadow instead of outlined with a hairline. */
+  .eventCard {
+    border-radius: 20px;
+    border-color: transparent;
+    box-shadow: 0 10px 30px -12px rgba(20, 31, 46, 0.12);
+  }
+  .eventCardBody { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px; }
+  .eventTextCol { gap: 6px; width: 100%; }
+  .eventTitle { font-size: 16px; line-height: 22px; font-weight: 800; }
+  .eventMetaCol { gap: 4px; }
+  .eventMetaItem { font-size: 13px; line-height: 18px; gap: 6px; }
+  /* Badge under the meta rather than over the title — the Bracket Generator's
+     phone card ends on the status, and the actions follow it. */
+  .eventBadgeRow { order: 3; margin-top: 2px; }
+  /* Stacked, the poster became a tall block pushing the title and the two
+     actions below the fold — on a phone the schedule is what the page is
+     for, so the artwork goes and the card leads with the event. */
+  .eventPoster,
+  .eventPosterPlaceholder { display: none; }
   .eventCardActions {
     margin-left: 0;
     width: 100%;
@@ -2199,8 +2223,41 @@
     flex-wrap: wrap;
     min-width: 0;
   }
+  /* Content-sized rather than a shared 140px basis, so Generate Schedule
+     keeps its label and the two icon buttons keep their square. The row can
+     still wrap below ~360px rather than overflow the card. */
   .eventCardActions > * {
-    flex: 1 1 140px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* The header row gives up its actions on a phone — Bracket is restated in
+     the card, next to Setup. */
+  .headerActions { display: none; }
+
+  /* Printing is a desk job: the button gives its place up to the two routes
+     that actually get used from a phone. The print stylesheet is untouched,
+     so a desktop print still lays out the same. */
+  .printBtn { display: none; }
+  /* Icon only: the label is dropped in the markup, so these hold their
+     square next to the one button that still carries words. */
+  .cardNavBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 44px;
+    gap: 0;
+    padding: 9px 0;
+    border-radius: 999px;
+    border: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
+    background: #FFFFFF;
+    color: var(--ink-900, #14181E);
+    box-shadow: 0 1px 3px rgba(20, 31, 46, 0.04);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none;
   }
   .heroActions { gap: 8px; }
   .heroPrimaryBtn,
@@ -2209,8 +2266,14 @@
   /* Filter rows stack, and each pill group scrolls sideways rather than
      wrapping into a several-line-tall sticky header. */
   .stickyBar { padding: 10px 12px; }
-  .stickyInner { flex-direction: column; align-items: stretch; gap: 8px; }
-  .controlsGroup { gap: 8px; }
+  /* The two groups stop being boxes here so their children become flex
+     items of the bar itself — that is what lets the view switch share a
+     line with the dropdowns while the day strip still spans the full
+     width. Ordering below, as with the dropdowns, keeps the desktop row
+     reading left to right in source order. */
+  .stickyInner { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .filterGroup,
+  .controlsGroup { display: contents; }
   .segmented {
     display: flex;
     max-width: 100%;
@@ -2221,11 +2284,41 @@
   .segBtn { flex: 0 0 auto; white-space: nowrap; }
   .selectWrap { flex: 0 0 auto; }
 
+  /* Two lines instead of one wrapping run: the day strip takes the first
+     line on its own, the two dropdowns split the second. Ordered in CSS
+     rather than in the markup so the desktop row — division, day, status —
+     keeps reading left to right in source order. */
+  .filterGroup > .daySegmented { order: -1; flex: 1 1 100%; }
+  .filterGroup > .filterDivider { display: none; }
+  /* Basis 0 so the row never wraps on base sizes; the uneven grow splits
+     the leftover in proportion to the labels ("All matches" is the longer
+     of the two). */
+  .filterGroup > .divisionSelectWrap { order: 1; flex: 1 1 0; min-width: 0; }
+  .filterGroup > .statusSelectWrap { order: 2; flex: 1.2 1 0; min-width: 0; }
+  .filterGroup .select { padding-right: 28px; }
+  /* Last on the shared line, at its natural width — the dropdowns split
+     whatever is left. */
+  /* The segments give way to the single button, which is narrower and so
+     leaves the two dropdowns more of the shared line. */
+  .controlsGroup > .segmented { display: none; }
+  .controlsGroup > .viewToggleBtn {
+    display: inline-flex;
+    order: 3;
+    flex: 0 0 auto;
+  }
+
+  /* The day in view is the thing this screen is anchored to, so on a phone
+     its pill carries the brand accent rather than the neutral white the
+     view-mode twin uses. */
+  .daySegmented .segBtnActive {
+    background: var(--color-primary, #EB6F43);
+    color: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(235, 111, 67, 0.35);
+  }
+
   /* Swap the division pills for their dropdown twin and the view-mode pills for
      the switch. Declared after .segmented so the hide wins on equal
      specificity. */
-  .pointerOnly { display: none; }
-  .mobileOnly { display: inline-flex; }
 
   /* Division dropdown spans the bar; below it the view switch takes the width it
      needs and the status dropdown absorbs the rest. */
@@ -2238,7 +2331,38 @@
 
   .main { padding: 20px 16px 48px; }
 
-  .genInner { padding: 16px 16px 20px; }
+  /* The configuration stops being a band pushed in above the schedule and
+     becomes a bottom sheet over it, matching the match-list dialog. A phone
+     has no room to show both the controls and the thing they act on, and the
+     band pushed the schedule off-screen while it was open. */
+  .genPanel {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 12px;
+    background: rgba(20, 24, 30, 0.55);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    border-bottom: none;
+  }
+  .genInner {
+    width: min(640px, 100%);
+    max-height: 88vh;
+    max-height: 88dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--surface-card, #FFFFFF);
+    border: 1px solid var(--sand-300, #EAE5DD);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(20, 24, 30, 0.28);
+    padding: 16px 16px 20px;
+  }
+  /* Full width so it is a real thumb target at the foot of the sheet. */
+  .genActions { justify-content: stretch; }
+  .genGenerateBtn { flex: 1; justify-content: center; padding: 12px 18px; }
   .previewInner { padding: 12px 16px; }
   .saveMsg { padding: 0 16px; }
 
@@ -2345,6 +2469,7 @@
 /* ── Print Styles ────────────────────────────────────────────── */
 @media print {
   .backLink,
+  .mobileBackBtn,
   .stickyBar,
   .genPanel,
   .previewBar,

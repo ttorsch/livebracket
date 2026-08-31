@@ -89,8 +89,13 @@ function LiveBracketLoginInner() {
   const [orgName, setOrgName] = useState('');
   const [orgClub, setOrgClub] = useState('');
 
-  // ── Sign-up modal state ────────────────────────────────────────
-  const [signupOpen, setSignupOpen] = useState(false);
+  /* ── Sign-up modal state ────────────────────────────────────────
+   * `mode=signup` opens the modal straight away. Entry points that promise a
+   * new account — "Create a tournament" — send it, so they land on the form
+   * that matches the promise; "Organizer login" omits it and gets the login
+   * form. Anything other than 'signup' is ignored, so a stray value just
+   * falls back to the login form. */
+  const [signupOpen, setSignupOpen] = useState(searchParams.get('mode') === 'signup');
   const [suIdentifier, setSuIdentifier] = useState('');
   const [suPassword, setSuPassword] = useState('');
   const [suName, setSuName] = useState('');
