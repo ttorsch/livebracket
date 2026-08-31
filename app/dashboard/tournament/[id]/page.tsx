@@ -932,7 +932,22 @@ export default function OrganizerBracketPage() {
                   key={d.id}
                   type="button"
                   className={`${styles.segBtn} ${d.id === activeDiv ? styles.segBtnActive : ''}`}
-                  onClick={() => { setActiveDiv(d.id); setPendingSeed(null); setSaveError(null); }}
+                  onClick={(e) => {
+                    setActiveDiv(d.id);
+                    setPendingSeed(null);
+                    setSaveError(null);
+                    const btn = e.currentTarget;
+                    const container = btn.parentElement;
+                    if (container) {
+                      const btnLeft = btn.offsetLeft;
+                      const btnWidth = btn.offsetWidth;
+                      const containerWidth = container.offsetWidth;
+                      container.scrollTo({
+                        left: btnLeft - containerWidth / 2 + btnWidth / 2,
+                        behavior: 'smooth',
+                      });
+                    }
+                  }}
                   aria-pressed={d.id === activeDiv}
                 >
                   {d.label}
