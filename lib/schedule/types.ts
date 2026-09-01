@@ -104,6 +104,8 @@ export interface ScheduleConfig {
   endTime: string;          // "HH:MM" 24h, day end
   courtCount: number;       // used when `courts` is not supplied
   blockMinutes: number;     // one slot of the grid
+  /** The venue-wide stop. Lunch means nobody plays: every court observes the
+   *  same window, and no slot exists inside it. */
   lunchStart: string;       // "HH:MM"
   lunchEnd: string;         // "HH:MM"
   netBufferMinutes: number; // court time consumed by a net-height change
@@ -120,9 +122,6 @@ export interface ScheduleConfig {
   /** true = never break the rest rule, overflowing instead. false = break it
    *  only when the alternative is not placing the match at all. */
   restIsHard: boolean;
-  /** Stagger lunch so courts break at slightly different times and the venue
-   *  never fully stops. */
-  staggerLunch: boolean;
   /** Court time taken off the board by hand. */
   blocks?: BlockedPeriod[];
   /** Hold every division's last round for the final day of a multi-day event. */
@@ -149,7 +148,6 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   maxMatchesPerTeamPerDay: 0,
   minRestSlots: 1,
   restIsHard: false,
-  staggerLunch: true,
   finalsOnLastDay: true,
   stageFinals: true,
   dayPlan: 'parallel-daily',

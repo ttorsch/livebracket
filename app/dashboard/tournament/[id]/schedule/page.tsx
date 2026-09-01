@@ -31,6 +31,9 @@ import {
   X,
 } from 'lucide-react';
 import { planDrop, type DropTarget, type Placement } from '@/lib/schedule/dropPlan';
+import { axisLabels, buildCalendarAxis, placeOnAxis, rowKind, rowStartMin, type CalendarAxis } from '@/lib/schedule/calendarAxis';
+import { courtRoster } from '@/lib/schedule/types';
+import { scheduleSaveGate } from '@/lib/scheduleGate';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
 import { Badge } from '../../../../../components/livebracket-ds';
@@ -109,17 +112,113 @@ function hoursMinutes(mins: number): string {
 }
 
 // Minutes-since-midnight -> "HH:MM".
-/* Pixels per minute on the calendar's Y axis. This is what makes the grid a
-   timeline rather than a table: every row is `pitch` minutes tall, so a card
-   spanning a 45-minute match is visibly longer than a 20-minute one, and a
-   gap on court looks like the gap it is.
+/* Pixels per minute on the calendar's Y axis, on a screen with room to spare.
+   This is what makes the grid a timeline rather than a table: every row is its
+   own minutes tall, so a card spanning a 45-minute match is visibly longer than
+   a 20-minute one, and a gap on court looks like the gap it is.
 
    The floor is set by the card, not by taste: the shortest match still has to
    fit a time, two team names and their score slots. Drop this below what that
-   content needs and the shortest rows quietly stretch to fit, which breaks
-   the proportion between a short match and a long one — the one thing the
-   timeline is for. Re-measure it if the card's type scale changes. */
+   content needs and the shortest rows quietly stretch to fit — and a row
+   stretches across *every* court, so one short match inflates that row for the
+   whole venue. Re-measure it if the card's type scale changes. */
 const PX_PER_MIN = 8.1;
+
+/* What the *phone* card's content actually needs, measured rather than chosen:
+   6px of padding top and bottom, a 20px top row (time, round, match number) and
+   the 6px under it, and two 24px team rows — plus the 3px the card is inset
+   from its row at each end. 92px, and none of it is slack.
+
+   It is a floor in pixels rather than a scale in pixels-per-minute because on a
+   phone the scale is *derived* from it — see `phonePxPerMin`. */
+const PHONE_CARD_FLOOR_PX = 92;
+
+/* The phone's pixels-per-minute, derived per tournament from the shortest match
+   in it rather than fixed the way `PX_PER_MIN` is.
+
+   `PX_PER_MIN` is one constant tuned so that a typical shortest card fits. That
+   is a bet, and on a phone — where the whole problem is height — it is a bet
+   that costs either legibility (too small, rows stretch) or two screens of
+   scrolling (too large, every card carries slack it does not need). At 8.1 the
+   phone was paying the second: a 30-minute card was drawn 237px tall around
+   135px of content.
+
+   Deriving removes the bet. The organizer never reads a pixels-per-minute
+   figure; what the timeline promises them is *relative* — a 45-minute match
+   reads as one and a half times a 30-minute one — and that holds at any
+   absolute scale. So the scale can be pinned to the one thing that must not
+   break, the card's content, and the grid is then always exactly as compact as
+   its content allows. It also makes the stretching row unreachable by
+   construction rather than merely unlikely.
+
+   The cost is honest and is not clamped away: an event of short matches packs
+   more play into an hour, so its day is genuinely taller. A clamp would buy
+   compactness back by letting the shortest card stop fitting — reintroducing,
+   rarely, exactly the failure this rule exists to make impossible, and rare
+   failures are the ones nobody finds. Sub-20-minute matches are not real beach
+   volleyball (a set to 21 runs about 20 minutes), so if this ever exceeds the
+   desktop scale the event's durations are wrong, not the rule. Hence the warn
+   rather than a `Math.min`. */
+function phonePxPerMin(shortestMatchMinutes: number): number {
+  const ppm = PHONE_CARD_FLOOR_PX / Math.max(1, shortestMatchMinutes);
+  if (process.env.NODE_ENV !== 'production' && ppm > PX_PER_MIN) {
+    console.warn(
+      `[schedule] shortest match is ${shortestMatchMinutes}m, which puts the phone grid at `
+      + `${ppm.toFixed(1)}px/min — taller than the desktop scale (${PX_PER_MIN}). `
+      + 'Check the event\'s match durations.',
+    );
+  }
+  return ppm;
+}
+
+/* The lunch row's collapsed height lives in the stylesheet as `--cal-lunch-h`,
+   not here: like the scale, it differs on a phone, and a value set inline from
+   here would out-specify the breakpoint that needs to change it. */
+
+/* The grid's rows, written out one by one.
+   They used to be a `repeat()` of one height, which they no longer are: lunch
+   splits the day into two runs, so the axis has a lunch row and a scrap at the
+   tail of each run that is shorter than a pitch. Anything past the axis is the
+   Unscheduled tray, which is a stack rather than a timeline and gets the
+   ordinary row height.
+
+   Heights are `calc(minutes * var(--cal-px-per-min))` rather than pixels so
+   this fixes the rows' *shape* and their relative proportions while leaving
+   the scale a variable — which is what `06` retunes for a phone. */
+function rowTemplate(axis: CalendarAxis, slots: number): string {
+  const heights = Array.from({ length: slots }, (_, i) => {
+    const row = axis.rows[i];
+    if (!row) return 'minmax(var(--cal-slot-h), auto)';
+    if (row.kind === 'lunch' && row.collapsed) return 'minmax(var(--cal-lunch-h), auto)';
+    return `minmax(calc(${row.minutes} * var(--cal-px-per-min)), auto)`;
+  });
+  return ['auto', ...heights].join(' ');
+}
+
+/* A block that does not begin on a row boundary, drawn at the minute it really
+   starts at. The rows are the frame — labels, gridlines, the lunch banner hang
+   off them — but nothing obliges a match to start on one: an organizer can type
+   any time, and inserting a buffer shifts a court's whole run by an arbitrary
+   number of minutes. Rather than round such a match onto the nearest row and
+   lie about its time, it is pushed down inside its row and given its true
+   height, both at the same scale the rows themselves use.
+
+   `undefined` when it does start on the boundary, so the ordinary case is
+   rendered by the grid area alone, exactly as before.
+
+   Both are `calc()` against `--cal-px-per-min` rather than pixels worked out
+   here, because the scale is no longer one number: the phone derives its own
+   (see `phonePxPerMin`) and a media query swaps it in. Multiplying in
+   JavaScript would bake the desktop scale into an inline style, which no
+   breakpoint can override — an off-pitch card would keep its wide-screen
+   height on a phone and hang out of its row. */
+function offsetStyle(offsetMinutes: number, minutes: number): CSSProperties | undefined {
+  if (offsetMinutes <= 0) return undefined;
+  return {
+    marginTop: `calc(${offsetMinutes} * var(--cal-px-per-min))`,
+    height: `calc(${minutes} * var(--cal-px-per-min))`,
+  };
+}
 
 /* The digit for a court's badge. Courts are named "Court 3" by the generator,
    but an organizer can rename one, so fall back to its first character rather
@@ -216,6 +315,8 @@ export default function TournamentSchedulePage() {
   // Filters & Controls
   const [activeDivisionId, setActiveDivisionId] = useState<string>('all');
   const [activeDay, setActiveDay] = useState<number | 'all'>('all');
+  // Days of the event with nothing on them are collapsed until asked for.
+  const [expandedDays, setExpandedDays] = useState<ReadonlySet<number>>(new Set());
   // Grid first: an organizer opening this page wants the whole schedule at
   // once, and drops into a single court only when they go looking for one.
   const [viewMode, setViewMode] = useState<'court' | 'grid'>('grid');
@@ -372,6 +473,20 @@ export default function TournamentSchedulePage() {
   }, [detail]);
 
   // Everything the generator needs, derived from the loaded bracket.
+  /* Whether the placements on screen may be committed. Derived from the
+     draw locks rather than tracked separately, so it cannot drift from what
+     the bracket page did. Generating is untouched — a preview costs nobody
+     anything — and so is the venue configuration, which is exactly what an
+     organizer is testing when they generate one before the draw is settled. */
+  const saveGate = useMemo(
+    () => scheduleSaveGate((detail?.divisions ?? []).map(d => ({
+      id: d.id,
+      label: d.label,
+      drawLocked: !!d.drawConfig?.isLocked,
+    }))),
+    [detail],
+  );
+
   const schedulableDivisions = useMemo<SchedulableDivision[]>(() => {
     if (!detail) return [];
     return detail.divisions.map(d => {
@@ -581,6 +696,19 @@ export default function TournamentSchedulePage() {
         body: JSON.stringify({ config, divisionOverrides }),
       });
       if (!patchRes.ok) throw new Error((await patchRes.json().catch(() => ({}))).error || 'Failed to save config');
+
+      // The venue configuration is saved either way; the placements are not.
+      // Stopping here leaves an organizer who is still testing capacity with
+      // the courts and day they typed, and without a schedule pinned to a
+      // draw that can still be regenerated out from under it.
+      if (!saveGate.open) {
+        setDirty(false);
+        setSaveMsg(
+          `Courts and day settings saved. The schedule itself was not: ${saveGate.reason} ` +
+          `Lock the draw in every division to save it.`,
+        );
+        return;
+      }
 
       // Save exactly what is on screen. `allMatches` is already the merge of
       // what is stored, the preview if there is one, and any hand moves on top
@@ -889,14 +1017,21 @@ export default function TournamentSchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredMatches, splitByDay, detail, dayCount, config?.blocks]);
 
-  // Calendar grid: courts on the X axis (columns), time on the Y axis (rows) at
-  // a fixed interval. Each match is a block sized by its duration; one section
-  // per day; blocks are tinted by division. `pitch` is the row granularity in
-  // minutes (the GCD of every match's start offset and length, so each block
-  // lands on an exact row); PX_PER_MIN keeps the visual scale constant.
+  /* Calendar grid: courts on the X axis (columns), time on the Y axis (rows).
+     One section per day; each match is a block sized by its duration and tinted
+     by division.
+
+     The axis itself lives in lib/schedule/calendarAxis.ts, and is built from the
+     *configured* day and from `allMatches` — never from `filteredMatches`. That
+     is the whole point of it: filtering by division changes which cards are on
+     the grid, not where the grid's rows are. PX_PER_MIN turns axis minutes into
+     pixels, which is what makes a row's height mean something.
+
+     Depends on the whole `config` rather than six picked fields: the grid reads
+     the day's start and end, the block size, lunch and the blocked periods, and
+     recomputing this is cheap next to keeping that list honest. */
   const calendar = useMemo(() => {
     const parseMin = (t: string) => { const x = /^(\d{2}):(\d{2})$/.exec(t); return x ? Number(x[1]) * 60 + Number(x[2]) : null; };
-    const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
 
     /* Anything with a real date and a real time belongs on the grid — keyed
      * off the date, not off whether the day index lands inside the event's
@@ -907,100 +1042,154 @@ export default function TournamentSchedulePage() {
     const scheduled = filteredMatches.filter(m => !m.unscheduled && m.date !== '' && m.time !== '—');
     const unscheduled = filteredMatches.filter(m => m.unscheduled || m.court === 'Unscheduled');
 
-    const scheduledCourts = [...new Set(scheduled.map(m => m.court))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    const courts = unscheduled.length > 0 ? [...scheduledCourts, 'Unscheduled'] : scheduledCourts;
+    /* Columns are the venue, in the order it is configured — not the courts
+       the visible matches happen to sit on. Filtering to one division used to
+       drop every court that division does not play on, which hid exactly the
+       free court time this view exists to find.
+
+       Read off `courtRoster` so the grid and the solver agree on what a court
+       is. With no config loaded yet there is no roster to show, and every
+       court falls through to the off-roster list below — which is the old
+       behaviour, and the right one while the page is still loading. */
+    const roster = config ? courtRoster(config).map(c => c.name) : [];
+    const onRoster = new Set(roster);
+
+    /* A saved schedule can name a court the venue no longer has: court names
+       live on the match row, so dropping `courtCount` from 6 to 4 strands
+       whatever was on Court 5. Those columns are drawn past the roster and
+       marked, never quietly dropped — a stranded match is a problem to show,
+       not to resolve behind the organizer's back. Read off every match rather
+       than the visible ones, so a filter cannot move the frame. */
+    const offRoster = [...new Set(
+      allMatches
+        .filter(m => !m.unscheduled && m.court && m.court !== 'Unscheduled' && !onRoster.has(m.court))
+        .map(m => m.court),
+    )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    const courts = [...roster, ...offRoster];
+
+    /* What the grid actually draws, left to right. The tray is a readout of
+       what has no slot, not a court, so it is kept out of `courts` — but it is
+       still a column, and a column that came and went with the filters would
+       shift the grid exactly the way this ticket is stopping the courts from
+       doing. So it stands whenever the *tournament* has anything unplaced, and
+       filtering only empties it. */
+    const hasUnscheduled = allMatches.some(m => m.unscheduled || m.court === 'Unscheduled');
+    const columns = hasUnscheduled ? [...courts, 'Unscheduled'] : courts;
     const divOrder = [...new Set(filteredMatches.map(m => m.divisionLabel))];
 
+    /* One axis for the whole calendar, read off every match in the tournament
+       rather than the visible ones. Every day's rows therefore line up, and
+       nothing an organizer does to the filters can move them. */
+    const axis = buildCalendarAxis(
+      {
+        startTime: config?.startTime ?? '09:00',
+        endTime: config?.endTime ?? '18:00',
+        blockMinutes: config?.blockMinutes ?? DEFAULT_MATCH_MINUTES,
+        /* Lunch is part of the frame, not something drawn over it: the day is
+           two runs and the afternoon's rows start at `lunchEnd`. The blocks
+           come along only so the axis can tell whether anything is inside the
+           break — an empty lunch row collapses to a seam. */
+        lunchStart: config?.lunchStart,
+        lunchEnd: config?.lunchEnd,
+        blocks: config?.blocks,
+      },
+      allMatches.flatMap(m => {
+        if (m.unscheduled) return [];
+        const s = parseMin(m.time);
+        return s == null ? [] : [{ startMin: s, durationMinutes: m.durationMinutes }];
+      }),
+    );
+    const labels = axisLabels(axis);
+
+    /* The shortest match in the tournament, which is what the phone's scale is
+       derived from — see `phonePxPerMin`. Read off `allMatches` for the same
+       reason the axis is: the scale is a property of the event, and a division
+       filter that hid the short matches would otherwise re-scale the whole grid
+       under the organizer while they were only trying to look at one division.
+       Falls back to the configured block length while the page is still
+       loading and there is nothing to measure. */
+    const shortestMinutes = allMatches.reduce(
+      (min, m) => (m.durationMinutes > 0 ? Math.min(min, m.durationMinutes) : min),
+      config?.blockMinutes ?? DEFAULT_MATCH_MINUTES,
+    );
+
+    /* The lunch banner *is* a row now, rather than a card floating over rows
+       that pretend the break is not there — so it needs no placement, only the
+       row's index, and it is the same row on every day. It fills its row, which
+       is a seam while nothing is inside the break and the true hour once
+       something is. */
+    const lunchSlot = axis.rows.findIndex(r => r.kind === 'lunch');
+    const lunchRow = lunchSlot < 0 ? null : axis.rows[lunchSlot];
+    const lunchBlock = lunchRow == null ? null : {
+      startSlot: lunchSlot,
+      text: `Lunch Break (${toHHMM(lunchRow.startMin)} – ${toHHMM(lunchRow.startMin + lunchRow.minutes)})`,
+    };
+
     type Item = { m: ScheduleMatch; startMin: number; dur: number };
-    const byDay = new Map<number, { day: number; dateLabel: string; items: Item[] }>();
+    const itemsByDay = new Map<number, Item[]>();
     for (const m of scheduled) {
       const s = parseMin(m.time);
       if (s == null) continue;
       const dur = Math.max(5, Math.trunc(m.durationMinutes) || 45);
-      if (!byDay.has(m.day)) byDay.set(m.day, { day: m.day, dateLabel: m.dateLabel, items: [] });
-      byDay.get(m.day)!.items.push({ m, startMin: s, dur });
+      const list = itemsByDay.get(m.day);
+      if (list) list.push({ m, startMin: s, dur });
+      else itemsByDay.set(m.day, [{ m, startMin: s, dur }]);
     }
-    if (byDay.size === 0 && unscheduled.length > 0) {
-      byDay.set(0, { day: 0, dateLabel: 'Day 1', items: [] });
-    }
-    const dayList = [...byDay.values()].sort((a, b) => a.day - b.day);
 
-    // One global pitch so every day's rows line up on the same grid.
-    let g = 0;
-    for (const d of dayList) {
-      const dayStart = d.items.length > 0 ? Math.min(...d.items.map(i => i.startMin)) : 480;
-      for (const i of d.items) { g = gcd(g, i.startMin - dayStart); g = gcd(g, i.dur); }
+    /* Day sections are the event's days for the same reason the columns are
+       the venue's courts: a three-day event has a third day whether or not
+       anything is scheduled on it, and a division filter must not be able to
+       make a day disappear. Days outside the event's range are added on top
+       rather than dropped — a schedule saved before the organizer moved the
+       dates points at real dates, and hiding it is the defect `02` fixed for
+       the time axis. Choosing a day in the filter bar is different: that is
+       picking which frame to look at, so it does narrow the sections. */
+    const dayNumbers = new Set<number>();
+    for (let i = 0; i < dayCount; i += 1) dayNumbers.add(i);
+    for (const m of allMatches) {
+      if (!m.unscheduled && m.date !== '' && m.time !== '—') dayNumbers.add(m.day);
     }
-    const pitch = Math.max(5, g || 30);
+    const dayList = [...dayNumbers]
+      .filter(d => activeDay === 'all' || d === activeDay)
+      .sort((a, b) => a - b)
+      .map(day => ({
+        day,
+        // Computed from the event's start rather than read off a match, so a
+        // day with nothing on it still knows what date it is.
+        dateLabel: detail?.startDate ? shortDate(addDaysUTC(detail.startDate, day)) : '',
+        items: itemsByDay.get(day) ?? [],
+      }));
 
     const days = dayList.map((d, dIdx) => {
-      const startMin = d.items.length > 0 ? Math.min(...d.items.map(i => i.startMin)) : 480;
-      const endMin = d.items.length > 0 ? Math.max(...d.items.map(i => i.startMin + i.dur)) : 720;
-
       // Stack unscheduled matches in the 'Unscheduled' column
-      const unscheduledBlocks: { m: ScheduleMatch; court: string; startSlot: number; spanSlots: number }[] = [];
+      const unscheduledBlocks: { m: ScheduleMatch; court: string; startSlot: number; spanSlots: number; offsetMinutes: number; minutes: number }[] = [];
       if (unscheduled.length > 0) {
         let currentSlot = 0;
         unscheduled.forEach((u) => {
-          const spanSlots = Math.max(1, Math.round((u.durationMinutes || 45) / pitch));
+          const spanSlots = Math.max(1, Math.round((u.durationMinutes || 45) / axis.pitch));
           unscheduledBlocks.push({
             m: u,
             court: 'Unscheduled',
             startSlot: currentSlot,
             spanSlots,
+            offsetMinutes: 0,
+            minutes: spanSlots * axis.pitch,
           });
           currentSlot += spanSlots;
         });
       }
 
+      /* The axis sets the height of the day. The one thing allowed to make it
+         taller is the Unscheduled column, which is a stack rather than a
+         timeline and can be longer than the day it sits beside. */
       const maxUnscheduledSlot = unscheduledBlocks.reduce((max, b) => Math.max(max, b.startSlot + b.spanSlots), 0);
-      const scheduledSlots = Math.max(1, Math.round((endMin - startMin) / pitch));
-      const slots = Math.max(scheduledSlots, maxUnscheduledSlot);
+      const slots = Math.max(axis.slots, maxUnscheduledSlot);
 
       const blocks = [
-        ...d.items.map(i => ({
-          m: i.m,
-          court: i.m.court,
-          startSlot: Math.round((i.startMin - startMin) / pitch),
-          spanSlots: Math.max(1, Math.round(i.dur / pitch)),
-        })),
+        ...d.items.map(i => ({ m: i.m, court: i.m.court, minutes: i.dur, ...placeOnAxis(axis, i.startMin, i.dur) })),
         ...(dIdx === 0 ? unscheduledBlocks : []),
       ];
-
-      let lunchBlock: { startSlot: number; spanSlots: number; text: string } | null = null;
-      if (config?.lunchStart && config?.lunchEnd) {
-        const lStart = parseMin(config.lunchStart);
-        const lEnd = parseMin(config.lunchEnd);
-        if (lStart != null && lEnd != null && lEnd > lStart) {
-          const lStartSlot = Math.round((lStart - startMin) / pitch);
-          const lSpanSlots = Math.max(1, Math.round((lEnd - lStart) / pitch));
-          if (lStartSlot >= 0 && lStartSlot < slots) {
-            lunchBlock = {
-              startSlot: lStartSlot,
-              spanSlots: lSpanSlots,
-              text: `Lunch Break (${config.lunchStart} – ${config.lunchEnd})`,
-            };
-          }
-        }
-      }
-
-      /* Time-axis labels: every full hour, plus the start of each row that
-       * actually has a match on it. Hours anchor the axis; the match starts
-       * are what an organizer is really reading off it, and on a 20-minute
-       * pitch they'd otherwise fall in unlabelled gaps. The two are drawn
-       * differently — see isHour. */
-      const labelSlots = new Map<number, boolean>(); // slot → isHour
-      for (let s = 0; s <= slots; s += 1) {
-        if ((startMin + s * pitch) % 60 === 0) labelSlots.set(s, true);
-      }
-      for (const b of blocks) {
-        if (b.startSlot >= 0 && b.startSlot <= slots && !labelSlots.has(b.startSlot)) {
-          labelSlots.set(b.startSlot, false);
-        }
-      }
-      const labels = [...labelSlots.entries()]
-        .sort((a, b) => a[0] - b[0])
-        .map(([slot, isHour]) => ({ slot, isHour, time: toHHMM(startMin + slot * pitch) }));
 
       // Court time taken off the board by hand, mapped onto this day's rows.
       // Kept beside the lunch banner rather than merged with it: lunch is a
@@ -1012,18 +1201,25 @@ export default function TournamentSchedulePage() {
           const from = parseMin(b.start);
           const to = parseMin(b.end);
           if (from == null || to == null || to <= from) return [];
-          const startSlot = Math.round((from - startMin) / pitch);
-          const spanSlots = Math.max(1, Math.round((to - from) / pitch));
-          if (startSlot + spanSlots <= 0 || startSlot >= slots) return [];
-          const names = b.court == null ? courts.filter(c => c !== 'Unscheduled') : [b.court];
-          return names.map(court => ({ index, court, startSlot, spanSlots, label: b.label ?? 'Blocked', from: b.start, to: b.end }));
+          const placed = placeOnAxis(axis, from, to - from);
+          if (placed.startSlot + placed.spanSlots <= 0 || placed.startSlot >= slots) return [];
+          // A block with no court named is the whole venue — which an
+          // off-roster court is not part of. One that names a court still
+          // paints on it, wherever it is.
+          const names = b.court == null ? roster : [b.court];
+          return names.map(court => ({ index, court, ...placed, minutes: to - from, label: b.label ?? 'Blocked', from: b.start, to: b.end }));
         });
 
-      return { day: d.day, dateLabel: d.dateLabel, startMin, slots, blocks, labels, lunchBlock, blocked };
+      /* Nothing on the board at all — no cards, no blocked time. The day is
+         still the event's, so it is still shown; it is just not worth a
+         full-height grid until someone asks. */
+      const isEmpty = blocks.length === 0 && blocked.length === 0;
+
+      return { day: d.day, dateLabel: d.dateLabel, slots, blocks, lunchBlock, blocked, isEmpty };
     });
 
-    return { courts, days, pitch, divOrder, unscheduledCount: unscheduled.length };
-  }, [filteredMatches, config?.blocks, config?.lunchStart, config?.lunchEnd]);
+    return { roster, offRoster, columns, hasUnscheduled, days, axis, labels, shortestMinutes, divOrder, unscheduledCount: unscheduled.length };
+  }, [filteredMatches, allMatches, config, dayCount, activeDay, detail]);
 
   /* Applying a move: turn what is on screen into placements, ask the planner
      what has to shift, and write the answer back as hand edits. The rules live
@@ -1038,8 +1234,10 @@ export default function TournamentSchedulePage() {
       start: m.unscheduled ? null : fromHHMM(m.time),
       durationMinutes: m.durationMinutes,
     }));
-    const dayStart =
-      calendar.days.find(d => d.day === day)?.startMin ?? fromHHMM(config?.startTime ?? '') ?? 480;
+    /* What time an empty court starts at. The configured opening — not the
+       first match on screen, which is where this used to read it and which made
+       a drop onto an empty court land differently depending on the filters. */
+    const dayStart = fromHHMM(config?.startTime ?? '') ?? calendar.axis.startMin;
 
     const plan = planDrop(placements, matchId, court, day, target, dayStart);
     if (plan.length === 0) return;
@@ -1061,7 +1259,12 @@ export default function TournamentSchedulePage() {
    * court and keep the hour the match already had, slotting in before the first
    * match there that starts at or after it, because a match moved sideways is
    * being moved to another court, not to another time of day. */
-  const courtOrder = calendar.courts.filter(c => c !== 'Unscheduled');
+  /* The arrows travel the roster and nothing else: widening the columns to the
+     configured venue must not turn the off-roster strays into places a match
+     can be *put*. A match already stranded on one can still step left into the
+     venue, which makes the arrows the way back out of exactly the mess the
+     off-roster columns expose. */
+  const courtOrder = calendar.roster;
 
   const runOnCourt = (court: string, day: number) =>
     allMatches
@@ -1075,11 +1278,13 @@ export default function TournamentSchedulePage() {
     const run = runOnCourt(m.court, m.day);
     const i = run.findIndex(x => x.id === m.id);
     const ci = courtOrder.indexOf(m.court);
+    // Off the roster: the only way is back in, and the venue sits to the left.
+    const stranded = ci < 0;
     return {
       up: i > 0,
       down: i >= 0 && i < run.length - 1,
-      left: ci > 0,
-      right: ci >= 0 && ci < courtOrder.length - 1,
+      left: stranded ? courtOrder.length > 0 : ci > 0,
+      right: !stranded && ci < courtOrder.length - 1,
     };
   };
 
@@ -1103,8 +1308,12 @@ export default function TournamentSchedulePage() {
     }
 
     const ci = courtOrder.indexOf(m.court);
-    const court = courtOrder[dir === 'left' ? ci - 1 : ci + 1];
-    if (ci < 0 || !court) return;
+    const court = ci < 0
+      // Stranded on a court the venue no longer has. The strays are drawn past
+      // the roster, so 'left' means back onto the last real court.
+      ? (dir === 'left' ? courtOrder[courtOrder.length - 1] : undefined)
+      : courtOrder[dir === 'left' ? ci - 1 : ci + 1];
+    if (!court) return;
     const start = fromHHMM(m.time) ?? 0;
     const landing = runOnCourt(court, m.day).find(x => (fromHHMM(x.time) ?? 0) >= start);
     dropMatch(m.id, court, m.day, landing ? { beforeId: landing.id } : { append: true });
@@ -1255,6 +1464,20 @@ export default function TournamentSchedulePage() {
     </button>
   );
 
+  /* Why the schedule cannot be saved, and where to go about it. Shown
+     beside the Save button rather than hidden in a disabled button's
+     tooltip: a dead control with no reason is worse than no gate, and the
+     lock lives on another page, so the reason has to carry the route. */
+  const gateNotice = !saveGate.open && (
+    <span className={styles.gateNotice}>
+      <AlertTriangle size={13} />
+      {saveGate.reason}{' '}
+      <Link href={`/dashboard/tournament/${slug}`} className={styles.gateNoticeLink}>
+        Lock {saveGate.unlocked.length === 1 ? 'it' : 'them'} on the bracket page
+      </Link>
+    </span>
+  );
+
   const editBar = (edits.size > 0 || problems.length > 0 || (!preview && dirty)) && (
     <div className={`${styles.editBar} ${problems.length > 0 ? styles.editBarFault : ''}`}>
       <span className={styles.editBarText}>
@@ -1278,9 +1501,11 @@ export default function TournamentSchedulePage() {
             Undo all moves
           </button>
         )}
+        {gateNotice}
         {!preview && dirty && (
           <button type="button" className={styles.previewSave} onClick={handleSave} disabled={saving}>
-            <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
+            <Save size={14} />{' '}
+            {saving ? 'Saving…' : saveGate.open ? 'Save changes' : 'Save settings'}
           </button>
         )}
       </span>
@@ -1770,11 +1995,13 @@ export default function TournamentSchedulePage() {
               </span>
             </div>
             <div className={styles.previewButtons}>
+              {gateNotice}
               <button type="button" className={styles.previewDiscard} onClick={() => setPreview(null)} disabled={saving}>
                 Discard
               </button>
               <button type="button" className={styles.previewSave} onClick={handleSave} disabled={saving}>
-                <Save size={15} /> {saving ? 'Saving…' : 'Save Schedule'}
+                <Save size={15} />{' '}
+                {saving ? 'Saving…' : saveGate.open ? 'Save Schedule' : 'Save settings'}
               </button>
             </div>
           </div>
@@ -1976,20 +2203,56 @@ export default function TournamentSchedulePage() {
 
             <p className={`${styles.hintBanner} ${editMode ? styles.hintBannerOn : ''}`}>{editHint}</p>
 
-            {calendar.courts.length === 0 ? (
+            {calendar.columns.length === 0 ? (
               <p className={styles.gridNote}>No scheduled matches to show. Generate and save a schedule first.</p>
             ) : (
-              calendar.days.map(day => (
+              calendar.days.map(day => (day.isEmpty && !expandedDays.has(day.day)) ? (
+                /* A day the event has, with nothing on it. It stays on the
+                   page — an organizer needs to see that Day 3 exists and is
+                   empty — but a full-height grid of nothing is the same
+                   vertical cost `06` is trying to win back, so it collapses to
+                   a strip that opens on a tap. */
+                <div key={day.day} className={styles.calDaySection}>
+                  <button
+                    type="button"
+                    className={styles.calEmptyDay}
+                    onClick={() => setExpandedDays(prev => new Set(prev).add(day.day))}
+                  >
+                    <span className={styles.calEmptyDayName}>
+                      {day.day >= 0 && day.day < dayCount ? `Day ${day.day + 1}` : 'Outside the event'}
+                      {day.dateLabel ? ` · ${day.dateLabel}` : ''}
+                    </span>
+                    <span className={styles.calEmptyDayNote}>Nothing scheduled</span>
+                    <ChevronDown size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              ) : (
                 <div key={day.day} className={styles.calDaySection}>
                   {dayCount > 1 && day.dateLabel && <div className={styles.calDayHeading}>{day.dateLabel}</div>}
                   <div className={styles.calScroll}>
                     <div
                       className={styles.calGrid}
                       style={{
-                        '--cal-courts': calendar.courts.length,
+                        '--cal-courts': calendar.columns.length,
                         '--cal-rows': day.slots,
-                        // Rows are minutes made visible — see PX_PER_MIN.
-                        '--cal-slot-h': `${calendar.pitch * PX_PER_MIN}px`,
+                        /* Rows are minutes made visible — see PX_PER_MIN. Both
+                           scales are handed over as data and the stylesheet
+                           chooses between them at its breakpoint; `.calGrid`
+                           reads one into `--cal-px-per-min` and everything else
+                           (row heights, `--cal-slot-h`, an off-pitch card's
+                           offset) is a calc against that. Setting the live
+                           scale here instead would win on specificity and no
+                           media query could ever retune it. */
+                        '--cal-ppm-wide': `${PX_PER_MIN}px`,
+                        '--cal-ppm-phone': `${phonePxPerMin(calendar.shortestMinutes).toFixed(2)}px`,
+                        '--cal-pitch': calendar.axis.pitch,
+                        /* Written out row by row rather than repeated, because
+                           the rows stopped being uniform when the day became
+                           two runs: lunch is its own row and each run leaves a
+                           scrap at its tail. Every height is a multiple of
+                           `--cal-px-per-min`, so the *shape* is fixed here and
+                           the *scale* stays a variable anyone can retune. */
+                        gridTemplateRows: rowTemplate(calendar.axis, day.slots),
                       } as CSSProperties}
                     >
                       {/* Top-left corner: which day this grid is, and how much
@@ -2014,24 +2277,37 @@ export default function TournamentSchedulePage() {
                       </div>
 
                       {/* Top Sticky Court Headers */}
-                      {calendar.courts.map((court, ci) => {
+                      {calendar.columns.map((court, ci) => {
                         const onCourt = filteredMatches.filter(m => m.court === court);
                         const played = onCourt.filter(m => m.status === 'done').length;
                         const pct = onCourt.length > 0 ? Math.round((played / onCourt.length) * 100) : 0;
+                        // A column holding matches on a court the venue no
+                        // longer has. Named plainly rather than styled into a
+                        // warning: it is a fact about the schedule, and the
+                        // organizer fixes it by moving the matches left.
+                        const stranded = calendar.offRoster.includes(court);
                         return (
                           <div key={court} className={styles.calCourtHead} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
-                            <div className={styles.calCourtHeadCard}>
+                            <div className={`${styles.calCourtHeadCard} ${stranded ? styles.calCourtHeadOff : ''}`}>
                               <div className={styles.calCourtHeadTop}>
                                 <span className={styles.calCourtBadge}>{courtNumber(court)}</span>
                                 <span className={styles.calCourtName}>{court}</span>
                               </div>
                               <div className={styles.calCourtHeadBottom}>
-                                <span className={styles.calCourtProgress}>
-                                  <span className={styles.calCourtProgressFill} style={{ width: `${pct}%` }} />
-                                </span>
-                                <span className={styles.calCourtPlayed}>
-                                  {played}/{onCourt.length} played
-                                </span>
+                                {stranded ? (
+                                  <span className={styles.calCourtOffNote} title={`${court} is not one of this venue's courts. Move these matches onto a court that is.`}>
+                                    Not on this venue · {onCourt.length} match{onCourt.length === 1 ? '' : 'es'}
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className={styles.calCourtProgress}>
+                                      <span className={styles.calCourtProgressFill} style={{ width: `${pct}%` }} />
+                                    </span>
+                                    <span className={styles.calCourtPlayed}>
+                                      {played}/{onCourt.length} played
+                                    </span>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -2050,7 +2326,7 @@ export default function TournamentSchedulePage() {
                           display face with a rule and a dot; match starts in
                           between are quieter, so the hour still reads as the
                           anchor. */}
-                      {day.labels.map(l => (
+                      {calendar.labels.map(l => (
                         <div
                           key={`t${l.slot}`}
                           className={`${styles.calTimeLabelCell} ${l.isHour ? styles.calTimeHour : styles.calTimeMinor}`}
@@ -2063,8 +2339,8 @@ export default function TournamentSchedulePage() {
                       ))}
 
                       {/* Horizontal Gridlines */}
-                      {day.labels.map(l => (
-                        <div key={`ln${l.slot}`} className={styles.calGridLine} style={{ gridColumn: `2 / ${calendar.courts.length + 2}`, gridRow: l.slot + 2 } as CSSProperties} />
+                      {calendar.labels.map(l => (
+                        <div key={`ln${l.slot}`} className={styles.calGridLine} style={{ gridColumn: `2 / ${calendar.columns.length + 2}`, gridRow: l.slot + 2 } as CSSProperties} />
                       ))}
 
                       {/* Slots to click while the block tool is armed. A cell
@@ -2072,12 +2348,16 @@ export default function TournamentSchedulePage() {
                           worth nothing the rest of the time — so they are only
                           mounted once a press actually means something. */}
                       {editMode && blockMode &&
-                        calendar.courts
-                          .filter(c => c !== 'Unscheduled')
+                        calendar.roster
                           .map(court =>
                             Array.from({ length: day.slots }, (_, slot) => {
-                              const startMin = day.startMin + slot * calendar.pitch;
-                              const ci = calendar.courts.indexOf(court);
+                              /* Lunch already takes this time off the board on
+                                 every court, so there is nothing to block. It
+                                 used to offer one anyway, labelled 12:45 —
+                                 the ladder's row time, not the day's. */
+                              if (rowKind(calendar.axis, slot) === 'lunch') return null;
+                              const startMin = rowStartMin(calendar.axis, slot);
+                              const ci = calendar.columns.indexOf(court);
                               return (
                                 <div
                                   key={`drop-${court}-${slot}`}
@@ -2092,16 +2372,20 @@ export default function TournamentSchedulePage() {
 
                       {/* Court time the organizer has taken off the board. */}
                       {day.blocked.map(b => {
-                        const ci = calendar.courts.indexOf(b.court);
+                        const ci = calendar.columns.indexOf(b.court);
                         if (ci < 0) return null;
                         return (
                           <div
                             key={`blk-${b.index}-${b.court}`}
                             className={styles.calBlockedSlot}
-                            style={{ gridColumn: ci + 2, gridRow: `${b.startSlot + 2} / span ${b.spanSlots}` } as CSSProperties}
+                            style={{
+                              gridColumn: ci + 2,
+                              gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
+                              ...offsetStyle(b.offsetMinutes, b.minutes),
+                            } as CSSProperties}
                           >
                             {gapStrip(
-                              { index: b.index, label: b.label, from: b.from, to: b.to, minutes: b.spanSlots * calendar.pitch },
+                              { index: b.index, label: b.label, from: b.from, to: b.to, minutes: b.minutes },
                               styles.gapStripFill,
                             )}
                           </div>
@@ -2113,8 +2397,8 @@ export default function TournamentSchedulePage() {
                         <div
                           className={styles.lunchBreakSlot}
                           style={{
-                            gridColumn: `2 / ${calendar.courts.filter(c => c !== 'Unscheduled').length + 2}`,
-                            gridRow: `${day.lunchBlock.startSlot + 2} / span ${day.lunchBlock.spanSlots}`,
+                            gridColumn: `2 / ${calendar.roster.length + 2}`,
+                            gridRow: day.lunchBlock.startSlot + 2,
                           } as CSSProperties}
                         >
                           <div className={styles.lunchBreakContent}>
@@ -2126,7 +2410,7 @@ export default function TournamentSchedulePage() {
 
                       {/* Match Block Cards placed at their exact Y-axis time row! */}
                       {day.blocks.map(b => {
-                        const ci = calendar.courts.indexOf(b.court);
+                        const ci = calendar.columns.indexOf(b.court);
                         if (ci < 0) return null;
                         const divIdx = divColorIndex.get(b.m.divisionLabel) ?? 0;
                         const faults = problemsByMatch.get(b.m.id) ?? [];
@@ -2153,6 +2437,7 @@ export default function TournamentSchedulePage() {
                             style={{
                               gridColumn: ci + 2,
                               gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
+                              ...offsetStyle(b.offsetMinutes, b.minutes),
                             } as CSSProperties}
                           >
                             {picked && movable && navigator(b.m)}
@@ -2173,7 +2458,7 @@ export default function TournamentSchedulePage() {
                                       insertBuffer(
                                         b.court,
                                         day.day,
-                                        day.startMin + b.startSlot * calendar.pitch,
+                                        fromHHMM(b.m.time) ?? rowStartMin(calendar.axis, b.startSlot),
                                         minutes,
                                       )
                                     }

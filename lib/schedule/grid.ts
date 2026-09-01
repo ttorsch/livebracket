@@ -42,9 +42,20 @@ export interface Grid {
   courts: CourtSpec[];
   dayStart: number;
   dayEnd: number;
-  /** [courtIndex][slotIndexWithinDay] — true when lunch blocks that court.
-   *  Lunch is the same shape every day, so this has no day axis. */
-  lunchBlocked: boolean[][];
+  /** When ordinal `i` of a day begins, in minutes. Lunch is the same shape
+   *  every day, so this has no day axis.
+   *
+   *  Slots are *not* a uniform lattice from `dayStart`: lunch splits the day
+   *  into runs and each run lays its slots from its own start, so nothing
+   *  reconstructs a start time by multiplying an index. Two ordinals are
+   *  adjacent in time only when their starts differ by exactly `slotMinutes`,
+   *  which is what `courtOpen` checks before letting a match span them. */
+  slotStarts: number[];
+  /** The venue-wide stop, in minutes, or null when the config declares none.
+   *  No slot exists inside it — lunch is absent from the grid rather than
+   *  blocked on it — so this is here for the callers that must judge a time
+   *  the grid never offered, i.e. a hand-placed match. */
+  lunch: { start: number; end: number } | null;
   /** [day][courtIndex][slotIndexWithinDay] — true when the organizer has taken
    *  that court time off the board. Unlike lunch these are placed by hand and
    *  can differ from day to day, hence the extra axis. */
@@ -89,23 +100,21 @@ export function buildGrid(config: ScheduleConfig, days: number, matchMinutes: nu
   const dayEnd = parseHHMM(config.endTime);
   const dayCount = Math.max(1, Math.trunc(days) || 1);
 
-  const slotsPerDay = Math.max(0, Math.floor((dayEnd - dayStart) / step));
+  const lunch = lunchWindow(config.lunchStart, config.lunchEnd, dayStart, dayEnd);
+  const slotStarts = buildSlotStarts(dayStart, dayEnd, step, lunch);
+  const slotsPerDay = slotStarts.length;
 
   const slots: Slot[] = [];
   for (let day = 0; day < dayCount; day++) {
     for (let index = 0; index < slotsPerDay; index++) {
-      const startMin = dayStart + index * step;
+      const startMin = slotStarts[index];
       slots.push({ day, index, startMin, abs: day * DAY_SPAN + startMin });
     }
   }
 
-  const lunchBlocked = buildLunch(config, courts.length, slotsPerDay, dayStart, step, block);
-  const blocked = buildBlocks(config, courts, dayCount, slotsPerDay, dayStart, step);
+  const blocked = buildBlocks(config, courts, dayCount, slotStarts, step);
 
-  let blockedSlots = 0;
-  for (const court of lunchBlocked) for (const b of court) if (b) blockedSlots++;
-  const totalSlots = slotsPerDay * courts.length;
-  const courtMinutesPerDay = (totalSlots - blockedSlots) * step;
+  const courtMinutesPerDay = slotsPerDay * step * courts.length;
 
   return {
     slots,
@@ -116,70 +125,82 @@ export function buildGrid(config: ScheduleConfig, days: number, matchMinutes: nu
     courts,
     dayStart,
     dayEnd,
-    lunchBlocked,
+    slotStarts,
+    lunch,
     blocked,
     playableMinutesPerCourt: courts.length > 0 ? courtMinutesPerDay / courts.length : 0,
     courtMinutesPerDay,
   };
 }
 
-/** Which slots lunch takes off each court.
+/** The venue-wide stop, clipped to the playing day.
  *
- *  Unstaggered, every court stops for the whole lunch window and the venue
- *  loses that hour entirely. Staggered, each court gives up only as many slots
- *  as lunch actually needs and neighbouring courts take them at different
- *  times, so play never fully stops and the grid keeps most of its capacity.
- *  Courts alternate: even-numbered courts break at the top of the window, odd
- *  ones a block later. */
-function buildLunch(
-  config: ScheduleConfig,
-  courtCount: number,
-  slotsPerDay: number,
+ *  Lunch means nobody plays: it is one window the whole venue observes, not a
+ *  rolling per-court break. A window that does not parse, ends before it
+ *  starts, or falls entirely outside the day is no lunch at all.
+ *
+ *  Takes the two times rather than the whole config because the calendar's time
+ *  axis asks this too, and it holds a display-sized slice of the config rather
+ *  than a `ScheduleConfig`. Same question, same answer, one implementation —
+ *  see `dayRuns`. */
+export function lunchWindow(
+  lunchStart: string,
+  lunchEnd: string,
   dayStart: number,
+  dayEnd: number,
+): { start: number; end: number } | null {
+  const start = Math.max(dayStart, parseHHMM(lunchStart));
+  const end = Math.min(dayEnd, parseHHMM(lunchEnd));
+  return end > start ? { start, end } : null;
+}
+
+/** The stretches of the day that play happens in.
+ *
+ *  Lunch cuts the day in two; everything downstream — the solver's slots and
+ *  the calendar's rows alike — is laid run by run, each from its own start.
+ *  This is the one place that shape is decided.
+ *
+ *  Exported because the display used to re-derive the day by a *different*
+ *  rule: it ruled one uniform ladder from `startTime` and never noticed lunch,
+ *  so on a 45-minute grid with an hour's lunch the whole afternoon sat fifteen
+ *  minutes below its own gridlines and the block tool offered court time inside
+ *  the break. Two descriptions of one day is the bug; this is the description. */
+export function dayRuns(
+  dayStart: number,
+  dayEnd: number,
+  lunch: { start: number; end: number } | null,
+): [number, number][] {
+  return lunch ? [[dayStart, lunch.start], [lunch.end, dayEnd]] : [[dayStart, dayEnd]];
+}
+
+/** When each ordinal of a day begins.
+ *
+ *  Lunch splits the day into *runs*, and each run lays its slots from its own
+ *  start rather than from a lattice anchored at `dayStart`. That is the whole
+ *  point: on a 45-minute grid a 12:00–13:00 lunch is not a whole number of
+ *  blocks, so a lattice can only resume at 13:30 and the organizer who typed
+ *  13:00 loses a half-hour they never agreed to give up. Restarting the run at
+ *  `lunchEnd` makes the configured times literally true.
+ *
+ *  The cost lands at the end of the day instead — the last slot may finish
+ *  short of `endTime` — which is where slack belongs: an over-running match
+ *  eats into the evening, not into the afternoon's first round.
+ *
+ *  A run only offers a slot that finishes inside it, so nothing can be started
+ *  that would run into lunch. The minutes left over at the tail of a run are
+ *  idle by construction, and shorter than one slot. */
+function buildSlotStarts(
+  dayStart: number,
+  dayEnd: number,
   step: number,
-  block: number,
-): boolean[][] {
-  const blocked: boolean[][] = Array.from({ length: courtCount }, () =>
-    Array.from({ length: slotsPerDay }, () => false),
-  );
-
-  const lunchStart = parseHHMM(config.lunchStart);
-  const lunchEnd = parseHHMM(config.lunchEnd);
-  if (!(lunchEnd > lunchStart) || slotsPerDay === 0) return blocked;
-
-  const dayEnd = dayStart + slotsPerDay * step;
-  /** Mark every fine slot overlapping [from, to). */
-  const block_ = (court: number, from: number, to: number) => {
-    for (let i = 0; i < slotsPerDay; i++) {
-      const s = dayStart + i * step;
-      if (s < to && s + step > from) blocked[court][i] = true;
-    }
-  };
-
-  if (!config.staggerLunch) {
-    for (let c = 0; c < courtCount; c++) block_(c, lunchStart, lunchEnd);
-    return blocked;
+  lunch: { start: number; end: number } | null,
+): number[] {
+  const starts: number[] = [];
+  for (const [from, to] of dayRuns(dayStart, dayEnd, lunch)) {
+    const count = Math.max(0, Math.floor((to - from) / step));
+    for (let i = 0; i < count; i++) starts.push(from + i * step);
   }
-
-  // The break each court takes is reasoned about in *minutes*, on the nominal
-  // block rather than the grid's resolution: a break is one match long, and
-  // making the grid finer must not silently make lunch shorter or the stagger
-  // narrower. The fine slots are only how that interval gets recorded.
-  const window = lunchEnd - lunchStart;
-  const breakLength = Math.min(window, block);
-  // Courts are dealt into groups that break at different times. More groups
-  // means more of the venue playing at any moment; with one court, or a window
-  // too narrow to divide, this collapses to everyone breaking together, which
-  // is the honest answer rather than a fake stagger.
-  const groups = Math.max(1, Math.min(Math.ceil(window / breakLength) + 1, courtCount));
-
-  for (let c = 0; c < courtCount; c++) {
-    const from = lunchStart + (c % groups) * breakLength;
-    // A late shift may spill past the nominal window — that is the point of
-    // staggering — but never past the end of the day.
-    block_(c, Math.min(from, dayEnd), Math.min(from + breakLength, dayEnd));
-  }
-  return blocked;
+  return starts;
 }
 
 /** Court time the organizer has taken off the board by hand.
@@ -192,10 +213,10 @@ function buildBlocks(
   config: ScheduleConfig,
   courts: CourtSpec[],
   days: number,
-  slotsPerDay: number,
-  dayStart: number,
+  slotStarts: number[],
   step: number,
 ): boolean[][][] {
+  const slotsPerDay = slotStarts.length;
   const blocked: boolean[][][] = Array.from({ length: days }, () =>
     Array.from({ length: courts.length }, () => Array.from({ length: slotsPerDay }, () => false)),
   );
@@ -208,7 +229,7 @@ function buildBlocks(
       for (let c = 0; c < courts.length; c++) {
         if (period.court != null && period.court !== courts[c].name) continue;
         for (let i = 0; i < slotsPerDay; i++) {
-          const s = dayStart + i * step;
+          const s = slotStarts[i];
           if (s < to && s + step > from) blocked[day][c][i] = true;
         }
       }
@@ -218,15 +239,22 @@ function buildBlocks(
 }
 
 /** Can this court host a match starting at this slot and running `slotSpan`
- *  blocks? Checks the day boundary and lunch, not existing bookings. */
+ *  blocks? Checks the day boundary, lunch and blocked time, not bookings.
+ *
+ *  Lunch is enforced here as *contiguity* rather than as a blocked slot: the
+ *  slots either side of the break are adjacent ordinals but an hour apart in
+ *  time, so a span that crosses them would book a match that pauses for lunch
+ *  and resumes. Consecutive ordinals are only usable together when their start
+ *  times differ by exactly one slot. */
 export function courtOpen(grid: Grid, courtIndex: number, slot: Slot, slotSpan: number): boolean {
   if (slot.index + slotSpan > grid.slotsPerDay) return false;
-  const lunch = grid.lunchBlocked[courtIndex];
-  if (!lunch) return false;
+  if (courtIndex < 0 || courtIndex >= grid.courts.length) return false;
   const manual = grid.blocked[slot.day]?.[courtIndex];
   for (let k = 0; k < slotSpan; k++) {
-    if (lunch[slot.index + k]) return false;
     if (manual?.[slot.index + k]) return false;
+    if (k > 0 && grid.slotStarts[slot.index + k] !== grid.slotStarts[slot.index + k - 1] + grid.slotMinutes) {
+      return false;
+    }
   }
   return true;
 }

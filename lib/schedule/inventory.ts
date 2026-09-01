@@ -127,7 +127,14 @@ export function scheduleInventory(
     }
   }
 
-  if (criticalPathDays > grid.days) {
+  // A venue with no playable time at all is its own diagnosis: every lever
+  // below divides by it, and "add Infinity days" helps nobody. Lunch can now
+  // swallow the day outright, so this is reachable from the config alone.
+  if (perDayPlayable <= 0) {
+    reasons.push(
+      'No court time is playable at all — the lunch break, the blocked periods or the start and end times leave no room for a single match.',
+    );
+  } else if (criticalPathDays > grid.days) {
     reasons.push(
       `The longest run of matches (${graph.criticalPathMatches} back to back, ${minutesLabel(graph.criticalPathMinutes)}) cannot finish in ${grid.days} day${grid.days === 1 ? '' : 's'} — extra courts cannot help, only more time.`,
     );

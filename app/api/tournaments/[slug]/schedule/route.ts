@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { requireTournamentOwner } from '../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../lib/authResponse';
+import { scheduleSaveGate, type GateDivision } from '../../../../../lib/scheduleGate';
 
 // Persists the tournament's schedule: the global config + per-division
 // dedicated-court overrides (PATCH), and the generated court/time assignments
 // written back onto matches (PUT). The generator itself lives client-side in
 // lib/schedule/generate.ts; this route only validates and stores its output.
+//
+// The two verbs are gated differently on purpose. PATCH stores the venue
+// configuration and is always open — testing whether the event fits is
+// useless if the court roster you tested with cannot be kept. PUT writes
+// placements and is refused until every division's draw is locked: a
+// placement saved against a draw that can still be regenerated is a
+// placement a redraw will silently destroy. A disabled button is a
+// courtesy; this is the rule.
 
 interface CourtBody {
   name?: unknown;
@@ -28,7 +37,6 @@ interface ConfigBody {
     courts?: CourtBody[];
     minRestSlots?: number;
     restIsHard?: boolean;
-    staggerLunch?: boolean;
     finalsOnLastDay?: boolean;
     stageFinals?: boolean;
     blocks?: { court?: unknown; day?: unknown; start?: unknown; end?: unknown; label?: unknown }[];
@@ -103,7 +111,6 @@ function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unkno
   // 0 is meaningful (no rest target at all), so this clamps from 0.
   if (typeof c.minRestSlots === 'number') out.minRestSlots = Math.max(0, Math.min(12, Math.trunc(c.minRestSlots)));
   if (typeof c.restIsHard === 'boolean') out.restIsHard = c.restIsHard;
-  if (typeof c.staggerLunch === 'boolean') out.staggerLunch = c.staggerLunch;
   if (typeof c.finalsOnLastDay === 'boolean') out.finalsOnLastDay = c.finalsOnLastDay;
   if (typeof c.stageFinals === 'boolean') out.stageFinals = c.stageFinals;
   if (Array.isArray(c.blocks)) out.blocks = cleanBlocks(c.blocks);
@@ -193,6 +200,38 @@ function addDaysUTC(dateStr: string, n: number): string {
   return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
 }
 
+/* Every division of this tournament, in the shape the gate asks about.
+ * Read here rather than trusted from the client: the whole point of the
+ * server check is that it does not depend on what the page believed. */
+async function readGateDivisions(slug: string): Promise<GateDivision[] | { error: string }> {
+  const { data, error } = await supabaseAdmin
+    .from('divisions')
+    .select('id, name, settings, tournaments!inner(slug)')
+    .eq('tournaments.slug', slug);
+  if (error) return { error: error.message };
+  return (data ?? []).map((d) => {
+    const row = d as { id: string; name: string; settings: unknown };
+    const settings = row.settings as { draw?: { isLocked?: boolean } } | null;
+    return { id: row.id, label: row.name, drawLocked: !!settings?.draw?.isLocked };
+  });
+}
+
+/* The refusal. 409 rather than 400: the request is well formed, it is the
+ * state of the draw that makes it premature. Unlike the draw route's
+ * discard refusal there is no confirmation that gets past this one — the
+ * organizer's way through is to lock the draw — so the unlocked divisions
+ * ride along for the message to name, not for a retry to quote back. */
+function gateRefusal(gate: ReturnType<typeof scheduleSaveGate>) {
+  return NextResponse.json(
+    {
+      error: `${gate.reason} A schedule can only be saved once every division's draw is locked.`,
+      drawUnlocked: true,
+      unlocked: gate.unlocked,
+    },
+    { status: 409 },
+  );
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   try {
@@ -201,6 +240,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } catch (err) {
     return authErrorResponse(err);
   }
+
+  // The gate, before anything is written. Placements are refused wholesale
+  // while any draw is unlocked — including the ones that clear a match,
+  // because "save exactly what is on screen" sends the whole board and a
+  // partial write would leave a schedule that is neither what was saved nor
+  // what is displayed.
+  const gateDivisions = await readGateDivisions(slug);
+  if ('error' in gateDivisions) {
+    return NextResponse.json({ error: gateDivisions.error }, { status: 500 });
+  }
+  const gate = scheduleSaveGate(gateDivisions);
+  if (!gate.open) return gateRefusal(gate);
+
   const body = (await request.json()) as AssignBody;
   const assignments = Array.isArray(body.assignments) ? body.assignments : [];
 

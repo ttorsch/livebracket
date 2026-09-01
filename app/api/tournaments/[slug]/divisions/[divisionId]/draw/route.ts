@@ -4,6 +4,13 @@ import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
 import type { CrossSlot } from '../../../../../../../lib/data';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
+import {
+  NO_DISCARD_COST,
+  isEmptyCost,
+  tallyDiscardCost,
+  type DiscardCost,
+  type PlacementRow,
+} from '../../../../../../../lib/schedule/discardCost';
 
 // Persists the organizer's draw for one division: seed order on teams,
 // draw configuration on divisions.settings.draw, and (optionally) the
@@ -30,6 +37,9 @@ interface DrawBody {
   topSeedIds?: string[]; // organizer-picked top seeds, in order (subset of seedOrder)
   mode?: 'draw' | 'crossing';
   thirdPlace?: boolean; // play off for 3rd between the beaten semifinalists
+  // Acknowledges, in full knowledge of the count, that rebuilding these
+  // rounds destroys the placements on them. See readDiscardCost.
+  confirmDiscard?: boolean;
 }
 
 interface MatchInsert {
@@ -477,6 +487,42 @@ function buildKnockout(opts: {
   return { roundRows, matches, slots, crossSlots, loserFeeders };
 }
 
+/* What a regenerate would destroy.
+ *
+ * A schedule is not stored beside the matches — it *is* columns on them, and
+ * matches.round_id cascades on delete. So rebuilding a division's rounds does
+ * not orphan its placements, it deletes them outright, along with every hand
+ * edit pinned into them. Nothing survives to be reported afterwards, which is
+ * exactly why this is counted *before* the delete.
+ *
+ * Read from the rows themselves rather than trusted from the client, so the
+ * number the organizer is shown is the number that will actually be lost. */
+async function readDiscardCost(roundIds: string[]): Promise<DiscardCost | { error: string }> {
+  if (roundIds.length === 0) return NO_DISCARD_COST;
+  const { data, error } = await supabaseAdmin
+    .from('matches')
+    .select('court, planned_time, scheduled_time, pinned, referee_team_id')
+    .in('round_id', roundIds);
+  if (error) return { error: error.message };
+  return tallyDiscardCost((data ?? []) as PlacementRow[]);
+}
+
+/* The refusal itself. 409 rather than 400: the request is well formed, it is
+ * the state that makes it destructive. The cost rides along so the client can
+ * name real numbers in its confirmation without a second round trip — and so
+ * a client that never asks still cannot destroy the work silently. */
+function discardRefusal(cost: DiscardCost, scope: 'division' | 'knockout') {
+  return NextResponse.json(
+    {
+      error: 'This would discard a saved schedule. Retry with confirmDiscard to proceed.',
+      needsDiscardConfirm: true,
+      scope,
+      cost,
+    },
+    { status: 409 },
+  );
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ slug: string; divisionId: string }> }) {
   const { slug, divisionId } = await params;
   try {
@@ -536,6 +582,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     const elimRoundIds = elimRounds.map(r => r.id);
+
+    /* Crossing costs less than a redraw — the pool round is untouched, so pool
+       placements survive — but the knockout placements still go. */
+    if (body.confirmDiscard !== true) {
+      const cost = await readDiscardCost(elimRoundIds);
+      if ('error' in cost) {
+        return NextResponse.json({ error: `Failed to check the saved schedule: ${cost.error}` }, { status: 500 });
+      }
+      if (!isEmptyCost(cost)) return discardRefusal(cost, 'knockout');
+    }
+
     const { error: mDelError } = await supabaseAdmin.from('matches').delete().in('round_id', elimRoundIds);
     if (mDelError) return NextResponse.json({ error: `Failed to clear knockout matches: ${mDelError.message}` }, { status: 500 });
     const { error: rDelError } = await supabaseAdmin.from('rounds').delete().in('id', elimRoundIds);
@@ -580,6 +637,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   if (body.generate && seedOrder.length < 2) {
     return NextResponse.json({ error: 'At least two teams are required to generate a bracket' }, { status: 400 });
+  }
+
+  /* Every round in the division goes, so every placement in it goes with it.
+     Checked ahead of the seed write as well as the delete: a refused request
+     must leave the division exactly as it found it, and reseeding is a write.
+     Refused rather than reported, because once the delete lands there is
+     nothing left to report. */
+  if (body.generate && body.confirmDiscard !== true) {
+    const cost = await readDiscardCost((division.rounds ?? []).map(r => r.id));
+    if ('error' in cost) {
+      return NextResponse.json({ error: `Failed to check the saved schedule: ${cost.error}` }, { status: 500 });
+    }
+    if (!isEmptyCost(cost)) return discardRefusal(cost, 'division');
   }
 
   // 1. Persist seeds.

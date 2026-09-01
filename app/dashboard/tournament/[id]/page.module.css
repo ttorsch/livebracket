@@ -1775,3 +1775,96 @@
   color: var(--ink-400);
   text-align: center;
 }
+
+/* ── Protecting a saved schedule from a redraw ──────────────────────────
+   Rebuilding a division's rounds deletes its matches, and a placement is
+   columns on the match row — so a redraw destroys the schedule outright and
+   nothing survives to be reported afterwards. Both of these exist to put that
+   cost in front of the organizer while it is still avoidable: the note is the
+   standing warning at the unlock, the dialog is the blocking confirm at the
+   act itself. */
+
+.scheduleAtRiskNote {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(192, 57, 43, 0.22);
+  background: rgba(192, 57, 43, 0.06);
+  color: #96271B;
+  font-size: 12.5px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(10, 15, 25, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.confirmDialog {
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(20, 24, 30, 0.3);
+}
+.confirmTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink-1, #14181E);
+}
+.confirmBody {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+  line-height: 20px;
+  color: var(--ink-2, #3A414D);
+}
+.confirmActions { display: flex; justify-content: flex-end; gap: 10px; }
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: transparent;
+  color: var(--ink-2, #3A414D);
+  border: 1.5px solid rgba(20, 31, 46, 0.14);
+  border-radius: 999px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btnGhost:hover {
+  background: rgba(20, 31, 46, 0.04);
+  border-color: rgba(20, 31, 46, 0.22);
+}
+.btnDanger {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: #C0392B;
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+}
+.btnDanger:hover { background: #A93226; }
+.btnDanger:disabled { opacity: 0.6; cursor: default; }
+
+/* On a phone the dialog meets the thumb rather than floating mid-screen. */
+@media (max-width: 680px) {
+  .modalOverlay { padding: 12px; align-items: flex-end; }
+  .confirmActions { flex-direction: column-reverse; }
+  .confirmActions button { width: 100%; justify-content: center; }
+}

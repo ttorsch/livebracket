@@ -1222,6 +1222,27 @@
   white-space: nowrap;
 }
 
+/* A court column the venue no longer has — a schedule saved back when there
+   were more courts still names it. Drawn muted and outlined rather than in the
+   solid head every real court gets, so "this is not one of your courts" reads
+   off the shape of the column before anyone reads the note. */
+.calCourtHeadOff {
+  background: var(--ink-050, #F4F5F7);
+  border: 1px dashed var(--ink-300, #C6CBD4);
+  box-shadow: none;
+}
+.calCourtHeadOff .calCourtBadge {
+  background: var(--ink-300, #C6CBD4);
+  color: var(--ink-800, #2C323D);
+}
+.calCourtHeadOff .calCourtName { color: var(--ink-800, #2C323D); }
+.calCourtOffNote {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink-600, #5A6270);
+}
+
 /* Full-height backing behind the hourly time labels, so courts scrolling
    horizontally pass underneath the gutter rather than through it. */
 .calTimeGutter {
@@ -1500,6 +1521,39 @@
   text-transform: lowercase;
 }
 .calDaySection { margin-bottom: 20px; }
+
+/* A day of the event with nothing on it. Present, because an empty Day 3 is
+   information; collapsed, because a full-height grid of nothing is not. */
+.calEmptyDay {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px dashed var(--ink-300, #C6CBD4);
+  border-radius: 14px;
+  background: var(--ink-050, #F4F5F7);
+  color: var(--ink-600, #5A6270);
+  cursor: pointer;
+  text-align: left;
+  transition: background 160ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+              border-color 160ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.calEmptyDay:hover {
+  background: var(--ink-100, #E9EBEF);
+  border-color: var(--ink-400, #A6ADB9);
+}
+.calEmptyDayName {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-800, #2C323D);
+}
+.calEmptyDayNote {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: auto;
+}
 .calDayHeading {
   font-family: var(--font-display, 'Outfit', sans-serif);
   font-size: 15px;
@@ -1537,6 +1591,29 @@
      can be swiped to in turn. */
   width: 100%;
   column-gap: 12px;
+  /* The live scale. The page hands over both candidates as data
+     (--cal-ppm-wide, --cal-ppm-phone) and the choice is made here, so the phone
+     breakpoint can swap it — an inline `--cal-px-per-min` would out-specify
+     every rule in this file. Everything sized in minutes is a calc against it:
+     the row template the page writes out, --cal-slot-h below, and an off-pitch
+     card's offset and height. */
+  --cal-px-per-min: var(--cal-ppm-wide, 8.1px);
+  /* One pitch, in pixels — the height of an ordinary playing row. Derived
+     rather than passed in, so it cannot disagree with the scale above. */
+  --cal-slot-h: calc(var(--cal-pitch, 15) * var(--cal-px-per-min));
+  /* How tall the lunch row is drawn while nothing is inside the break. An hour
+     at this scale is ~486px of announced emptiness — about half a phone screen
+     — and it says nothing the banner on it does not already say, so the row
+     collapses to a seam. It is the one place the grid stops drawing time to
+     scale, which is why it only happens while the row is genuinely empty: the
+     axis re-opens it to its true hour the moment a hand edit or a blocked
+     period lands in the break.
+
+     Sized by the banner it holds and deliberately *not* by the scale — tying it
+     to the scale would re-entangle the one thing the seam exists to keep
+     separate. Matches .lunchBreakSlot's min-height, so the banner is never
+     squeezed. */
+  --cal-lunch-h: 48px;
   grid-template-columns: var(--cal-time-col, 96px) repeat(var(--cal-courts, 1), minmax(0, 1fr));
   grid-template-rows: auto repeat(var(--cal-rows, 1), minmax(var(--cal-slot-h, 126px), auto));
 }
@@ -2102,6 +2179,28 @@
   color: #F6C560;
   font-weight: 600;
 }
+/* The draw-lock gate's reason. Amber rather than red: nothing is broken,
+   the organizer simply has a step left, and the link is the step. */
+.gateNotice {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #F6C560;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.gateNoticeLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.gateNoticeLink:hover {
+  opacity: 0.82;
+}
+
 .previewButtons {
   display: inline-flex;
   gap: 10px;
@@ -2408,18 +2507,60 @@
 
 /* ── Phone ───────────────────────────────────────────────────── */
 @media (max-width: 560px) {
+  /* The grid stops being drawn at the wide scale and takes the one derived from
+     this tournament's shortest match — see phonePxPerMin in page.tsx. At 8.1
+     a 30-minute card was 237px tall around 135px of content, so roughly two
+     fifths of every card on a phone was slack, and a full day ran past five
+     screens. Nothing here hides anything: the rows just stop carrying height
+     the cards were never using. */
+  .calGrid {
+    --cal-px-per-min: var(--cal-ppm-phone, 4.5px);
+    /* The seam follows the banner, and the phone's banner is smaller. Left at
+       48px it would grow from two fifths of a playing row to two thirds of one
+       and stop reading as a break in the day at all. */
+    --cal-lunch-h: 36px;
+  }
+  .lunchBreakSlot { min-height: 36px; margin: 3px 6px; justify-content: flex-start; }
+  /* The banner spans the whole court roster and centres in it, which on a wide
+     screen puts it in the middle of the day. On a phone the roster is three
+     times the scrollport, so the centre is off-screen and the seam read as an
+     unlabelled dashed strip — the one row of the grid whose meaning cannot be
+     inferred from the cards around it, because it has none. So it rides the
+     left edge instead, the same way the time gutter does, and stays beside
+     whichever court is in view. */
+  .lunchBreakContent {
+    position: sticky;
+    left: calc(var(--cal-time-col) + 4px);
+  }
+
   /* One court per screen: columns are sized to the viewport (minus the time
      gutter, page padding and a sliver of the next court) and each swipe snaps
-     onto the next court header. */
+     onto the next court header.
+
+     52px of gutter, not 68. The parts of the old one summed to 78px in a 68px
+     box, so its rule — a `flex: 1` lead-in to the gridline — was crushed flat
+     against its min-width and read as clutter rather than structure. It is
+     dropped here along with the dot: .calGridLine already draws the same tick
+     across every court column, so the rule was restating a line that is
+     already there. What is left is 8px of padding and the hour itself, which
+     keeps its size — it is the anchor of the axis, and shrinking it to buy
+     another 9px would make it the size of the minor labels it is meant to
+     stand above. */
   .calScroll {
-    --cal-time-col: 68px;
+    --cal-time-col: 52px;
     /* 1.2 courts across: the width left over once the page padding, the border
        and the time gutter are taken out, divided so a fifth of the next court
        is always showing — enough to say the calendar carries on sideways. */
     --cal-court-col: calc((100vw - 32px - 2px - var(--cal-time-col)) / 1.2);
     scroll-snap-type: x mandatory;
-    /* Snap past the sticky time gutter so a court lands flush beside it. */
-    scroll-padding-left: var(--cal-time-col);
+    /* Snap past the sticky time gutter so a court lands flush beside it.
+       The gutter sticks to the *padding* edge, so its right edge is the time
+       column plus this container's own 12px padding — snapping to the column
+       width alone left 12px of the resting court underneath the gutter, which
+       ate the first character of its match times and team names. The padding is
+       repeated here rather than read from a variable because it is stated
+       literally in .calScroll above; move one and move both. */
+    scroll-padding-left: calc(var(--cal-time-col) + 12px);
     border-radius: 12px;
   }
   .calCourtHeadCard {
@@ -2440,11 +2581,42 @@
     padding: 12px 4px 0 4px;
     font-size: 11px;
   }
+  /* Both restate the gridline that already runs across the courts. See the
+     gutter's width above — they are what the 16px it lost was made of. */
+  .calTimeRule,
+  .calTimeDot { display: none; }
 
-  /* Match blocks: trim the chrome so team names keep the width */
+  /* The corner sits in the time column, so narrowing the gutter narrows it too
+     — at 52px its type wrapped "Day 1" onto two lines. It loses the weekday and
+     the date rather than the space: .calDayHeading states them right above this
+     on a multi-day event, and on a single-day one the hero already has. What is
+     left is which day this grid is, which is the one thing the heading does not
+     always say. */
+  .calCornerWeekday,
+  .calCornerDate { display: none; }
+  .calCornerDay { font-size: 15px; margin-bottom: 0; }
+  .calCornerCount { margin-top: 4px; font-size: 9px; letter-spacing: 0.04em; }
+  .calCorner { padding-right: 6px; }
+
+  /* Match blocks: trim the chrome so team names keep the width.
+
+     What is left is the card's floor, and PHONE_CARD_FLOOR_PX is measured off
+     exactly this: 6px of padding each end, the 20px top row and the 6px under
+     it, and two 24px team rows — 86px, plus the 3px inset at each end. Change
+     any of these and re-measure that constant, or the shortest card stops
+     fitting its row and every court's row stretches with it. */
   .gridMatchCard { padding: 6px 9px; margin: 3px 4px; border-radius: 10px; }
+  .gridMatchTop { margin-bottom: 6px; }
+  .gridTeamRow { min-height: 24px; }
+  /* The card's length *is* the duration on a timeline — this chip is the one
+     label the geometry already states, and the width it gives back is width the
+     227px column wants. */
+  .gridMatchDuration { display: none; }
+  /* A divider between two names that are already stacked, already flanked by
+     score badges and already inside one card. It cost 35px — over a third of
+     what the card needs — to say what the layout says. */
+  .gridVsRow { display: none; }
   .gridMatchTime { font-size: 14px; }
-  .gridMatchDuration { font-size: 12px; }
   .gridMatchRound { font-size: 11px; }
   .gridMatchNo { font-size: 11px; padding: 3px 9px; }
   .gridTeamName { font-size: 14px; }

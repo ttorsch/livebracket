@@ -22,7 +22,7 @@ import {
   type SchedulableMatch,
   type ScheduleConfig,
 } from './generate.ts';
-import { DAY_SPAN } from './grid.ts';
+import { DAY_SPAN, courtOpen } from './grid.ts';
 import { planPoolPlay } from './poolplay.ts';
 import { buildStaging } from './staging.ts';
 import { validateSchedule, type EditedPlacement } from './validate.ts';
@@ -488,31 +488,59 @@ describe('pinned placements', () => {
 // ── Lunch ─────────────────────────────────────────────────────────────────
 
 describe('lunch', () => {
-  it('staggers the break so the venue never fully stops', () => {
-    const grid = buildGrid(config({ courtCount: 4, staggerLunch: true }), 1);
-    for (let slotIndex = 0; slotIndex < grid.slotsPerDay; slotIndex++) {
-      const allBlocked = grid.lunchBlocked.every(court => court[slotIndex]);
-      assert.ok(!allBlocked, `every court was idle at slot ${slotIndex}`);
+  it('offers no slot inside the break, on any court', () => {
+    const grid = buildGrid(config({ courtCount: 4, lunchStart: '12:00', lunchEnd: '13:00' }), 1);
+    assert.ok(grid.lunch, 'the configured lunch window was not read');
+    for (const slot of grid.slots) {
+      assert.ok(
+        slot.startMin >= grid.lunch!.end || slot.startMin + grid.slotMinutes <= grid.lunch!.start,
+        `slot at ${slot.startMin} overlaps the lunch window`,
+      );
     }
   });
 
-  it('stops the whole venue when staggering is off', () => {
-    const grid = buildGrid(config({ courtCount: 4, staggerLunch: false }), 1);
-    const anyFullStop = Array.from({ length: grid.slotsPerDay }, (_, i) =>
-      grid.lunchBlocked.every(court => court[i]),
-    ).some(Boolean);
-    assert.ok(anyFullStop, 'unstaggered lunch stops every court together');
+  it('resumes play at the configured end of lunch, not at the next block boundary', () => {
+    // 09:00 + 45-minute blocks does not divide a 12:00–13:00 lunch. A lattice
+    // anchored at the day's start could only resume at 13:30; restarting the
+    // run at lunchEnd is what makes the banner's "13:00" true.
+    const grid = buildGrid(config({ startTime: '09:00', endTime: '18:00', blockMinutes: 45 }), 1);
+    const afterLunch = grid.slotStarts.filter(m => m >= grid.lunch!.end);
+    assert.equal(afterLunch[0], grid.lunch!.end, 'play did not resume when lunch ended');
+    const beforeLunch = grid.slotStarts.filter(m => m < grid.lunch!.start);
+    assert.equal(
+      beforeLunch[beforeLunch.length - 1] + grid.slotMinutes <= grid.lunch!.start,
+      true,
+      'the last morning slot runs into lunch',
+    );
   });
 
-  it('never schedules a match through a court’s own break', () => {
+  it('does not let a match span the break', () => {
+    // A 90-minute match on a 45-minute grid needs two adjacent ordinals. The
+    // last morning slot and the first afternoon slot are consecutive ordinals
+    // an hour apart, so that pair must be refused.
+    const grid = buildGrid(config({ courtCount: 2, blockMinutes: 45 }), 1);
+    const lastBefore = grid.slotStarts.findLastIndex(m => m < grid.lunch!.start);
+    const straddle = grid.slots.find(s => s.day === 0 && s.index === lastBefore)!;
+    assert.equal(courtOpen(grid, 0, straddle, 2), false, 'a match was allowed across lunch');
+    assert.equal(courtOpen(grid, 0, straddle, 1), true, 'the morning slot itself should be usable');
+  });
+
+  it('never schedules a match over the break', () => {
     const result = generateSchedule([makeDivision('m', 6)], config({ courtCount: 3 }), 1);
+    const { lunch } = result.grid;
+    assert.ok(lunch);
     for (const p of result.placements) {
-      for (let k = 0; k < p.span; k++) {
-        assert.ok(
-          !result.grid.lunchBlocked[p.courtIndex][p.slot.index + k],
-          'a match was placed over a lunch block',
-        );
-      }
+      const from = p.slot.startMin;
+      const to = from + p.span * result.grid.slotMinutes;
+      assert.ok(from >= lunch!.end || to <= lunch!.start, `${p.matchId} runs through lunch`);
+    }
+  });
+
+  it('treats a lunch window outside the playing day as no lunch at all', () => {
+    const grid = buildGrid(config({ lunchStart: '20:00', lunchEnd: '21:00' }), 1);
+    assert.equal(grid.lunch, null);
+    for (let i = 1; i < grid.slotStarts.length; i++) {
+      assert.equal(grid.slotStarts[i] - grid.slotStarts[i - 1], grid.slotMinutes);
     }
   });
 });
@@ -999,5 +1027,124 @@ describe('config', () => {
     );
     const names = new Set(result.placements.map(p => p.courtName));
     for (const n of names) assert.ok(['Centre', 'Outer 1'].includes(n), `unexpected court ${n}`);
+  });
+});
+
+// ── Net changes ───────────────────────────────────────────────────────────
+
+describe('net changes', () => {
+  /** Test Tournament's shape, which is what surfaced this: two divisions at
+   *  2.43m and one at 2.24m over four courts, each in two pools of four, so
+   *  somebody must stray onto a court seeded for a height they do not play at.
+   *  `makeDivision` builds one flat round-robin and does not reproduce it. */
+  function pooledDivision(id: string, netHeight: string): SchedulableDivision {
+    const matches: SchedulableMatch[] = [];
+    for (const pool of ['A', 'B']) {
+      const teams = Array.from({ length: 4 }, (_, i) => `${id}-${pool}${i + 1}`);
+      for (let a = 0; a < 4; a++) {
+        for (let b = a + 1; b < 4; b++) {
+          matches.push({
+            id: `${id}-${pool}-${a}${b}`,
+            teamA: teams[a],
+            teamB: teams[b],
+            isPool: true,
+            pool,
+            roundIndex: 0,
+            durationMinutes: 30,
+          });
+        }
+      }
+    }
+    for (let i = 0; i < 2; i++) {
+      matches.push({ id: `${id}-sf${i}`, teamA: null, teamB: null, isPool: false, roundIndex: 1, durationMinutes: 45 });
+    }
+    matches.push({ id: `${id}-f`, teamA: null, teamB: null, isPool: false, roundIndex: 2, durationMinutes: 45 });
+    return { id, label: id.toUpperCase(), pools: 2, netHeight, gender: null, matches };
+  }
+
+  const testTournamentShape = (): SchedulableDivision[] => [
+    pooledDivision('men', '2.43 m'),
+    pooledDivision('mixed', '2.43 m'),
+    pooledDivision('women', '2.24 m'),
+  ];
+
+  const netConfig = config({ courtCount: 4, endTime: '17:00', blockMinutes: 45 });
+
+  /** Every court's first match of a day, as { placement, node }. */
+  function firstOfEachCourtDay(result: ReturnType<typeof generateSchedule>) {
+    const first = new Map<string, (typeof result.placements)[number]>();
+    for (const p of result.placements) {
+      const key = `${p.slot.day}:${p.courtIndex}`;
+      const held = first.get(key);
+      if (!held || p.slot.abs < held.slot.abs) first.set(key, p);
+    }
+    return [...first.values()];
+  }
+
+  it('never charges a net change against the first match of a court-day', () => {
+    // The seeded height (generate.ts rigs each court for the division whose
+    // affinity claims it) used to be charged as court time, so a court could
+    // open fifteen minutes late having hosted nothing — and the running height
+    // crossed the overnight break, so on day two every court did.
+    const result = generateSchedule(testTournamentShape(), netConfig, 2);
+    assertSound(result, 'first match of a court-day');
+
+    for (const p of firstOfEachCourtDay(result)) {
+      assert.equal(
+        p.startAbs,
+        p.slot.abs,
+        `${p.matchId} opens ${p.courtName} on day ${p.slot.day + 1} and must start when the slot does`,
+      );
+    }
+  });
+
+  it('still charges a net change that a match is actually waiting for', () => {
+    // One court and two heights: they have to interleave, so the net really
+    // does move mid-play and the buffer is real court time. Guards against
+    // fixing the first-match case by never charging the buffer at all.
+    const divisions = [
+      makeDivision('men', 4, { netHeight: '2.43m', gender: 'Men' }),
+      makeDivision('women', 4, { netHeight: '2.24m', gender: 'Women' }),
+    ];
+    const cfg = config({ courtCount: 1, stageFinals: false });
+    const result = generateSchedule(divisions, cfg, 3);
+    assertSound(result, 'net change mid-day');
+
+    const heightOf = (id: string) => result.graph.nodes.get(id)!.netHeight;
+    const byCourtDay = new Map<string, typeof result.placements>();
+    for (const p of result.placements) {
+      const key = `${p.slot.day}:${p.courtIndex}`;
+      byCourtDay.set(key, [...(byCourtDay.get(key) ?? []), p]);
+    }
+
+    let charged = 0;
+    for (const run of byCourtDay.values()) {
+      const order = [...run].sort((a, b) => a.slot.abs - b.slot.abs);
+      for (let i = 1; i < order.length; i++) {
+        const before = order[i - 1];
+        const after = order[i];
+        const ha = heightOf(before.matchId);
+        const hb = heightOf(after.matchId);
+        if (ha == null || hb == null || ha === hb) continue;
+        assert.ok(
+          after.startAbs >= before.endAbs + cfg.netBufferMinutes,
+          `${after.matchId} follows ${before.matchId} at a different height and must leave ${cfg.netBufferMinutes}min to move the net`,
+        );
+        if (after.startAbs > after.slot.abs) charged++;
+      }
+    }
+    assert.ok(charged > 0, 'at least one net change delayed play, or this asserts nothing');
+  });
+
+  it('keeps divisions on their own courts once the buffer stops being charged at the start of a day', () => {
+    // The seeding the first test defuses exists to cluster divisions onto their
+    // own courts. It is now a cost-function term only, and it must still work.
+    const divisions = [
+      makeDivision('men', 4, { netHeight: '2.43m', gender: 'Men' }),
+      makeDivision('women', 4, { netHeight: '2.24m', gender: 'Women' }),
+    ];
+    const result = generateSchedule(divisions, config({ courtCount: 4, stageFinals: false }), 2);
+    assertSound(result, 'clustering survives');
+    assert.ok(result.pivots <= 2, `expected almost no net changes, got ${result.pivots}`);
   });
 });

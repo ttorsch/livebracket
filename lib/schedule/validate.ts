@@ -195,18 +195,25 @@ export function validateSchedule(
     }
     const ci = courtIndex.get(p.court);
     if (ci === undefined) continue;
-    const first = Math.floor((p.startMin - grid.dayStart) / grid.slotMinutes);
-    const last = Math.ceil((p.startMin + p.durationMinutes - grid.dayStart) / grid.slotMinutes);
-    let onLunch = false;
+    const end = p.startMin + p.durationMinutes;
+    // Scanned by overlap rather than by dividing out an index: lunch splits the
+    // day into runs, so ordinals are not evenly spaced from `dayStart`.
     let onBlock = false;
-    for (let i = first; i < last && i < grid.slotsPerDay; i++) {
-      if (grid.lunchBlocked[ci]?.[i]) onLunch = true;
-      if (grid.blocked[p.day]?.[ci]?.[i]) onBlock = true;
+    for (let i = 0; i < grid.slotsPerDay; i++) {
+      const s = grid.slotStarts[i];
+      if (s < end && s + grid.slotMinutes > p.startMin && grid.blocked[p.day]?.[ci]?.[i]) {
+        onBlock = true;
+        break;
+      }
     }
+    // Lunch is checked against the window itself, not against slots. No slot
+    // exists inside the break, so a hand-placed match sitting in it overlaps
+    // nothing on the grid and would otherwise pass unremarked.
+    const onLunch = grid.lunch != null && p.startMin < grid.lunch.end && end > grid.lunch.start;
     if (onBlock) {
       problems.push({ matchId: p.matchId, kind: 'blocked', message: `overlaps time you have blocked out on ${p.court}` });
     } else if (onLunch) {
-      problems.push({ matchId: p.matchId, kind: 'blocked', message: `overlaps ${p.court}'s lunch break` });
+      problems.push({ matchId: p.matchId, kind: 'blocked', message: `overlaps the lunch break, when nobody plays` });
     }
   }
 

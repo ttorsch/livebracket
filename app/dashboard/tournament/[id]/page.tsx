@@ -9,6 +9,7 @@ import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
 import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
 import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../../../lib/tournamentLifecycle';
+import { describeDiscardCost, type DiscardCost } from '../../../../lib/schedule/discardCost';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
 
@@ -228,6 +229,15 @@ function dbBracket(division: DetailDivision, labels: Map<string, MatchLabel>): B
   return { rounds, champion, fromDb: true };
 }
 
+/* A 409 from the draw route means "well formed, but it would cost you this".
+   Anything else is a plain failure and is thrown as one. */
+function readDiscardRefusal(status: number, body: unknown): DiscardCost | null {
+  if (status !== 409) return null;
+  const b = body as { needsDiscardConfirm?: boolean; cost?: DiscardCost } | null;
+  if (!b?.needsDiscardConfirm || !b.cost) return null;
+  return b.cost;
+}
+
 export default function OrganizerBracketPage() {
   const params = useParams<{ id: string }>();
   const slug = params.id;
@@ -249,6 +259,9 @@ export default function OrganizerBracketPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false); // crossing config only
   const [applyError, setApplyError] = useState<string | null>(null);
+  /* Set when the server refuses a rebuild because it would discard a saved
+     schedule. Holds the server's own count, never a client guess. */
+  const [discard, setDiscard] = useState<{ kind: 'draw' | 'crossing'; cost: DiscardCost } | null>(null);
   const [animDiv, setAnimDiv] = useState<string | null>(null); // division whose draw reveal is playing
   const [drawTick, setDrawTick] = useState(0); // remounts the pools grid so the reveal replays on every draw
 
@@ -379,6 +392,17 @@ export default function OrganizerBracketPage() {
       console.error(err);
     }
   };
+
+  /* Does this division have a schedule to lose? Counted from the bracket the
+     page already holds, so unlocking can say so before anything is at risk —
+     the exact, authoritative numbers come from the server at the confirm. */
+  const placedMatchCount = useMemo(() => {
+    if (!division) return 0;
+    return division.bracket.reduce(
+      (n, r) => n + r.matches.filter(m => m.court && m.time).length,
+      0,
+    );
+  }, [division]);
 
   const seeds = seedsByDiv[activeDiv] ?? [];
   const config = configByDiv[activeDiv] ?? DEFAULT_DRAW;
@@ -730,7 +754,10 @@ export default function OrganizerBracketPage() {
     setDragIndex(i);
   };
 
-  const saveDraw = async () => {
+  /* confirmDiscard is passed only by the confirm dialog, after the organizer
+     has been shown what the rebuild costs. Every other caller runs without it
+     and lets the server refuse. */
+  const saveDraw = async (confirmDiscard = false) => {
     const totalConfirmed = seeds.length + unseededTeams.length;
     if (!division || totalConfirmed < 2 || saving) return;
     setSaving(true);
@@ -757,12 +784,20 @@ export default function OrganizerBracketPage() {
           crossing: config.crossing,
           thirdPlace: config.thirdPlace,
           generate: true,
+          ...(confirmDiscard ? { confirmDiscard: true } : {}),
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        const cost = readDiscardRefusal(res.status, body);
+        if (cost) {
+          // Nothing was written: ask, then come back through with the answer.
+          setDiscard({ kind: 'draw', cost });
+          return;
+        }
         throw new Error(body?.error ?? `Save failed (${res.status})`);
       }
+      setDiscard(null);
       await load(division.id);
       setAnimDiv(division.id);
       setDrawTick(t => t + 1);
@@ -781,7 +816,7 @@ export default function OrganizerBracketPage() {
   /* Crossing config is its own action: the pools have already been drawn and
      stay untouched (no reseeding, no re-draw) — only the knockout bracket
      that hangs off them is rebuilt for the new advance/crossing settings. */
-  const applyCrossing = async () => {
+  const applyCrossing = async (confirmDiscard = false) => {
     if (!division || applying) return;
     setApplying(true);
     setApplyError(null);
@@ -795,12 +830,19 @@ export default function OrganizerBracketPage() {
           advance: config.advance,
           crossing: config.crossing,
           thirdPlace: config.thirdPlace,
+          ...(confirmDiscard ? { confirmDiscard: true } : {}),
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        const cost = readDiscardRefusal(res.status, body);
+        if (cost) {
+          setDiscard({ kind: 'crossing', cost });
+          return;
+        }
         throw new Error(body?.error ?? `Apply failed (${res.status})`);
       }
+      setDiscard(null);
       await load(division.id);
       setRound2Tab('bracket');
     } catch (err) {
@@ -1233,7 +1275,7 @@ export default function OrganizerBracketPage() {
                     fullWidth
                     loading={saving}
                     disabled={confirmedTeams.length < 2}
-                    onClick={saveDraw}
+                    onClick={() => saveDraw()}
                     style={{ height: 60, fontSize: 16 }}
                   >
                     Draw Pool
@@ -1271,6 +1313,15 @@ export default function OrganizerBracketPage() {
                     )}
                   </button>
                 </div>
+                {/* Unlocking destroys nothing by itself — it only opens the
+                    Draw Config tab, from which redrawing does. Said once, here,
+                    rather than as a second dialog nobody reads. */}
+                {!isDrawLocked && placedMatchCount > 0 && (
+                  <p className={styles.scheduleAtRiskNote}>
+                    This division has a saved schedule ({placedMatchCount} match
+                    {placedMatchCount === 1 ? '' : 'es'} placed). Redrawing discards it.
+                  </p>
+                )}
                 {poolGroups.length === 0 ? (
                   <div className={styles.emptyNote}>
                     No pool draw generated yet. Use the Draw Config tab to create your pool draw.
@@ -1427,7 +1478,7 @@ export default function OrganizerBracketPage() {
                           fullWidth
                           loading={saving}
                           disabled={confirmedTeams.length < 2}
-                          onClick={saveDraw}
+                          onClick={() => saveDraw()}
                           style={{ height: 60, fontSize: 16 }}
                         >
                           {saving ? 'Drawing Bracket…' : bracket?.fromDb ? 'Re-Draw Bracket' : 'Draw Bracket'}
@@ -1608,7 +1659,7 @@ export default function OrganizerBracketPage() {
                             size="medium"
                             fullWidth
                             loading={applying}
-                            onClick={applyCrossing}
+                            onClick={() => applyCrossing()}
                             style={{ height: 48, borderRadius: 999 }}
                           >
                             Apply Crossing Config
@@ -1767,6 +1818,59 @@ export default function OrganizerBracketPage() {
           </section>
         )}
       </main>
+
+      {/* ── DISCARD-A-SCHEDULE CONFIRM ─────────────────────────────────
+          The draw route refuses a rebuild that would destroy placements and
+          hands back what it counted; this is where that count is spent. The
+          organizer is never refused outright — only never allowed to destroy
+          work without being told, in numbers, what the work was.
+
+          There is no undo behind this: a placement is columns on the match
+          row, and rebuilding the rounds deletes the rows. Saying so plainly
+          is the honest thing, and it is what earns the one click. */}
+      {discard && (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Discard saved schedule">
+          <div className={styles.confirmDialog}>
+            <h3 className={styles.confirmTitle}>
+              {discard.kind === 'draw' ? 'Redraw and discard the schedule?' : 'Rebuild the bracket and discard its schedule?'}
+            </h3>
+            <p className={styles.confirmBody}>
+              {discard.kind === 'draw' ? (
+                <>
+                  Redrawing <strong>{division?.label}</strong> rebuilds every match in it from
+                  scratch, so its saved schedule goes with them —{' '}
+                  <strong>{describeDiscardCost(discard.cost)}</strong>.
+                </>
+              ) : (
+                <>
+                  Applying a new crossing rebuilds <strong>{division?.label}</strong>&rsquo;s knockout
+                  matches, so their saved schedule goes with them —{' '}
+                  <strong>{describeDiscardCost(discard.cost)}</strong>. Pool play keeps its times and courts.
+                </>
+              )}{' '}
+              This cannot be undone.
+            </p>
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.btnGhost} onClick={() => setDiscard(null)}>
+                Keep the schedule
+              </button>
+              <button
+                type="button"
+                className={styles.btnDanger}
+                disabled={saving || applying}
+                onClick={() => {
+                  const kind = discard.kind;
+                  setDiscard(null);
+                  if (kind === 'draw') saveDraw(true);
+                  else applyCrossing(true);
+                }}
+              >
+                {saving || applying ? 'Working…' : discard.kind === 'draw' ? 'Redraw anyway' : 'Rebuild anyway'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

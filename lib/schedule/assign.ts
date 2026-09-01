@@ -272,9 +272,11 @@ function solve(
       continue;
     }
     const startMin = parseHHMM(pin.time);
-    const index = Math.round((startMin - grid.dayStart) / step);
-    const slot = grid.slots.find(s => s.day === pin.day && s.index === index);
-    if (!slot || startMin !== grid.dayStart + index * step) {
+    // Looked up by start time, not by arithmetic on the index: lunch splits the
+    // day into runs, so an ordinal is no longer `(startMin - dayStart) / step`.
+    // A time inside lunch simply matches no slot, which is the right answer.
+    const slot = grid.slots.find(s => s.day === pin.day && s.startMin === startMin);
+    if (!slot) {
       pinConflicts.push({
         matchId: pin.matchId,
         reason: `${pin.time} on day ${pin.day + 1} is not a slot on the grid`,
@@ -283,7 +285,7 @@ function solve(
     }
     const span = Math.max(1, Math.ceil(node.durationMinutes / step));
     if (!courtOpen(grid, courtIndex, slot, span)) {
-      pinConflicts.push({ matchId: pin.matchId, reason: `${pin.court} is on its lunch break, or the match runs past the end of the day` });
+      pinConflicts.push({ matchId: pin.matchId, reason: `a match that long starting at ${pin.time} would run into lunch, into time blocked out on ${pin.court}, or past the end of the day` });
       continue;
     }
     let clash = false;
@@ -615,10 +617,53 @@ function solve(
     return true;
   }
 
-  /** How this match would sit on this court, or null if it cannot. A net-height
-   *  change is charged as real court time in front of the match, so a court at
-   *  the wrong height is genuinely more expensive rather than merely
-   *  discouraged. */
+  /** What this slot would follow on this court, on this day — and nothing else.
+   *  Only a real predecessor can make a net change cost play time; see
+   *  `optionFor`. Placement runs forward through `grid.slots`, so looking
+   *  backwards from the slot is enough.
+   *
+   *  The two halves are read separately because they answer different
+   *  questions: the court frees when the *last* match on it ends, but the net
+   *  was left at the height of the last match that *declared* one — a division
+   *  with no declared height plays at whatever is already rigged and moves
+   *  nothing. */
+  function precedingOn(courtIndex: number, slot: Slot): { endAbs: number; height: number | null } {
+    let endAbs = -Infinity;
+    let height: number | null = null;
+    for (let i = slot.index - 1; i >= 0; i--) {
+      const id = busy[slot.day][courtIndex][i];
+      if (!id) continue;
+      if (endAbs === -Infinity) endAbs = endOf.get(id) ?? -Infinity;
+      const declared = graph.nodes.get(id)?.netHeight;
+      if (declared != null) {
+        height = declared;
+        break;
+      }
+    }
+    return { endAbs, height };
+  }
+
+  /** How this match would sit on this court, or null if it cannot.
+   *
+   *  The net buffer is two different things wearing one name, and they are
+   *  separated here:
+   *
+   *  - As a **preference**, `netChange` says this match is straying onto a
+   *    court rigged for somebody else's height. That is true wherever it
+   *    happens, including the first slot of the day against the height
+   *    `generate.ts` seeded, and the cost function charges it — which is what
+   *    keeps divisions clustered onto their own courts.
+   *  - As **elapsed court time**, a net change only costs anything when
+   *    somebody is waiting for the court. Nets are rigged in the morning, so a
+   *    court's first match of a day loses no play time to one; neither does a
+   *    match following a gap long enough to move the net in. The charge is
+   *    therefore not a flat buffer but the wait itself: the crew starts when
+   *    the previous match ends, and only what runs past this slot delays play.
+   *
+   *  Before this split, court time was charged against the *seeded* height, so
+   *  a 09:00 match on a court no one had yet played on started at 09:15, and
+   *  the running height crossed the overnight break so every court opened late
+   *  on day two. */
   function optionFor(
     node: MatchNode,
     courtIndex: number,
@@ -627,14 +672,20 @@ function solve(
     const court = courts[courtIndex];
     const netChange =
       node.netHeight != null && court.height != null && court.height !== node.netHeight;
-    const buffer = netChange ? Math.max(0, Math.trunc(ctx.config.netBufferMinutes) || 0) : 0;
-    const span = Math.max(1, Math.ceil((buffer + node.durationMinutes) / step));
+
+    const previous = precedingOn(courtIndex, slot);
+    const mustMoveNow =
+      node.netHeight != null && previous.height != null && previous.height !== node.netHeight;
+    const buffer = mustMoveNow ? Math.max(0, Math.trunc(ctx.config.netBufferMinutes) || 0) : 0;
+    // No predecessor leaves `endAbs` at -Infinity, so the max is the slot and
+    // the rig is free — the day boundary needs no special case of its own.
+    const startAbs = mustMoveNow ? Math.max(slot.abs, previous.endAbs + buffer) : slot.abs;
+    const span = Math.max(1, Math.ceil((startAbs - slot.abs + node.durationMinutes) / step));
 
     if (!courtOpen(grid, courtIndex, slot, span)) return null;
     for (let k = 0; k < span; k++) {
       if (busy[slot.day][courtIndex][slot.index + k]) return null;
     }
-    const startAbs = slot.abs + buffer;
     return { span, startAbs, endAbs: startAbs + node.durationMinutes, netChange };
   }
 }
