@@ -26,6 +26,7 @@
 import type { PinnedPlacement, Relaxation } from './types.ts';
 import { parseHHMM } from './types.ts';
 import { courtOpen, type Slot } from './grid.ts';
+import { netReadyAt, netStateBefore, type NetPredecessor } from './netChange.ts';
 import type { MatchNode } from './graph.ts';
 import {
   isExclusive,
@@ -622,25 +623,17 @@ function solve(
    *  `optionFor`. Placement runs forward through `grid.slots`, so looking
    *  backwards from the slot is enough.
    *
-   *  The two halves are read separately because they answer different
-   *  questions: the court frees when the *last* match on it ends, but the net
-   *  was left at the height of the last match that *declared* one — a division
-   *  with no declared height plays at whatever is already rigged and moves
-   *  nothing. */
-  function precedingOn(courtIndex: number, slot: Slot): { endAbs: number; height: number | null } {
-    let endAbs = -Infinity;
-    let height: number | null = null;
+   *  A generator, so `netStateBefore` stops the walk as soon as it has both
+   *  halves of the state rather than scanning the whole morning every time an
+   *  option is priced. The same match occupies every slot it spans, so it is
+   *  yielded more than once — harmless, since each yield carries the same end
+   *  and the same height. */
+  function* precedingOn(courtIndex: number, slot: Slot): Generator<NetPredecessor> {
     for (let i = slot.index - 1; i >= 0; i--) {
       const id = busy[slot.day][courtIndex][i];
       if (!id) continue;
-      if (endAbs === -Infinity) endAbs = endOf.get(id) ?? -Infinity;
-      const declared = graph.nodes.get(id)?.netHeight;
-      if (declared != null) {
-        height = declared;
-        break;
-      }
+      yield { endAbs: endOf.get(id) ?? -Infinity, netHeight: graph.nodes.get(id)?.netHeight ?? null };
     }
-    return { endAbs, height };
   }
 
   /** How this match would sit on this court, or null if it cannot.
@@ -663,7 +656,11 @@ function solve(
    *  Before this split, court time was charged against the *seeded* height, so
    *  a 09:00 match on a court no one had yet played on started at 09:15, and
    *  the running height crossed the overnight break so every court opened late
-   *  on day two. */
+   *  on day two.
+   *
+   *  The elapsed-time half lives in `netChange.ts`, because `validate.ts` has
+   *  to ask the same question about a schedule an organizer has hand-edited,
+   *  and two copies of this rule would drift. */
   function optionFor(
     node: MatchNode,
     courtIndex: number,
@@ -673,13 +670,11 @@ function solve(
     const netChange =
       node.netHeight != null && court.height != null && court.height !== node.netHeight;
 
-    const previous = precedingOn(courtIndex, slot);
-    const mustMoveNow =
-      node.netHeight != null && previous.height != null && previous.height !== node.netHeight;
-    const buffer = mustMoveNow ? Math.max(0, Math.trunc(ctx.config.netBufferMinutes) || 0) : 0;
-    // No predecessor leaves `endAbs` at -Infinity, so the max is the slot and
+    // No predecessor leaves `freeAt` at -Infinity, so the max is the slot and
     // the rig is free — the day boundary needs no special case of its own.
-    const startAbs = mustMoveNow ? Math.max(slot.abs, previous.endAbs + buffer) : slot.abs;
+    const state = netStateBefore(precedingOn(courtIndex, slot));
+    const readyAt = netReadyAt(state, node.netHeight, ctx.config.netBufferMinutes);
+    const startAbs = Math.max(slot.abs, readyAt);
     const span = Math.max(1, Math.ceil((startAbs - slot.abs + node.durationMinutes) / step));
 
     if (!courtOpen(grid, courtIndex, slot, span)) return null;

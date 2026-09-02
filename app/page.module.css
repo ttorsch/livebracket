@@ -630,13 +630,7 @@
   text-transform: uppercase;
 }
 
-/* Frosted glass over the photo rather than a solid panel — the image
-   stays readable through it, which is the point of keeping the photo.
-   The tint is dark rather than the usual milky white: the card's own
-   gradient runs from near-clear at 40% to 65% black at the base, so a
-   light glass would sit on bright sky on a short mobile card and lose
-   the white text. Dark holds contrast against both ends of the photo.
-
+/* The "Up next" list in the featured showcase.
    margin-top: auto pins the list to the bottom of the card, so a single
    tournament sits where the third would have been instead of drifting
    up into the photo. */
@@ -644,49 +638,54 @@
   position: relative;
   z-index: 2;
   margin-top: auto;
-  background: rgba(18, 24, 32, 0.18);
-  /* No -webkit- twin here on purpose: Lightning CSS merges a trailing
-     prefixed copy over the standard property and emits only the prefix,
-     which Chrome then ignores. It adds the prefixes itself. */
-  backdrop-filter: blur(8px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 18px;
-  padding: 6px;
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
   display: flex;
   flex-direction: column;
-}
-/* Without blur there is nothing frosting the photo, so the tint alone
-   has to carry the text. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .upNextPanel { background: rgba(18, 24, 32, 0.55); }
+  gap: 6px;
 }
 
 .upNextItem {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(18, 24, 32, 0.28);
+  /* No -webkit- twin here on purpose: Lightning CSS merges a trailing
+     prefixed copy over the standard property and emits only the prefix,
+     which Chrome then ignores. It adds the prefixes itself. */
+  backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   color: inherit;
   text-decoration: none;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.upNextItem:hover { background: rgba(255, 255, 255, 0.14); }
-.upNextItem + .upNextItem {
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
+
+/* Without blur there is nothing frosting the photo, so the tint alone
+   has to carry the text. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .upNextItem { background: rgba(18, 24, 32, 0.65); }
+}
+
+.upNextItem:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.38);
+  transform: translateY(-1px);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .upNextChip {
   flex: none;
-  width: 42px;
+  width: 44px;
   padding: 5px 0;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 11px;
+  background: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -698,15 +697,13 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  /* The brand coral goes muddy on a dark tint; this is the same hue
-     lifted until it reads. */
-  color: var(--coral-300, #FFAE91);
+  color: var(--coral-500, #EB6F43);
 }
 .upNextChipDay {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
   font-size: 17px;
   font-weight: 800;
-  color: #FFFFFF;
+  color: var(--ink-900, #14181E);
 }
 
 .upNextText {
@@ -718,20 +715,21 @@
 }
 .upNextName {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1.25;
   color: #FFFFFF;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .upNextMeta {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.82);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.7);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -942,15 +940,32 @@
     gap: 6px;
   }
   .upNextPanel {
-    margin-top: 24px;
-    border-radius: 12px;
-    padding: 4px;
+    margin-top: 18px;
+    gap: 5px;
   }
-  .upNextItem { gap: 10px; padding: 8px; }
-  .upNextChip { width: 36px; border-radius: 8px; }
-  .upNextChipDay { font-size: 15px; }
-  .upNextName { font-size: 13px; }
-  .upNextMeta { font-size: 10.5px; }
+  .upNextItem {
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 12px;
+  }
+  .upNextChip {
+    width: 38px;
+    border-radius: 9px;
+    padding: 4px 0;
+  }
+  .upNextChipMonth {
+    font-size: 8.5px;
+  }
+  .upNextChipDay {
+    font-size: 15px;
+  }
+  .upNextName {
+    font-size: 13.5px;
+  }
+  .upNextMeta {
+    font-size: 11px;
+    font-weight: 450;
+  }
   .scoreboardHeader {
     font-size: 9.5px;
   }

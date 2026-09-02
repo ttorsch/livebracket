@@ -165,6 +165,63 @@ These framed the map and are inputs to every ticket, not steps on the route:
   characters under the gutter; and the lunch banner centred across a 1015px
   roster in a 343px scrollport, so the seam read as an unlabelled strip.
 
+- [The court header counts every day, not its own day](issues/17-court-head-counts-all-days.md):
+  a court header counts **the cards drawn under it** — the column's own, in the
+  section it heads. The old line re-filtered `filteredMatches`, which is scoped
+  by division and by nothing else, so a header stated a fact about the
+  *tournament* while sitting on top of a *day*. The count comes off `d.items`
+  now, the same array the blocks are built from, so the number and the cards it
+  sits over cannot disagree again. The tray left the court branch: its progress
+  bar was structurally stuck at 0% (an unplaced match is never `done`), and the
+  corner was counting the stack as the first day's work — `Unscheduled` is a
+  *dateless* section in the By Court view, and the grid now agrees. That leaves
+  corner = sum of the court columns by construction, with the tray outside the
+  equation because it is outside the day. Verified across every filter on
+  `test-tournament`: eight sections, all balanced, `12`'s card totals unmoved.
+
+- [Should a hand-placed match pay for a net change?](issues/16-pinned-net-change.md):
+  the ticket's premise was one layer off — **nothing produces a pin**. The page
+  passes no `pins` and says so on purpose, so the live path is the *hand edit*,
+  and `validateSchedule` never read `netHeight`. It could not have: `buildGraph`
+  left the field null *"for the caller"*, a seam only `generate.ts` crossed, so
+  **every node in the validation path had a null height and every net-change
+  check there is would have passed**. Closing that seam is the fix; the check is
+  the part you can see. A net change is now **reported, never moved and never
+  blocked** — `validate.ts` blocks nothing by design, and this is the one fault
+  on its list that is *invisible on screen*: not two cards overlapping but two
+  cards nose to tail that quietly need a crew between them. The rule moved to a
+  shared `lib/schedule/netChange.ts` on `10`'s precedent, and what it owns is
+  **the look-back, not the arithmetic** — `precedingOn`'s two different walks
+  (the court frees at the last match, the net sits where the last *declared*
+  height left it), because otherwise a division with no declared height launders
+  a real change away. Both ends are flagged, from a stateless pairwise scan, so
+  the warning describes the schedule rather than the edit history. An overlap is
+  left to `courtClash` alone. `insertBuffer` — already the right remedy, and
+  venue configuration that survives a generate — now opens at
+  `netBufferMinutes` on a faulted card. Verified on `test-tournament`.
+
+- [Matches on an off-event day are drawn but never validated](issues/19-validate-off-event-days.md):
+  a day is a **signed offset**, and four places were reading its sign as a
+  sentinel for "unplaced". `-1` means *the day before the event* exactly as `1`
+  means *the second day*; datelessness is the separate state, and `12` had
+  already found the honest predicate (`date !== ''`) for the grid and fixed only
+  itself. Now one shared `hasPlacement` in `lib/schedule/placedMatch.ts`, on
+  `10`'s precedent. `validate.ts` was never the broken half — it is day-agnostic
+  and unchanged; the page filtered its input and handed it nothing. The ticket
+  did not know about the **save** path, where the same predicate was destructive
+  rather than blind: the page sent `court: null` for a negative day and *deleted*
+  18 placements the grid was drawing, and the route's `Math.max(0, …)` would have
+  *moved* them onto day 0 anyway — so the two had to go together, and the
+  organizer ruled them in. Off-event is deliberately **not** a new fault:
+  `outsideDay` stays about the clock, and the calendar fact is said once in the
+  day section's corner, because the realistic case is a whole schedule left
+  behind by a date change, where 18 identical warnings would bury the 7 real
+  ones in the same counter. Verified by recreating the condition on
+  `test-tournament`: the fault set is now **invariant** to the event's dates —
+  the same 15 problems whether the schedule sits on day −1/0 or day 0/1 — and
+  the save round-trip clears nothing.
+
+
 ## Not yet specified
 
 - **Referee assignment** is modelled in the types but assigned by hand. Whether
@@ -180,7 +237,19 @@ These framed the map and are inputs to every ticket, not steps on the route:
   `scheduleInventory`'s supply, so a venue with a morning ceremony on every court
   still reports `fits`. Pre-existing, and left alone because `01` was narrowing
   what capacity means rather than widening it. How wrong it is in practice is
-  unclear until someone uses blocks in anger.
+  unclear until someone uses blocks in anger. `19` added a second corner of the
+  same question: `grid.blocked` is indexed by **event day**, so no blocked
+  period can reach an *off-event day* — while lunch, checked against the window
+  rather than the slot array, does. An accidental asymmetry, newly reachable now
+  that those matches are validated at all, and quiet in practice because such
+  matches were placed avoiding both.
+
+- **What a pin promises, and what it costs.** Now
+  [18](issues/18-organizer-pinning.md) rather than fog: `16` found the solver's
+  half built and unreachable — `assignMatches` honours pins, `repair.ts` refuses
+  to trade one away, `matches.pinned` exists in the schema, and nothing produces
+  one. The map has already called pinning *"the honest version"* of carrying
+  placements across a redraw; that sentence assumes it exists.
 
 - **Whether the config panel should price a lunch window.** Raised by `13` and
   deliberately not answered there: `01` chose the honest remainder over
@@ -191,6 +260,14 @@ These framed the map and are inputs to every ticket, not steps on the route:
   while choosing the window, or nudged toward one that divides, is a schedule
   config question rather than a display one, and it is the same species as the
   blocked-periods entry above: how honestly capacity is reported back.
+
+- **The Unscheduled tray makes every day taller, not just the one it is drawn
+  on.** Surfaced by `17`: `slots` is `Math.max(axis.slots, maxUnscheduledSlot)`
+  for every day section, but the stack is only rendered in the first one, so
+  enough unplaced matches to out-run the axis add empty rows to *every* day.
+  Pre-existing and one line from `17`'s fix; left because it changes day
+  heights, which `06` had just tuned. The same species as `17` itself — the
+  tray is a stack with no day, and the grid keeps filing it under one.
 
 ## Out of scope
 

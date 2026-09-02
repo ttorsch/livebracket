@@ -18,12 +18,10 @@ import {
   ImagePlus,
   MapPin,
   Minus,
-  Pencil,
   Plus,
   Printer,
   Save,
   Settings,
-  SlidersHorizontal,
   Table,
   Trophy,
   Utensils,
@@ -33,6 +31,7 @@ import {
 import { planDrop, type DropTarget, type Placement } from '@/lib/schedule/dropPlan';
 import { axisLabels, buildCalendarAxis, placeOnAxis, rowKind, rowStartMin, type CalendarAxis } from '@/lib/schedule/calendarAxis';
 import { courtRoster } from '@/lib/schedule/types';
+import { hasPlacement, isOffEventDay } from '@/lib/schedule/placedMatch';
 import { scheduleSaveGate } from '@/lib/scheduleGate';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
@@ -78,11 +77,14 @@ interface ScheduleMatch {
 }
 
 // Sort by (day, "HH:MM") ascending; unscheduled placeholders sink to the end.
+//
+// The sink is having no *time*, not having a negative day. `day` is a signed
+// offset from the start date, so a match on the day before the event sorts
+// before day 0 and not after everything — it is early, not missing.
 function timeKey(day: number, t: string): number {
   const m = /^(\d{2}):(\d{2})$/.exec(t);
-  const mins = m ? Number(m[1]) * 60 + Number(m[2]) : 1e6;
-  const d = day < 0 ? 1e6 : day;
-  return d * 1e7 + mins;
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  return day * 1e7 + Number(m[1]) * 60 + Number(m[2]);
 }
 
 // Add `n` UTC days to a 'YYYY-MM-DD' string, returning 'YYYY-MM-DD'.
@@ -579,13 +581,22 @@ export default function TournamentSchedulePage() {
     return { id: div.id, label: div.label, netHeight: div.netHeight, rounds, matches, minutes };
   }, [detail, matchListDivId, labelsByDivision]);
 
-  // Same for the generator, which is a sheet over the schedule on a phone.
+  // Same for the generator, which is a modal on a desktop and a bottom sheet
+  // on a phone. It covers the schedule at both sizes, so the page behind it
+  // stops scrolling for as long as it is up.
   useEffect(() => {
     if (!panelOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPanelOpen(false); };
+    // The match list opens on top of the generator, so Escape belongs to it
+    // first — otherwise one press would dismiss both.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !matchListDivId) setPanelOpen(false); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [panelOpen]);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [panelOpen, matchListDivId]);
 
   // Close the match list on Escape, the way a dialog is expected to behave.
   useEffect(() => {
@@ -715,10 +726,18 @@ export default function TournamentSchedulePage() {
       // — so reading it here is the only way the saved schedule and the
       // schedule the organizer is looking at cannot disagree. It also means
       // editing a *saved* schedule saves, which reading the preview could not.
+      //
+      // "On screen" includes a match sitting on a day the event no longer
+      // covers. `m.day < 0` used to be read here as "unscheduled", so saving
+      // sent `court: null` for it and *deleted* a placement the grid was
+      // drawing — the destructive half of the same mistake the validator was
+      // making by ignoring those matches. It is the same question both times:
+      // does this match have a placement, which is a matter of having a date
+      // and not of the sign of the day offset.
       const assignments = allMatches.map(m =>
-        m.unscheduled || m.overScheduled || m.day < 0
-          ? { matchId: m.id, court: null, time: null }
-          : { matchId: m.id, court: m.court, time: m.time, day: m.day },
+        hasPlacement(m)
+          ? { matchId: m.id, court: m.court, time: m.time, day: m.day }
+          : { matchId: m.id, court: null, time: null },
       );
       const putRes = await fetch(`/api/tournaments/${slug}/schedule`, {
         method: 'PUT',
@@ -748,7 +767,11 @@ export default function TournamentSchedulePage() {
      schedule that no longer exists. */
   const problems = useMemo<ScheduleProblem[]>(() => {
     if (!detail || !config || schedulableDivisions.length === 0) return [];
-    const placed = allMatches.filter(m => !m.unscheduled && m.day >= 0 && /^\d{2}:\d{2}$/.test(m.time));
+    // Exactly what the calendar grid draws. Asking `day >= 0` here checked
+    // none of the matches on a day the event's configuration no longer covers
+    // — the section that looks most like a normal day was the one nothing was
+    // looking at. A match the grid draws is a match the validator checks.
+    const placed = allMatches.filter(hasPlacement);
     if (placed.length === 0) return [];
 
     const graph = buildGraph(schedulableDivisions, config.blockMinutes);
@@ -779,6 +802,7 @@ export default function TournamentSchedulePage() {
 
     return validateSchedule(placements, graph, grid, {
       targetRestMinutes: Math.max(0, config.minRestSlots) * config.blockMinutes,
+      netBufferMinutes: config.netBufferMinutes,
       label: labelOf,
       teamLabel: id => teamNames.get(id) ?? id,
     });
@@ -826,6 +850,21 @@ export default function TournamentSchedulePage() {
     }
     return map;
   }, [problems]);
+
+  /* What the buffer prompt should open at for a given match.
+   *
+   * Normally a whole match's worth — the reason to open a gap is usually to
+   * make room. But a card carrying a net-change fault is the one case where
+   * the right number is already known: it is exactly the buffer the venue says
+   * a net takes. Only the default changes; the organizer still types whatever
+   * they like. It matters because a Buffer is a blocked period, which is venue
+   * configuration and survives the next generate — unlike the hand edit that
+   * caused the fault in the first place. */
+  const bufferSuggestion = (m: ScheduleMatch) => {
+    const hasNetFault = (problemsByMatch.get(m.id) ?? []).some(p => p.kind === 'netChange');
+    if (hasNetFault && config) return Math.max(5, config.netBufferMinutes);
+    return m.durationMinutes || config?.blockMinutes || 45;
+  };
 
   // ── Blocked periods ──────────────────────────────────────────────────────
   const addBlock = (court: string, day: number, startMin: number) => {
@@ -975,7 +1014,14 @@ export default function TournamentSchedulePage() {
             return a[0].localeCompare(b[0], undefined, { numeric: true });
           })
           .map(([courtName, matches]) => {
-            const days = new Set(matches.map(m => m.day).filter(d => d >= 0));
+            // The days this court actually has play on. A blocked period with
+            // no day means "every day *of the event*" — an off-event day is
+            // one the configuration does not describe, so it has none, which
+            // is also the only answer the calendar grid can give (its
+            // `blocked` array is indexed by event day).
+            const days = new Set(
+              matches.filter(hasPlacement).map(m => m.day).filter(d => !isOffEventDay(d, dayCount)),
+            );
             const rows: CourtRow[] = matches.map(m => ({
               kind: 'match', key: m.id, sort: timeKey(m.day, m.time), m,
             }));
@@ -1039,7 +1085,7 @@ export default function TournamentSchedulePage() {
      * tournament's dates has negative day indices, and filtering on
      * `day >= 0` silently emptied the whole view while the By Court list
      * (which groups by the actual date) went on showing every match. */
-    const scheduled = filteredMatches.filter(m => !m.unscheduled && m.date !== '' && m.time !== '—');
+    const scheduled = filteredMatches.filter(hasPlacement);
     const unscheduled = filteredMatches.filter(m => m.unscheduled || m.court === 'Unscheduled');
 
     /* Columns are the venue, in the order it is configured — not the courts
@@ -1148,7 +1194,7 @@ export default function TournamentSchedulePage() {
     const dayNumbers = new Set<number>();
     for (let i = 0; i < dayCount; i += 1) dayNumbers.add(i);
     for (const m of allMatches) {
-      if (!m.unscheduled && m.date !== '' && m.time !== '—') dayNumbers.add(m.day);
+      if (hasPlacement(m)) dayNumbers.add(m.day);
     }
     const dayList = [...dayNumbers]
       .filter(d => activeDay === 'all' || d === activeDay)
@@ -1210,12 +1256,39 @@ export default function TournamentSchedulePage() {
           return names.map(court => ({ index, court, ...placed, minutes: to - from, label: b.label ?? 'Blocked', from: b.start, to: b.end }));
         });
 
+      /* What each court's header counts: the cards drawn underneath it, in
+         this section. Read off `d.items` — the day's own grouping — so the
+         number and the column it heads cannot disagree. The header used to
+         re-filter `filteredMatches`, which spans the whole event, so on a
+         two-day tournament every section reported the same total and a court
+         with nothing on it that day still read as busy.
+
+         Only `d.items` is tallied, never the tray: an unplaced match is not
+         on this day, or on any day. The By Court view already draws that line
+         — it gives 'Unscheduled' a dateless section of its own. */
+      const courtCounts = new Map<string, { total: number; played: number }>();
+      for (const { m } of d.items) {
+        const c = courtCounts.get(m.court);
+        if (c) { c.total += 1; if (m.status === 'done') c.played += 1; }
+        else courtCounts.set(m.court, { total: 1, played: m.status === 'done' ? 1 : 0 });
+      }
+
       /* Nothing on the board at all — no cards, no blocked time. The day is
          still the event's, so it is still shown; it is just not worth a
          full-height grid until someone asks. */
       const isEmpty = blocks.length === 0 && blocked.length === 0;
 
-      return { day: d.day, dateLabel: d.dateLabel, slots, blocks, lunchBlock, blocked, isEmpty };
+      return {
+        day: d.day, dateLabel: d.dateLabel, slots, blocks, lunchBlock, blocked, isEmpty,
+        courtCounts,
+        // The corner's headline. `d.items` rather than `blocks`, which carries
+        // the tray on the first section and would have the corner claim
+        // unplaced matches as this day's.
+        matchCount: d.items.length,
+        // The tray is drawn in one section only, so its header is a count of
+        // that section's stack like every other column's — not of the event's.
+        trayCount: dIdx === 0 ? unscheduledBlocks.length : 0,
+      };
     });
 
     return { roster, offRoster, columns, hasUnscheduled, days, axis, labels, shortestMinutes, divOrder, unscheduledCount: unscheduled.length };
@@ -1444,6 +1517,7 @@ export default function TournamentSchedulePage() {
     <button
       type="button"
       className={`${styles.gridEditBtn} ${editMode ? styles.gridEditBtnOn : ''}`}
+      aria-pressed={editMode}
       onClick={() => {
         setEditMode(v => !v);
         setBlockMode(false);
@@ -1459,8 +1533,10 @@ export default function TournamentSchedulePage() {
           : 'Move matches, retime them, and insert buffer time'
       }
     >
-      {editMode ? <Check size={14} /> : <Pencil size={14} />}
-      {editMode ? 'Done editing' : 'Edit schedule'}
+      <span className={styles.gridEditSwitch} aria-hidden="true">
+        <span className={styles.gridEditThumb} />
+      </span>
+      Hand Edit
     </button>
   );
 
@@ -1542,18 +1618,34 @@ export default function TournamentSchedulePage() {
     </div>
   );
 
-  /** How the two views say the same thing about editing. */
+  /** How the two views say the same thing about editing.
+   *
+   *  Unlocked, the rules of the room run to a paragraph — too much to sit above
+   *  the grid on a phone, where it would push the thing being edited off the
+   *  screen. So only the first move stays in view and the rest waits behind a
+   *  disclosure: enough to start, on hand to finish. */
   const editHint = !editMode ? (
-    <>The schedule is locked. Press <strong>Edit schedule</strong> to move matches, retime them, or add buffer time.</>
+    <>The schedule is locked. Turn <strong>Hand Edit</strong> on to move matches, retime them, or add buffer time.</>
   ) : (
     <>
       Click a match to pick it up, then walk it with the arrows: <strong>↑</strong> and <strong>↓</strong> along its own
-      court, <strong>←</strong> and <strong>→</strong>{' '}
-      onto the next one. It goes in front of whatever it moves towards — everything below that moves down by the
-      match&apos;s length, and the court it left closes up behind it. Keep the move with the tick, or drop it with the ✕
-      and it goes back exactly as it was. Click a time to type a new one, or the <strong>+</strong>{' '}
-      on a card&apos;s top edge to open a gap before it. Hand moves are yours alone: the next Generate starts again from
-      the solver. Buffers and blocked time are part of the venue, so they survive it.
+      court, <strong>←</strong> and <strong>→</strong> onto the next one.
+      <details className={styles.hintMore}>
+        <summary className={styles.hintMoreSummary}>How moves work</summary>
+        <p>
+          It goes in front of whatever it moves towards — everything below that moves down by the match&apos;s length,
+          and the court it left closes up behind it. Keep the move with the tick, or drop it with the ✕ and it goes back
+          exactly as it was.
+        </p>
+        <p>
+          Click a time to type a new one, or the <strong>+</strong>{' '}
+          on a card&apos;s top edge to open a gap before it.
+        </p>
+        <p>
+          Hand moves are yours alone: the next Generate starts again from the solver. Buffers and blocked time are part
+          of the venue, so they survive it.
+        </p>
+      </details>
     </>
   );
 
@@ -1628,7 +1720,7 @@ export default function TournamentSchedulePage() {
                 <button
                   type="button"
                   className={styles.heroPrimaryBtn}
-                  onClick={() => setPanelOpen(o => !o)}
+                  onClick={() => setPanelOpen(true)}
                 >
                   <Wand2 size={16} /> Generate Schedule
                 </button>
@@ -1775,184 +1867,245 @@ export default function TournamentSchedulePage() {
         </div>
       </div>
 
-      {/* ── Generator Panel ─────────────────────────────────── */}
+      {/* ── Generator Modal ─────────────────────────────────── */}
       {panelOpen && config && (
         <div
-          className={styles.genPanel}
+          className={styles.genOverlay}
           role="presentation"
           onClick={e => {
-            // Only a tap on the backdrop closes it, and only where there is
-            // one: on a wide screen this element is an inline band whose
-            // gutters are not a dismiss target.
-            if (e.target !== e.currentTarget) return;
-            if (window.matchMedia('(max-width: 860px)').matches) setPanelOpen(false);
+            // Backdrop only. On a phone the dialog is a bottom sheet and the
+            // backdrop is the band above it; on a desktop it is the dimmed
+            // page all around. Both dismiss.
+            if (e.target === e.currentTarget) setPanelOpen(false);
           }}
         >
-          <div className={styles.genInner}>
-            <div className={styles.genHeaderRow}>
-              <div className={styles.genTitle}><SlidersHorizontal size={18} /> Schedule Generator</div>
-              <button type="button" className={styles.genClose} onClick={() => setPanelOpen(false)} aria-label="Close generator">
+          <div
+            className={styles.genDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="genDialogTitle"
+          >
+            {/* Phone-only grab handle. The sheet is draggable-looking rather
+                than draggable — it reads as dismissible, which the backdrop
+                and the close button both make true. */}
+            <div className={styles.genGrabber} aria-hidden="true"><span /></div>
+
+            <header className={styles.genHead}>
+              <div className={styles.genHeadLeft}>
+                <span className={styles.genHeadIcon} aria-hidden="true"><Calendar size={20} /></span>
+                <div className={styles.genHeadText}>
+                  <h2 id="genDialogTitle" className={styles.genHeadTitle}>Schedule Generator</h2>
+                  <p className={styles.genHeadSub}>
+                    {detail?.title ?? 'Untitled tournament'} · {dayCount} day{dayCount === 1 ? '' : 's'} ·{' '}
+                    {config.courtCount} court{config.courtCount === 1 ? '' : 's'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.genHeadClose}
+                onClick={() => setPanelOpen(false)}
+                aria-label="Close generator"
+              >
                 <X size={16} />
               </button>
-            </div>
+            </header>
 
-            <div className={styles.genGrid}>
-              <label className={styles.genField}>
-                <span>Day start</span>
-                <input type="time" value={config.startTime} onChange={e => setConfigField('startTime', e.target.value)} />
-              </label>
-              <label className={styles.genField}>
-                <span>Day end</span>
-                <input type="time" value={config.endTime} onChange={e => setConfigField('endTime', e.target.value)} />
-              </label>
-              <label className={styles.genField}>
-                <span>Courts</span>
-                <input type="number" min={1} max={64} value={config.courtCount} onChange={e => setConfigField('courtCount', Number(e.target.value))} />
-              </label>
-              <label className={styles.genField}>
-                <span>Lunch start</span>
-                <input type="time" value={config.lunchStart} onChange={e => setConfigField('lunchStart', e.target.value)} />
-              </label>
-              <label className={styles.genField}>
-                <span>Lunch end</span>
-                <input type="time" value={config.lunchEnd} onChange={e => setConfigField('lunchEnd', e.target.value)} />
-              </label>
-              <label className={styles.genField}>
-                <span>Net buffer (min)</span>
-                <input type="number" min={0} max={120} step={5} value={config.netBufferMinutes} onChange={e => setConfigField('netBufferMinutes', Number(e.target.value))} />
-              </label>
-              <label className={styles.genField}>
-                <span>Max matches / team / day</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  placeholder="No limit"
-                  value={config.maxMatchesPerTeamPerDay > 0 ? config.maxMatchesPerTeamPerDay : ''}
-                  onChange={e => {
-                    // Blank (and anything below 1) means no cap, stored as 0.
-                    const n = Number(e.target.value);
-                    setConfigField('maxMatchesPerTeamPerDay', e.target.value === '' || !Number.isFinite(n) || n < 1 ? 0 : Math.trunc(n));
-                  }}
-                />
-              </label>
-            </div>
+            <div className={styles.genBody}>
+              {/* ── Playing day ───────────────────────────────── */}
+              <section className={styles.genCol}>
+                <span className={styles.genEyebrow}>Playing day</span>
 
-            <div className={styles.genToggles}>
-              <label className={styles.genToggle}>
-                <input
-                  type="checkbox"
-                  checked={config.stageFinals}
-                  onChange={e => setConfigField('stageFinals', e.target.checked)}
-                />
-                <span>
-                  <strong>Stage the knockout rounds</strong>
-                  Run each division&apos;s semifinals, 3rd-place play-off and final as whole rounds — side by side across
-                  courts, one division at a time — so a round can&apos;t drift apart and each division&apos;s wait is the rest
-                  its finalists get. Off, every match is placed on its own.
-                </span>
-              </label>
-            </div>
+                <div className={styles.genCard}>
+                  <div className={styles.genGrid}>
+                    <label className={styles.genField}>
+                      <span>Day start</span>
+                      <input type="time" value={config.startTime} onChange={e => setConfigField('startTime', e.target.value)} />
+                    </label>
+                    <label className={styles.genField}>
+                      <span>Day end</span>
+                      <input type="time" value={config.endTime} onChange={e => setConfigField('endTime', e.target.value)} />
+                    </label>
+                    <label className={styles.genField}>
+                      <span>Courts</span>
+                      <input type="number" min={1} max={64} value={config.courtCount} onChange={e => setConfigField('courtCount', Number(e.target.value))} />
+                    </label>
+                    <label className={styles.genField}>
+                      <span>Net buffer (min)</span>
+                      <input type="number" min={0} max={120} step={5} value={config.netBufferMinutes} onChange={e => setConfigField('netBufferMinutes', Number(e.target.value))} />
+                    </label>
+                  </div>
 
-            {/* Step 1 & 2 of generating: what court time exists, and what has
-                to fit into it. Live, so editing the config above updates it. */}
-            {inventory && (
-              <div className={styles.genDivisions}>
-                <div className={styles.genSubhead}>Court time available vs needed</div>
-                <div className={styles.capacityGrid}>
-                  {inventory.capacity.map(c => (
-                    <div key={c.day} className={styles.capacityCard}>
-                      <span className={styles.capacityDay}>
-                        Day {c.day + 1}
-                        {detail ? ` · ${shortDate(addDaysUTC(detail.startDate, c.day))}` : ''}
-                      </span>
-                      <span className={styles.capacityValue}>{hoursMinutes(c.courtMinutes)}</span>
-                      <span className={styles.capacityMeta}>
-                        {config.courtCount} court{config.courtCount === 1 ? '' : 's'} × {hoursMinutes(c.playableMinutes)}
+                  <div className={styles.genRule} />
+
+                  <div className={styles.genField}>
+                    <span>Lunch break</span>
+                    <div className={styles.genRangeRow}>
+                      <input type="time" value={config.lunchStart} onChange={e => setConfigField('lunchStart', e.target.value)} />
+                      <span className={styles.genRangeTo}>to</span>
+                      <input type="time" value={config.lunchEnd} onChange={e => setConfigField('lunchEnd', e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className={styles.genRule} />
+
+                  <label className={`${styles.genField} ${styles.genFieldCap}`}>
+                    <span>Max matches / team / day</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      placeholder="No limit"
+                      value={config.maxMatchesPerTeamPerDay > 0 ? config.maxMatchesPerTeamPerDay : ''}
+                      onChange={e => {
+                        // Blank (and anything below 1) means no cap, stored as 0.
+                        const n = Number(e.target.value);
+                        setConfigField('maxMatchesPerTeamPerDay', e.target.value === '' || !Number.isFinite(n) || n < 1 ? 0 : Math.trunc(n));
+                      }}
+                    />
+                  </label>
+                  <p className={styles.genNote}>
+                    Pool play only. Once a team hits the cap, its remaining matches roll to the next day.
+                  </p>
+                </div>
+
+                <label className={styles.genCheckCard}>
+                  <input
+                    type="checkbox"
+                    checked={config.stageFinals}
+                    onChange={e => setConfigField('stageFinals', e.target.checked)}
+                  />
+                  <span className={styles.genCheckBox} aria-hidden="true"><Check size={13} strokeWidth={3.5} /></span>
+                  <span className={styles.genCheckText}>
+                    <strong>Stage the knockout rounds</strong>
+                    Semifinals, 3rd-place play-off and final run as whole rounds, one division at a time. Off, every
+                    match is placed on its own.
+                  </span>
+                </label>
+              </section>
+
+              {/* ── Fit ───────────────────────────────────────── */}
+              <section className={styles.genCol}>
+                <span className={styles.genEyebrow}>Fit</span>
+
+                {inventory && (
+                  <div className={styles.genFitCard}>
+                    <div className={styles.genFitHead}>
+                      <span className={styles.genFitLabel}>Court time</span>
+                      <span className={styles.genFitValue}>
+                        {hoursMinutes(inventory.demandMinutes)} needed · {hoursMinutes(inventory.supplyMinutes)} available
                       </span>
                     </div>
-                  ))}
-                  <div className={`${styles.capacityCard} ${styles.capacityTotal}`}>
-                    <span className={styles.capacityDay}>Needed</span>
-                    <span className={styles.capacityValue}>{hoursMinutes(inventory.demandMinutes)}</span>
-                    <span className={styles.capacityMeta}>
-                      {inventory.matches} match{inventory.matches === 1 ? '' : 'es'} ·{' '}
-                      {inventory.demandMinutes <= inventory.supplyMinutes
-                        ? `${hoursMinutes(inventory.supplyMinutes - inventory.demandMinutes)} spare`
-                        : `${hoursMinutes(inventory.demandMinutes - inventory.supplyMinutes)} short`}
-                    </span>
-                  </div>
-                </div>
-                <p className={styles.genHint}>
-                  Court time is the whole venue: {hoursMinutes(inventory.supplyMinutes)} across {dayCount} day
-                  {dayCount === 1 ? '' : 's'}. Spare time doesn&apos;t guarantee a fit — a match still waits for its teams and
-                  for the round before it.
-                </p>
-              </div>
-            )}
-
-            {inventory && inventory.demand.length > 0 && (
-              <div className={styles.genDivisions}>
-                <div className={styles.genSubhead}>Matches to schedule</div>
-                <div className={styles.genDivGrid}>
-                  {inventory.demand.map(d => (
-                    <button
-                      key={d.divisionId}
-                      type="button"
-                      className={`${styles.genDivRow} ${styles.demandCard}`}
-                      onClick={() => setMatchListDivId(d.divisionId)}
-                      aria-label={`Show all ${d.matches} matches for ${d.label}`}
+                    {/* Demand against supply for the whole venue. Past 100% the
+                        bar is full and turns red — the event does not fit. */}
+                    <div
+                      className={styles.genMeter}
+                      role="progressbar"
+                      aria-label="Court time used"
+                      aria-valuemin={0}
+                      aria-valuemax={inventory.supplyMinutes}
+                      aria-valuenow={inventory.demandMinutes}
                     >
-                      <span className={styles.genDivName}>{d.label}</span>
-                      <span className={styles.genDivMeta}>{d.netHeight != null ? `${d.netHeight}m net` : 'net n/a'}</span>
-                      <span className={styles.demandValue}>
-                        {d.matches} · {hoursMinutes(d.minutes)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className={styles.genDivisions}>
-              <div className={styles.genSubhead}>Dedicated courts per division</div>
-              <div className={styles.genDivGrid}>
-                {detail?.divisions.map(d => {
-                  const pools = d.drawConfig?.pools ?? 1;
-                  const auto = autoDedicatedCourts(pools);
-                  const val = overrides[d.id];
-                  return (
-                    <label key={d.id} className={styles.genDivRow}>
-                      <span className={styles.genDivName}>{d.label}</span>
-                      <span className={styles.genDivMeta}>{pools} pool{pools === 1 ? '' : 's'}</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={config.courtCount}
-                        placeholder={`auto (${auto})`}
-                        value={val ?? ''}
-                        onChange={e => {
-                          const raw = e.target.value;
-                          setOverrides(prev => ({ ...prev, [d.id]: raw === '' ? null : Number(raw) }));
+                      <div
+                        className={`${styles.genMeterFill} ${inventory.demandMinutes > inventory.supplyMinutes ? styles.genMeterOver : ''}`}
+                        style={{
+                          width: `${inventory.supplyMinutes > 0
+                            ? Math.min(100, (inventory.demandMinutes / inventory.supplyMinutes) * 100)
+                            : 0}%`,
                         }}
                       />
-                    </label>
-                  );
-                })}
-              </div>
-              <p className={styles.genHint}>
-                Each match uses the length set for its round in Setup. Leave <em>max matches / team / day</em> blank for no limit; set it and a team&apos;s
-                remaining matches roll to the next day once it hits the cap (pool play only — a knockout match&apos;s teams aren&apos;t known until the round
-                before it is played). Leave courts blank to auto-size (half the pool count, min 1).
-                Divisions with no matches yet reserve no courts. Matches that can&apos;t fit within the tournament&apos;s {dayCount} day{dayCount === 1 ? '' : 's'} are flagged as over-scheduled.
-              </p>
+                    </div>
+                    <div className={styles.genFitDays}>
+                      {inventory.capacity.map(c => (
+                        <div key={c.day} className={styles.genFitDayRow}>
+                          <span className={styles.genFitDayName}>
+                            Day {c.day + 1}
+                            {detail ? ` · ${shortDate(addDaysUTC(detail.startDate, c.day))}` : ''}
+                          </span>
+                          <span className={styles.genFitDayValue}>
+                            {hoursMinutes(c.courtMinutes)}
+                            <span className={styles.genFitDayBreakdown}>
+                              {' '}· {config.courtCount} × {hoursMinutes(c.playableMinutes)}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {inventory && inventory.demand.length > 0 && (
+                  <div className={styles.genBlock}>
+                    <span className={styles.genBlockTitle}>Matches to schedule</span>
+                    <div className={styles.genList}>
+                      {inventory.demand.map(d => (
+                        <button
+                          key={d.divisionId}
+                          type="button"
+                          className={`${styles.genListRow} ${styles.demandCard}`}
+                          onClick={() => setMatchListDivId(d.divisionId)}
+                          aria-label={`Show all ${d.matches} matches for ${d.label}`}
+                        >
+                          <span className={styles.genListName}>{d.label}</span>
+                          <span className={styles.genListMeta}>{d.netHeight != null ? `${d.netHeight}m net` : 'net n/a'}</span>
+                          <span className={styles.genListValue}>{d.matches} · {hoursMinutes(d.minutes)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className={styles.genBlock}>
+                  <span className={styles.genBlockTitle}>Dedicated courts per division</span>
+                  <div className={styles.genList}>
+                    {detail?.divisions.map(d => {
+                      const pools = d.drawConfig?.pools ?? 1;
+                      const auto = autoDedicatedCourts(pools);
+                      const val = overrides[d.id];
+                      return (
+                        <label key={d.id} className={`${styles.genListRow} ${styles.genListRowInput}`}>
+                          <span className={styles.genListName}>{d.label}</span>
+                          <span className={styles.genListMeta}>{pools} pool{pools === 1 ? '' : 's'}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={config.courtCount}
+                            placeholder={`auto (${auto})`}
+                            value={val ?? ''}
+                            onChange={e => {
+                              const raw = e.target.value;
+                              setOverrides(prev => ({ ...prev, [d.id]: raw === '' ? null : Number(raw) }));
+                            }}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className={styles.genNote}>
+                    Leave courts blank to auto-size (half the pool count, min 1). Divisions with no matches yet reserve
+                    no courts.
+                  </p>
+                </div>
+
+                <p className={styles.genNote}>
+                  Spare time doesn&apos;t guarantee a fit — a match still waits for its teams and the round before it.
+                  Anything that can&apos;t fit in {dayCount} day{dayCount === 1 ? '' : 's'} is flagged as over-scheduled.
+                </p>
+              </section>
             </div>
 
-            <div className={styles.genActions}>
-              <button type="button" className={styles.genGenerateBtn} onClick={handleGenerate}>
+            <footer className={styles.genFoot}>
+              <button type="button" className={styles.genCancelBtn} onClick={() => setPanelOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.genSubmitBtn}
+                onClick={() => { handleGenerate(); setPanelOpen(false); }}
+              >
                 <Wand2 size={15} /> Generate Preview
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}
@@ -2017,7 +2170,7 @@ export default function TournamentSchedulePage() {
 
             {editBar}
 
-            <p className={`${styles.hintBanner} ${editMode ? styles.hintBannerOn : ''}`}>{editHint}</p>
+            <div className={`${styles.hintBanner} ${editMode ? styles.hintBannerOn : ''}`}>{editHint}</div>
 
             {courtSections.map(section => (
             <section key={section.key} className={styles.daySection}>
@@ -2092,7 +2245,7 @@ export default function TournamentSchedulePage() {
                                   onClick={() =>
                                     setInsertAt({
                                       matchId: m.id,
-                                      suggested: m.durationMinutes || config?.blockMinutes || 45,
+                                      suggested: bufferSuggestion(m),
                                     })
                                   }
                                 >
@@ -2201,7 +2354,7 @@ export default function TournamentSchedulePage() {
 
             {editBar}
 
-            <p className={`${styles.hintBanner} ${editMode ? styles.hintBannerOn : ''}`}>{editHint}</p>
+            <div className={`${styles.hintBanner} ${editMode ? styles.hintBannerOn : ''}`}>{editHint}</div>
 
             {calendar.columns.length === 0 ? (
               <p className={styles.gridNote}>No scheduled matches to show. Generate and save a schedule first.</p>
@@ -2219,7 +2372,7 @@ export default function TournamentSchedulePage() {
                     onClick={() => setExpandedDays(prev => new Set(prev).add(day.day))}
                   >
                     <span className={styles.calEmptyDayName}>
-                      {day.day >= 0 && day.day < dayCount ? `Day ${day.day + 1}` : 'Outside the event'}
+                      {isOffEventDay(day.day, dayCount) ? 'Outside the event' : `Day ${day.day + 1}`}
                       {day.dateLabel ? ` · ${day.dateLabel}` : ''}
                     </span>
                     <span className={styles.calEmptyDayNote}>Nothing scheduled</span>
@@ -2261,8 +2414,15 @@ export default function TournamentSchedulePage() {
                         {/* Only a day *of the event* gets a number. A schedule
                             still sitting on dates the organizer has since moved
                             away from is shown by its date alone, the same way
-                            the By Court headings read it. */}
-                        {day.day >= 0 && day.day < dayCount && (
+                            the By Court headings read it — but it says so,
+                            rather than being marked by the *absence* of a
+                            number nobody counts. This is where "outside the
+                            event" is stated: once, about the day, instead of
+                            as a fault repeated on every card sitting on it.
+                            The cards themselves are checked like any others. */}
+                        {isOffEventDay(day.day, dayCount) ? (
+                          <span className={styles.calCornerOffEvent}>Outside the event</span>
+                        ) : (
                           <span className={styles.calCornerDay}>Day {day.day + 1}</span>
                         )}
                         {day.dateLabel && (
@@ -2273,19 +2433,30 @@ export default function TournamentSchedulePage() {
                             </span>
                           </>
                         )}
-                        <span className={styles.calCornerCount}>{day.blocks.length} matches</span>
+                        <span className={styles.calCornerCount}>
+                          {day.matchCount} match{day.matchCount === 1 ? '' : 'es'}
+                        </span>
                       </div>
 
                       {/* Top Sticky Court Headers */}
                       {calendar.columns.map((court, ci) => {
-                        const onCourt = filteredMatches.filter(m => m.court === court);
-                        const played = onCourt.filter(m => m.status === 'done').length;
-                        const pct = onCourt.length > 0 ? Math.round((played / onCourt.length) * 100) : 0;
+                        // This day's cards on this court — the ones drawn in
+                        // the column below. See `courtCounts`.
+                        const { total, played } = day.courtCounts.get(court) ?? { total: 0, played: 0 };
+                        const pct = total > 0 ? Math.round((played / total) * 100) : 0;
                         // A column holding matches on a court the venue no
                         // longer has. Named plainly rather than styled into a
                         // warning: it is a fact about the schedule, and the
                         // organizer fixes it by moving the matches left.
                         const stranded = calendar.offRoster.includes(court);
+                        // The tray is a stack of matches with no slot, not a
+                        // court with a day's work on it, so it gets neither a
+                        // progress bar (which would sit at 0% forever — an
+                        // unplaced match is never `done`) nor a "played" line.
+                        // It reports the stack standing under it, which is the
+                        // whole tray in the one section that draws it and
+                        // nothing in the rest.
+                        const isTray = court === 'Unscheduled';
                         return (
                           <div key={court} className={styles.calCourtHead} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
                             <div className={`${styles.calCourtHeadCard} ${stranded ? styles.calCourtHeadOff : ''}`}>
@@ -2296,15 +2467,21 @@ export default function TournamentSchedulePage() {
                               <div className={styles.calCourtHeadBottom}>
                                 {stranded ? (
                                   <span className={styles.calCourtOffNote} title={`${court} is not one of this venue's courts. Move these matches onto a court that is.`}>
-                                    Not on this venue · {onCourt.length} match{onCourt.length === 1 ? '' : 'es'}
+                                    Not on this venue · {total} match{total === 1 ? '' : 'es'}
                                   </span>
+                                ) : isTray ? (
+                                  day.trayCount > 0 && (
+                                    <span className={styles.calCourtPlayed}>
+                                      {day.trayCount} waiting
+                                    </span>
+                                  )
                                 ) : (
                                   <>
                                     <span className={styles.calCourtProgress}>
                                       <span className={styles.calCourtProgressFill} style={{ width: `${pct}%` }} />
                                     </span>
                                     <span className={styles.calCourtPlayed}>
-                                      {played}/{onCourt.length} played
+                                      {played}/{total} played
                                     </span>
                                   </>
                                 )}
@@ -2472,7 +2649,7 @@ export default function TournamentSchedulePage() {
                                     onClick={() =>
                                       setInsertAt({
                                         matchId: b.m.id,
-                                        suggested: b.m.durationMinutes || config?.blockMinutes || 45,
+                                        suggested: bufferSuggestion(b.m),
                                       })
                                     }
                                   >
@@ -2596,7 +2773,7 @@ export default function TournamentSchedulePage() {
               </div>
               <button
                 type="button"
-                className={styles.genClose}
+                className={styles.genHeadClose}
                 onClick={() => setMatchListDivId(null)}
                 aria-label="Close match list"
               >

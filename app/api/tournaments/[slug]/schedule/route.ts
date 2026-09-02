@@ -181,7 +181,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 interface AssignBody {
   // time is "HH:MM" (local wall-clock) or null to clear the match's schedule;
-  // day is the 0-based offset from the tournament start date (default 0).
+  // day is the signed offset from the tournament start date (default 0):
+  // negative for a placement sitting before the event's first day, which a
+  // saved schedule does as soon as the organizer moves the dates.
   // pinned marks a placement the organizer fixed by hand, which the generator
   // must schedule around rather than overwrite on its next run.
   assignments: {
@@ -279,7 +281,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   let written = 0;
   for (const a of assignments) {
     if (!validIds.has(a.matchId)) continue;
-    const day = Number.isFinite(a.day) ? Math.max(0, Math.trunc(a.day as number)) : 0;
+    // A signed offset, not an index. Clamping this at 0 silently moved a
+    // match sitting on a day before the event onto the first day of it —
+    // so a schedule the organizer had not touched came back changed. The
+    // bound is only there to keep a bad request from constructing an
+    // absurd timestamp; no real event is ten years from its own start.
+    const day = Number.isFinite(a.day) ? Math.max(-3650, Math.min(3650, Math.trunc(a.day as number))) : 0;
     const scheduledTime =
       a.time && HHMM.test(a.time) ? `${addDaysUTC(startDate, day)}T${a.time}:00Z` : null;
     // Generating publishes: the planned time is the promise, and the live

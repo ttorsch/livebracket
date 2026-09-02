@@ -19,6 +19,7 @@
 import type { MatchGraph } from './graph.ts';
 import { teamsOf } from './cost.ts';
 import { DAY_SPAN, type Grid } from './grid.ts';
+import { netStateBefore, netShortfall, normaliseBuffer, type NetPredecessor } from './netChange.ts';
 
 /** One match as the editor currently has it placed. */
 export interface EditedPlacement {
@@ -36,7 +37,8 @@ export type ProblemKind =
   | 'shortRest'
   | 'dependency'
   | 'outsideDay'
-  | 'blocked';
+  | 'blocked'
+  | 'netChange';
 
 export interface ScheduleProblem {
   matchId: string;
@@ -51,6 +53,9 @@ export interface ScheduleProblem {
 export interface ValidateOptions {
   /** Gap a team should get between matches, in minutes. 0 disables the check. */
   targetRestMinutes?: number;
+  /** Court time a net-height change costs, in minutes. 0 disables the check —
+   *  a venue that can re-rig instantly has nothing to warn about. */
+  netBufferMinutes?: number;
   /** How to name a match in a message. Defaults to the raw id, which is only
    *  useful in tests — the UI passes its own labels ("M14"). */
   label?: (matchId: string) => string;
@@ -80,6 +85,7 @@ export function validateSchedule(
   const name = options.label ?? ((id: string) => id);
   const teamName = options.teamLabel ?? ((id: string) => id);
   const rest = Math.max(0, options.targetRestMinutes ?? 0);
+  const buffer = normaliseBuffer(options.netBufferMinutes ?? 0);
   const problems: ScheduleProblem[] = [];
   const byId = new Map(placements.map(p => [p.matchId, p]));
 
@@ -102,6 +108,54 @@ export function validateSchedule(
           otherMatchId: previous.matchId,
           kind: 'courtClash',
           message: `${current.court} is still busy with ${name(previous.matchId)} until ${hhmm(endAbs(previous))}`,
+        });
+      }
+    }
+
+    // ── A net change with no time to make it. ──────────────────────────────
+    //
+    // The one fault on this list that is invisible on screen. A court clash is
+    // two cards overlapping; this is two cards sitting neatly nose to tail
+    // that happen to need a crew and fifteen minutes between them, and nothing
+    // in the drawing says so.
+    //
+    // The rule itself lives in `netChange.ts`, because the solver obeys it too
+    // while it places — its own output must never trip this check.
+    if (buffer > 0) {
+      for (let i = 1; i < ordered.length; i++) {
+        const current = ordered[i];
+        const height = graph.nodes.get(current.matchId)?.netHeight ?? null;
+        if (height == null) continue;
+
+        // Earlier matches on this court and day, most recent first. Lazy, so
+        // the walk stops at the last one that declared a height.
+        const earlier = function* (): Generator<NetPredecessor> {
+          for (let j = i - 1; j >= 0; j--) {
+            yield {
+              endAbs: endAbs(ordered[j]),
+              netHeight: graph.nodes.get(ordered[j].matchId)?.netHeight ?? null,
+            };
+          }
+        };
+        const state = netStateBefore(earlier());
+        // Already overlapping is a court clash, and that is the bigger problem
+        // and already reported. Saying both would put two faults on one card
+        // for one mistake, and the net change is not the one to fix first.
+        if (abs(current) < state.freeAt) continue;
+
+        const short = netShortfall(abs(current), state, height, buffer);
+        if (short === 0) continue;
+
+        const gap = abs(current) - state.freeAt;
+        const previous = ordered[i - 1];
+        problems.push({
+          matchId: current.matchId,
+          otherMatchId: previous.matchId,
+          kind: 'netChange',
+          message:
+            gap === 0
+              ? `the net is at ${state.height} m after ${name(previous.matchId)} and this starts straight after — changing it to ${height} m needs ${buffer} min`
+              : `the net is at ${state.height} m after ${name(previous.matchId)} — changing it to ${height} m needs ${buffer} min, and this starts ${gap} min later`,
         });
       }
     }

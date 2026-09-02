@@ -1574,7 +1574,8 @@ export default function LiveBracketHome() {
                       {upcomingSoon.map(t => (
                         <Link
                           key={t.id}
-                          href={`/tournament/${t.id}/register`}
+                          href={`/tournament/${t.id}`}
+                          onClick={() => saveScrollPosition('/')}
                           className={styles.upNextItem}
                         >
                           <span className={styles.upNextChip}>

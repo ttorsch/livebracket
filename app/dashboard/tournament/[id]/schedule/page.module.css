@@ -446,6 +446,34 @@
 
 .hintBannerOn strong { color: var(--coral-600, #E44F1C); }
 
+/* The rest of the rules, folded away. Closed it costs one line; open it reads
+   as the paragraph it always was. */
+.hintMore { margin-top: 8px; }
+.hintMoreSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--coral-600, #E44F1C);
+  cursor: pointer;
+  list-style: none;
+}
+.hintMoreSummary::-webkit-details-marker { display: none; }
+/* The arrow is drawn rather than listed so it can turn with the disclosure. */
+.hintMoreSummary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+.hintMore[open] .hintMoreSummary::after { transform: translateY(1px) rotate(-135deg); }
+.hintMore p { margin: 10px 0 0; }
+.hintMore p:first-of-type { margin-top: 8px; }
+
 /* ── Day sections ─────────────────────────────────────────────
    A multi-day event viewed as a whole is shown one day at a time: each day
    gets its own row of courts (or run of time slots) under a dated heading,
@@ -971,12 +999,40 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .gridEditBtn:hover { border-color: var(--orange, #EE7A4C); color: var(--orange, #EE7A4C); }
+/* On and off carry the same label, so the switch — not the wording — is what
+   says which way the schedule is set. A tint rather than a solid fill: this
+   reports a state, it is not the page's primary action. */
 .gridEditBtnOn {
-  background: var(--orange, #EE7A4C);
+  background: rgba(238, 122, 76, 0.10);
   border-color: var(--orange, #EE7A4C);
-  color: #fff;
+  color: var(--orange, #EE7A4C);
 }
-.gridEditBtnOn:hover { color: #fff; opacity: 0.92; }
+.gridEditBtnOn:hover { background: rgba(238, 122, 76, 0.16); }
+
+/* Same proportions as the switches on the setup page, scaled to sit on a
+   12px line. */
+.gridEditSwitch {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 15px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(20, 31, 46, 0.18);
+  transition: background 0.2s ease;
+}
+.gridEditThumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transform: translateX(0);
+  transition: transform 0.2s ease;
+}
+.gridEditBtnOn .gridEditSwitch { background: var(--orange, #EE7A4C); }
+.gridEditBtnOn .gridEditThumb { transform: translateX(11px); }
 
 /* The handle that inserts buffer time in front of a match.
    It hangs off the top edge of the card — the edge the buffer would go in at —
@@ -1252,6 +1308,19 @@
   background: var(--sand-100, #F5F1EA);
   border-right: 1px solid var(--sand-300, #EAE5DD);
   pointer-events: none;
+}
+
+/* A sticky offset is measured from the scrollport's *padding* edge, so at
+   left: 0 these come to rest 12px inside the calendar and can never cover the
+   padding beside them — courts scrolled underneath the gutter stayed visible in
+   that strip, showing a sliver of the previous court's cards next to the times.
+   The shadow is a flat block of the same sand extending back across it: it
+   reaches the border edge without moving any of these out of their grid track,
+   which a negative offset would have done. */
+.calTimeGutter,
+.calTimeLabelCell,
+.calCorner {
+  box-shadow: calc(-1 * var(--cal-scroll-pad, 12px)) 0 0 var(--sand-100, #F5F1EA);
 }
 
 .calTimeLabelCell {
@@ -1571,7 +1640,10 @@
   /* Sand, not white: the match cards are white, and on a white ground they
      lose their edges. Same reason the court headers are ink. */
   background: var(--sand-100, #F5F1EA);
-  padding: 0 12px 4px;
+  /* Named because three other things have to agree with it: the padding itself,
+     the snap offset, and the strip the sticky time column paints over it. */
+  --cal-scroll-pad: 12px;
+  padding: 0 var(--cal-scroll-pad) 4px;
   /* Keep a horizontal swipe inside the calendar instead of chaining to the
      page (or to the browser's back gesture) once a court edge is reached. */
   overscroll-behavior-x: contain;
@@ -1641,6 +1713,18 @@
   letter-spacing: -0.02em;
   color: var(--coral-500, #EB6F43);
   line-height: 1.1;
+  margin-bottom: 3px;
+}
+/* Where the day number would be, on a day the event does not cover. Muted
+   rather than coral: it is a statement of fact about the section, not an
+   alarm — the faults on the cards under it do the alarming. */
+.calCornerOffEvent {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-500, #8A92A0);
+  line-height: 1.2;
   margin-bottom: 3px;
 }
 .calCornerWeekday {
@@ -1766,203 +1850,457 @@
    repeating it here (and using a narrower max-width, which re-centred the
    row) is what pushed this 130px to the right of the row above. */
 /* ── Schedule Generator Panel ────────────────────────────────── */
-.genPanel {
-  background: var(--sand-100, #F4F1EA);
-  border-bottom: 1px solid var(--sand-300, #EAE5DD);
-}
-.genInner {
-  /* 1440 is this page's measure — the hero, the sticky bar, the day bar
-     and .main all use it. A narrower cap here re-centred the panel and
-     left its controls 100px inside the toolbar above it. */
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 20px 40px 24px;
-}
-.genHeaderRow {
+/* ── Generator modal ─────────────────────────────────────────
+   One dialog for both sizes: a centred card on a desktop, a
+   bottom sheet on a phone (the @media block near the foot of
+   this file). The schedule is what it acts on, so it covers
+   rather than displaces it. */
+.genOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  justify-content: center;
+  padding: 40px 24px;
+  background: rgba(20, 24, 30, 0.55);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
-.genTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--ink-900, #14181E);
-}
-.genClose {
-  display: inline-flex;
-  padding: 6px;
-  border-radius: 8px;
-  border: 1px solid var(--sand-300, #EAE5DD);
-  background: #fff;
-  color: var(--ink-600, #5A6270);
-  cursor: pointer;
-}
-.genClose:hover { background: var(--sand-200, #F0EDE6); }
-
-.genGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-}
-.genField {
+.genDialog {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  width: min(820px, 100%);
+  max-height: min(88vh, 100%);
+  max-height: min(88dvh, 100%);
+  background: var(--surface-card, #FFFFFF);
+  border-radius: var(--radius-2xl, 34px);
+  box-shadow: var(--shadow-glass, 0 30px 60px -30px rgba(20, 31, 46, 0.35));
+  overflow: hidden;
 }
-.genField span {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-600, #5A6270);
-}
-.genField input {
-  padding: 8px 10px;
-  border-radius: 9px;
-  border: 1px solid var(--sand-400, #DCD7CE);
-  background: #fff;
-  font-size: 14px;
-  color: var(--ink-900, #14181E);
-}
-.genField input:focus {
-  outline: none;
-  border-color: var(--orange, #EE7A4C);
-}
+/* Phone-only affordance — see the @media block. */
+.genGrabber { display: none; }
 
-.genToggles {
-  margin-top: 14px;
-  display: grid;
-  gap: 10px;
+.genHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 26px 20px;
 }
-.genToggle {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: start;
-  gap: 10px;
-  padding: 10px 12px;
-  background: #fff;
-  border: 1px solid var(--sand-300, #EAE5DD);
-  border-radius: 10px;
-  cursor: pointer;
-}
-.genToggle input {
-  margin-top: 2px;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--orange, #EE7A4C);
-}
-.genToggle span {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-600, #5A6270);
-}
-.genToggle strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-800, #2C323D);
-  margin-bottom: 2px;
-}
-
-.genDivisions { margin-top: 18px; }
-.genSubhead {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-800, #2C323D);
-  margin-bottom: 10px;
-}
-.genDivGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-}
-.genDivRow {
-  display: grid;
-  grid-template-columns: 1fr auto 72px;
+.genHeadLeft {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fff;
-  border: 1px solid var(--sand-300, #EAE5DD);
-  border-radius: 10px;
+  gap: 14px;
+  min-width: 0;
 }
-.genDivName {
+.genHeadIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-primary-soft, rgba(235, 111, 67, 0.2));
+  color: var(--color-primary, #EB6F43);
+}
+.genHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.genHeadTitle {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+  margin: 0;
+}
+.genHeadSub {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
   font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-900, #14181E);
+  line-height: 18px;
+  color: var(--text-muted, #7A8294);
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.genDivMeta {
-  font-size: 11px;
-  color: var(--ink-500, #8A92A0);
+.genHeadClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  background: #fff;
+  color: var(--text-secondary, #3A414D);
+  cursor: pointer;
+  transition: background var(--duration-fast, 120ms) var(--ease-standard, ease);
 }
-.genDivRow input {
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--sand-400, #DCD7CE);
-  font-size: 13px;
-  text-align: center;
+.genHeadClose:hover { background: var(--gray-100, #F3F3F3); }
+.genHeadClose:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(235, 111, 67, 0.45));
 }
-/* Capacity vs demand summary in the generator panel */
-.capacityGrid {
+
+.genBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px solid var(--border-hairline, #E7E2D9);
+  padding: 24px 26px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 26px 28px;
+  align-items: start;
 }
-.capacityCard {
+.genCol {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.genEyebrow {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #7A8294);
+}
+/* Transparent on a desktop; the phone sheet turns it into a white
+   card on sand, which is where the rules below earn their keep. */
+.genCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.genRule { display: none; }
+
+.genGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+.genField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.genField > span {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #3A414D);
+}
+.genField input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  background: #fff;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 15px;
+  color: var(--text-primary, #14181E);
+  font-variant-numeric: tabular-nums;
+}
+.genField input:focus {
+  outline: none;
+  border-color: var(--color-primary, #EB6F43);
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(235, 111, 67, 0.45));
+}
+.genFieldCap input { width: 200px; max-width: 100%; }
+.genRangeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.genRangeRow input { flex: 1; min-width: 0; }
+.genRangeTo {
+  flex: none;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13px;
+  color: var(--text-muted, #7A8294);
+}
+
+/* The native checkbox stays in the tree — it carries the checked
+   state, the keyboard focus and the label association — and the
+   square beside it is what gets drawn. */
+.genCheckCard {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: var(--radius-lg, 20px);
+  background: var(--sand-100, #F5F1EA);
+  cursor: pointer;
+}
+.genCheckCard input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.genCheckBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border-radius: 6px;
+  border: 1.5px solid var(--sand-400, #D9D4C9);
+  background: #fff;
+  color: #fff;
+  transition: background var(--duration-fast, 120ms) var(--ease-standard, ease),
+              border-color var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+.genCheckBox svg { opacity: 0; }
+.genCheckCard input:checked + .genCheckBox {
+  background: var(--color-primary, #EB6F43);
+  border-color: var(--color-primary, #EB6F43);
+}
+.genCheckCard input:checked + .genCheckBox svg { opacity: 1; }
+.genCheckCard input:focus-visible + .genCheckBox {
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(235, 111, 67, 0.45));
+}
+.genCheckText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--text-secondary, #3A414D);
+  text-wrap: pretty;
+}
+.genCheckText strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+}
+
+.genFitCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg, 20px);
+  background: var(--sand-100, #F5F1EA);
+}
+.genFitHead {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 12px;
-  background: #fff;
-  border: 1px solid var(--sand-300, #EAE5DD);
-  border-radius: 10px;
 }
-.capacityTotal {
-  border-color: rgba(238, 122, 76, 0.45);
-  background: rgba(238, 122, 76, 0.05);
+.genFitLabel {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 12px;
+  color: var(--text-secondary, #3A414D);
 }
-.capacityDay {
-  font-size: 11px;
+.genFitValue {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--ink-500, #8A92A0);
+  color: var(--text-primary, #14181E);
+  font-variant-numeric: tabular-nums;
 }
-.capacityValue {
-  font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--ink-900, #14181E);
-  line-height: 1.15;
+.genMeter {
+  height: 12px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--sand-300, #E7E2D9);
+  overflow: hidden;
 }
-.capacityMeta {
-  font-size: 11px;
-  color: var(--ink-500, #8A92A0);
+.genMeterFill {
+  height: 100%;
+  min-width: 6px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-primary, #EB6F43);
+  transition: width var(--duration-base, 200ms) var(--ease-standard, ease);
 }
-/* The demand cards are buttons that open the division's full match list. */
-.demandCard {
+/* Demand past supply: the bar is pinned full, so colour is the only
+   thing left to say the event does not fit. */
+.genMeterOver { background: var(--red-live, #F16767); }
+.genFitDays {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.genFitDayRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.genFitDayName {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 12px;
+  color: var(--text-secondary, #3A414D);
+}
+.genFitDayValue {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.genBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.genBlockTitle {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+}
+.genList {
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: var(--radius-lg, 20px);
+  background: #fff;
+  overflow: hidden;
+}
+.genListRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  font-family: inherit;
+  padding: 14px 16px;
+  margin: 0;
+  border: none;
+  background: #fff;
   text-align: left;
+}
+.genListRow + .genListRow { border-top: 1px solid var(--border-hairline, #E7E2D9); }
+.genListName {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #14181E);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.genListMeta {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 11px;
+  color: var(--text-muted, #7A8294);
+  white-space: nowrap;
+}
+.genListValue {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.genListRowInput input {
+  width: 84px;
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  background: #fff;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13px;
+  color: var(--text-primary, #14181E);
+  text-align: center;
+}
+.genListRowInput input:focus {
+  outline: none;
+  border-color: var(--color-primary, #EB6F43);
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(235, 111, 67, 0.45));
+}
+/* The demand rows are buttons that open the division's full match list. */
+.demandCard {
+  font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition: background var(--duration-fast, 120ms) var(--ease-standard, ease);
 }
-.demandCard:hover {
-  border-color: rgba(238, 122, 76, 0.5);
-  box-shadow: 0 3px 10px rgba(20, 24, 30, 0.06);
-}
+.demandCard:hover { background: var(--sand-100, #F5F1EA); }
 .demandCard:focus-visible {
-  outline: 2px solid var(--orange, #EE7A4C);
-  outline-offset: 2px;
+  outline: 2px solid var(--color-primary, #EB6F43);
+  outline-offset: -2px;
 }
-@media (hover: hover) {
-  .demandCard:hover { transform: translateY(-1px); }
+
+.genNote {
+  margin: 0;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--text-muted, #7A8294);
+  text-wrap: pretty;
+}
+
+.genFoot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px 26px;
+  border-top: 1px solid var(--border-hairline, #E7E2D9);
+  background: #fff;
+}
+.genCancelBtn,
+.genSubmitBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-base, 200ms) var(--ease-standard, ease),
+              transform var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+.genCancelBtn {
+  min-width: 96px;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  background: var(--surface-card, #FFFFFF);
+  color: var(--text-primary, #14181E);
+}
+.genCancelBtn:hover { background: var(--gray-100, #F3F3F3); }
+.genSubmitBtn {
+  min-width: 180px;
+  background: var(--color-primary, #EB6F43);
+  color: var(--color-on-primary, #FFFFFF);
+  box-shadow: var(--shadow-primary, 0 4px 12px rgba(242, 103, 73, 0.4));
+}
+.genSubmitBtn:hover { background: var(--color-primary-hover, #E44F1C); }
+.genCancelBtn:active,
+.genSubmitBtn:active { transform: scale(0.96); }
+.genCancelBtn:focus-visible,
+.genSubmitBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(235, 111, 67, 0.45));
 }
 
 /* ── Division match-list modal ───────────────────────────────── */
@@ -2096,38 +2434,11 @@
   .matchRowTeams { font-size: 12px; }
 }
 
-.demandValue {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-800, #2C323D);
-  text-align: right;
-  white-space: nowrap;
-}
-
 .genHint {
   margin-top: 10px;
   font-size: 12px;
   color: var(--ink-500, #8A92A0);
 }
-.genActions {
-  margin-top: 18px;
-  display: flex;
-  justify-content: flex-end;
-}
-.genGenerateBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: none;
-  background: var(--orange, #EE7A4C);
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-}
-.genGenerateBtn:hover { filter: brightness(0.96); }
 
 /* ── Preview Save Bar ────────────────────────────────────────── */
 .previewBar {
@@ -2430,38 +2741,87 @@
 
   .main { padding: 20px 16px 48px; }
 
-  /* The configuration stops being a band pushed in above the schedule and
-     becomes a bottom sheet over it, matching the match-list dialog. A phone
-     has no room to show both the controls and the thing they act on, and the
-     band pushed the schedule off-screen while it was open. */
-  .genPanel {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
+  /* The generator becomes a bottom sheet: the controls sit over the
+     schedule rather than beside it, because a phone has no room to
+     show both. */
+  .genOverlay { padding: 0; align-items: flex-end; }
+  .genDialog {
+    width: 100%;
+    max-width: 560px;
+    max-height: 92vh;
+    max-height: 92dvh;
+    border-radius: 28px 28px 0 0;
+    box-shadow: var(--shadow-glass-deep, 0 30px 80px -30px rgba(8, 18, 35, 0.6));
+  }
+  .genGrabber {
     display: flex;
-    align-items: flex-end;
     justify-content: center;
-    padding: 12px;
-    background: rgba(20, 24, 30, 0.55);
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
-    border-bottom: none;
+    padding: 10px 0 0;
   }
-  .genInner {
-    width: min(640px, 100%);
-    max-height: 88vh;
-    max-height: 88dvh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    background: var(--surface-card, #FFFFFF);
-    border: 1px solid var(--sand-300, #EAE5DD);
-    border-radius: 16px;
-    box-shadow: 0 24px 60px rgba(20, 24, 30, 0.28);
-    padding: 16px 16px 20px;
+  .genGrabber span {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--sand-400, #D9D4C9);
   }
-  /* Full width so it is a real thumb target at the foot of the sheet. */
-  .genActions { justify-content: stretch; }
-  .genGenerateBtn { flex: 1; justify-content: center; padding: 12px 18px; }
+  .genHead { align-items: center; gap: 12px; padding: 14px 18px; }
+  .genHeadIcon { display: none; }
+  .genHeadTitle { font-size: 18px; line-height: 24px; }
+  .genHeadSub { font-size: 12px; line-height: 16px; }
+  .genHeadClose { width: 32px; height: 32px; }
+
+  /* Sand behind, white cards on top — the section eyebrows stop
+     earning their line when there is only one column of them. */
+  .genBody {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px 18px;
+    background: var(--sand-100, #F5F1EA);
+  }
+  .genCol { gap: 16px; }
+  .genEyebrow { display: none; }
+  .genCard,
+  .genCheckCard,
+  .genFitCard,
+  .genBlock {
+    padding: 16px;
+    border: none;
+    border-radius: 20px;
+    background: #fff;
+  }
+  .genCard { gap: 14px; }
+  .genCheckCard { gap: 12px; }
+  .genFitCard { gap: 12px; }
+  .genBlock { gap: 12px; }
+  .genRule { display: block; height: 1px; background: var(--border-hairline, #E7E2D9); }
+  .genGrid { gap: 12px; }
+  /* 16px keeps iOS from zooming the page when a field takes focus. */
+  .genField input { height: 46px; padding: 0 12px; font-size: 16px; }
+  .genFieldCap input { width: 100%; }
+  .genRangeRow { gap: 10px; }
+  .genCheckBox { width: 22px; height: 22px; margin-top: 1px; }
+  .genFitDayBreakdown { display: none; }
+  .genBlockTitle {
+    font-family: var(--font-text, 'DM Sans', sans-serif);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary, #3A414D);
+  }
+  .genList { border: none; border-radius: 0; background: transparent; }
+  .genListRow { padding: 0; background: transparent; gap: 10px; }
+  .genListRow + .genListRow { border-top: none; margin-top: 10px; }
+  .demandCard:hover { background: transparent; }
+  .genListRowInput input { width: 76px; height: 34px; }
+
+  /* One full-width thumb target at the foot of the sheet; Cancel is
+     the backdrop, the close button and Escape. */
+  .genFoot {
+    padding: 14px 18px 26px;
+    padding-bottom: max(26px, env(safe-area-inset-bottom));
+  }
+  .genCancelBtn { display: none; }
+  .genSubmitBtn { flex: 1; min-width: 0; height: 48px; }
   .previewInner { padding: 12px 16px; }
   .saveMsg { padding: 0 16px; }
 
@@ -2555,12 +2915,10 @@
     scroll-snap-type: x mandatory;
     /* Snap past the sticky time gutter so a court lands flush beside it.
        The gutter sticks to the *padding* edge, so its right edge is the time
-       column plus this container's own 12px padding — snapping to the column
-       width alone left 12px of the resting court underneath the gutter, which
-       ate the first character of its match times and team names. The padding is
-       repeated here rather than read from a variable because it is stated
-       literally in .calScroll above; move one and move both. */
-    scroll-padding-left: calc(var(--cal-time-col) + 12px);
+       column plus this container's own padding — snapping to the column width
+       alone left 12px of the resting court underneath the gutter, which ate the
+       first character of its match times and team names. */
+    scroll-padding-left: calc(var(--cal-time-col) + var(--cal-scroll-pad));
     border-radius: 12px;
   }
   .calCourtHeadCard {
@@ -2643,7 +3001,7 @@
   .backLink,
   .mobileBackBtn,
   .stickyBar,
-  .genPanel,
+  .genOverlay,
   .previewBar,
   .saveMsg,
   .heroActions,

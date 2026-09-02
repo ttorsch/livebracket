@@ -134,16 +134,6 @@ export function generateSchedule(
   );
   const graph = buildGraph(divisions, grid.blockMinutes);
 
-  // Net height is a property of the division, but the solver only ever holds
-  // matches, so it is copied onto each node once here.
-  for (const div of divisions) {
-    const height = parseNetHeight(div.netHeight);
-    for (const m of div.matches) {
-      const node = graph.nodes.get(m.id);
-      if (node) node.netHeight = height;
-    }
-  }
-
   const plan = buildDayPlan(graph, grid, config);
 
   // Staging is worked out before court affinity, because the pool rotation is

@@ -29,7 +29,7 @@
 //   - each later knockout match depends on the two matches feeding its slot.
 
 import type { SchedulableDivision, SchedulableMatch } from './types.ts';
-import { DEFAULT_MATCH_MINUTES } from './types.ts';
+import { DEFAULT_MATCH_MINUTES, parseNetHeight } from './types.ts';
 
 export interface MatchNode {
   id: string;
@@ -160,6 +160,13 @@ export function buildGraph(
   for (const div of divisions) {
     const inferred = inferDeps(div);
     const rounds = roundsOf(div);
+    // Net height is a property of the division, but everything downstream only
+    // ever holds matches, so it is copied onto each node here — where the
+    // division is still in hand. It used to be left null for the caller to
+    // fill, which only `generate.ts` ever did: the page builds its own graph to
+    // validate hand edits against, and a node with a null height silently
+    // passes every net-change check there is.
+    const netHeight = parseNetHeight(div.netHeight);
     const indexInRound = new Map<string, number>();
     for (const round of rounds) {
       round.matches.forEach((m, i) => indexInRound.set(m.id, i));
@@ -179,7 +186,7 @@ export function buildGraph(
         durationMinutes: durationOf(m, blockMinutes),
         roundIndex: m.roundIndex ?? 0,
         indexInRound: indexInRound.get(m.id) ?? 0,
-        netHeight: null, // filled by the caller from the division; see generate.ts
+        netHeight,
         deps: m.dependsOn ?? inferred.get(m.id) ?? [],
         dependents: [],
         level: 0,

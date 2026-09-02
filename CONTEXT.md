@@ -99,6 +99,19 @@ height, whether it is the show court). Not a number.
 **Show court**:
 The centre court, kept for late-stage matches when anything else would do.
 
+**Net change**:
+Moving a court's net from one height to another, because the division about to
+play needs a different height from the one that just did. A court is rigged to
+one height at a time, and the height it is at is whatever the last match that
+*declared* one left it at — a division with no declared height plays at
+whatever is already up and moves nothing.
+
+**Net buffer**:
+The court time a *net change* costs. A wait, not a charge: the crew starts the
+moment the previous match ends, so a match already sitting far enough after one
+pays nothing, and a court's first match of a day pays nothing at all — nets are
+rigged in the morning.
+
 **Court roster**:
 The venue's courts, as configured — the calendar view's horizontal axis, and
 the counterpart of the *time axis*. Like the time axis it is a property of the
@@ -111,6 +124,20 @@ A court named by a placement that the venue no longer has — court names live o
 the match, so shrinking the roster strands whatever was on the courts that went.
 Shown past the roster and marked, never silently dropped, and never a place a
 match can be moved *to*.
+
+**Event day**:
+One of the days the tournament is configured to run, counted from its start
+date. A *placement* carries its day as a **signed offset** from that start, so
+the offset is negative for a day before the event and past the last index for a
+day after it — a real day either way, never a marker for "no placement".
+
+**Off-event day**:
+A day named by a placement that the event's dates no longer cover — the
+counterpart of an *off-roster court*, and stranded the same way: dates live on
+the match, so moving the tournament's dates leaves whatever was on the days that
+went. Drawn as its own section, marked, and checked like any other day. That it
+is outside the event is said once, about the day, rather than as a fault on each
+match sitting on it.
 
 **Slot**:
 One step of the time grid on one day. The generator starts every match on a slot
@@ -145,12 +172,17 @@ Every match in the tournament given a court and a start time.
 One match's court, day and time.
 
 **Pinned placement**:
-A placement the organizer has fixed by hand. A hard constraint on the next
-generate — which is what makes manual edits survive regeneration.
+A placement the organizer has fixed by hand, standing as a hard constraint on
+the next generate. The solver honours pins and reports the ones it cannot
+honour rather than dropping them — but no organizer act produces one yet, so a
+*hand edit* is not a pin.
 
 **Hand edit**:
 An organizer's change to a placement, made in the schedule editor and not yet
-saved.
+saved. Thrown away by the next generate, which starts from the solver's own
+answer rather than from these — a *pinned placement* is the thing that would
+survive one. Nothing about a hand edit is refused: it is checked and what it
+breaks is reported, including a *net change* it leaves no time for.
 _Avoid_: Override (that word is taken by the per-round duration overrides).
 
 **Preview**:
