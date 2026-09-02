@@ -28,6 +28,7 @@ import {
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '@/components/auth/useSignInHref';
 import { useSession } from '@/components/auth/AuthProvider';
 import AccountButton from '@/components/auth/AccountButton';
+import { registrationState } from '@/lib/tournamentLifecycle';
 
 type Status = 'live' | 'upcoming' | 'finished';
 
@@ -66,6 +67,13 @@ interface Tournament {
   winner?: string;
   winners?: [string, string];
   divisions?: string[];
+  rawDivisions?: {
+    name: string;
+    cap: number;
+    filled: number;
+    registrationOpens?: string;
+    registrationCloses?: string;
+  }[];
   image: string;
   timeLabel: string;
   registrations?: RegistrationInfo[];
@@ -469,15 +477,47 @@ function formatDateRange(start: string, end?: string): string {
 
 /* Status pill copy. Long form rides the desktop poster, short form the
    mobile row. "Filling" once any division passes 80% of its seats. */
-function statusLabels(t: Tournament): { long: string; short: string } {
-  if (t.status === 'live') return { long: 'Live now', short: 'Live now' };
-  if (t.status === 'finished') return { long: 'Finished', short: 'Finished' };
+function statusLabels(t: Tournament): {
+  long: string;
+  short: string;
+  variant: 'live' | 'finished' | 'announced' | 'open' | 'waitlist' | 'closed';
+} {
+  if (t.status === 'live') return { long: 'Live now', short: 'Live now', variant: 'live' };
+  if (t.status === 'finished') return { long: 'Finished', short: 'Finished', variant: 'finished' };
+
+  const rawDivs = t.rawDivisions ?? [];
+  if (rawDivs.length === 0) {
+    return { long: 'Announced', short: 'Announced', variant: 'announced' };
+  }
+
+  const regState = registrationState(
+    rawDivs.map((d) => ({
+      registrationOpens: d.registrationOpens || '',
+      registrationCloses: d.registrationCloses || '',
+    })),
+    new Date(),
+  );
+
+  if (regState === 'opens-soon' || regState === null) {
+    return { long: 'Announced', short: 'Announced', variant: 'announced' };
+  }
+
+  if (regState === 'closed') {
+    return { long: 'Registration Closed', short: 'Closed', variant: 'closed' };
+  }
+
+  // regState is 'open'
+  const allFull = rawDivs.length > 0 && rawDivs.every((d) => d.cap > 0 && d.filled >= d.cap);
+  if (allFull) {
+    return { long: 'Waitlist Open', short: 'Waitlist', variant: 'waitlist' };
+  }
+
   const fullest = (t.registrations || []).reduce(
     (max, r) => (r.total > 0 ? Math.max(max, r.filled / r.total) : max),
     0
   );
-  if (fullest >= 0.8) return { long: 'Filling fast', short: 'Filling fast' };
-  return { long: 'Open Registration', short: 'Open Registration' };
+  if (fullest >= 0.8) return { long: 'Filling fast', short: 'Filling fast', variant: 'open' };
+  return { long: 'Open Registration', short: 'Open Registration', variant: 'open' };
 }
 
 function toEventCard(t: DashboardTournament, index: number, organizerName: string | null): Tournament {
@@ -506,6 +546,7 @@ function toEventCard(t: DashboardTournament, index: number, organizerName: strin
     format: `${t.divisions.length || 'No'} division${t.divisions.length === 1 ? '' : 's'}`,
     accent: CARD_ACCENTS[index % CARD_ACCENTS.length],
     divisions: t.divisions.map(d => d.name),
+    rawDivisions: t.divisions,
     image: t.imageUrl || '/images/Hero.jpg',
     timeLabel: '',
     registrations: t.divisions.map(d => ({ division: d.name, filled: d.filled, total: d.cap })),
@@ -1354,13 +1395,26 @@ export default function LiveBracketHome() {
                             and sits inline beside the title on the mobile row. */}
                         <div className={styles.cardTitleRow}>
                           <h3 className={styles.cardTitle}>{t.title}</h3>
-                          <span
-                            className={`${styles.cardStatusBadge} ${t.status === 'live' ? styles.cardStatusLive : t.status === 'finished' ? styles.cardStatusFinished : ''}`}
-                          >
-                            <span className={styles.cardStatusDot} aria-hidden="true" />
-                            <span className={styles.cardStatusLong}>{statusLabels(t).long}</span>
-                            <span className={styles.cardStatusShort}>{statusLabels(t).short}</span>
-                          </span>
+                          {(() => {
+                            const labelInfo = statusLabels(t);
+                            const badgeClass =
+                              labelInfo.variant === 'live'
+                                ? styles.cardStatusLive
+                                : labelInfo.variant === 'finished'
+                                ? styles.cardStatusFinished
+                                : labelInfo.variant === 'announced'
+                                ? styles.cardStatusAnnounced
+                                : labelInfo.variant === 'closed'
+                                ? styles.cardStatusClosed
+                                : '';
+                            return (
+                              <span className={`${styles.cardStatusBadge} ${badgeClass}`}>
+                                <span className={styles.cardStatusDot} aria-hidden="true" />
+                                <span className={styles.cardStatusLong}>{labelInfo.long}</span>
+                                <span className={styles.cardStatusShort}>{labelInfo.short}</span>
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         <div className={styles.cardMetaList}>
@@ -1417,13 +1471,28 @@ export default function LiveBracketHome() {
                           </span>
                         </div>
                       </div>
-                      <Link
-                        href={t.status === 'live' || t.status === 'finished' ? `/tournament/${t.id}` : `/tournament/${t.id}/register`}
-                        className={styles.cardRegisterBtn}
-                        onClick={() => saveScrollPosition('/')}
-                      >
-                        {t.status === 'live' ? 'View Bracket' : t.status === 'finished' ? 'View Standings' : 'Register Team'}
-                      </Link>
+                      {(() => {
+                        const labelInfo = statusLabels(t);
+                        const isRegisterable = labelInfo.variant === 'open' || labelInfo.variant === 'waitlist';
+                        const href = isRegisterable ? `/tournament/${t.id}/register` : `/tournament/${t.id}`;
+                        const btnLabel =
+                          t.status === 'live'
+                            ? 'View Bracket'
+                            : t.status === 'finished'
+                            ? 'View Standings'
+                            : isRegisterable
+                            ? 'Register Team'
+                            : 'View Details';
+                        return (
+                          <Link
+                            href={href}
+                            className={styles.cardRegisterBtn}
+                            onClick={() => saveScrollPosition('/')}
+                          >
+                            {btnLabel}
+                          </Link>
+                        );
+                      })()}
                     </div>
                   </article>
                 ))}

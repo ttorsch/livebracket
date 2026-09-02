@@ -1911,6 +1911,16 @@
   box-shadow: 0 8px 20px -8px rgba(58, 65, 77, 0.6);
 }
 
+.cardStatusAnnounced {
+  background: linear-gradient(135deg, #204ECF, #173896);
+  box-shadow: 0 8px 20px -8px rgba(32, 78, 207, 0.7);
+}
+
+.cardStatusClosed {
+  background: linear-gradient(135deg, var(--ink-500, #7A8294), var(--ink-600, #3A414D));
+  box-shadow: 0 8px 20px -8px rgba(58, 65, 77, 0.6);
+}
+
 @keyframes statusPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.45; transform: scale(0.8); }
@@ -2714,6 +2724,8 @@
   }
   .cardStatusLive { background: none; box-shadow: none; color: #D14545; }
   .cardStatusFinished { background: none; box-shadow: none; color: var(--text-muted, #7A8294); }
+  .cardStatusAnnounced { background: none; box-shadow: none; color: #204ECF; }
+  .cardStatusClosed { background: none; box-shadow: none; color: var(--text-muted, #7A8294); }
   .cardStatusDot { display: none; }
   .cardStatusLong { display: none; }
   .cardStatusShort { display: inline; }
