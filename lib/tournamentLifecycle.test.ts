@@ -19,6 +19,9 @@ import {
   registrationState,
   nextOpening,
   registrationCloseDefault,
+  getDivisionLifecycleStage,
+  getPlayerActionBadge,
+  getOrganizerDivisionBadge,
   type DivisionWindow,
 } from './tournamentLifecycle.ts';
 
@@ -128,3 +131,57 @@ describe('registrationCloseDefault', () => {
     assert.equal(registrationCloseDefault(null), '');
   });
 });
+
+describe('getDivisionLifecycleStage and Badges', () => {
+  const now = at('2026-09-15T12:00:00Z');
+
+  it('identifies upcoming division when open date is in future', () => {
+    const d = { name: "Men's Open", cap: 8, filled: 0, registrationOpens: '2026-09-20T09:00:00Z' };
+    assert.equal(getDivisionLifecycleStage(d, now), 'upcoming');
+    assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Opens Sep 20', variant: 'status' });
+    assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: 'Registration Upcoming', variant: 'status' });
+  });
+
+  it('identifies open division taking entries', () => {
+    const d = { name: "Men's Open", cap: 8, filled: 3, registrationOpens: '2026-09-01T09:00:00Z', registrationCloses: '2026-09-25' };
+    assert.equal(getDivisionLifecycleStage(d, now), 'registration-open');
+    assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Register Now', variant: 'open' });
+    assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: '3/8 Registered', variant: 'open' });
+  });
+
+  it('identifies full division with waitlist open', () => {
+    const d = { name: "Men's Open", cap: 8, filled: 8, registrationOpens: '2026-09-01T09:00:00Z', registrationCloses: '2026-09-25' };
+    assert.equal(getDivisionLifecycleStage(d, now), 'waitlist-open');
+    assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Join Waitlist', variant: 'highlight' });
+    assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: 'Full (8/8) · Waitlist', variant: 'highlight' });
+  });
+
+  it('identifies closed division past deadline', () => {
+    const d = { name: "Men's Open", cap: 8, filled: 6, registrationOpens: '2026-09-01T09:00:00Z', registrationCloses: '2026-09-10' };
+    assert.equal(getDivisionLifecycleStage(d, now), 'registration-closed');
+    assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Registration Closed', variant: 'status' });
+    assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: 'Closed (6/8)', variant: 'status' });
+  });
+
+  it('identifies draw-locked stage', () => {
+    const d = { name: "Men's Open", cap: 8, filled: 8, isDrawLocked: true };
+    assert.equal(getDivisionLifecycleStage(d, now), 'draw-locked');
+    assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Bracket View', variant: 'highlight' });
+    assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: 'Draw Locked', variant: 'highlight' });
+  });
+
+  it('identifies in-progress stage when matches are being scored', () => {
+    const d = { name: "Men's Open", cap: 8, filled: 8, isDrawLocked: true, inProgressMatches: 2, totalMatches: 12, completedMatches: 3 };
+    assert.equal(getDivisionLifecycleStage(d, now), 'in-progress');
+    assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Live Scores', variant: 'live' });
+    assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: 'Live Playing', variant: 'live' });
+  });
+
+  it('identifies completed stage when all matches are scored', () => {
+    const d = { name: "Men's Open", cap: 8, filled: 8, isDrawLocked: true, totalMatches: 12, completedMatches: 12 };
+    assert.equal(getDivisionLifecycleStage(d, now), 'completed');
+    assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Results', variant: 'status' });
+    assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: 'Completed', variant: 'status' });
+  });
+});
+

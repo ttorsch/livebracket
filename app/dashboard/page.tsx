@@ -23,7 +23,7 @@ import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 import { joinTeamName } from '../../lib/teamName';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
 import { nextPerCourt } from '../../lib/scorekeeperLinks';
-import { isPublic, type Phase, registrationState } from '../../lib/tournamentLifecycle';
+import { isPublic, type Phase, registrationState, getOrganizerDivisionBadge } from '../../lib/tournamentLifecycle';
 
 interface Organizer {
   name: string;
@@ -1125,6 +1125,20 @@ function TournamentRow({
               <span>{t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
             </span>
           </span>
+
+          {t.divisions.length > 0 && (
+            <div className={styles.rowDivisionPills}>
+              {t.divisions.map((d, idx) => {
+                const badge = getOrganizerDivisionBadge(d);
+                return (
+                  <span key={idx} className={styles.divisionPill}>
+                    <span className={styles.divisionPillName}>{d.name}</span>
+                    <Badge variant={badge.variant}>{badge.label}</Badge>
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </span>
 
         <span className={styles.rowActions} onClick={e => e.stopPropagation()}>

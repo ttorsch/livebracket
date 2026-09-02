@@ -164,3 +164,143 @@ export const DELETE_COPY = {
   blurb: 'Permanently removes this draft. It has never been public and nobody has registered — there is nothing to preserve.',
   confirmHint: 'This cannot be undone. Type its name to confirm.',
 };
+
+/* ── Granular Division Lifecycle & Badges ───────────────────────── */
+
+export type DivisionLifecycleStage =
+  | 'draft'
+  | 'upcoming'
+  | 'registration-open'
+  | 'waitlist-open'
+  | 'registration-closed'
+  | 'draw-draft'
+  | 'draw-locked'
+  | 'in-progress'
+  | 'completed';
+
+export interface DivisionStatusContext {
+  id?: string;
+  name: string;
+  cap: number;
+  filled: number;
+  registrationOpens?: string;
+  registrationCloses?: string;
+  isDrawLocked?: boolean;
+  hasMatches?: boolean;
+  inProgressMatches?: number;
+  completedMatches?: number;
+  totalMatches?: number;
+}
+
+export function getDivisionLifecycleStage(
+  d: DivisionStatusContext,
+  now: Date = new Date(),
+): DivisionLifecycleStage {
+  // If match play is done
+  if (d.totalMatches && d.totalMatches > 0 && d.completedMatches === d.totalMatches) {
+    return 'completed';
+  }
+
+  // If matches are currently being scored or in progress
+  if (d.inProgressMatches && d.inProgressMatches > 0) {
+    return 'in-progress';
+  }
+
+  // If draw is locked and scheduled
+  if (d.isDrawLocked) {
+    return 'draw-locked';
+  }
+
+  // If matches exist / draw generated but unlocked
+  if (d.hasMatches) {
+    return 'draw-draft';
+  }
+
+  // Registration window states
+  const regState = divisionRegistrationState(
+    {
+      registrationOpens: d.registrationOpens || '',
+      registrationCloses: d.registrationCloses || '',
+    },
+    now,
+  );
+
+  if (regState === 'opens-soon') {
+    return 'upcoming';
+  }
+
+  if (regState === 'closed') {
+    return 'registration-closed';
+  }
+
+  // regState === 'open'
+  if (d.cap > 0 && d.filled >= d.cap) {
+    return 'waitlist-open';
+  }
+
+  return 'registration-open';
+}
+
+/** Player-facing action badge */
+export function getPlayerActionBadge(
+  d: DivisionStatusContext,
+  now: Date = new Date(),
+): { label: string; variant: 'open' | 'highlight' | 'status' | 'live' | 'outline' } {
+  const stage = getDivisionLifecycleStage(d, now);
+  switch (stage) {
+    case 'in-progress':
+      return { label: 'Live Scores', variant: 'live' };
+    case 'completed':
+      return { label: 'Results', variant: 'status' };
+    case 'draw-locked':
+    case 'draw-draft':
+      return { label: 'Bracket View', variant: 'highlight' };
+    case 'registration-open':
+      return { label: 'Register Now', variant: 'open' };
+    case 'waitlist-open':
+      return { label: 'Join Waitlist', variant: 'highlight' };
+    case 'upcoming': {
+      if (d.registrationOpens) {
+        const opens = new Date(d.registrationOpens);
+        if (!isNaN(opens.getTime())) {
+          const formatted = opens.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+          return { label: `Opens ${formatted}`, variant: 'status' };
+        }
+      }
+      return { label: 'Opens Soon', variant: 'status' };
+    }
+    case 'registration-closed':
+    default:
+      return { label: 'Registration Closed', variant: 'status' };
+  }
+}
+
+/** Organizer-facing operational status badge */
+export function getOrganizerDivisionBadge(
+  d: DivisionStatusContext,
+  now: Date = new Date(),
+): { label: string; variant: 'open' | 'highlight' | 'status' | 'live' | 'outline' } {
+  const stage = getDivisionLifecycleStage(d, now);
+  switch (stage) {
+    case 'in-progress':
+      return { label: 'Live Playing', variant: 'live' };
+    case 'completed':
+      return { label: 'Completed', variant: 'status' };
+    case 'draw-locked':
+      return { label: 'Draw Locked', variant: 'highlight' };
+    case 'draw-draft':
+      return { label: 'Draw Unlocked', variant: 'outline' };
+    case 'registration-open':
+      return { label: `${d.filled}/${d.cap} Registered`, variant: 'open' };
+    case 'waitlist-open':
+      return { label: `Full (${d.filled}/${d.cap}) · Waitlist`, variant: 'highlight' };
+    case 'upcoming':
+      return { label: 'Registration Upcoming', variant: 'status' };
+    case 'registration-closed':
+      return { label: `Closed (${d.filled}/${d.cap})`, variant: 'status' };
+    case 'draft':
+    default:
+      return { label: 'Draft Setup', variant: 'status' };
+  }
+}
+

@@ -48,7 +48,7 @@ import {
 import { computeReadiness, type ReadinessItem } from '../../../../../lib/setupReadiness';
 import {
   PHASE, PHASE_LABEL, registrationCloseDefault, canDelete, DELETE_COPY, isPublic, type Phase,
-  divisionRegistrationState,
+  divisionRegistrationState, getOrganizerDivisionBadge,
 } from '../../../../../lib/tournamentLifecycle';
 import { joinTeamName } from '../../../../../lib/teamName';
 import {
@@ -2120,6 +2120,8 @@ export default function OrganizerSetup() {
                   <div className={styles.divisionSegmented} role="tablist" aria-label="Select division">
                     {divisions.map(d => {
                       const active = d.id === activeDivisionId;
+                      const sum = overview?.divisions.find(o => o.id === d.id);
+                      const confirmed = sum?.confirmed ?? 0;
                       return (
                         <button
                           key={d.id}
@@ -2129,7 +2131,8 @@ export default function OrganizerSetup() {
                           className={`${styles.divisionSegment} ${active ? styles.divisionSegmentActive : ''}`}
                           onClick={() => setActiveDivisionId(d.id)}
                         >
-                          {d.name}
+                          <span>{d.name}</span>
+                          <span style={{ fontSize: 11, opacity: 0.85 }}>({confirmed}/{d.divisionTeamCap})</span>
                         </button>
                       );
                     })}
@@ -2150,7 +2153,22 @@ export default function OrganizerSetup() {
                             <Users size={20} />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <h3 className={styles.cardTitle}>Registered Teams</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <h3 className={styles.cardTitle}>Registered Teams</h3>
+                              {(() => {
+                                const sum = overview?.divisions.find(o => o.id === activeDivision.id);
+                                const confirmed = sum?.confirmed ?? confirmedTeams.length;
+                                const badge = getOrganizerDivisionBadge({
+                                  name: activeDivision.name,
+                                  cap: activeDivision.divisionTeamCap,
+                                  filled: confirmed,
+                                  registrationOpens: activeDivision.registrationOpenDate || '',
+                                  registrationCloses: activeDivision.registrationCloseDate || '',
+                                  isDrawLocked: sum?.drawLocked,
+                                });
+                                return <Badge variant={badge.variant}>{badge.label}</Badge>;
+                              })()}
+                            </div>
                             <p className={styles.subtitle}>
                               {confirmedTeams.length} of {activeDivision.divisionTeamCap} seats filled
                               {' · '}

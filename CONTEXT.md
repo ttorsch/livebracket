@@ -7,18 +7,43 @@ picking the wrong one has caused real confusion.
 
 ## Language
 
-### Tournament structure
+### Tournament structure & lifecycle
 
 **Tournament**:
-One event, owned by an organizer, holding one or more divisions.
+One event container, owned by an organizer, holding one or more divisions.
 
-**Phase**:
-Where a tournament sits in its lifecycle: draft → announced → open → closed.
-Cancelled and archived are *not* phases — they are separate timestamps, so a
-cancelled event keeps the phase it was cancelled from.
+**Tournament Lifecycle**:
+Where a tournament sits in its macro lifecycle:
+- `Draft` (`phase = 1`): Private to the organizer. Invisible on public lists and search. Can be deleted permanently.
+- `Published` (`phase = 2`, *Announced*): Publicly visible on homepage and search. Registration is managed per division.
+- `Live`: Matches are scheduled and currently in progress on courts. Live ticker and scores active.
+- `Completed`: All division finals have concluded or the tournament end date has passed.
+- `Archived` (`archived_at != null`): Hidden from the public site and active organizer dashboard. Kept safely in DB and restorable.
+- `Cancelled` (`cancelled_at != null`): Marked CANCELLED with public notices to inform registered teams.
+
+**Division Lifecycle**:
+The granular competition, registration, and bracket progression of an individual division:
+- `Draft`: Division created, format and settings being configured.
+- `Upcoming`: Registration opens on a future date (`registrationOpens > now`).
+- `Registration Open`: Actively accepting team registrations (`filled < cap`).
+- `Waitlist Open`: Seated capacity reached (`filled >= cap`), accepting waitlist entries.
+- `Registration Closed`: Past close deadline or closed manually by organizer.
+- `Seeding / Draw Draft`: Teams seated and seed positions assigned, but draw is not yet locked.
+- `Draw Locked`: Fairness ceremony completed; seed positions and bracket structure locked for scheduling.
+- `In Progress`: Pool play or knockout rounds currently being scored.
+- `Completed`: Champions and medalists finalized.
+
+**Multi-Division Status Aggregation**:
+When a tournament holds multiple divisions in different states, the main tournament card evaluates the highest-priority status badge:
+`Live` ➔ `Registration Open` ➔ `Waitlist Open` ➔ `Opens Soon` ➔ `Registration Closed` ➔ `Completed`.
+Individual divisions are displayed alongside as individual pills (e.g. `[Men's Open: Open 6/8]` `[Women's Open: Waitlist 8/8]`).
+
+**Player vs. Organizer Status Perspective**:
+- **Player (Public)**: Action & spectator focused (`Register Now`, `Join Waitlist`, `Opens 15 Sep`, `Live Scores`, `Results`).
+- **Organizer (Dashboard & Workspace)**: Operational readiness focused (`Draft`, `Registration Open (6/8 Filled · 5 Paid)`, `Draw Unlocked`, `Ready for Play`, `Live (N Courts Active)`, `Completed`, `Archived`).
 
 **Division**:
-A competition within a tournament with its own format, fee and team cap. Teams
+A competition within a tournament with its own format, fee, team cap, and registration window. Teams
 belong to a division, never to the tournament directly.
 _Avoid_: Category, bracket (a bracket is one part of a division).
 
