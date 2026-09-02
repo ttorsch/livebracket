@@ -4,12 +4,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Home, Clock,
-  LayoutList, Menu, Layers,
+  LayoutList, Menu, Layers, Globe,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
 import OrganizerProfileModal from './OrganizerProfileModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
+import PublishTournamentModal from '@/components/PublishTournamentModal';
 import ScorekeeperQrCards, { useScorekeeperLinks, useQrPdfExport } from '../../components/ScorekeeperQrCards';
 import { Button, SearchField, Icon, Badge } from '../../components/livebracket-ds';
 import {
@@ -334,6 +335,18 @@ export default function OrganizerDashboard() {
     };
   }, [moreOpen]);
 
+
+  const [publishingTournament, setPublishingTournament] = useState<CardTournament | null>(null);
+
+  const refreshTournaments = async () => {
+    if (!organizerId) return;
+    try {
+      const rows = await getDashboardTournaments(organizerId);
+      setTournaments(rows);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     /* The organizer id has to arrive before the tournaments can be asked
@@ -760,6 +773,7 @@ export default function OrganizerDashboard() {
                     onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                     qrOpen={qrOpen}
                     setQrOpen={setQrOpen}
+                    onPublish={setPublishingTournament}
                   />
                 ))}
               </div>
@@ -802,6 +816,14 @@ export default function OrganizerDashboard() {
       </main>
 
       <CreateTournamentModal open={createOpen} onClose={() => setCreateOpen(false)} />
+
+      <PublishTournamentModal
+        open={!!publishingTournament}
+        tournamentTitle={publishingTournament?.title ?? ''}
+        tournamentSlug={publishingTournament?.id ?? ''}
+        onClose={() => setPublishingTournament(null)}
+        onPublished={refreshTournaments}
+      />
 
       <OrganizerProfileModal
         open={profileOpen}
@@ -1031,6 +1053,7 @@ function TournamentRow({
   qrOpen,
   setQrOpen,
   hideQr = false,
+  onPublish,
 }: {
   t: CardTournament;
   expanded: boolean;
@@ -1038,9 +1061,11 @@ function TournamentRow({
   qrOpen: string | null;
   setQrOpen: (v: string | null) => void;
   hideQr?: boolean;
+  onPublish?: (t: CardTournament) => void;
 }) {
   const status = getTournamentStatus(t);
   const isLive = isLiveNow(t);
+  const isDraft = status.key === 'draft' || t.phase === 1;
 
   return (
     <div className={`${styles.row} ${expanded ? styles.rowExpanded : ''}`}>
@@ -1092,25 +1117,44 @@ function TournamentRow({
         </span>
 
         <span className={styles.rowActions} onClick={e => e.stopPropagation()}>
-          {!hideQr && (
-            <button
-              type="button"
-              className={styles.iconBtn}
-              title="Generate scorekeeper QR"
-              onClick={() => setQrOpen(qrOpen === t.id ? null : t.id)}
-            >
-              <QrCode size={18} />
-            </button>
+          {isDraft ? (
+            <>
+              <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>
+                <Settings size={15} /> Setup
+              </Link>
+              {onPublish && (
+                <button
+                  type="button"
+                  className={styles.rowPublishBtn}
+                  onClick={() => onPublish(t)}
+                >
+                  <Globe size={15} /> Publish
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {!hideQr && (
+                <button
+                  type="button"
+                  className={styles.iconBtn}
+                  title="Generate scorekeeper QR"
+                  onClick={() => setQrOpen(qrOpen === t.id ? null : t.id)}
+                >
+                  <QrCode size={18} />
+                </button>
+              )}
+              <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
+                <Trophy size={15} /> Bracket
+              </Link>
+              <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.rowBracketBtn}>
+                <Calendar size={15} /> Schedule
+              </Link>
+              <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.iconBtn} title="Manage setup" aria-label="Manage setup">
+                <Settings size={18} />
+              </Link>
+            </>
           )}
-          <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
-            <Trophy size={15} /> Bracket
-          </Link>
-          <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.rowBracketBtn}>
-            <Calendar size={15} /> Schedule
-          </Link>
-          <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.iconBtn} title="Manage setup" aria-label="Manage setup">
-            <Settings size={18} />
-          </Link>
         </span>
 
         <ChevronDown size={18} className={styles.rowChevron} aria-hidden="true" />

@@ -48,3 +48,4 @@ ds-bundle/
 .design-sync/node_modules
 .tmp/
 components/livebracket-ds/tokens/_generated.sync.css
+graphify-out/

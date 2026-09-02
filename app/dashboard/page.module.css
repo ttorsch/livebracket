@@ -999,6 +999,48 @@
 }
 .rowBracketBtn:hover { background: var(--coral-600, #D95F35); }
 
+.rowPublishBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.rowPublishBtn:hover { background: var(--coral-600, #D95F35); }
+.rowPublishBtn:active { transform: scale(0.98); }
+
+.rowSetupBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  background: var(--sand-50, #fff);
+  color: var(--text-secondary, #3A414D);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.rowSetupBtn:hover {
+  background: var(--sand-200, #EFEAE0);
+  border-color: var(--sand-400, #DDD7CC);
+}
+
 .rowChevron {
   flex-shrink: 0;
   color: var(--text-muted, #7A8294);

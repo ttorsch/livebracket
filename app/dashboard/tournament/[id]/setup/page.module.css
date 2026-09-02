@@ -2483,6 +2483,25 @@
   font-weight: 700;
 }
 
+.mobilePublishBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mobilePublishBtn:hover {
+  background: var(--coral-600, #D95F35);
+}
+
 /* ── Mobile Tournament Setup — Compact Utility (design 1B) ──────────
    Desktop keeps the existing multi-card / table layout; below 680px
    that's swapped for a dense, single-column mobile-native view. */

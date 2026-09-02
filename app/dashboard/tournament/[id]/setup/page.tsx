@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 import DateRangePicker from '../../../../../components/DateRangePicker';
+import PublishTournamentModal from '@/components/PublishTournamentModal';
 import {
   getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow,
   getDivisionTeams, type RegisteredTeamRow, getSetupOverview, type SetupOverview,
@@ -679,9 +680,6 @@ export default function OrganizerSetup() {
   // Present once the tournament has actually been published (has a DB row).
   const [basicInfo, setBasicInfo] = useState<TournamentBasicInfo | null>(null);
 
-  // Status is edited in the Basic Info form; this tracks that save.
-  const [statusBusy, setStatusBusy] = useState(false);
-  const [editPhase, setEditPhase] = useState<Phase>(PHASE.draft);
   const [showBasicInfoEdit, setShowBasicInfoEdit] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editLocation, setEditLocation] = useState('');
@@ -1006,6 +1004,8 @@ export default function OrganizerSetup() {
     return () => { cancelled = true; };
   }, [params.id, overviewTick]);
 
+  const [showPublishModal, setShowPublishModal] = useState(false);
+
   const openBasicInfoEdit = () => {
     if (basicInfo) {
       setEditTitle(basicInfo.title);
@@ -1013,7 +1013,6 @@ export default function OrganizerSetup() {
       setEditStartDate(basicInfo.startDate);
       setEditEndDate(basicInfo.endDate ?? basicInfo.startDate);
       setEditDescription(basicInfo.description ?? '');
-      setEditPhase(basicInfo.phase as Phase);
     } else {
       setEditTitle(tournamentInfo?.title ?? '');
       setEditLocation(tournamentInfo?.location ?? '');
@@ -1085,24 +1084,6 @@ export default function OrganizerSetup() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed to save changes');
 
-      /* Status lives behind its own endpoint, which checks the move against
-         the tournament's real phase and its divisions. Only called when the
-         field actually changed, so saving the form untouched is never a
-         status change. */
-      let savedPhase = body.phase;
-      if (basicInfo && editPhase !== basicInfo.phase) {
-        setStatusBusy(true);
-        const sRes = await fetch(`/api/tournaments/${Array.isArray(params.id) ? params.id[0] : params.id}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phase: editPhase }),
-        });
-        const sBody = await sRes.json();
-        setStatusBusy(false);
-        if (!sRes.ok) throw new Error(sBody.error || 'Could not change the status');
-        savedPhase = sBody.phase;
-      }
-
       // This PATCH saves details only; it can't retire a tournament, so the
       // lifecycle flags carry over from what's already loaded.
       setBasicInfo(prev => ({
@@ -1112,7 +1093,7 @@ export default function OrganizerSetup() {
         startDate: body.start_date,
         endDate: body.end_date,
         isOneDay: body.is_one_day,
-        phase: savedPhase,
+        phase: prev?.phase ?? body.phase,
         description: body.description,
         imageUrl: body.image_url,
         archived: prev?.archived ?? false,
@@ -1932,8 +1913,17 @@ export default function OrganizerSetup() {
                     <span>{displayLocation}</span>
                   </div>
                 )}
-                <div style={{ marginTop: 6 }}>
+                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <Badge variant={unifiedStatus.variant}>{unifiedStatus.label}</Badge>
+                  {basicInfo && !isPublic(basicInfo.phase as Phase) && (
+                    <button
+                      type="button"
+                      className={styles.mobilePublishBtn}
+                      onClick={() => setShowPublishModal(true)}
+                    >
+                      <Globe size={13} /> Publish
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1948,20 +1938,35 @@ export default function OrganizerSetup() {
                 <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
               </div>
               <div className={styles.setupHeaderActions}>
-                {/* Only a public tournament has a link worth copying. */}
-                {basicInfo && isPublic(basicInfo.phase as Phase) && (
-                  <Button
-                    variant="general"
-                    size="medium"
-                    iconLeft={<Link2 size={15} />}
-                    onClick={copyLiveLink}
-                  >
-                    {liveLinkCopied ? 'Link copied' : 'Copy Live Link'}
-                  </Button>
+                {basicInfo && isPublic(basicInfo.phase as Phase) ? (
+                  <>
+                    <Button
+                      variant="general"
+                      size="medium"
+                      iconLeft={<Link2 size={15} />}
+                      onClick={copyLiveLink}
+                    >
+                      {liveLinkCopied ? 'Link copied' : 'Copy Live Link'}
+                    </Button>
+                    <Button variant="primary" size="medium" iconLeft={<Pencil size={15} />} onClick={openBasicInfoEdit}>
+                      Edit Tournament
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="general" size="medium" iconLeft={<Pencil size={15} />} onClick={openBasicInfoEdit}>
+                      Edit Details
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="medium"
+                      iconLeft={<Globe size={15} />}
+                      onClick={() => setShowPublishModal(true)}
+                    >
+                      Publish Tournament
+                    </Button>
+                  </>
                 )}
-                <Button variant="primary" size="medium" iconLeft={<Pencil size={15} />} onClick={openBasicInfoEdit}>
-                  Edit Tournament
-                </Button>
               </div>
             </div>
 
@@ -3546,27 +3551,6 @@ export default function OrganizerSetup() {
                 </p>
               </div>
 
-              {/* Draft or Announced — that is the whole tournament-level
-                  decision. Registration is derived from division dates. */}
-              <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
-                <label className={styles.switchRow}>
-                  <span className={styles.switch}>
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      checked={editPhase >= PHASE.announced}
-                      onChange={e => setEditPhase(e.target.checked ? PHASE.announced : PHASE.draft)}
-                    />
-                    <span className={styles.switchTrack}><span className={styles.switchThumb} /></span>
-                  </span>
-                  <span className={styles.switchText}>Announce tournament</span>
-                </label>
-                <p className={styles.fieldHint}>
-                  Announced makes the tournament public. When teams can register is set per
-                  division, by its own open and close dates.
-                </p>
-              </div>
-
               {/* Only a draft can be deleted outright — nothing has been
                   public and nobody has registered. Anything past that gets
                   archived or cancelled instead, which keep the row around. */}
@@ -3761,6 +3745,17 @@ export default function OrganizerSetup() {
           </div>
         </div>
       )}
+
+      <PublishTournamentModal
+        open={showPublishModal}
+        tournamentTitle={displayTitle}
+        tournamentSlug={(Array.isArray(params.id) ? params.id[0] : params.id) || ''}
+        onClose={() => setShowPublishModal(false)}
+        onPublished={() => {
+          setBasicInfo(prev => prev ? { ...prev, phase: PHASE.announced } : null);
+          setOverviewTick(t => t + 1);
+        }}
+      />
     </div>
   );
 }
