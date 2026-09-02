@@ -50,6 +50,7 @@ const STATUS_FILTERS = [
   { key: 'open', label: 'Registration open' },
   { key: 'closed', label: 'Registration closed' },
   { key: 'draft', label: 'Draft' },
+  { key: 'archived', label: 'Archived' },
 ] as const;
 
 type StatusKey = (typeof STATUS_FILTERS)[number]['key'];
@@ -61,10 +62,15 @@ function isCompleted(t: CardTournament): boolean {
 }
 
 function getTournamentStatus(t: CardTournament): {
-  key: 'draft' | 'announced' | 'open' | 'waitlist' | 'closed' | 'completed';
+  key: 'draft' | 'announced' | 'open' | 'waitlist' | 'closed' | 'completed' | 'archived';
   label: string;
   variant: 'status' | 'highlight' | 'open' | 'live' | 'outline';
 } {
+  // 0. Archived
+  if (t.archived) {
+    return { key: 'archived', label: 'Archived', variant: 'status' };
+  }
+
   // 1. Draft phase (not public)
   if (t.phase === 1 || !isPublic(t.phase as Phase)) {
     return { key: 'draft', label: 'Draft', variant: 'status' };
@@ -107,6 +113,10 @@ function getTournamentStatus(t: CardTournament): {
 }
 
 function matchesFilter(t: CardTournament, key: StatusKey | null): boolean {
+  if (key === 'archived') return t.archived;
+  // Exclude archived tournaments from active filters
+  if (t.archived) return false;
+
   // Default (no filter selected): upcoming events only — completed
   // tournaments stay hidden until their filter is chosen. Drafts show, so a
   // freshly created tournament is visible immediately.
@@ -390,12 +400,12 @@ export default function OrganizerDashboard() {
   };
 
   const liveTournaments = useMemo(
-    () => tournaments.filter(isLiveNow),
+    () => tournaments.filter(t => !t.archived && isLiveNow(t)),
     [tournaments]
   );
 
   const pastTournaments = useMemo(
-    () => tournaments.filter(isCompleted).sort((a, b) => (b.endDate || b.startDate).localeCompare(a.endDate || a.startDate)),
+    () => tournaments.filter(t => !t.archived && isCompleted(t)).sort((a, b) => (b.endDate || b.startDate).localeCompare(a.endDate || a.startDate)),
     [tournaments]
   );
 
@@ -1065,6 +1075,7 @@ function TournamentRow({
 }) {
   const status = getTournamentStatus(t);
   const isLive = isLiveNow(t);
+  const isArchived = t.archived;
   const isDraft = status.key === 'draft' || t.phase === 1;
 
   return (
@@ -1117,7 +1128,11 @@ function TournamentRow({
         </span>
 
         <span className={styles.rowActions} onClick={e => e.stopPropagation()}>
-          {isDraft ? (
+          {isArchived ? (
+            <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>
+              <Settings size={15} /> Manage
+            </Link>
+          ) : isDraft ? (
             <>
               <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>
                 <Settings size={15} /> Setup

@@ -33,6 +33,7 @@ export interface DashboardTournament {
   phase: number;
   imageUrl: string | null;
   cancelled: boolean;
+  archived: boolean;
   organizerName: string | null;
   divisions: DashboardDivision[];
 }
@@ -346,12 +347,13 @@ interface TournamentRow {
   phase: number;
   image_url: string | null;
   cancelled_at: string | null;
+  archived_at: string | null;
   divisions: DivisionRow[];
   organizers: { name: string } | null;
 }
 
 const TOURNAMENT_CARD_SELECT =
-  'slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, ' +
+  'slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, archived_at, ' +
   'organizers(name), divisions(name, division_team_cap, settings, teams(status))';
 
 function toDashboardTournament(t: TournamentRow): DashboardTournament {
@@ -365,6 +367,7 @@ function toDashboardTournament(t: TournamentRow): DashboardTournament {
     phase: t.phase,
     imageUrl: t.image_url,
     cancelled: !!t.cancelled_at,
+    archived: !!t.archived_at,
     organizerName: t.organizers?.name ?? null,
     divisions: (t.divisions ?? []).map((d) => {
       const settings = (d.settings ?? {}) as Record<string, unknown>;
@@ -388,10 +391,7 @@ export async function getDashboardTournaments(organizerId: string): Promise<Dash
     .from('tournaments')
     .select(TOURNAMENT_CARD_SELECT)
     .eq('organizer_id', organizerId)
-    // Archived and deleted events are gone from every list by definition;
-    // cancelled ones stay, because the organizer still has to see what they
-    // called off.
-    .is('archived_at', null)
+    // Deleted events are gone; archived and cancelled ones stay for dashboard filters
     .is('deleted_at', null)
     .order('start_date', { ascending: true });
 

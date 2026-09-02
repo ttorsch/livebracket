@@ -36,7 +36,7 @@ import {
   FileSpreadsheet,
   Download,
   Search,
-  Link2, Share2, RotateCcw
+  Link2, Share2, RotateCcw, Archive
 } from 'lucide-react';
 import styles from './page.module.css';
 import DateRangePicker from '../../../../../components/DateRangePicker';
@@ -1128,6 +1128,53 @@ export default function OrganizerSetup() {
       setBasicInfoError(err instanceof Error ? err.message : 'Failed to revert to draft');
     } finally {
       setRevertingDraft(false);
+    }
+  };
+
+  const [archiving, setArchiving] = useState(false);
+  const handleArchiveTournament = async () => {
+    const slug = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!slug) return;
+    setArchiving(true);
+    setBasicInfoError('');
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'archive' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to archive tournament');
+      setBasicInfo(prev => prev ? { ...prev, archived: true } : null);
+      setShowBasicInfoEdit(false);
+      setOverviewTick(t => t + 1);
+    } catch (err) {
+      setBasicInfoError(err instanceof Error ? err.message : 'Failed to archive tournament');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleRestoreTournament = async () => {
+    const slug = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!slug) return;
+    setArchiving(true);
+    setBasicInfoError('');
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to unarchive tournament');
+      setBasicInfo(prev => prev ? { ...prev, archived: false } : null);
+      setShowBasicInfoEdit(false);
+      setOverviewTick(t => t + 1);
+    } catch (err) {
+      setBasicInfoError(err instanceof Error ? err.message : 'Failed to unarchive tournament');
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -3575,89 +3622,132 @@ export default function OrganizerSetup() {
                 </p>
               </div>
 
-              {/* Lifecycle Actions: Delete for Draft, Unpublish for Public with 0 teams */}
+              {/* Lifecycle Actions */}
               {basicInfo && (
                 <>
-                  {canDelete(basicInfo.phase as Phase) && (
-                    <div className={styles.statusRowDanger} style={{ marginTop: 16 }}>
-                      <div className={styles.statusRow} style={{ border: 'none', padding: 0 }}>
-                        <div>
-                          <span className={styles.statusRowLabel}>{DELETE_COPY.label}</span>
-                          <span className={styles.statusRowBlurb}>{DELETE_COPY.blurb}</span>
-                        </div>
-                        {!showDeleteConfirm && (
-                          <button
-                            type="button"
-                            className={styles.btnDanger}
-                            onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteError(''); }}
-                          >
-                            <Trash2 size={15} /> Delete tournament
-                          </button>
-                        )}
-                      </div>
-                      {showDeleteConfirm && (
-                        <div style={{ marginTop: 10 }}>
-                          {deleteError && <div className={styles.modalFormError}>{deleteError}</div>}
-                          <p className={styles.fieldHint} style={{ marginTop: 0 }}>
-                            {DELETE_COPY.confirmHint} Type <strong>{basicInfo.title}</strong> below.
-                          </p>
-                          <input
-                            className={styles.input}
-                            type="text"
-                            value={deleteConfirmText}
-                            onChange={e => setDeleteConfirmText(e.target.value)}
-                            placeholder={basicInfo.title}
-                          />
-                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                            <button
-                              type="button"
-                              className={styles.btnGhost}
-                              onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError(''); }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.btnDanger}
-                              onClick={deleteTournament}
-                              disabled={deleting || deleteConfirmText.trim() !== basicInfo.title}
-                            >
-                              {deleting ? 'Deleting…' : 'Confirm Delete'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {isPublic(basicInfo.phase as Phase) && seatTotals.filled === 0 && (
+                  {basicInfo.archived ? (
                     <div className={styles.statusRow} style={{ marginTop: 16 }}>
                       <div>
-                        <span className={styles.statusRowLabel}>Unpublish tournament</span>
+                        <span className={styles.statusRowLabel}>Archived Tournament</span>
                         <span className={styles.statusRowBlurb}>
-                          Revert this tournament back to a private Draft. It will be hidden from the public homepage and directory until published again.
+                          This tournament is currently archived and hidden from your active dashboard and public site.
                         </span>
                       </div>
                       <button
                         type="button"
                         className={styles.btnUnpublish}
-                        onClick={handleRevertToDraft}
-                        disabled={revertingDraft}
+                        onClick={handleRestoreTournament}
+                        disabled={archiving}
                       >
-                        <RotateCcw size={14} /> {revertingDraft ? 'Reverting…' : 'Revert to Draft'}
+                        <Archive size={14} /> {archiving ? 'Restoring…' : 'Restore Tournament'}
                       </button>
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {/* Draft Delete */}
+                      {canDelete(basicInfo.phase as Phase) && (
+                        <div className={styles.statusRowDanger} style={{ marginTop: 16 }}>
+                          <div className={styles.statusRow} style={{ border: 'none', padding: 0 }}>
+                            <div>
+                              <span className={styles.statusRowLabel}>{DELETE_COPY.label}</span>
+                              <span className={styles.statusRowBlurb}>{DELETE_COPY.blurb}</span>
+                            </div>
+                            {!showDeleteConfirm && (
+                              <button
+                                type="button"
+                                className={styles.btnDanger}
+                                onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteError(''); }}
+                              >
+                                <Trash2 size={15} /> Delete tournament
+                              </button>
+                            )}
+                          </div>
+                          {showDeleteConfirm && (
+                            <div style={{ marginTop: 10 }}>
+                              {deleteError && <div className={styles.modalFormError}>{deleteError}</div>}
+                              <p className={styles.fieldHint} style={{ marginTop: 0 }}>
+                                {DELETE_COPY.confirmHint} Type <strong>{basicInfo.title}</strong> below.
+                              </p>
+                              <input
+                                className={styles.input}
+                                type="text"
+                                value={deleteConfirmText}
+                                onChange={e => setDeleteConfirmText(e.target.value)}
+                                placeholder={basicInfo.title}
+                              />
+                              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                                <button
+                                  type="button"
+                                  className={styles.btnGhost}
+                                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError(''); }}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.btnDanger}
+                                  onClick={deleteTournament}
+                                  disabled={deleting || deleteConfirmText.trim() !== basicInfo.title}
+                                >
+                                  {deleting ? 'Deleting…' : 'Confirm Delete'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                  {isPublic(basicInfo.phase as Phase) && seatTotals.filled > 0 && (
-                    <div className={styles.statusRow} style={{ marginTop: 16 }}>
-                      <div>
-                        <span className={styles.statusRowLabel}>Public Tournament</span>
-                        <span className={styles.statusRowBlurb}>
-                          {seatTotals.filled} team{seatTotals.filled === 1 ? ' has' : 's have'} already registered. To call off the event, use the cancellation workflow.
-                        </span>
-                      </div>
-                    </div>
+                      {/* Public with 0 teams: Revert to Draft */}
+                      {isPublic(basicInfo.phase as Phase) && seatTotals.filled === 0 && (
+                        <div className={styles.statusRow} style={{ marginTop: 16 }}>
+                          <div>
+                            <span className={styles.statusRowLabel}>Unpublish tournament</span>
+                            <span className={styles.statusRowBlurb}>
+                              Revert this tournament back to a private Draft. It will be hidden from the public homepage and directory until published again.
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className={styles.btnUnpublish}
+                            onClick={handleRevertToDraft}
+                            disabled={revertingDraft}
+                          >
+                            <RotateCcw size={14} /> {revertingDraft ? 'Reverting…' : 'Revert to Draft'}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Archive tournament */}
+                      {seatTotals.filled === 0 && (
+                        <div className={styles.statusRow} style={{ marginTop: 16 }}>
+                          <div>
+                            <span className={styles.statusRowLabel}>Archive tournament</span>
+                            <span className={styles.statusRowBlurb}>
+                              Hides this tournament from the public site and active dashboard. Divisions, teams, and matches are kept, and you can restore it anytime.
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className={styles.btnUnpublish}
+                            onClick={handleArchiveTournament}
+                            disabled={archiving}
+                          >
+                            <Archive size={14} /> {archiving ? 'Archiving…' : 'Archive Tournament'}
+                          </button>
+                        </div>
+                      )}
+
+                      {isPublic(basicInfo.phase as Phase) && seatTotals.filled > 0 && (
+                        <div className={styles.statusRow} style={{ marginTop: 16 }}>
+                          <div>
+                            <span className={styles.statusRowLabel}>Public Tournament</span>
+                            <span className={styles.statusRowBlurb}>
+                              {seatTotals.filled} team{seatTotals.filled === 1 ? ' has' : 's have'} already registered. To call off the event, use the cancellation workflow.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
