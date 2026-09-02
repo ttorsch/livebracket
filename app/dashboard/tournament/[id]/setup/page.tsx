@@ -36,7 +36,7 @@ import {
   FileSpreadsheet,
   Download,
   Search,
-  Link2, Share2
+  Link2, Share2, RotateCcw
 } from 'lucide-react';
 import styles from './page.module.css';
 import DateRangePicker from '../../../../../components/DateRangePicker';
@@ -1104,6 +1104,30 @@ export default function OrganizerSetup() {
       setBasicInfoError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
       setBasicInfoSaving(false);
+    }
+  };
+
+  const [revertingDraft, setRevertingDraft] = useState(false);
+  const handleRevertToDraft = async () => {
+    const slug = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!slug) return;
+    setRevertingDraft(true);
+    setBasicInfoError('');
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phase: PHASE.draft }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to revert to draft');
+      setBasicInfo(prev => prev ? { ...prev, phase: PHASE.draft } : null);
+      setShowBasicInfoEdit(false);
+      setOverviewTick(t => t + 1);
+    } catch (err) {
+      setBasicInfoError(err instanceof Error ? err.message : 'Failed to revert to draft');
+    } finally {
+      setRevertingDraft(false);
     }
   };
 
@@ -3551,59 +3575,91 @@ export default function OrganizerSetup() {
                 </p>
               </div>
 
-              {/* Only a draft can be deleted outright — nothing has been
-                  public and nobody has registered. Anything past that gets
-                  archived or cancelled instead, which keep the row around. */}
-              {basicInfo && canDelete(basicInfo.phase as Phase) && (
-                <div className={styles.statusRowDanger} style={{ marginTop: 16 }}>
-                  <div className={styles.statusRow} style={{ border: 'none', padding: 0 }}>
-                    <div>
-                      <span className={styles.statusRowLabel}>{DELETE_COPY.label}</span>
-                      <span className={styles.statusRowBlurb}>{DELETE_COPY.blurb}</span>
+              {/* Lifecycle Actions: Delete for Draft, Unpublish for Public with 0 teams */}
+              {basicInfo && (
+                <>
+                  {canDelete(basicInfo.phase as Phase) && (
+                    <div className={styles.statusRowDanger} style={{ marginTop: 16 }}>
+                      <div className={styles.statusRow} style={{ border: 'none', padding: 0 }}>
+                        <div>
+                          <span className={styles.statusRowLabel}>{DELETE_COPY.label}</span>
+                          <span className={styles.statusRowBlurb}>{DELETE_COPY.blurb}</span>
+                        </div>
+                        {!showDeleteConfirm && (
+                          <button
+                            type="button"
+                            className={styles.btnDanger}
+                            onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteError(''); }}
+                          >
+                            <Trash2 size={15} /> Delete tournament
+                          </button>
+                        )}
+                      </div>
+                      {showDeleteConfirm && (
+                        <div style={{ marginTop: 10 }}>
+                          {deleteError && <div className={styles.modalFormError}>{deleteError}</div>}
+                          <p className={styles.fieldHint} style={{ marginTop: 0 }}>
+                            {DELETE_COPY.confirmHint} Type <strong>{basicInfo.title}</strong> below.
+                          </p>
+                          <input
+                            className={styles.input}
+                            type="text"
+                            value={deleteConfirmText}
+                            onChange={e => setDeleteConfirmText(e.target.value)}
+                            placeholder={basicInfo.title}
+                          />
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                            <button
+                              type="button"
+                              className={styles.btnGhost}
+                              onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError(''); }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.btnDanger}
+                              onClick={deleteTournament}
+                              disabled={deleting || deleteConfirmText.trim() !== basicInfo.title}
+                            >
+                              {deleting ? 'Deleting…' : 'Confirm Delete'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {!showDeleteConfirm && (
+                  )}
+
+                  {isPublic(basicInfo.phase as Phase) && seatTotals.filled === 0 && (
+                    <div className={styles.statusRow} style={{ marginTop: 16 }}>
+                      <div>
+                        <span className={styles.statusRowLabel}>Unpublish tournament</span>
+                        <span className={styles.statusRowBlurb}>
+                          Revert this tournament back to a private Draft. It will be hidden from the public homepage and directory until published again.
+                        </span>
+                      </div>
                       <button
                         type="button"
-                        className={styles.btnDanger}
-                        onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText(''); setDeleteError(''); }}
+                        className={styles.btnUnpublish}
+                        onClick={handleRevertToDraft}
+                        disabled={revertingDraft}
                       >
-                        <Trash2 size={15} /> Delete tournament
+                        <RotateCcw size={14} /> {revertingDraft ? 'Reverting…' : 'Revert to Draft'}
                       </button>
-                    )}
-                  </div>
-                  {showDeleteConfirm && (
-                    <div style={{ marginTop: 10 }}>
-                      {deleteError && <div className={styles.modalFormError}>{deleteError}</div>}
-                      <p className={styles.fieldHint} style={{ marginTop: 0 }}>
-                        {DELETE_COPY.confirmHint} Type <strong>{basicInfo.title}</strong> below.
-                      </p>
-                      <input
-                        className={styles.input}
-                        type="text"
-                        value={deleteConfirmText}
-                        onChange={e => setDeleteConfirmText(e.target.value)}
-                        placeholder={basicInfo.title}
-                      />
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                        <button
-                          type="button"
-                          className={styles.btnGhost}
-                          onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError(''); }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.btnDanger}
-                          onClick={deleteTournament}
-                          disabled={deleting || deleteConfirmText.trim() !== basicInfo.title}
-                        >
-                          {deleting ? 'Deleting…' : 'Confirm Delete'}
-                        </button>
+                    </div>
+                  )}
+
+                  {isPublic(basicInfo.phase as Phase) && seatTotals.filled > 0 && (
+                    <div className={styles.statusRow} style={{ marginTop: 16 }}>
+                      <div>
+                        <span className={styles.statusRowLabel}>Public Tournament</span>
+                        <span className={styles.statusRowBlurb}>
+                          {seatTotals.filled} team{seatTotals.filled === 1 ? ' has' : 's have'} already registered. To call off the event, use the cancellation workflow.
+                        </span>
                       </div>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
             <div className={styles.modalFooter}>

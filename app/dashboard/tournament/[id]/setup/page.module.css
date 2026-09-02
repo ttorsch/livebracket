@@ -3101,6 +3101,31 @@
 .btnDanger:hover:not(:disabled) { background: #CE3A3F; }
 .btnDanger:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.btnUnpublish {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 9px 18px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  background: var(--sand-50, #FFFFFF);
+  color: var(--ink-1, #14181E);
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btnUnpublish:hover:not(:disabled) {
+  background: var(--sand-200, #EFEAE0);
+  border-color: var(--sand-400, #DDD7CC);
+}
+.btnUnpublish:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Cover image field (Edit Basic Info) ──────────────────────── */
 .editImageRow {
   display: flex;
