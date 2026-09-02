@@ -877,6 +877,13 @@ export default function LiveBracketHome() {
     if (menuOpen) setMenuOpen(false);
     const input = tournamentSearchInputRef.current;
     if (input) {
+      // Synchronously focus within user-activation event so mobile OS immediately opens the keypad
+      input.focus();
+      if (input.value) {
+        const len = input.value.length;
+        input.setSelectionRange?.(len, len);
+      }
+
       const navHeight = navRef.current?.offsetHeight || 80;
       const elementPosition = input.getBoundingClientRect().top + window.scrollY;
       const offsetPosition = Math.max(0, elementPosition - navHeight - 24);
@@ -884,10 +891,6 @@ export default function LiveBracketHome() {
         top: offsetPosition,
         behavior: 'smooth',
       });
-      // Focus after smooth scroll starts, preventScroll keeps focus from disrupting smooth scroll offset
-      setTimeout(() => {
-        input.focus({ preventScroll: true });
-      }, 400);
     } else {
       document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
     }
