@@ -138,6 +138,33 @@ These framed the map and are inputs to every ticket, not steps on the route:
   filtered set, so it cannot come and go with a filter either. *Court roster* and
   *off-roster court* added to `CONTEXT.md`.
 
+- [Make the grid readable on a phone](issues/06-mobile-grid-density.md): the
+  phone's scale is **derived, not chosen** — `PHONE_CARD_FLOOR_PX /
+  shortestMatchMinutes`, read off `allMatches` like `02`'s axis. A fixed
+  px-per-minute is a bet that costs either legibility (a stretched row stretches
+  across *every* court) or screens of scrolling, and the phone was paying the
+  second: a 30-minute card was drawn 237px tall around **135px of content**,
+  because `margin-top:auto` was quietly distributing the slack. What the
+  timeline promises is *relative* — 45 minutes reads as 1.5× 30 — and that holds
+  at any absolute scale, so pinning the scale to the card's content makes the
+  grid always exactly as compact as its content allows and the stretched row
+  unreachable rather than merely unlikely. Deliberately **not clamped**: a cap
+  would reintroduce that failure *rarely*, and rare failures are the ones nobody
+  finds. The card gives up only redundancy — the `vs` row (35px to separate two
+  already-stacked names) and the duration chip (on a timeline the card's length
+  *is* the duration). The 1.2-court peek **stays**: two courts across 275px
+  cannot hold a team name, and squeezing would pre-empt `07` with the weakest
+  option it exists to prototype. Gutter 68→52px by deleting a `flex: 1` rule
+  crushed against its `min-width`, not by shrinking `13`'s anchor hour. Both
+  scales now cross into CSS **as data** so a breakpoint can choose — an inline
+  `--cal-px-per-min` out-specifies every rule — which is also why `offsetStyle`
+  emits a `calc()` and the lunch seam moved to CSS. Day 1861→**791px**, page
+  4490→**2350px**, card 237→**86px** against an 86px need, nothing stretched.
+  Two pre-existing defects fixed in passing: `scroll-padding-left` was short by
+  the scroll container's own padding, hiding the first court's leading
+  characters under the gutter; and the lunch banner centred across a 1015px
+  roster in a 343px scrollport, so the seam read as an unlabelled strip.
+
 ## Not yet specified
 
 - **Referee assignment** is modelled in the types but assigned by hand. Whether
