@@ -138,6 +138,11 @@
 .navSearchIcon {
   color: #7A8294;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.navSearchIcon:hover {
+  color: #14181E;
 }
 .navSearchInput {
   flex: 1;
@@ -207,12 +212,6 @@
   justify-content: center;
   color: #14181E;
   cursor: pointer;
-}
-.mobileSearchDropdown {
-  pointer-events: auto;
-  padding: 10px 16px;
-  background: var(--surface-app, #F5F1EA);
-  border-bottom: 1px solid rgba(20, 31, 46, 0.08);
 }
 .mobileMenuToggle {
   display: none;

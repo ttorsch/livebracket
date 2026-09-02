@@ -700,9 +700,9 @@ export default function LiveBracketHome() {
 
   // Navigation States & Ref
   const navRef = useRef<HTMLElement>(null);
+  const tournamentSearchInputRef = useRef<HTMLInputElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   // Live Match Carousel State
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -873,6 +873,26 @@ export default function LiveBracketHome() {
     }
   };
 
+  const scrollToTournamentSearch = () => {
+    if (menuOpen) setMenuOpen(false);
+    const input = tournamentSearchInputRef.current;
+    if (input) {
+      const navHeight = navRef.current?.offsetHeight || 80;
+      const elementPosition = input.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = Math.max(0, elementPosition - navHeight - 24);
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      });
+      // Focus after smooth scroll starts, preventScroll keeps focus from disrupting smooth scroll offset
+      setTimeout(() => {
+        input.focus({ preventScroll: true });
+      }, 400);
+    } else {
+      document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   // Monitor scroll position to apply solid background transition when scrolled
   useEffect(() => {
     const handleScroll = () => {
@@ -884,20 +904,18 @@ export default function LiveBracketHome() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-hide mobile search and menu when clicking outside or pressing Escape
+  // Auto-hide mobile menu when clicking outside or pressing Escape
   useEffect(() => {
-    if (!mobileSearchOpen && !menuOpen) return;
+    if (!menuOpen) return;
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
-        setMobileSearchOpen(false);
         setMenuOpen(false);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setMobileSearchOpen(false);
         setMenuOpen(false);
       }
     };
@@ -911,7 +929,7 @@ export default function LiveBracketHome() {
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [mobileSearchOpen, menuOpen]);
+  }, [menuOpen]);
 
   // Find the active marquee tournament for the Hero right column.
   const marqueeTournament = useMemo(() => {
@@ -1015,7 +1033,20 @@ export default function LiveBracketHome() {
           {/* Desktop Center Search Bar */}
           <div className={styles.navSearchWrapper}>
             <div className={styles.navSearchPill}>
-              <Search size={16} className={styles.navSearchIcon} />
+              <Search
+                size={16}
+                className={styles.navSearchIcon}
+                onClick={scrollToTournamentSearch}
+                role="button"
+                tabIndex={0}
+                aria-label="Search tournaments"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    scrollToTournamentSearch();
+                  }
+                }}
+              />
               <input
                 type="text"
                 placeholder="Find a tournament"
@@ -1051,11 +1082,8 @@ export default function LiveBracketHome() {
             {/* Mobile Search Button */}
             <button 
               className={styles.mobileSearchToggle}
-              onClick={() => {
-                setMobileSearchOpen(!mobileSearchOpen);
-                if (!mobileSearchOpen) setMenuOpen(false);
-              }}
-              aria-label="Toggle search"
+              onClick={scrollToTournamentSearch}
+              aria-label="Search tournaments"
             >
               <Search size={18} />
             </button>
@@ -1069,10 +1097,7 @@ export default function LiveBracketHome() {
             {!signedIn && (
               <button
                 className={styles.mobileMenuToggle}
-                onClick={() => {
-                  setMenuOpen(!menuOpen);
-                  if (!menuOpen) setMobileSearchOpen(false);
-                }}
+                onClick={() => setMenuOpen(!menuOpen)}
                 aria-label="Toggle navigation menu"
               >
                 {menuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -1080,24 +1105,6 @@ export default function LiveBracketHome() {
             )}
           </div>
         </div>
-        
-        {/* Mobile Search Dropdown */}
-        {mobileSearchOpen && (
-          <div className={styles.mobileSearchDropdown}>
-            <div className={styles.navSearchPill} style={{ width: '100%' }}>
-              <Search size={16} className={styles.navSearchIcon} />
-              <input
-                type="text"
-                placeholder="Find a tournament"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                className={styles.navSearchInput}
-                autoFocus
-              />
-              <Mic size={15} className={styles.navMicIcon} />
-            </div>
-          </div>
-        )}
 
         {/* Mobile Menu Dropdown (Signed-out visitor menu) */}
         {!signedIn && menuOpen && (
@@ -1328,6 +1335,7 @@ export default function LiveBracketHome() {
               <div className={styles.search}>
                 <Search size={16} className={styles.searchIconLeft} />
                 <input
+                  ref={tournamentSearchInputRef}
                   type="search"
                   placeholder="Find a tournament..."
                   value={query}
