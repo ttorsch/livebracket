@@ -2758,17 +2758,15 @@
     white-space: nowrap;
   }
 
-  /* Division rows become seat chips on a single swipeable track; the
-     negative margins let chips scroll out to the card's edges. */
+  /* Division rows become seat chips on a single swipeable track. */
   .cardDivisionsSection {
     flex-direction: row;
     flex-wrap: nowrap;
     gap: 8px;
-    margin: 14px -18px 0;
-    padding: 0 18px;
+    margin: 14px 0 0;
+    padding: 0;
     border-top: none;
     overflow-x: auto;
-    scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -2777,7 +2775,6 @@
   .divisionItem {
     width: auto;
     flex-shrink: 0;
-    scroll-snap-align: start;
     gap: 0;
     padding: 6px 12px;
     border-radius: 999px;
