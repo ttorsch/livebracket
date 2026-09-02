@@ -9,6 +9,8 @@ import {
   Calendar,
   ArrowRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Mic,
   ArrowUpDown,
   Menu,
@@ -555,6 +557,211 @@ function toEventCard(t: DashboardTournament, index: number, organizerName: strin
   };
 }
 
+function generatePaginationItems(current: number, total: number): (number | 'ellipsis')[] {
+  if (total <= 6) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 3) {
+    return [1, 2, 3, 4, 'ellipsis', total];
+  }
+  if (current >= total - 2) {
+    return [1, 'ellipsis', total - 3, total - 2, total - 1, total];
+  }
+  return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total];
+}
+
+function TournamentCard({
+  t,
+  styles,
+  saveScrollPosition,
+}: {
+  t: Tournament;
+  styles: Record<string, string>;
+  saveScrollPosition: (path: string) => void;
+}) {
+  const labelInfo = statusLabels(t);
+  const badgeClass =
+    labelInfo.variant === 'live'
+      ? styles.cardStatusLive
+      : labelInfo.variant === 'finished'
+      ? styles.cardStatusFinished
+      : labelInfo.variant === 'announced'
+      ? styles.cardStatusAnnounced
+      : labelInfo.variant === 'closed'
+      ? styles.cardStatusClosed
+      : '';
+  const isRegisterable = labelInfo.variant === 'open' || labelInfo.variant === 'waitlist';
+  const href = isRegisterable ? `/tournament/${t.id}/register` : `/tournament/${t.id}`;
+  const btnLabel =
+    t.status === 'live'
+      ? 'View Bracket'
+      : t.status === 'finished'
+      ? 'View Standings'
+      : isRegisterable
+      ? 'Register Team'
+      : 'View Details';
+
+  return (
+    <article className={styles.card}>
+      <Link
+        href={`/tournament/${t.id}`}
+        className={styles.cardLink}
+        onClick={() => saveScrollPosition('/')}
+      >
+        <div className={styles.cardMedia}>
+          <img src={t.image} alt={t.title} className={styles.cardPoster} />
+        </div>
+
+        <div className={styles.cardBody}>
+          <div className={styles.cardTitleRow}>
+            <h3 className={styles.cardTitle}>{t.title}</h3>
+            <span className={`${styles.cardStatusBadge} ${badgeClass}`}>
+              <span className={styles.cardStatusDot} aria-hidden="true" />
+              <span className={styles.cardStatusLong}>{labelInfo.long}</span>
+              <span className={styles.cardStatusShort}>{labelInfo.short}</span>
+            </span>
+          </div>
+
+          <div className={styles.cardMetaList}>
+            <div className={styles.cardMetaRow}>
+              <Calendar size={17} className={styles.cardMetaIcon} />
+              <span className={styles.cardMetaText}>
+                {formatDateRange(t.dateLabel, t.endDateLabel)}
+              </span>
+            </div>
+            <div className={styles.cardMetaRow}>
+              <MapPin size={17} className={styles.cardMetaIcon} />
+              <span className={styles.cardMetaText}>{t.location}</span>
+            </div>
+          </div>
+
+          {t.registrations && (
+            <div className={styles.cardDivisionsSection}>
+              {t.registrations.map((reg, idx) => (
+                <div key={idx} className={styles.divisionItem}>
+                  <div className={styles.divisionHeader}>
+                    <span className={styles.divisionName}>{reg.division}</span>
+                    <span className={styles.divisionSeats}>
+                      {reg.filled}/{reg.total}
+                      <span className={styles.divisionSeatsWord}> seats</span>
+                    </span>
+                  </div>
+                  <div className={styles.progressBarBg}>
+                    <div
+                      className={styles.progressBarFill}
+                      style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {t.divisions && t.divisions.length > t.registrations.length && (
+                <div className={styles.moreDivisionsText}>
+                  + {t.divisions.length - t.registrations.length} more divisions available
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Link>
+
+      <div className={styles.cardFooter}>
+        <div className={styles.organizerRow}>
+          <div className={styles.organizerAvatar}>
+            {t.organizerInitials || 'LB'}
+          </div>
+          <div className={styles.organizerMeta}>
+            <span className={styles.organizerLabel}>Organizer</span>
+            <span className={styles.organizerName}>
+              {t.organizerName || 'Live Bracket'}
+            </span>
+          </div>
+        </div>
+        <Link
+          href={href}
+          className={styles.cardRegisterBtn}
+          onClick={() => saveScrollPosition('/')}
+        >
+          {btnLabel}
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function PaginationControl({
+  currentPage,
+  totalPages,
+  goToPage,
+  styles,
+}: {
+  currentPage: number;
+  totalPages: number;
+  goToPage: (page: number, shouldScroll?: boolean) => void;
+  styles: Record<string, string>;
+}) {
+  if (totalPages <= 1) return null;
+
+  const paginationItems = generatePaginationItems(currentPage, totalPages);
+
+  return (
+    <nav className={styles.paginationContainer} aria-label="Tournament pagination">
+      <button
+        type="button"
+        className={styles.paginationArrowBtn}
+        onClick={() => goToPage(currentPage - 1, true)}
+        disabled={currentPage <= 1}
+        aria-label="Previous page"
+      >
+        <ChevronLeft size={18} strokeWidth={2.2} />
+      </button>
+
+      <div className={styles.paginationNumbers}>
+        {paginationItems.map((item, idx) => {
+          if (item === 'ellipsis') {
+            return (
+              <span key={`ell-${idx}`} className={styles.paginationEllipsis}>
+                ...
+              </span>
+            );
+          }
+          const isActive = item === currentPage;
+          const nextItem = paginationItems[idx + 1];
+          const showDot = typeof nextItem === 'number';
+
+          return (
+            <div key={item} className={styles.paginationItemWrapper}>
+              <button
+                type="button"
+                className={`${styles.pageNumberBtn} ${isActive ? styles.pageNumberBtnActive : ''}`}
+                onClick={() => goToPage(item, true)}
+                aria-label={`Page ${item}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                {item}
+              </button>
+              {showDot && (
+                <span className={styles.paginationDot} aria-hidden="true">
+                  •
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        className={styles.paginationArrowBtn}
+        onClick={() => goToPage(currentPage + 1, true)}
+        disabled={currentPage >= totalPages}
+        aria-label="Next page"
+      >
+        <ChevronRight size={18} strokeWidth={2.2} />
+      </button>
+    </nav>
+  );
+}
+
 const getPlayerInitial = (name: string) => {
   return name ? name.charAt(0).toUpperCase() : '?';
 };
@@ -698,6 +905,12 @@ export default function LiveBracketHome() {
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [query, setQuery] = useState('');
 
+  // Pagination & Mobile Swipe States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isMobile, setIsMobile] = useState(false);
+  const mobileSwipeRef = useRef<HTMLDivElement>(null);
+  const eventsSectionRef = useRef<HTMLElement>(null);
+
   // Navigation States & Ref
   const navRef = useRef<HTMLElement>(null);
   const tournamentSearchInputRef = useRef<HTMLInputElement>(null);
@@ -734,6 +947,22 @@ export default function LiveBracketHome() {
       window.removeEventListener('pagehide', handleSave);
     };
   }, []);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    if (mobileSwipeRef.current) {
+      mobileSwipeRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, [query, statusFilter, sortBy]);
 
   const divisionsCount = useMemo(() => {
     const fromEvents = events.reduce((sum, t) => sum + (t.divisions?.length || 0), 0);
@@ -978,6 +1207,57 @@ export default function LiveBracketHome() {
       }
     });
   }, [events, statusFilter, sortBy, query]);
+
+  const DESKTOP_PAGE_SIZE = 6;
+  const MOBILE_PAGE_SIZE = 3;
+
+  const desktopTotalPages = Math.max(1, Math.ceil(filteredActiveUpcoming.length / DESKTOP_PAGE_SIZE));
+  const mobileTotalPages = Math.max(1, Math.ceil(filteredActiveUpcoming.length / MOBILE_PAGE_SIZE));
+  const totalPages = isMobile ? mobileTotalPages : desktopTotalPages;
+
+  const desktopPageTournaments = useMemo(() => {
+    const start = (currentPage - 1) * DESKTOP_PAGE_SIZE;
+    return filteredActiveUpcoming.slice(start, start + DESKTOP_PAGE_SIZE);
+  }, [filteredActiveUpcoming, currentPage]);
+
+  const mobilePages = useMemo(() => {
+    const pages: Tournament[][] = [];
+    for (let i = 0; i < filteredActiveUpcoming.length; i += MOBILE_PAGE_SIZE) {
+      pages.push(filteredActiveUpcoming.slice(i, i + MOBILE_PAGE_SIZE));
+    }
+    return pages;
+  }, [filteredActiveUpcoming]);
+
+  const handleMobileScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (!el || el.clientWidth === 0) return;
+    const index = Math.round(el.scrollLeft / el.clientWidth);
+    const page = index + 1;
+    if (page >= 1 && page <= mobileTotalPages && page !== currentPage) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPage = (page: number, shouldScrollToSection = false) => {
+    const maxPages = isMobile ? mobileTotalPages : desktopTotalPages;
+    const target = Math.max(1, Math.min(page, maxPages));
+    setCurrentPage(target);
+
+    if (isMobile && mobileSwipeRef.current) {
+      const width = mobileSwipeRef.current.clientWidth;
+      mobileSwipeRef.current.scrollTo({
+        left: (target - 1) * width,
+        behavior: 'smooth',
+      });
+    }
+
+    if (shouldScrollToSection && eventsSectionRef.current) {
+      const rect = eventsSectionRef.current.getBoundingClientRect();
+      if (rect.top < 0) {
+        eventsSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
 
   const filteredCompletedSlides = useMemo(() => {
     if (statusFilter === 'live' || statusFilter === 'upcoming') return [];
@@ -1323,7 +1603,7 @@ export default function LiveBracketHome() {
         <div className={styles.contentBg} aria-hidden="true" />
 
         {/* ── Events browser (Warm Sand Background overlaying blobs) ─── */}
-        <section className={styles.events} id="events">
+        <section className={styles.events} id="events" ref={eventsSectionRef}>
           <div className={styles.container}>
             
             <div className={styles.sectionHead}>
@@ -1387,127 +1667,49 @@ export default function LiveBracketHome() {
               </div>
             )}
 
-            {/* Active & Upcoming Tournament List (Vertical Poster Card) */}
+            {/* Active & Upcoming Tournament List */}
             {filteredActiveUpcoming.length > 0 && (
-              <div className={styles.grid}>
-                {filteredActiveUpcoming.map((t) => (
-                  <article key={t.id} className={styles.card}>
-                    <Link
-                      href={`/tournament/${t.id}`}
-                      className={styles.cardLink}
-                      onClick={() => saveScrollPosition('/')}
-                    >
-                      <div className={styles.cardMedia}>
-                        <img src={t.image} alt={t.title} className={styles.cardPoster} />
-                      </div>
+              <>
+                {/* Desktop Grid (6 cards per page) */}
+                <div className={styles.desktopGrid}>
+                  {desktopPageTournaments.map((t) => (
+                    <TournamentCard
+                      key={t.id}
+                      t={t}
+                      styles={styles}
+                      saveScrollPosition={saveScrollPosition}
+                    />
+                  ))}
+                </div>
 
-                      <div className={styles.cardBody}>
-                        {/* Badge is absolutely positioned over the poster on desktop
-                            and sits inline beside the title on the mobile row. */}
-                        <div className={styles.cardTitleRow}>
-                          <h3 className={styles.cardTitle}>{t.title}</h3>
-                          {(() => {
-                            const labelInfo = statusLabels(t);
-                            const badgeClass =
-                              labelInfo.variant === 'live'
-                                ? styles.cardStatusLive
-                                : labelInfo.variant === 'finished'
-                                ? styles.cardStatusFinished
-                                : labelInfo.variant === 'announced'
-                                ? styles.cardStatusAnnounced
-                                : labelInfo.variant === 'closed'
-                                ? styles.cardStatusClosed
-                                : '';
-                            return (
-                              <span className={`${styles.cardStatusBadge} ${badgeClass}`}>
-                                <span className={styles.cardStatusDot} aria-hidden="true" />
-                                <span className={styles.cardStatusLong}>{labelInfo.long}</span>
-                                <span className={styles.cardStatusShort}>{labelInfo.short}</span>
-                              </span>
-                            );
-                          })()}
-                        </div>
-
-                        <div className={styles.cardMetaList}>
-                          <div className={styles.cardMetaRow}>
-                            <Calendar size={17} className={styles.cardMetaIcon} />
-                            <span className={styles.cardMetaText}>
-                              {formatDateRange(t.dateLabel, t.endDateLabel)}
-                            </span>
-                          </div>
-                          <div className={styles.cardMetaRow}>
-                            <MapPin size={17} className={styles.cardMetaIcon} />
-                            <span className={styles.cardMetaText}>{t.location}</span>
-                          </div>
-                        </div>
-
-                        {t.registrations && (
-                          <div className={styles.cardDivisionsSection}>
-                            {t.registrations.map((reg, idx) => (
-                              <div key={idx} className={styles.divisionItem}>
-                                <div className={styles.divisionHeader}>
-                                  <span className={styles.divisionName}>{reg.division}</span>
-                                  <span className={styles.divisionSeats}>
-                                    {reg.filled}/{reg.total}
-                                    <span className={styles.divisionSeatsWord}> seats</span>
-                                  </span>
-                                </div>
-                                <div className={styles.progressBarBg}>
-                                  <div
-                                    className={styles.progressBarFill}
-                                    style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                            {t.divisions && t.divisions.length > t.registrations.length && (
-                              <div className={styles.moreDivisionsText}>
-                                + {t.divisions.length - t.registrations.length} more divisions available
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </Link>
-
-                    <div className={styles.cardFooter}>
-                      <div className={styles.organizerRow}>
-                        <div className={styles.organizerAvatar}>
-                          {t.organizerInitials || 'LB'}
-                        </div>
-                        <div className={styles.organizerMeta}>
-                          <span className={styles.organizerLabel}>Organizer</span>
-                          <span className={styles.organizerName}>
-                            {t.organizerName || 'Live Bracket'}
-                          </span>
-                        </div>
-                      </div>
-                      {(() => {
-                        const labelInfo = statusLabels(t);
-                        const isRegisterable = labelInfo.variant === 'open' || labelInfo.variant === 'waitlist';
-                        const href = isRegisterable ? `/tournament/${t.id}/register` : `/tournament/${t.id}`;
-                        const btnLabel =
-                          t.status === 'live'
-                            ? 'View Bracket'
-                            : t.status === 'finished'
-                            ? 'View Standings'
-                            : isRegisterable
-                            ? 'Register Team'
-                            : 'View Details';
-                        return (
-                          <Link
-                            href={href}
-                            className={styles.cardRegisterBtn}
-                            onClick={() => saveScrollPosition('/')}
-                          >
-                            {btnLabel}
-                          </Link>
-                        );
-                      })()}
+                {/* Mobile Horizontal Swipe Track (3 cards per slide) */}
+                <div
+                  ref={mobileSwipeRef}
+                  className={styles.mobileSwipeTrack}
+                  onScroll={handleMobileScroll}
+                >
+                  {mobilePages.map((pageCards, pageIdx) => (
+                    <div key={pageIdx} className={styles.mobilePageSlide}>
+                      {pageCards.map((t) => (
+                        <TournamentCard
+                          key={t.id}
+                          t={t}
+                          styles={styles}
+                          saveScrollPosition={saveScrollPosition}
+                        />
+                      ))}
                     </div>
-                  </article>
-                ))}
-              </div>
+                  ))}
+                </div>
+
+                {/* Pagination: ‹ 1 • 2 • ... • 8 › */}
+                <PaginationControl
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  goToPage={goToPage}
+                  styles={styles}
+                />
+              </>
             )}
 
             {/* Recently Completed Tournament Section (Slideshow) */}
