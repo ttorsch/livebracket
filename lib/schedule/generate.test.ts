@@ -182,7 +182,33 @@ function assertSound(
     }
   }
 
-  // 5. Nothing is lost: every match is either placed or reported as overflow.
+  // 5. Every match starts on a grid boundary.
+  //
+  //    This is what makes a published schedule readable — "10:30 on every
+  //    court" — and what lets the calendar rule one uniform ladder and have
+  //    the cards land on it. A court queue does not get it for free the way a
+  //    slot walk did: a match starts when the one before it ends, so a
+  //    ten-minute net change on a fifteen-minute grid knocks the whole column
+  //    off the lattice for the rest of the day.
+  for (const p of result.placements) {
+    const startMin = p.startAbs - p.day * DAY_SPAN;
+    // Three anchors, and the calendar rules a row at each: a slot of the
+    // playing day, the scrap at the tail of its last run, and every whole slot
+    // past closing time where a medal round may run late.
+    const starts = result.grid.slotStarts;
+    const tail = starts.length > 0 ? starts[starts.length - 1] + result.grid.slotMinutes : result.grid.dayStart;
+    const onLattice =
+      starts.includes(startMin) ||
+      startMin === tail ||
+      (startMin >= result.grid.dayEnd &&
+        (startMin - result.grid.dayEnd) % result.grid.slotMinutes === 0);
+    assert.ok(
+      onLattice,
+      `${label}: ${p.matchId} starts at ${startMin}, off a ${result.grid.slotMinutes}-minute grid`,
+    );
+  }
+
+  // 6. Nothing is lost: every match is either placed or reported as overflow.
   const accounted = result.placements.length + result.overflow.length;
   assert.equal(accounted, result.graph.nodes.size, `${label}: matches went missing`);
 }

@@ -1598,6 +1598,8 @@ export default function TournamentSchedulePage() {
         items: itemsByDay.get(day) ?? [],
       }));
 
+    const dayEndMin = fromHHMM(config?.endTime ?? '') ?? axis.endMin;
+
     const days = dayList.map((d, dIdx) => {
       // Stack unscheduled matches in the 'Unscheduled' column
       const unscheduledBlocks: { m: ScheduleMatch; court: string; startSlot: number; spanSlots: number; offsetMinutes: number; minutes: number }[] = [];
@@ -1617,16 +1619,30 @@ export default function TournamentSchedulePage() {
         });
       }
 
-      /* The axis sets the height of the day. The one thing allowed to make it
-         taller is the Unscheduled column, which is a stack rather than a
-         timeline and can be longer than the day it sits beside. */
-      const maxUnscheduledSlot = unscheduledBlocks.reduce((max, b) => Math.max(max, b.startSlot + b.spanSlots), 0);
-      const slots = Math.max(axis.slots, maxUnscheduledSlot);
-
       const blocks = [
         ...d.items.map(i => ({ m: i.m, court: i.m.court, minutes: i.dur, ...placeOnAxis(axis, i.startMin, i.dur) })),
         ...(dIdx === 0 ? unscheduledBlocks : []),
       ];
+
+      /* How tall this day is drawn.
+         The axis is one ruler for the whole calendar so every day's rows line
+         up — but its *length* is set by whichever day runs latest, and drawing
+         all of them that tall gave a day that finished at five o'clock three
+         hours of announced emptiness underneath it. So the ruler is shared and
+         the height is not: a day is drawn down to the configured closing time,
+         and past it only as far as its own matches actually reach.
+         The Unscheduled column may still make it taller — it is a stack rather
+         than a timeline, and can be longer than the day it sits beside. */
+      const closeRows = axis.rows.reduce(
+        (last, row, i) => (row.startMin < dayEndMin ? i + 1 : last),
+        1,
+      );
+      const usedRows = blocks.reduce((max, b) => Math.max(max, b.startSlot + b.spanSlots), 0);
+      const maxUnscheduledSlot = unscheduledBlocks.reduce((max, b) => Math.max(max, b.startSlot + b.spanSlots), 0);
+      const slots = Math.min(
+        axis.slots,
+        Math.max(closeRows, usedRows, maxUnscheduledSlot),
+      );
 
       // Court time taken off the board by hand, mapped onto this day's rows.
       // Kept beside the lunch banner rather than merged with it: lunch is a

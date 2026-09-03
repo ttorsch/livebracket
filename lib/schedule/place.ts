@@ -778,6 +778,25 @@ export function placeMatches(
         t = base + clash;
         continue;
       }
+
+      // Matches start on a grid boundary. That is what makes a published
+      // schedule readable — "10:30 on every court" — and it is what lets the
+      // calendar rule a uniform ladder and have the cards land on it.
+      //
+      // A court queue does not get this for free the way a slot walk did: a
+      // match starts when the one before it ends, and anything that is not a
+      // whole number of grid steps knocks the column off the lattice for the
+      // rest of the day. A ten-minute net change on a fifteen-minute grid put
+      // a card at 17:10, between two gridlines, and every match behind it.
+      const snapped = snapToGrid(t, day, base);
+      if (snapped === null) {
+        t = (day + 1) * DAY_SPAN + grid.dayStart;
+        continue;
+      }
+      if (snapped !== t) {
+        t = snapped;
+        continue;
+      }
       return t;
     }
     return null;
@@ -820,7 +839,37 @@ export function placeMatches(
       t = base + blocked;
       blocked = blockedUntil(court.index, grid.days - 1, t - base, duration);
     }
+    // Keep the evening on the same lattice the day was ruled on, so the
+    // calendar's rows past closing time still land under the cards.
+    //
+    // There are two anchors out here, not one. The last run leaves a scrap
+    // shorter than a slot at its tail — real minutes of the configured day
+    // that nothing could be *started* in, which the calendar draws as a row of
+    // its own — and past closing time the rows resume in whole slots. A match
+    // may begin at either.
+    const tail = grid.slotStarts.length > 0
+      ? grid.slotStarts[grid.slotStarts.length - 1] + grid.slotMinutes
+      : grid.dayStart;
+    const min = t - base;
+    if (min <= tail) t = base + tail;
+    else {
+      const over = t - (base + grid.dayEnd);
+      t = over > 0
+        ? base + grid.dayEnd + Math.ceil(over / grid.slotMinutes) * grid.slotMinutes
+        : base + grid.dayEnd;
+    }
+
     return t + duration <= base + DAY_SPAN ? t : null;
+  }
+
+  /** The first grid boundary at or after `t`, or null when the day has none
+   *  left. Runs are laid from their own start — the afternoon's boundaries
+   *  begin at `lunchEnd`, not at a lattice anchored on the morning — so this
+   *  reads the grid's own slot starts rather than doing arithmetic on them. */
+  function snapToGrid(t: number, day: number, base: number): number | null {
+    const min = t - base;
+    for (const start of grid.slotStarts) if (start >= min) return base + start;
+    return null;
   }
 
   /** End of the first blocked period this match would run into, or null. */
