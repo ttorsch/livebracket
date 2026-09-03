@@ -237,20 +237,26 @@ export function placeMatches(
         : Math.max(dayFloor, latestEnd(genderedPools));
     }
 
-    // No bracket anywhere opens until every round robin in the event has been
-    // played. The global round gate above already does this wherever a
-    // division has an early knockout round to be gated on — but the medal
-    // rounds are ordered by phase rather than by round index (the play-off for
-    // 3rd is drawn after the final and played before it), so a short bracket
-    // that runs straight from pools to semi-finals would slip past it. Said
-    // outright here, against `isPool`, which has no such ambiguity.
+    // The opening round of a bracket answers only to its own feeders, so it is
+    // free to take a court a round robin has left standing. That is its job
+    // here: a division's appetite is half its field by design, so while the
+    // last round robin plays on its two courts the rest of the venue has
+    // nothing else it may legally take. Measured on the organizer's
+    // tournament, letting the quarter-finals fill those gaps and widening the
+    // round robin to fill them both finish at the same minute — and the
+    // quarter-finals cost 3 back-to-back matches against 19.
+    if (phase === 'early' || !stageEndgame) return dayFloor;
+
+    // No medal round anywhere until every round robin in the event has been
+    // played. Said against `isPool` rather than against a round index, because
+    // the medal rounds are ordered by phase — the play-off for 3rd is drawn
+    // after the final and played before it — so a short bracket running
+    // straight from pools to semi-finals has no round for a gate to grip.
     const pools = phaseMatches('pool');
     if (pools.length > 0) {
       if (!allPlaced(pools)) return -1;
       dayFloor = Math.max(dayFloor, latestEnd(pools));
     }
-
-    if (phase === 'early' || !stageEndgame) return dayFloor;
 
     // And no medal round anywhere until every bracket round before it has been
     // played. Without this the lockstep only reached as far as the rounds the
@@ -313,10 +319,7 @@ export function placeMatches(
    *  waited for the play-off, and the play-off waited for a round that would
    *  only come round after the final. Their true order is the phase
    *  programme, and their dependencies are stated outright. */
-  const roundGated = (node: MatchNode): boolean => {
-    const phase = phaseOf(node);
-    return phase === 'pool' || phase === 'early';
-  };
+  const roundGated = (node: MatchNode): boolean => phaseOf(node) === 'pool';
 
   /** The lowest round *anywhere in the event* that still has matches in it.
    *

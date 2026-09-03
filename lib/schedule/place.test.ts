@@ -206,9 +206,12 @@ describe('placeMatches', () => {
     );
   });
 
-  it('finishes every round robin before any bracket opens', () => {
+  it('finishes every round robin before any medal round', () => {
     // The round is read across the whole event, not within a division, so no
-    // division races ahead of the field.
+    // division races a stage ahead of the field. The opening round of a
+    // bracket is the exception, and deliberately so: it is what fills the
+    // courts a round robin cannot use, since a division's appetite is only
+    // half its field.
     const men = division('men', 2, 4, { gender: 'Men' });
     const women = division('women', 2, 4, { gender: 'Women' });
     const mixed = division('mixed', 2, 4, { gender: 'Mixed' });
