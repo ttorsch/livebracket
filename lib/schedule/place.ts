@@ -237,26 +237,20 @@ export function placeMatches(
         : Math.max(dayFloor, latestEnd(genderedPools));
     }
 
-    // The opening round of a bracket answers only to its own feeders, so it is
-    // free to take a court a round robin has left standing. That is its job
-    // here: a division's appetite is half its field by design, so while the
-    // last round robin plays on its two courts the rest of the venue has
-    // nothing else it may legally take. Measured on the organizer's
-    // tournament, letting the quarter-finals fill those gaps and widening the
-    // round robin to fill them both finish at the same minute — and the
-    // quarter-finals cost 3 back-to-back matches against 19.
-    if (phase === 'early' || !stageEndgame) return dayFloor;
-
-    // No medal round anywhere until every round robin in the event has been
-    // played. Said against `isPool` rather than against a round index, because
-    // the medal rounds are ordered by phase — the play-off for 3rd is drawn
-    // after the final and played before it — so a short bracket running
-    // straight from pools to semi-finals has no round for a gate to grip.
+    // No bracket anywhere opens until every round robin in the event has been
+    // played. The global round gate above already says this wherever a
+    // division has an early bracket round to be gated on — but the medal
+    // rounds are ordered by phase rather than by round index (the play-off for
+    // 3rd is drawn after the final and played before it), so a short bracket
+    // running straight from pools to semi-finals would slip past it. Said
+    // outright here, against `isPool`, which has no such ambiguity.
     const pools = phaseMatches('pool');
     if (pools.length > 0) {
       if (!allPlaced(pools)) return -1;
       dayFloor = Math.max(dayFloor, latestEnd(pools));
     }
+
+    if (phase === 'early' || !stageEndgame) return dayFloor;
 
     // And no medal round anywhere until every bracket round before it has been
     // played. Without this the lockstep only reached as far as the rounds the
@@ -319,7 +313,10 @@ export function placeMatches(
    *  waited for the play-off, and the play-off waited for a round that would
    *  only come round after the final. Their true order is the phase
    *  programme, and their dependencies are stated outright. */
-  const roundGated = (node: MatchNode): boolean => phaseOf(node) === 'pool';
+  const roundGated = (node: MatchNode): boolean => {
+    const phase = phaseOf(node);
+    return phase === 'pool' || phase === 'early';
+  };
 
   /** The lowest round *anywhere in the event* that still has matches in it.
    *
@@ -410,15 +407,23 @@ export function placeMatches(
     const pastPools = unfinished.filter(id => !inPoolPlay(id));
     const runningIds = new Set([...pooling, ...pastPools]);
 
-    // Blocks are cut for the round robins, each exactly its appetite wide.
-    // Whatever is left over is unreserved — and under the round lockstep there
-    // is usually nothing that may use it, so it stands idle. That is the
-    // honest answer: the only way to fill it is to put the resting half of a
-    // division back on court, which is the one thing the appetite exists to
-    // prevent.
+    // Blocks are cut for the round robins, each exactly its appetite wide —
+    // half the division on court, half resting — while there is more than one
+    // round robin to serve. The surplus stays unreserved so a division that
+    // has not started yet is not squeezed, and so an organizer who rents a
+    // fifth court is not handed a worse schedule for it.
+    //
+    // **The last round robin standing takes the venue.** Under the round gate
+    // nothing else in the event may be played while it runs, so its appetite
+    // is protecting rest against no one: it would leave half the courts empty
+    // for the whole afternoon and finish later for it. It plays flat out and
+    // its teams play back to back, which is the organizer's call and one they
+    // have made.
     for (const court of courts) court.ownerId = null;
+    const widths = pooling.map(id => appetiteOfDivision.get(id)!).filter(Boolean);
+    const alone = widths.length === 1;
     const blocks = allotBlocks(
-      pooling.map(id => appetiteOfDivision.get(id)!).filter(Boolean),
+      alone ? [{ ...widths[0], appetite: Math.min(courts.length, widths[0].wideOpen) }] : widths,
       courts.length,
     );
     const blocked_ = new Set(blocks.map(b => b.divisionId));
