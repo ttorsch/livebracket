@@ -206,6 +206,38 @@ describe('placeMatches', () => {
     );
   });
 
+  it('finishes every round robin before any bracket opens', () => {
+    // The round is read across the whole event, not within a division, so no
+    // division races ahead of the field.
+    const men = division('men', 2, 4, { gender: 'Men' });
+    const women = division('women', 2, 4, { gender: 'Women' });
+    const mixed = division('mixed', 2, 4, { gender: 'Mixed' });
+    const knockout = (id: string) =>
+      Array.from({ length: 2 }, (_, i) => ({
+        id: `${id}-k${i}`,
+        teamA: null,
+        teamB: null,
+        isPool: false,
+        roundIndex: 1,
+        durationMinutes: 20,
+      }));
+    const withBracket = [men, women, mixed].map(d => ({ ...d, matches: [...d.matches, ...knockout(d.id)] }));
+
+    const { result, graph } = run(withBracket, 8);
+    assert.equal(result.unplaced.length, 0);
+
+    const lastPool = Math.max(
+      ...result.placements.filter(p => graph.nodes.get(p.matchId)!.isPool).map(p => p.endAbs),
+    );
+    const firstBracket = Math.min(
+      ...result.placements.filter(p => !graph.nodes.get(p.matchId)!.isPool).map(p => p.startAbs),
+    );
+    assert.ok(
+      firstBracket >= lastPool,
+      `a bracket opened at ${firstBracket} while a round robin ran to ${lastPool}`,
+    );
+  });
+
   it('gives the same answer twice', () => {
     const build = () => run([division('men', 4, 4), division('women', 3, 4)], 7).result.placements;
     assert.deepEqual(build(), build());

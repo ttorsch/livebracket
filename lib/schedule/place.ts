@@ -222,7 +222,7 @@ export function placeMatches(
     // available before that morning.
     const shape = shapeOf(node.divisionId);
     const isLastRound = !!shape && shape.maxLevel > 0 && node.level === shape.maxLevel;
-    const dayFloor = holdFinals && isLastRound
+    let dayFloor = holdFinals && isLastRound
       ? (grid.days - 1) * DAY_SPAN + grid.dayStart
       : -Infinity;
 
@@ -231,10 +231,38 @@ export function placeMatches(
     // block a Mixed draw is given can stand free while the last Men's pool
     // match is still running on the court beside it — and the same people
     // would be on both.
-    if (phase === 'pool' && !gendered(node.divisionId)) {
-      return Math.max(dayFloor, latestEnd(genderedPools));
+    if (phase === 'pool') {
+      return gendered(node.divisionId)
+        ? dayFloor
+        : Math.max(dayFloor, latestEnd(genderedPools));
     }
-    if (phase === 'pool' || phase === 'early' || !stageEndgame) return dayFloor;
+
+    // No bracket anywhere opens until every round robin in the event has been
+    // played. The global round gate above already does this wherever a
+    // division has an early knockout round to be gated on — but the medal
+    // rounds are ordered by phase rather than by round index (the play-off for
+    // 3rd is drawn after the final and played before it), so a short bracket
+    // that runs straight from pools to semi-finals would slip past it. Said
+    // outright here, against `isPool`, which has no such ambiguity.
+    const pools = phaseMatches('pool');
+    if (pools.length > 0) {
+      if (!allPlaced(pools)) return -1;
+      dayFloor = Math.max(dayFloor, latestEnd(pools));
+    }
+
+    if (phase === 'early' || !stageEndgame) return dayFloor;
+
+    // And no medal round anywhere until every bracket round before it has been
+    // played. Without this the lockstep only reached as far as the rounds the
+    // *round index* gates — Women played their semi-finals while Men's
+    // quarter-finals had not been played at all, because the score prefers to
+    // keep a court on the division that last used it and the medal rounds are
+    // ordered by phase rather than by round. The event advances as one field.
+    const early = phaseMatches('early');
+    if (early.length > 0) {
+      if (!allPlaced(early)) return -1;
+      dayFloor = Math.max(dayFloor, latestEnd(early));
+    }
 
     if (phase === 'semifinal') {
       // One division's semifinals at a time: any other division that has
@@ -272,14 +300,11 @@ export function placeMatches(
     return Math.max(floor, dayFloor);
   };
 
-  /** The lowest round a division still has matches in. Placement never runs
-   *  ahead of it, so a division finishes each round before opening the next
-   *  and the endgame cannot start beside its own pool play. */
-  /** Does this match have to wait for its division's current round?
+  /** Does this match have to wait for the event's current round?
    *
-   *  Pool play and the early knockout do: a division finishes each round
-   *  before opening the next, which is what keeps the endgame from starting
-   *  beside its own pool play.
+   *  Pool play and the early knockout do: the whole event finishes a round
+   *  before opening the next, which is what keeps one division's bracket from
+   *  starting beside another division's round robin.
    *
    *  The medal rounds do not, because round order is not play order there.
    *  The play-off for 3rd is *drawn* after the final — it needs both losing
@@ -293,12 +318,27 @@ export function placeMatches(
     return phase === 'pool' || phase === 'early';
   };
 
-  const currentRound = (divisionId: string): number => {
+  /** The lowest round *anywhere in the event* that still has matches in it.
+   *
+   *  Read across every division, not within one. The whole event advances a
+   *  round at a time: every round robin is finished before any bracket opens,
+   *  and every quarter-final is played before any semi-final is.
+   *
+   *  Reading it per division let a division race ahead of the field — Women
+   *  playing their semi-finals while Mixed was still working through its round
+   *  robin, which is not a schedule anyone would write by hand. It also
+   *  produced the ugliest thing on the calendar: a bracket that opens the
+   *  instant the last pool match ends sends that winner straight back on
+   *  court. Measured on the organizer's tournament, reading the round globally
+   *  halves those — 16 down to 8 — as a side effect of nothing but ordering.
+   *
+   *  Divisions of different sizes do not have the same number of rounds, so a
+   *  sixteen-team draw's round of 16 runs alongside an eight-team draw's
+   *  quarter-finals. That is the right pairing: each is the opening round of
+   *  its own bracket. */
+  const currentRound = (): number => {
     let lowest = Infinity;
-    for (const id of remaining) {
-      const node = graph.nodes.get(id)!;
-      if (node.divisionId === divisionId) lowest = Math.min(lowest, node.roundIndex);
-    }
+    for (const id of remaining) lowest = Math.min(lowest, graph.nodes.get(id)!.roundIndex);
     return lowest;
   };
 
@@ -388,8 +428,7 @@ export function placeMatches(
       }
     }
 
-    const roundOf = new Map<string, number>();
-    for (const id of runningIds) roundOf.set(id, currentRound(id));
+    const round = currentRound();
 
     // Cleared every pass, not on every commit. A court with nothing to take is
     // only exhausted *for this sweep*: the divisions advance a round between
@@ -403,7 +442,7 @@ export function placeMatches(
     for (const group of groups) {
       if (dissolved.has(group.key)) continue;
       if (group.matchIds.every(id => !remaining.has(id))) continue;
-      const outcome = placeTogether(group.matchIds, runningIds, roundOf);
+      const outcome = placeTogether(group.matchIds, runningIds, round);
       if (outcome === 'placed') {
         placedThisPass = true;
         stalled.delete(group.key);
@@ -431,7 +470,7 @@ export function placeMatches(
       for (const id of remaining) {
         const node = graph.nodes.get(id)!;
         if (!runningIds.has(node.divisionId)) continue;
-        if (roundGated(node) && node.roundIndex !== roundOf.get(node.divisionId)) continue;
+        if (roundGated(node) && node.roundIndex !== round) continue;
 
         // Court ownership, while the owner is still playing its pools.
         //
@@ -515,7 +554,7 @@ export function placeMatches(
   function placeTogether(
     matchIds: string[],
     runningIds: Set<string>,
-    roundOf: Map<string, number>,
+    round: number,
   ): 'placed' | 'waiting' | 'crowded' {
     const pending = matchIds.filter(id => remaining.has(id));
     if (pending.length === 0) return 'waiting';
@@ -523,8 +562,14 @@ export function placeMatches(
 
     for (const node of nodes) {
       if (!runningIds.has(node.divisionId)) return 'waiting';
-      if (roundGated(node) && node.roundIndex !== roundOf.get(node.divisionId)) return 'waiting';
+      if (roundGated(node) && node.roundIndex !== round) return 'waiting';
       if (phaseFloor(node) === -1) return 'waiting';
+      // A group whose feeders have not been played yet is not *crowded*, it is
+      // simply not due. Counting those against its patience dissolved every
+      // semifinal pair long before its quarter-finals had even been placed,
+      // and the pair was then laid down one at a time — the exact stagger the
+      // group exists to prevent.
+      for (const dep of node.deps) if (!endOf.has(dep)) return 'waiting';
     }
 
     const taken = new Set<number>();

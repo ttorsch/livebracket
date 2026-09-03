@@ -388,6 +388,63 @@ heat break (270 playable minutes per court per day against 1,890 needed).
 
 ---
 
+### 11. The round is read across the event, not within a division
+
+The organizer's own correction, and it is the better rule. Placement asks
+"is there still a match in the current round?" — and that question is asked of
+**every division at once**, not of one. So every round robin in the event is
+finished before any bracket opens, and every quarter-final is played before any
+semi-final is. The event advances as one field.
+
+Reading it per division let a division race ahead: Women playing their
+semi-finals while Mixed was still working through its round robin, which is not
+a schedule anyone would write by hand.
+
+Three places had to say it, because the medal rounds are ordered by *phase*
+rather than by round index and would otherwise slip past the gate:
+
+1. **The round gate itself** — `currentRound()` takes the lowest round index
+   still outstanding anywhere, and pool play and the early bracket are held to
+   it.
+2. **No bracket opens until every round robin is played.** Said against
+   `isPool`, because a short draw that runs straight from pools to semi-finals
+   has no early round for the gate to hold it on.
+3. **No medal round until every bracket round before it is played.** Without
+   this the lockstep reached only as far as the round index gated: the score
+   prefers to keep a court on the division that last used it, so Women's
+   semi-finals went on while Men's quarter-finals had not been played at all.
+
+A group whose *feeders* are unplaced now reports itself **waiting** rather than
+crowded. It used to count against the group's patience, so every semifinal pair
+dissolved long before its quarter-finals existed and was then laid down one
+match at a time — the exact stagger the group exists to prevent.
+
+### Measured, on the organizer's tournament
+
+| | finish | back-to-back | walks straight back on | past close |
+|---|---|---|---|---|
+| per-division round | d2 18:40 | 8 | 16 | 2 |
+| **round read globally** | d2 20:55 | **3** | **6** | 8 |
+| round read globally, break ends 14:00 | d2 **17:55** | **1** | **2** | 1 |
+
+It costs two and a quarter hours of finish time, all of it day one's afternoon:
+nothing may run there but the round robin still owing, so two courts stand
+idle. It buys back half the back-to-back play and two thirds of the
+walk-straight-back-on, because a bracket no longer opens the instant the last
+pool match ends.
+
+The **heat break is the binding constraint** and not the rule: 12:00-15:30
+leaves 270 playable minutes a day. Ending it at 14:00 pays for the lockstep
+twice over.
+
+---
+
 ## Open
 
-Nothing. Built and measured.
+- **A fifth court makes the schedule worse** — back-to-back 8 to 14 on the
+  organizer's event. Surplus courts are handed to a division whose rotation
+  cannot use them without putting every one of its teams on court. A block
+  should never be cut wider than its appetite.
+- **Whether the winner of a match is owed a whole match before playing again.**
+  Measured, it takes the remaining walk-straight-back-on to zero and costs
+  about ninety minutes of finish time. Not yet decided.
