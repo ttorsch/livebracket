@@ -81,8 +81,8 @@ describe('appetiteOf', () => {
     assert.equal(appetiteOf('d', draw(3, 4)).appetite, 3);
   });
 
-  it('never puts more than half a division on court', () => {
-    for (const pools of [1, 2, 3, 4, 5, 6]) {
+  it('never puts more than half a division on court, once it has pools to alternate', () => {
+    for (const pools of [2, 3, 4, 5, 6]) {
       for (const size of [3, 4, 5, 6]) {
         const a = appetiteOf('d', draw(pools, size));
         const teams = pools * size;
@@ -95,9 +95,12 @@ describe('appetiteOf', () => {
     }
   });
 
-  it('gives a lone pool one court, and cannot rest it', () => {
+  it('lets a lone pool play flat out, because it has nothing to rest against', () => {
+    // Halving makes pool groups alternate. One pool has no partner group, so
+    // the halving protects no rest and only lengthens the event.
     const a = appetiteOf('d', draw(1, 4));
-    assert.equal(a.appetite, 1);
+    assert.equal(a.wideOpen, 2);
+    assert.equal(a.appetite, 2);
   });
 
   it('sizes a knockout-only division off its opening round', () => {
@@ -144,47 +147,53 @@ describe('allotBlocks', () => {
   const men: Appetite = { divisionId: 'men', pools: 4, perPool: 2, wideOpen: 8, appetite: 4 };
   const women: Appetite = { divisionId: 'women', pools: 3, perPool: 2, wideOpen: 6, appetite: 3 };
 
-  it('fits the pair to a venue that is one court short', () => {
-    const blocks = allotBlocks([men, women], 6);
-    assert.deepEqual(blocks.map(b => b.divisionId), ['men', 'women']);
-    assert.deepEqual(blocks[0].courts, [0, 1, 2, 3]);
-    assert.deepEqual(blocks[1].courts, [4, 5]);
-  });
-
-  it('fits the pair to a venue that matches exactly', () => {
+  it('gives each division exactly its appetite, in a contiguous run', () => {
     const blocks = allotBlocks([men, women], 7);
+    assert.deepEqual(blocks.map(b => b.divisionId), ['men', 'women']);
     assert.deepEqual(blocks[0].courts, [0, 1, 2, 3]);
     assert.deepEqual(blocks[1].courts, [4, 5, 6]);
   });
 
-  it('gives the whole surplus to the smaller division', () => {
-    const blocks = allotBlocks([men, women], 8);
+  it('narrows a block when the venue is short, which is always safe', () => {
+    // Fewer courts than a division wants only makes the rotation longer and
+    // everyone's rest longer with it.
+    const blocks = allotBlocks([men, women], 6);
     assert.deepEqual(blocks[0].courts, [0, 1, 2, 3]);
-    assert.deepEqual(blocks[1].courts, [4, 5, 6, 7]);
+    assert.deepEqual(blocks[1].courts, [4, 5]);
   });
 
-  it('leaves no court without an owner, at any venue size', () => {
+  it('leaves a surplus court unreserved rather than widening a block', () => {
+    // The original rule handed the remainder to the smaller division so no
+    // court stood idle, and it is measurably wrong: a rotation given more
+    // courts than its appetite can only fill them by putting its resting half
+    // back on court. On the organizer's tournament a *fifth* court took
+    // back-to-back play from 3 matches to 14.
+    const blocks = allotBlocks([men, women], 9);
+    assert.deepEqual(blocks[0].courts, [0, 1, 2, 3]);
+    assert.deepEqual(blocks[1].courts, [4, 5, 6]);
+    assert.equal(blocks.flatMap(b => b.courts).length, 7, 'courts 7 and 8 stay unreserved');
+  });
+
+  it('never gives a division more courts than its appetite, at any venue size', () => {
     for (const courts of [1, 2, 3, 4, 5, 6, 7, 8, 12, 20]) {
-      const owned = allotBlocks([men, women], courts).flatMap(b => b.courts);
-      assert.deepEqual([...owned].sort((a, b) => a - b), Array.from({ length: courts }, (_, i) => i));
+      for (const block of allotBlocks([men, women], courts)) {
+        const want = block.divisionId === 'men' ? men.appetite : women.appetite;
+        assert.ok(
+          block.courts.length <= want,
+          `${courts} courts: ${block.divisionId} got ${block.courts.length}, wants ${want}`,
+        );
+      }
     }
   });
 
-  it('does not start the smaller division when it would get under one court', () => {
+  it('does not start a division that would be left under one court', () => {
     const blocks = allotBlocks([men, women], 4);
     assert.deepEqual(blocks.map(b => b.divisionId), ['men']);
     assert.deepEqual(blocks[0].courts, [0, 1, 2, 3]);
   });
 
-  it('gives a division running alone the whole venue', () => {
+  it('gives a division running alone its appetite and no more', () => {
     const blocks = allotBlocks([women], 8);
-    assert.deepEqual(blocks[0].courts, [0, 1, 2, 3, 4, 5, 6, 7]);
-  });
-
-  it('keeps the bigger appetite whole when it is second in the queue', () => {
-    const blocks = allotBlocks([women, men], 8);
-    assert.deepEqual(blocks.map(b => b.divisionId), ['women', 'men']);
-    assert.deepEqual(blocks[1].courts.length, 4); // men keep their four
-    assert.deepEqual(blocks[0].courts.length, 4); // women absorb the rest
+    assert.deepEqual(blocks[0].courts, [0, 1, 2]);
   });
 });

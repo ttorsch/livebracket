@@ -101,7 +101,13 @@ export function appetiteOf(divisionId: string, matches: MatchNode[]): Appetite {
     pools,
     perPool,
     wideOpen,
-    appetite: Math.max(1, Math.ceil(wideOpen / 2)),
+    // Halving is what makes pool *groups* alternate — one group on court while
+    // the other rests. A division drawn into a single pool has nothing to
+    // alternate with, so there is no rest for the halving to protect and it
+    // buys nothing but a longer event. A lone pool plays flat out and is
+    // warned; holding it to one court on an empty venue was the halving
+    // charging for a guarantee it could not deliver.
+    appetite: pools <= 1 ? wideOpen : Math.max(1, Math.ceil(wideOpen / 2)),
   };
 }
 
@@ -136,61 +142,36 @@ export function cohortRank(d: { gender?: string | null; label?: string }): numbe
 
 /** Cut the venue into blocks for the divisions currently running.
  *
- *  **The venue is always fully allotted.** Two divisions run at a time: the
- *  bigger appetite keeps its number and the smaller absorbs the whole
- *  remainder, so no court is left without an owner. A division running alone
- *  takes every court.
+ *  Each division gets **exactly its appetite**, in a contiguous run of courts,
+ *  and whatever is left over is unreserved.
  *
- *  That costs the smaller division its rest guarantee on a roomy venue, which
- *  is deliberate — an idle court an organizer can see is worse than a
- *  back-to-back they can fix with the buffer tool. It cannot run away with
- *  itself either: a division of `n` teams can never have more than `n/2`
- *  matches on court at once, so courts past that idle on the team filter
- *  rather than on a rule.
+ *  A block is never cut wider than the appetite, even when the venue has room
+ *  and nothing else to do with it. That was the original rule — the smaller
+ *  division absorbed the whole remainder so that no court stood idle — and it
+ *  is measurably wrong: a rotation given more courts than its appetite has
+ *  only one way to fill them, which is to put the resting half of the division
+ *  back on court. Measured on the organizer's tournament, renting a *fifth*
+ *  court took back-to-back play from 3 matches to 14. An organizer who adds a
+ *  court should never be handed a worse schedule for it.
  *
- *  A smaller division that would be left under one court does not start at
- *  all; it waits its turn, and the bigger one takes the venue.
+ *  So an idle court is allowed to be idle. It is the honest answer when a draw
+ *  cannot use the room it has been given, and the inventory says so plainly;
+ *  filling it costs the rest guarantee the appetite exists to provide.
  *
- *  `fillVenue` is false once some division is past its round robin and has a
- *  knockout waiting. Then each block is cut to exactly its appetite and the
- *  rest of the roster is left **unreserved** — open to whoever can use it.
- *  Handing the whole venue to the last division still playing pools would
- *  otherwise lock every other division's endgame out of a court, which is a
- *  worse kind of idle than an empty column. */
-export function allotBlocks(running: Appetite[], courtCount: number, fillVenue = true): Block[] {
+ *  A division that would be left under one court does not start at all; it
+ *  waits its turn. */
+export function allotBlocks(running: Appetite[], courtCount: number): Block[] {
   const courts = Math.max(0, Math.trunc(courtCount) || 0);
   if (courts === 0 || running.length === 0) return [];
 
   const all = Array.from({ length: courts }, (_, i) => i);
-
-  if (!fillVenue) {
-    const out: Block[] = [];
-    let cursor = 0;
-    for (const division of running) {
-      const width = Math.min(division.appetite, courts - cursor);
-      if (width < 1) break;
-      out.push({ divisionId: division.divisionId, courts: all.slice(cursor, cursor + width) });
-      cursor += width;
-    }
-    return out;
+  const out: Block[] = [];
+  let cursor = 0;
+  for (const division of running) {
+    const width = Math.min(division.appetite, courts - cursor);
+    if (width < 1) break;
+    out.push({ divisionId: division.divisionId, courts: all.slice(cursor, cursor + width) });
+    cursor += width;
   }
-
-  if (running.length === 1) return [{ divisionId: running[0].divisionId, courts: all }];
-
-  const [first, second] = running;
-  const bigger = second.appetite > first.appetite ? second : first;
-  const smaller = bigger === first ? second : first;
-  const forBigger = Math.min(bigger.appetite, courts);
-  const forSmaller = courts - forBigger;
-
-  if (forSmaller < 1) return [{ divisionId: bigger.divisionId, courts: all }];
-
-  // Queue order decides which end of the roster a division sits on, so the
-  // division that has been waiting longest is not shuffled across the venue
-  // every time its neighbour changes.
-  const firstWidth = first === bigger ? forBigger : forSmaller;
-  return [
-    { divisionId: first.divisionId, courts: all.slice(0, firstWidth) },
-    { divisionId: second.divisionId, courts: all.slice(firstWidth) },
-  ];
+  return out;
 }

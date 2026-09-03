@@ -407,14 +407,16 @@ export function placeMatches(
     const pastPools = unfinished.filter(id => !inPoolPlay(id));
     const runningIds = new Set([...pooling, ...pastPools]);
 
-    // Blocks are cut for the round robins. While nothing else needs a court
-    // the pair fills the venue between them; once a knockout is waiting, each
-    // block shrinks to its appetite and the rest of the roster is unreserved.
+    // Blocks are cut for the round robins, each exactly its appetite wide.
+    // Whatever is left over is unreserved — and under the round lockstep there
+    // is usually nothing that may use it, so it stands idle. That is the
+    // honest answer: the only way to fill it is to put the resting half of a
+    // division back on court, which is the one thing the appetite exists to
+    // prevent.
     for (const court of courts) court.ownerId = null;
     const blocks = allotBlocks(
       pooling.map(id => appetiteOfDivision.get(id)!).filter(Boolean),
       courts.length,
-      pastPools.length === 0,
     );
     const blocked_ = new Set(blocks.map(b => b.divisionId));
     for (const block of blocks) {
@@ -790,8 +792,13 @@ export function placeMatches(
   }
 
   /** Where a match goes when it has run out of event. On the last day, after
-   *  whatever the court already holds, past closing time. */
-  function runLate(court: CourtState, from: number, duration: number): number {
+   *  whatever the court already holds, past closing time.
+   *
+   *  Past closing, but not past midnight. "No ceiling" means the evening, not
+   *  the small hours: a match that cannot finish before the day is out has
+   *  nowhere real to go, and placing it on a day the event does not have is a
+   *  worse answer than reporting it as overflow. */
+  function runLate(court: CourtState, from: number, duration: number): number | null {
     const base = (grid.days - 1) * DAY_SPAN;
     let t = Math.max(from, court.freeAt, base + grid.dayStart);
     if (t < base) t = base + grid.dayStart;
@@ -805,7 +812,7 @@ export function placeMatches(
       t = base + blocked;
       blocked = blockedUntil(court.index, grid.days - 1, t - base, duration);
     }
-    return t;
+    return t + duration <= base + DAY_SPAN ? t : null;
   }
 
   /** End of the first blocked period this match would run into, or null. */
