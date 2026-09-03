@@ -106,8 +106,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   // Preserve the bracket page's draw config — this route owns every other
-  // settings key, but `draw` is written by the draw endpoint.
-  const prevDraw = (existing.settings as Record<string, unknown> | null)?.draw;
+  // settings key, but sync the advance and crossing if the organizer configured them.
+  const prevDraw = (existing.settings as Record<string, unknown> | null)?.draw as Record<string, unknown> | undefined;
+  const newAdvance = Math.max(1, Math.min(4, Math.trunc(body.advancePerPool ?? (prevDraw?.advance as number) ?? 2) || 2));
+  const newCrossing = ['fivb', 'static'].includes(body.crossing) ? body.crossing : ((prevDraw?.crossing as string) ?? 'fivb');
+  const nextDraw = prevDraw
+    ? {
+        ...prevDraw,
+        advance: newAdvance,
+        crossing: newCrossing,
+      }
+    : undefined;
 
   const { data: division, error: dError } = await supabaseAdmin
     .from('divisions')
@@ -117,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       registration_fee: body.registrationFee,
       division_team_cap: body.divisionTeamCap,
       reg_fields: body.regFields,
-      settings: prevDraw === undefined ? toSettings(body) : { ...toSettings(body), draw: prevDraw },
+      settings: nextDraw === undefined ? toSettings(body) : { ...toSettings(body), draw: nextDraw },
     })
     .eq('id', divisionId)
     .select('id, name, format_type_on_sand, registration_fee, division_team_cap, reg_fields, settings')

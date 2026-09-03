@@ -331,6 +331,12 @@
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(238, 122, 76, 0.3);
 }
+.stickyDivisionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .scheduleLinkBtn,
 .setupLinkBtn {
   display: inline-flex;
@@ -352,9 +358,6 @@
   background: var(--sand-200, #EFEAE0);
   transform: translateY(-1px);
 }
-/* The desktop header carries its own navigation; this one only exists in
-   the phone bar, where it is turned back on below. */
-.setupLinkBtn { display: none; }
 
 /* ── Main layout ───────────────────────────────────────────── */
 .main {
@@ -1036,7 +1039,7 @@
 }
 .poolsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
   margin-top: 16px;
 }
@@ -1045,7 +1048,7 @@
   border: 1px solid var(--sand-300);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
-  padding: 18px;
+  padding: 16px;
 }
 .poolCardHeader {
   display: flex;
@@ -1082,9 +1085,35 @@
   font-weight: 600;
   font-size: 13px;
   color: var(--ink-900);
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
   background: var(--sand-100);
+  overflow: hidden;
+}
+
+.stackedTeamNames {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+}
+.stackedPlayer {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--ink-900);
+}
+.singleTeamName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--ink-900);
 }
 
 /* ── Standing table ──────────────────────────────────────── */
@@ -1093,6 +1122,7 @@
   border-collapse: collapse;
   font-family: var(--font-text);
   font-size: 13px;
+  table-layout: fixed;
 }
 .standingsTable th {
   text-align: left;
@@ -1101,24 +1131,27 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--ink-500);
-  padding: 0 10px 8px;
+  padding: 0 4px 8px;
 }
 .standingsTable th:first-child,
 .standingsTable td:first-child {
   text-align: left;
-  width: 24px;
+  width: 18px;
 }
 .standingsTable th:nth-child(2),
 .standingsTable td:nth-child(2),
 .standingsTeam {
   text-align: left !important;
+  width: auto;
+  overflow: hidden;
 }
 .standingsTable th:not(:first-child):not(:nth-child(2)),
 .standingsTable td:not(:first-child):not(:nth-child(2)) {
   text-align: right;
+  width: 32px;
 }
 .standingsTable td {
-  padding: 8px 10px;
+  padding: 6px 4px;
   color: var(--ink-900);
   font-weight: 600;
   border-top: 1px solid var(--sand-300);
@@ -1249,6 +1282,24 @@
 .roundMatches {
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+.thirdPlaceBlock {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+}
+.thirdPlaceLabel {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  text-align: center;
+  margin-bottom: 8px;
 }
 .matchSlot {
   flex: 1;
@@ -1527,7 +1578,8 @@
     justify-content: center;
     flex-shrink: 0;
   }
-  .scheduleBtnText {
+  .scheduleBtnText,
+  .setupBtnText {
     display: none;
   }
   .section {

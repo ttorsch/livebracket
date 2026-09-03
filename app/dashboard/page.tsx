@@ -12,7 +12,7 @@ import OrganizerProfileModal from './OrganizerProfileModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
 import PublishTournamentModal from '@/components/PublishTournamentModal';
 import ScorekeeperQrCards, { useScorekeeperLinks, useQrPdfExport } from '../../components/ScorekeeperQrCards';
-import { Button, SearchField, Icon, Badge } from '../../components/livebracket-ds';
+import { Button, SearchField, Icon, Badge, BracketIcon } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
   type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
@@ -688,7 +688,7 @@ export default function OrganizerDashboard() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Trophy size={16} /> Open Bracket
+                          <BracketIcon size={16} /> Open Bracket
                           <span className={styles.srOnly}>(opens in a new tab)</span>
                         </Link>
                         <Link
@@ -1161,7 +1161,7 @@ function TournamentRow({
                 </button>
               )}
               <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
-                <Trophy size={15} /> Bracket
+                <BracketIcon size={15} /> Bracket
               </Link>
               <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.rowBracketBtn}>
                 <Calendar size={15} /> Schedule

@@ -84,7 +84,6 @@ export function validateSchedule(
 ): ScheduleProblem[] {
   const name = options.label ?? ((id: string) => id);
   const teamName = options.teamLabel ?? ((id: string) => id);
-  const rest = Math.max(0, options.targetRestMinutes ?? 0);
   const buffer = normaliseBuffer(options.netBufferMinutes ?? 0);
   const problems: ScheduleProblem[] = [];
   const byId = new Map(placements.map(p => [p.matchId, p]));
@@ -186,13 +185,8 @@ export function validateSchedule(
           message: `${teamName(team)} is already on court for ${name(previous.matchId)} until ${hhmm(endAbs(previous))}`,
         });
       } else if (gap === 0) {
-        // Only a genuine back-to-back is worth saying out loud.
-        //
-        // A gap merely shorter than the target is not a fault: pool play now
-        // fills the courts and prices rest rather than gating it, so a 20-minute
-        // turnaround between 20-minute matches is the *expected* shape of a
-        // round robin, not a mistake. Flagging it put a warning on half the
-        // cards and buried the problems that actually need looking at.
+        // Rest is two-state: a team either gets a full match break or plays
+        // back-to-back. Only a genuine back-to-back is worth saying out loud.
         problems.push({
           matchId: current.matchId,
           otherMatchId: previous.matchId,
@@ -222,15 +216,12 @@ export function validateSchedule(
           kind: 'dependency',
           message: `${name(dep)} has not finished yet — it runs until ${hhmm(endAbs(feeder))}`,
         });
-      } else if (rest > 0 && gap < rest) {
+      } else if (gap === 0) {
         problems.push({
           matchId: p.matchId,
           otherMatchId: dep,
           kind: 'shortRest',
-          message:
-            gap === 0
-              ? `whoever wins ${name(dep)} walks straight back on`
-              : `whoever wins ${name(dep)} gets only ${gap} min`,
+          message: `whoever wins ${name(dep)} walks straight back on`,
         });
       }
     }

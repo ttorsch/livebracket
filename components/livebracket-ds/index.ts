@@ -10,5 +10,6 @@ export { PageControl } from "./data-display/PageControl";
 export { SearchField } from "./forms/SearchField";
 export { SegmentedControl } from "./forms/SegmentedControl";
 export { Icon } from "./icons/Icon";
+export { BracketIcon } from "./icons/BracketIcon";
 export { Card } from "./surfaces/Card";
 export { GlassCard } from "./surfaces/GlassCard";

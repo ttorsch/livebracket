@@ -6,7 +6,6 @@ import { useParams } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowLeft,
-  Ban,
   Check,
   Calendar,
   ChevronDown,
@@ -15,6 +14,7 @@ import {
   ChevronUp,
   Clock,
   Grid,
+  GripVertical,
   ImagePlus,
   MapPin,
   Minus,
@@ -33,9 +33,24 @@ import { axisLabels, buildCalendarAxis, placeOnAxis, rowKind, rowStartMin, type 
 import { courtRoster } from '@/lib/schedule/types';
 import { hasPlacement, isOffEventDay } from '@/lib/schedule/placedMatch';
 import { scheduleSaveGate } from '@/lib/scheduleGate';
+import {
+  DndContext,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  pointerWithin,
+  rectIntersection,
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
-import { Badge } from '../../../../../components/livebracket-ds';
+import { Badge, BracketIcon } from '../../../../../components/livebracket-ds';
 import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../../../../lib/tournamentLifecycle';
 import {
   generateSchedule,
@@ -51,7 +66,8 @@ import {
   type ScheduleProblem,
   type ScheduleResult,
 } from '../../../../../lib/schedule/generate';
-import { labelDivisionMatches, loserFeedersOf, type MatchLabel } from '../../../../../lib/divisionMatches';
+import { type MatchLabel } from '../../../../../lib/divisionMatches';
+import { labelDivisions, toSchedulableDivisions } from '../../../../../lib/schedule/schedulableDivisions';
 
 interface ScheduleMatch {
   id: string;
@@ -302,9 +318,330 @@ function BufferPrompt({
  *  removing it knows to pull the court back up. Plain blocked time carries a
  *  different label and is left where it is. */
 const BUFFER_LABEL = 'Buffer';
+const NET_ADJUST_LABEL = 'Net Adjust';
+const isBufferBlock = (label?: string) => label === BUFFER_LABEL || label === NET_ADJUST_LABEL;
 
-/** Hand moves, keyed by match. Snapshotted when the navigator opens so that
- *  cancelling it puts every arrow press back. */
+/** Droppable empty time slot cell in Grid View. */
+function GridDroppableSlot({
+  court,
+  day,
+  slot,
+  startMin,
+  ci,
+}: {
+  court: string;
+  day: number;
+  slot: number;
+  startMin: number;
+  ci: number;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `drop-slot-${court}-${day}-${slot}`,
+    data: {
+      type: 'slot',
+      court,
+      day,
+      time: startMin,
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${styles.calDropSlotCell} ${isOver ? styles.calDropSlotCellOver : ''}`}
+      style={{
+        gridColumn: ci + 2,
+        gridRow: slot + 2,
+      } as CSSProperties}
+    >
+      {isOver && (
+        <div className={styles.calDropGhostSlot}>
+          <Clock size={12} />
+          <span>{toHHMM(startMin)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Draggable and Droppable match card in Grid View. */
+function GridMatchCardItem({
+  b,
+  ci,
+  divIdx,
+  faults,
+  movable,
+  editMode,
+  editingTime,
+  insertAt,
+  activeDragMatch,
+  setEditingTime,
+  setInsertAt,
+  insertBuffer,
+  bufferSuggestion,
+  moveMatch,
+  day,
+  axis,
+  netBufferMinutes,
+  isPulsing,
+}: {
+  b: {
+    m: ScheduleMatch;
+    court: string;
+    startSlot: number;
+    spanSlots: number;
+    offsetMinutes: number;
+    minutes: number;
+  };
+  ci: number;
+  divIdx: number;
+  faults: ScheduleProblem[];
+  movable: boolean;
+  editMode: boolean;
+  editingTime: string | null;
+  insertAt: { matchId: string; suggested: number } | null;
+  activeDragMatch: ScheduleMatch | null;
+  setEditingTime: (id: string | null) => void;
+  setInsertAt: (val: { matchId: string; suggested: number } | null) => void;
+  insertBuffer: (court: string, day: number, atMin: number, minutes: number, label?: string) => void;
+  bufferSuggestion: (m: ScheduleMatch) => number;
+  moveMatch: (matchId: string, court: string, day: number, time: string) => void;
+  day: number;
+  axis: CalendarAxis;
+  netBufferMinutes: number;
+  isPulsing?: boolean;
+}) {
+  const isSelfDragging = activeDragMatch?.id === b.m.id;
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({
+    id: b.m.id,
+    disabled: !movable,
+    data: {
+      type: 'match',
+      match: b.m,
+      court: b.court,
+      day,
+    },
+  });
+
+  const { isOver, setNodeRef: setDropRef } = useDroppable({
+    id: `drop-match-${b.m.id}`,
+    disabled: !editMode,
+    data: {
+      type: 'match',
+      match: b.m,
+      court: b.court,
+      day,
+    },
+  });
+
+  const setCardRef = (node: HTMLElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
+
+  const showInsertionLine = isOver && activeDragMatch && activeDragMatch.id !== b.m.id;
+
+  return (
+    <div
+      id={`match-card-${b.m.id}`}
+      ref={setCardRef}
+      {...(movable ? listeners : {})}
+      {...(movable ? attributes : {})}
+      className={[
+        styles.gridMatchCard,
+        movable ? styles.gridMatchCardDraggable : '',
+        isDragging || isSelfDragging ? styles.gridMatchCardDragging : '',
+        b.m.status === 'live' ? styles.gridMatchCardLive : '',
+        b.m.isEdited ? styles.gridMatchCardEdited : '',
+        faults.length > 0 ? styles.gridMatchCardFault : '',
+        isPulsing ? styles.matchCardPulse : '',
+      ].filter(Boolean).join(' ')}
+      data-div={divIdx}
+      data-pickable={movable ? 'true' : undefined}
+      style={{
+        gridColumn: ci + 2,
+        gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
+        ...offsetStyle(b.offsetMinutes, b.minutes),
+      } as CSSProperties}
+    >
+      {showInsertionLine && (
+        <div className={styles.calDropLineIndicator}>
+          <span className={styles.calDropLineText}>Insert before {b.m.matchNo}</span>
+        </div>
+      )}
+
+      {/* Buffer goes in *before* this match */}
+      {editMode && movable && !isDragging && (
+        <div
+          className={styles.cardBuffer}
+          onPointerDown={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          onTouchStart={e => e.stopPropagation()}
+        >
+          {insertAt?.matchId === b.m.id ? (
+            <BufferPrompt
+              suggested={insertAt.suggested}
+              onCancel={() => setInsertAt(null)}
+              onConfirm={minutes => {
+                const isNetFault = faults.some(p => p.kind === 'netChange');
+                insertBuffer(
+                  b.court,
+                  day,
+                  fromHHMM(b.m.time) ?? rowStartMin(axis, b.startSlot),
+                  minutes,
+                  isNetFault ? NET_ADJUST_LABEL : BUFFER_LABEL,
+                );
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className={styles.cardBufferBtn}
+              title={`Add buffer time before ${b.m.matchNo} (${b.m.time})`}
+              aria-label={`Add buffer time before ${b.m.matchNo}`}
+              onClick={e => {
+                e.stopPropagation();
+                setInsertAt({
+                  matchId: b.m.id,
+                  suggested: bufferSuggestion(b.m),
+                });
+              }}
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              <span className={styles.cardBufferTooltip}>Add buffer time</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className={styles.gridMatchTop}>
+        <div
+          className={styles.gridMatchTimeWrap}
+          onPointerDown={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          onTouchStart={e => e.stopPropagation()}
+        >
+          {editingTime === b.m.id ? (
+            <input
+              className={styles.gridTimeInput}
+              type="time"
+              defaultValue={b.m.time}
+              autoFocus
+              onBlur={e => {
+                const v = e.target.value;
+                if (/^\d{2}:\d{2}$/.test(v) && v !== b.m.time) {
+                  moveMatch(b.m.id, b.m.court, b.m.day, v);
+                }
+                setEditingTime(null);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                if (e.key === 'Escape') setEditingTime(null);
+              }}
+            />
+          ) : movable ? (
+            <button
+              type="button"
+              className={styles.gridMatchTime}
+              onClick={e => {
+                e.stopPropagation();
+                setEditingTime(b.m.id);
+              }}
+              title="Click to set a new time"
+              data-editable="true"
+            >
+              {b.m.time}
+            </button>
+          ) : (
+            <span className={styles.gridMatchTime}>{b.m.time}</span>
+          )}
+          <span className={styles.gridMatchDuration}>{b.m.durationMinutes || 45} m</span>
+        </div>
+        <span className={styles.gridMatchTags}>
+          {b.m.roundName && <span className={styles.gridMatchRound}>{b.m.roundName}</span>}
+          <span className={styles.gridMatchNo}>{b.m.matchNo}</span>
+          {movable && editMode && (
+            <span className={styles.gridGripIcon} title="Drag to reposition" aria-hidden="true">
+              <GripVertical size={13} />
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div className={`${styles.gridTeamRow} ${styles.gridTeamRowA}`}>
+        <span className={styles.gridTeamName}>{b.m.teamA}</span>
+        <div className={styles.gridScores}>
+          {b.m.scoreA && b.m.scoreA.length > 0 ? (
+            b.m.scoreA.map((s, idx) => (
+              <span key={idx} className={styles.gridScoreBadgeWin}>{s}</span>
+            ))
+          ) : (
+            <>
+              <span className={styles.gridScoreEmpty} />
+              <span className={styles.gridScoreEmpty} />
+            </>
+          )}
+        </div>
+      </div>
+      <div className={styles.gridVsRow}>
+        <span className={styles.gridVsLine} />
+        <span className={styles.gridVsText}>vs</span>
+        <span className={styles.gridVsLine} />
+      </div>
+      <div className={`${styles.gridTeamRow} ${styles.gridTeamRowB}`}>
+        <span className={styles.gridTeamName}>{b.m.teamB}</span>
+        <div className={styles.gridScores}>
+          {b.m.scoreB && b.m.scoreB.length > 0 ? (
+            b.m.scoreB.map((s, idx) => (
+              <span key={idx} className={styles.gridScoreBadge}>{s}</span>
+            ))
+          ) : (
+            <>
+              <span className={styles.gridScoreEmpty} />
+              <span className={styles.gridScoreEmpty} />
+            </>
+          )}
+        </div>
+      </div>
+      {faults.length > 0 && (
+        <ul className={styles.gridFaults}>
+          {faults.map((f, i) => (
+            <li key={i}>
+              <AlertTriangle size={11} />
+              <div className={styles.gridFaultContent}>
+                <span>{f.message}</span>
+                {f.kind === 'netChange' && editMode && (
+                  <button
+                    type="button"
+                    className={styles.gridFaultQuickBtn}
+                    onClick={e => {
+                      e.stopPropagation();
+                      const at = fromHHMM(b.m.time) ?? rowStartMin(axis, b.startSlot);
+                      insertBuffer(b.court, day, at, netBufferMinutes || 10, NET_ADJUST_LABEL);
+                    }}
+                    onMouseDown={e => e.stopPropagation()}
+                    onTouchStart={e => e.stopPropagation()}
+                    title={`Insert a ${netBufferMinutes || 10}-minute net adjust before ${b.m.matchNo}`}
+                  >
+                    <Plus size={11} /> Add {netBufferMinutes || 10}m net adjust
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Hand moves, keyed by match. */
 type Edits = Map<string, { court: string; day: number; time: string }>;
 
 export default function TournamentSchedulePage() {
@@ -329,6 +666,16 @@ export default function TournamentSchedulePage() {
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
   const [overrides, setOverrides] = useState<Record<string, number | null>>({});
   const [preview, setPreview] = useState<ScheduleResult | null>(null);
+  const [problemListOpen, setProblemListOpen] = useState(false);
+  const [pulsingMatchId, setPulsingMatchId] = useState<string | null>(null);
+  const pulseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+    };
+  }, []);
+
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
@@ -346,9 +693,12 @@ export default function TournamentSchedulePage() {
    *  and it gives the editing tools somewhere to live rather than sitting on
    *  screen permanently for the ninety-nine percent of the time nobody is
    *  editing. */
-  const [editMode, setEditMode] = useState(false);
-  /** Clicking the grid drops a block rather than selecting a match. */
-  const [blockMode, setBlockMode] = useState(false);
+  const [editMode, setEditMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('edit') === '1';
+    }
+    return false;
+  });
   /** The match a buffer is being inserted in front of, while its length is
    *  typed. Keyed by match rather than by court and time, because the handle
    *  belongs to a card. */
@@ -356,19 +706,7 @@ export default function TournamentSchedulePage() {
   /** Match whose time is being typed. */
   const [editingTime, setEditingTime] = useState<string | null>(null);
 
-  /* The navigator: the match it is open on, and the edits as they stood when it
-     opened.
-
-     Moving a match used to be a drag, and a drag is the wrong verb for this
-     job. It needs a pointer, so it was never the whole story on a phone; it
-     needs the destination to be on screen, which on a calendar showing one
-     court at a time it often is not; and it asks the organizer to be accurate
-     with a card at the moment they are least able to see where it will land.
-     An arrow is none of those things. Pressing one is a whole move — the match
-     goes in front of its neighbour and the schedule closes and opens around it
-     — so the answer is on screen before the next press, and the ✕ puts the
-     entire excursion back. */
-  const [nav, setNav] = useState<{ id: string; edits: Edits; dirty: boolean } | null>(null);
+  const [activeDragMatch, setActiveDragMatch] = useState<ScheduleMatch | null>(null);
 
   /** Something on screen differs from what is stored — a hand move, a block,
    *  or a config change — so there is something worth saving. */
@@ -381,36 +719,63 @@ export default function TournamentSchedulePage() {
   };
   const clearEdits = () => setEdits(new Map());
 
-  /* Picking a match up, putting it down, and changing your mind.
-     `dirty` rides along with the snapshot: a cancel that left the save bar
-     showing would be claiming there was something to save when there is not. */
-  const pickUp = (m: ScheduleMatch) => {
-    setNav(prev => (prev?.id === m.id ? null : { id: m.id, edits, dirty }));
-    setEditingTime(null);
-    setInsertAt(null);
-  };
-  const keepMove = () => setNav(null);
-  const cancelMove = () => {
-    if (nav) {
-      setEdits(nav.edits);
-      setDirty(nav.dirty);
-      setSaveMsg(null);
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 4,
+    },
+  });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 200,
+      tolerance: 5,
+    },
+  });
+  const sensors = useSensors(mouseSensor, touchSensor);
+
+  const collisionDetectionStrategy: CollisionDetection = args => {
+    const selfDropId = `drop-match-${args.active.id}`;
+    const pointerCollisions = pointerWithin(args).filter(c => c.id !== selfDropId && c.id !== args.active.id);
+    if (pointerCollisions.length > 0) {
+      const matchHit = pointerCollisions.find(c => String(c.id).startsWith('drop-match-'));
+      if (matchHit) return [matchHit];
+      return pointerCollisions;
     }
-    setNav(null);
+    const rectCollisions = rectIntersection(args).filter(c => c.id !== selfDropId && c.id !== args.active.id);
+    const matchHit = rectCollisions.find(c => String(c.id).startsWith('drop-match-'));
+    if (matchHit) return [matchHit];
+    return rectCollisions;
   };
 
-  // Escape is the same as the ✕ — the move goes back and the navigator closes.
-  useEffect(() => {
-    if (!nav) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      setEdits(nav.edits);
-      setDirty(nav.dirty);
-      setNav(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [nav]);
+  const handleDragStart = (event: DragStartEvent) => {
+    const matchId = String(event.active.id);
+    const m = allMatches.find(x => x.id === matchId);
+    if (m) setActiveDragMatch(m);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragMatch(null);
+    if (!over) return;
+
+    const activeMatchId = String(active.id);
+    const overData = over.data.current as
+      | { type: 'match'; match: ScheduleMatch; court: string; day: number }
+      | { type: 'slot'; court: string; day: number; time: number }
+      | undefined;
+
+    if (!overData) return;
+
+    if (overData.type === 'match' && overData.match) {
+      if (overData.match.id === activeMatchId) return;
+      dropMatch(activeMatchId, overData.court, overData.day, { beforeId: overData.match.id });
+    } else if (overData.type === 'slot' && overData.time != null) {
+      dropMatch(activeMatchId, overData.court, overData.day, { time: overData.time });
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragMatch(null);
+  };
 
   // Height of the pinned control bar, published as --chrome-h. On mobile the
   // calendar sizes itself against this so it comes to rest exactly below the
@@ -468,11 +833,10 @@ export default function TournamentSchedulePage() {
 
   // Match numbers and slot names for every division, from the one place that
   // decides them — so the bracket, these views and the match list agree.
-  const labelsByDivision = useMemo(() => {
-    const out = new Map<string, Map<string, MatchLabel>>();
-    detail?.divisions.forEach(d => out.set(d.id, labelDivisionMatches(d)));
-    return out;
-  }, [detail]);
+  const labelsByDivision = useMemo(
+    () => labelDivisions(detail?.divisions ?? []),
+    [detail],
+  );
 
   // Everything the generator needs, derived from the loaded bracket.
   /* Whether the placements on screen may be committed. Derived from the
@@ -489,42 +853,14 @@ export default function TournamentSchedulePage() {
     [detail],
   );
 
-  const schedulableDivisions = useMemo<SchedulableDivision[]>(() => {
-    if (!detail) return [];
-    return detail.divisions.map(d => {
-      // The play-off for 3rd is drawn from the two losing semifinals, and it is
-      // drawn *after* the final — so the round order the scheduler would
-      // otherwise infer its dependencies from is no help at all. Its feeders
-      // are stated outright; every other match's are inferred as before.
-      const losers = loserFeedersOf(d);
-
-      return {
-        id: d.id,
-        label: d.label,
-        pools: d.drawConfig?.pools ?? 1,
-        netHeight: d.netHeight,
-        gender: d.gender,
-        dedicatedCourts: overrides[d.id] ?? d.dedicatedCourts ?? null,
-        matches: d.bracket.flatMap((r, rIdx) =>
-          r.matches
-            // a bye is never played — don't reserve a court for it
-            .filter(m => !labelsByDivision.get(d.id)?.get(m.id)?.bye)
-            .map(m => ({
-              id: m.id,
-              teamA: m.teamAId,
-              teamB: m.teamBId,
-              isPool: r.format === 'round-robin',
-              // Pool play is rotated a pool at a time, so the scheduler needs
-              // to know which pool a match is in — it cannot infer that.
-              pool: labelsByDivision.get(d.id)?.get(m.id)?.pool ?? null,
-              durationMinutes: r.durationMinutes, // per-round slot length declared in setup
-              roundIndex: rIdx,                   // bracket is setup-round order; 0 = opening round
-              ...(losers[m.id] ? { isThirdPlace: true, dependsOn: losers[m.id] } : {}),
-            })),
-        ),
-      };
-    });
-  }, [detail, overrides, labelsByDivision]);
+  /* The whole handover to the generator, in lib/schedule/schedulableDivisions
+     — a pure function with its own tests, because a fact mis-derived here
+     (whether a match is pool play, above all) reshapes every later phase
+     silently. */
+  const schedulableDivisions = useMemo<SchedulableDivision[]>(
+    () => toSchedulableDivisions(detail?.divisions ?? [], labelsByDivision, overrides),
+    [detail, overrides, labelsByDivision],
+  );
 
   // Division whose full match list is open in the modal (null = closed).
   const [matchListDivId, setMatchListDivId] = useState<string | null>(null);
@@ -615,7 +951,11 @@ export default function TournamentSchedulePage() {
 
   function handleGenerate() {
     if (!detail || !config) return;
-    setPreview(generateSchedule(schedulableDivisions, config, detail.dayCount));
+    const res = generateSchedule(schedulableDivisions, config, detail.dayCount);
+    setPreview(res);
+    if (res.blocks) {
+      setConfigField('blocks', res.blocks);
+    }
     // Hand moves describe the schedule that was on screen a moment ago, not
     // this one, so they go with it.
     clearEdits();
@@ -655,12 +995,13 @@ export default function TournamentSchedulePage() {
           // event's days: a schedule saved before the organizer moved the
           // dates still points at the old ones, and that should read as the
           // date it is rather than as "unscheduled".
+          const baseDate = detail.startDate || '2026-01-01';
           const dateStr = overScheduled
             ? ''
             : ed
-              ? addDaysUTC(detail.startDate, ed.day)
+              ? addDaysUTC(baseDate, ed.day)
               : pv
-                ? addDaysUTC(detail.startDate, pv.day)
+                ? addDaysUTC(baseDate, pv.day)
                 : (m.scheduledDate || '');
 
           list.push({
@@ -748,6 +1089,9 @@ export default function TournamentSchedulePage() {
 
       const fresh = await getTournamentDetail(slug);
       setDetail(fresh);
+      if (fresh?.scheduleConfig) {
+        setConfig(fresh.scheduleConfig);
+      }
       setPreview(null);
       clearEdits();
       setDirty(false);
@@ -808,6 +1152,34 @@ export default function TournamentSchedulePage() {
     });
   }, [allMatches, schedulableDivisions, config, detail, labelsByDivision]);
 
+  function jumpToProblem(p: ScheduleProblem) {
+    setProblemListOpen(false);
+    const targetMatch = allMatches.find(m => m.id === p.matchId);
+    if (targetMatch) {
+      if (activeDay !== 'all' && targetMatch.day >= 0 && targetMatch.day !== activeDay) {
+        setActiveDay(targetMatch.day);
+      }
+      if (activeDivisionId !== 'all' && targetMatch.divisionId !== activeDivisionId) {
+        setActiveDivisionId('all');
+      }
+    }
+    setTimeout(() => {
+      const el = document.getElementById(`match-card-${p.matchId}`);
+      if (el) {
+        const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+        setPulsingMatchId(p.matchId);
+        if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+        pulseTimerRef.current = setTimeout(() => setPulsingMatchId(null), 1500);
+      }
+    }, 60);
+  }
+
+  const updateBlocks = (nextBlocks: BlockedPeriod[]) => {
+    setConfigField('blocks', nextBlocks);
+    setPreview(prev => (prev ? { ...prev, blocks: nextBlocks } : null));
+  };
+
   /* Open a gap on one court and move everything below it down.
    *
    * Two halves, and both are needed. The gap itself becomes a blocked period,
@@ -819,23 +1191,42 @@ export default function TournamentSchedulePage() {
    * Only that court is touched. A buffer on court 1 says nothing about court 2,
    * and shifting the whole venue because one net needs re-rigging would be a
    * much bigger claim than the organizer made. */
-  const insertBuffer = (court: string, day: number, atMin: number, minutes: number) => {
+  const insertBuffer = (
+    court: string,
+    day: number,
+    atMin: number,
+    minutes: number,
+    label: string = BUFFER_LABEL,
+  ) => {
     const length = Math.max(5, Math.round(minutes));
-    if (!Number.isFinite(length) || !config) return;
+    if (!Number.isFinite(length)) return;
 
     const parse = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    const moves: { id: string; court: string; day: number; time: string }[] = [];
     for (const m of allMatches) {
       if (m.day !== day || m.court !== court || m.unscheduled) continue;
       if (!/^\d{2}:\d{2}$/.test(m.time)) continue;
       const start = parse(m.time);
       if (start < atMin) continue;
-      moveMatch(m.id, court, day, toHHMM(start + length));
+      moves.push({ id: m.id, court, day, time: toHHMM(start + length) });
     }
 
-    setConfigField('blocks', [
-      ...(config.blocks ?? []),
-      { court, day, start: toHHMM(atMin), end: toHHMM(atMin + length), label: BUFFER_LABEL },
-    ]);
+    if (moves.length > 0) {
+      setEdits(prev => {
+        const next = new Map(prev);
+        for (const move of moves) {
+          next.set(move.id, { court: move.court, day: move.day, time: move.time });
+        }
+        return next;
+      });
+    }
+
+    const currentBlocks = preview?.blocks ?? config?.blocks ?? [];
+    const nextBlocks = [
+      ...currentBlocks,
+      { court, day, start: toHHMM(atMin), end: toHHMM(atMin + length), label },
+    ];
+    updateBlocks(nextBlocks);
     setDirty(true);
     setSaveMsg(null);
     setInsertAt(null);
@@ -868,8 +1259,7 @@ export default function TournamentSchedulePage() {
 
   // ── Blocked periods ──────────────────────────────────────────────────────
   const addBlock = (court: string, day: number, startMin: number) => {
-    if (!config) return;
-    const length = Math.max(5, Math.trunc(config.blockMinutes) || 45);
+    const length = Math.max(5, Math.trunc(config?.blockMinutes ?? 45) || 45);
     const next: BlockedPeriod = {
       court,
       day,
@@ -877,7 +1267,8 @@ export default function TournamentSchedulePage() {
       end: toHHMM(startMin + length),
       label: 'Blocked',
     };
-    setConfigField('blocks', [...(config.blocks ?? []), next]);
+    const currentBlocks = preview?.blocks ?? config?.blocks ?? [];
+    updateBlocks([...currentBlocks, next]);
     setDirty(true);
     setSaveMsg(null);
   };
@@ -891,22 +1282,32 @@ export default function TournamentSchedulePage() {
    * is the exact inverse of how it was made, which is the only version an
    * organizer can predict. */
   const removeBlock = (index: number) => {
-    if (!config) return;
-    const list = config.blocks ?? [];
+    const list = preview?.blocks ?? config?.blocks ?? [];
     const gone = list[index];
     if (!gone) return;
 
-    setConfigField('blocks', list.filter((_, i) => i !== index));
+    const nextBlocks = list.filter((_, i) => i !== index);
+    updateBlocks(nextBlocks);
 
     const parse = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
     const length = parse(gone.end) - parse(gone.start);
-    if (gone.label === BUFFER_LABEL && gone.court && gone.day != null && length > 0) {
+    if (isBufferBlock(gone.label) && gone.court && gone.day != null && length > 0) {
+      const moves: { id: string; court: string; day: number; time: string }[] = [];
       for (const m of allMatches) {
         if (m.day !== gone.day || m.court !== gone.court || m.unscheduled) continue;
         if (!/^\d{2}:\d{2}$/.test(m.time)) continue;
         const start = parse(m.time);
         if (start < parse(gone.end)) continue; // sits above the buffer; stays put
-        moveMatch(m.id, gone.court, gone.day, toHHMM(start - length));
+        moves.push({ id: m.id, court: gone.court, day: gone.day, time: toHHMM(start - length) });
+      }
+      if (moves.length > 0) {
+        setEdits(prev => {
+          const next = new Map(prev);
+          for (const move of moves) {
+            next.set(move.id, { court: move.court, day: move.day, time: move.time });
+          }
+          return next;
+        });
       }
     }
 
@@ -921,8 +1322,7 @@ export default function TournamentSchedulePage() {
    * Blocked time that the organizer put on the board by hand is a statement
    * about the venue, not about the queue, so resizing it moves nothing. */
   const resizeBlock = (index: number, deltaMinutes: number) => {
-    if (!config) return;
-    const list = config.blocks ?? [];
+    const list = preview?.blocks ?? config?.blocks ?? [];
     const block = list[index];
     if (!block) return;
 
@@ -933,15 +1333,26 @@ export default function TournamentSchedulePage() {
     const shift = newEnd - oldEnd;
     if (shift === 0) return;
 
-    setConfigField('blocks', list.map((b, i) => (i === index ? { ...b, end: toHHMM(newEnd) } : b)));
+    const nextBlocks = list.map((b, i) => (i === index ? { ...b, end: toHHMM(newEnd) } : b));
+    updateBlocks(nextBlocks);
 
-    if (block.label === BUFFER_LABEL && block.court && block.day != null) {
+    if (isBufferBlock(block.label) && block.court && block.day != null) {
+      const moves: { id: string; court: string; day: number; time: string }[] = [];
       for (const m of allMatches) {
         if (m.day !== block.day || m.court !== block.court || m.unscheduled) continue;
         if (!/^\d{2}:\d{2}$/.test(m.time)) continue;
         const start = parse(m.time);
         if (start < oldEnd) continue; // sits above the gap; stays put
-        moveMatch(m.id, block.court, block.day, toHHMM(start + shift));
+        moves.push({ id: m.id, court: block.court, day: block.day, time: toHHMM(start + shift) });
+      }
+      if (moves.length > 0) {
+        setEdits(prev => {
+          const next = new Map(prev);
+          for (const move of moves) {
+            next.set(move.id, { court: move.court, day: move.day, time: move.time });
+          }
+          return next;
+        });
       }
     }
 
@@ -1000,7 +1411,8 @@ export default function TournamentSchedulePage() {
       else courts.set(m.court, [m]);
     });
 
-    const blocks = (config?.blocks ?? []).map((b, index) => ({ b, index }));
+    const activeBlocks = preview?.blocks ?? config?.blocks ?? [];
+    const blocks = activeBlocks.map((b, index) => ({ b, index }));
 
     return Array.from(sections.entries())
       .sort(([a], [b]) => byDate(a, b))
@@ -1061,7 +1473,7 @@ export default function TournamentSchedulePage() {
           }),
       }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredMatches, splitByDay, detail, dayCount, config?.blocks]);
+  }, [filteredMatches, splitByDay, detail, dayCount, config?.blocks, preview?.blocks]);
 
   /* Calendar grid: courts on the X axis (columns), time on the Y axis (rows).
      One section per day; each match is a block sized by its duration and tinted
@@ -1138,7 +1550,7 @@ export default function TournamentSchedulePage() {
            break — an empty lunch row collapses to a seam. */
         lunchStart: config?.lunchStart,
         lunchEnd: config?.lunchEnd,
-        blocks: config?.blocks,
+        blocks: preview?.blocks ?? config?.blocks,
       },
       allMatches.flatMap(m => {
         if (m.unscheduled) return [];
@@ -1240,7 +1652,8 @@ export default function TournamentSchedulePage() {
       // Court time taken off the board by hand, mapped onto this day's rows.
       // Kept beside the lunch banner rather than merged with it: lunch is a
       // rule, a block is something the organizer put there and can take away.
-      const blocked = (config?.blocks ?? [])
+      const rawBlocks = preview?.blocks ?? config?.blocks ?? [];
+      const blocked = rawBlocks
         .map((b, index) => ({ b, index }))
         .filter(({ b }) => b.day == null || b.day === d.day)
         .flatMap(({ b, index }) => {
@@ -1292,7 +1705,7 @@ export default function TournamentSchedulePage() {
     });
 
     return { roster, offRoster, columns, hasUnscheduled, days, axis, labels, shortestMinutes, divOrder, unscheduledCount: unscheduled.length };
-  }, [filteredMatches, allMatches, config, dayCount, activeDay, detail]);
+  }, [filteredMatches, allMatches, config, dayCount, activeDay, detail, preview]);
 
   /* Applying a move: turn what is on screen into placements, ask the planner
      what has to shift, and write the answer back as hand edits. The rules live
@@ -1324,121 +1737,7 @@ export default function TournamentSchedulePage() {
     setSaveMsg(null);
   };
 
-  /* The navigator: an insertion at a time.
-   *
-   * Up and down walk the queue on the match's own court — each press puts it in
-   * front of its neighbour, which is a swap when the two are the same length
-   * and the right answer when they are not. Left and right cross to the next
-   * court and keep the hour the match already had, slotting in before the first
-   * match there that starts at or after it, because a match moved sideways is
-   * being moved to another court, not to another time of day. */
-  /* The arrows travel the roster and nothing else: widening the columns to the
-     configured venue must not turn the off-roster strays into places a match
-     can be *put*. A match already stranded on one can still step left into the
-     venue, which makes the arrows the way back out of exactly the mess the
-     off-roster columns expose. */
   const courtOrder = calendar.roster;
-
-  const runOnCourt = (court: string, day: number) =>
-    allMatches
-      .filter(m => m.court === court && m.day === day && !m.unscheduled && fromHHMM(m.time) != null)
-      .sort((a, b) => (fromHHMM(a.time) ?? 0) - (fromHHMM(b.time) ?? 0));
-
-  type NavDir = 'up' | 'down' | 'left' | 'right';
-
-  /** Which way this match can go from where it is. */
-  const navOptions = (m: ScheduleMatch) => {
-    const run = runOnCourt(m.court, m.day);
-    const i = run.findIndex(x => x.id === m.id);
-    const ci = courtOrder.indexOf(m.court);
-    // Off the roster: the only way is back in, and the venue sits to the left.
-    const stranded = ci < 0;
-    return {
-      up: i > 0,
-      down: i >= 0 && i < run.length - 1,
-      left: stranded ? courtOrder.length > 0 : ci > 0,
-      right: !stranded && ci < courtOrder.length - 1,
-    };
-  };
-
-  const navMove = (m: ScheduleMatch, dir: NavDir) => {
-    const run = runOnCourt(m.court, m.day);
-    const i = run.findIndex(x => x.id === m.id);
-    if (i < 0) return;
-
-    if (dir === 'up') {
-      const before = run[i - 1];
-      if (before) dropMatch(m.id, m.court, m.day, { beforeId: before.id });
-      return;
-    }
-    if (dir === 'down') {
-      if (i >= run.length - 1) return;
-      // Past the next match means in front of the one after it — or, if the
-      // next match is the last, onto the end of the court.
-      const after = run[i + 2];
-      dropMatch(m.id, m.court, m.day, after ? { beforeId: after.id } : { append: true });
-      return;
-    }
-
-    const ci = courtOrder.indexOf(m.court);
-    const court = ci < 0
-      // Stranded on a court the venue no longer has. The strays are drawn past
-      // the roster, so 'left' means back onto the last real court.
-      ? (dir === 'left' ? courtOrder[courtOrder.length - 1] : undefined)
-      : courtOrder[dir === 'left' ? ci - 1 : ci + 1];
-    if (!court) return;
-    const start = fromHHMM(m.time) ?? 0;
-    const landing = runOnCourt(court, m.day).find(x => (fromHHMM(x.time) ?? 0) >= start);
-    dropMatch(m.id, court, m.day, landing ? { beforeId: landing.id } : { append: true });
-  };
-
-  /* The navigator itself, drawn over the card it is moving.
-     It covers the card rather than sitting beside it because the card is the
-     only place on screen that is certainly near the match, in both views and at
-     every width — and because frosting the card out makes it obvious which of
-     the fifty on screen is the one currently in hand. */
-  const navigator = (m: ScheduleMatch) => {
-    const can = navOptions(m);
-    const go = (dir: NavDir) => (e: ReactMouseEvent) => { e.stopPropagation(); navMove(m, dir); };
-    return (
-      <div className={styles.navOverlay} onClick={e => e.stopPropagation()}>
-        <div className={styles.navBar}>
-          <button
-            type="button"
-            className={styles.navCancel}
-            onClick={e => { e.stopPropagation(); cancelMove(); }}
-            title="Cancel — put it back where it was"
-            aria-label="Cancel move"
-          >
-            <X size={14} />
-          </button>
-          <div className={styles.navPad}>
-            <button type="button" className={styles.navLeft} onClick={go('left')} disabled={!can.left} title="Previous court" aria-label="Move to the court on the left">
-              <ChevronLeft size={16} />
-            </button>
-            <button type="button" className={styles.navUp} onClick={go('up')} disabled={!can.up} title="Earlier slot" aria-label="Move one slot earlier">
-              <ChevronUp size={16} />
-            </button>
-            <button type="button" className={styles.navDown} onClick={go('down')} disabled={!can.down} title="Later slot" aria-label="Move one slot later">
-              <ChevronDown size={16} />
-            </button>
-            <button type="button" className={styles.navRight} onClick={go('right')} disabled={!can.right} title="Next court" aria-label="Move to the court on the right">
-              <ChevronRight size={16} />
-            </button>
-          </div>
-          <button
-            type="button"
-            className={styles.navSave}
-            onClick={e => { e.stopPropagation(); keepMove(); }}
-            title="Keep this position"
-            aria-label="Keep this position"
-          >
-            <Check size={15} />
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   /* A gap in a court's run, as the design draws it: hatched, obviously not a
      match, and carrying its own length. In edit mode it can be stretched,
@@ -1452,6 +1751,9 @@ export default function TournamentSchedulePage() {
         <span className={styles.gapLabel}>{b.label}</span>
         <span className={styles.gapMinutes}>{b.minutes} m</span>
       </div>
+      <span className={styles.gapTooltip}>
+        {b.label} {b.from}–{b.to}
+      </span>
       {editMode && (
         <div className={styles.gapControls}>
           <button type="button" onClick={() => resizeBlock(b.index, -5)} title="Five minutes shorter" aria-label={`Shorten ${b.label}`}>
@@ -1520,17 +1822,13 @@ export default function TournamentSchedulePage() {
       aria-pressed={editMode}
       onClick={() => {
         setEditMode(v => !v);
-        setBlockMode(false);
         setEditingTime(null);
         setInsertAt(null);
-        // Locking the schedule takes the arrows away with it. The move itself
-        // stands — it is the edit bar's to undo, not the navigator's.
-        setNav(null);
       }}
       title={
         editMode
           ? 'Lock the schedule so it cannot be changed by accident'
-          : 'Move matches, retime them, and insert buffer time'
+          : 'Drag matches, retime them, and insert buffer time'
       }
     >
       <span className={styles.gridEditSwitch} aria-hidden="true">
@@ -1564,12 +1862,18 @@ export default function TournamentSchedulePage() {
           </>
         )}
         {problems.length > 0 && (
-          <>
-            <AlertTriangle size={13} /> <strong>{problems.length}</strong> problem
-            {problems.length === 1 ? '' : 's'} with this schedule
-          </>
+          <button
+            type="button"
+            className={styles.editBarProblemBtn}
+            onClick={() => setProblemListOpen(v => !v)}
+            title="View schedule problems"
+          >
+            <AlertTriangle size={13} />{' '}
+            <strong style={{ color: '#D64545' }}>
+              {problems.length} problem{problems.length === 1 ? '' : 's'}
+            </strong>
+          </button>
         )}
-        {edits.size > 0 && problems.length === 0 && ' · nothing broken'}
       </span>
       <span className={styles.editBarActions}>
         {edits.size > 0 && (
@@ -1588,17 +1892,13 @@ export default function TournamentSchedulePage() {
     </div>
   );
 
-  /** A match the organizer can pick up: only in edit mode, only once it has a
-   *  court and a time to be moved away from, and never while the block tool is
-   *  armed and a press means "take this slot off the board". */
-  const canMove = (m: ScheduleMatch) => editMode && !blockMode && !m.unscheduled && m.court !== 'Unscheduled';
+  /** A match the organizer can drag: only in edit mode, only once it has a
+   *  court and a time to be moved away from. */
+  const canMove = (m: ScheduleMatch) => editMode && !m.unscheduled && m.court !== 'Unscheduled';
 
-  /* One heading for both views: a coral eyebrow saying which event and which
-     slice of it you are looking at, the view's own name under it, and the
-     editing tools and division key on the right. */
-  /* No eyebrow: the tournament name, location and court count are all in
-     the page header a few rows up, so repeating them here was noise. */
-  const scheduleHeader = (title: string, tools?: ReactNode) => (
+  /* One heading for both views: the view's own name under it, and the
+     editing switch and division key on the right. */
+  const scheduleHeader = (title: string) => (
     <div className={styles.gridHeaderRow}>
       <div className={styles.gridHeaderLeft}>
         <div>
@@ -1607,7 +1907,6 @@ export default function TournamentSchedulePage() {
       </div>
       <div className={styles.gridHeaderRight}>
         {editToggle}
-        {tools}
         {calendar.divOrder.map(label => (
           <span key={label} className={styles.calLegendItem}>
             <span className={styles.calSwatch} data-div={divColorIndex.get(label) ?? 0} />
@@ -1618,24 +1917,17 @@ export default function TournamentSchedulePage() {
     </div>
   );
 
-  /** How the two views say the same thing about editing.
-   *
-   *  Unlocked, the rules of the room run to a paragraph — too much to sit above
-   *  the grid on a phone, where it would push the thing being edited off the
-   *  screen. So only the first move stays in view and the rest waits behind a
-   *  disclosure: enough to start, on hand to finish. */
+  /** How the two views explain editing. */
   const editHint = !editMode ? (
-    <>The schedule is locked. Turn <strong>Hand Edit</strong> on to move matches, retime them, or add buffer time.</>
+    <>The schedule is locked. Turn <strong>Hand Edit</strong> on to drag matches, retime them, or add buffer time.</>
   ) : (
     <>
-      Click a match to pick it up, then walk it with the arrows: <strong>↑</strong> and <strong>↓</strong> along its own
-      court, <strong>←</strong> and <strong>→</strong> onto the next one.
+      Drag any match to reposition: drop onto another match to insert before it, or into an empty area to set the start time.
       <details className={styles.hintMore}>
         <summary className={styles.hintMoreSummary}>How moves work</summary>
         <p>
-          It goes in front of whatever it moves towards — everything below that moves down by the match&apos;s length,
-          and the court it left closes up behind it. Keep the move with the tick, or drop it with the ✕ and it goes back
-          exactly as it was.
+          Dropping onto a match inserts in front of it — everything below moves down by the match&apos;s length,
+          and the court it left closes up behind it. Dropping into empty court space snaps directly to that time.
         </p>
         <p>
           Click a time to type a new one, or the <strong>+</strong>{' '}
@@ -1684,11 +1976,6 @@ export default function TournamentSchedulePage() {
               <p className={styles.headerEyebrow}>ORGANIZER</p>
               <h1 className={styles.heroTitle}>Schedule Generator</h1>
             </div>
-            <div className={styles.headerActions}>
-              <Link href={`/dashboard/tournament/${slug}`} className={styles.heroGhostBtn}>
-                <Trophy size={16} /> Bracket
-              </Link>
-            </div>
           </div>
 
           <div className={styles.eventCard}>
@@ -1731,24 +2018,17 @@ export default function TournamentSchedulePage() {
                 >
                   <Printer size={16} /> Print Schedule
                 </button>
-                {/* Phone-only, in the slot Print Schedule gives up: the header's
-                    Bracket action is hidden at this width and Setup has no home
-                    on this page at all, while printing is a desk job. */}
                 <Link
                   href={`/dashboard/tournament/${slug}`}
-                  className={styles.cardNavBtn}
-                  aria-label="Bracket"
-                  title="Bracket"
+                  className={styles.heroGhostBtn}
                 >
-                  <Trophy size={16} />
+                  <BracketIcon size={16} /> Bracket
                 </Link>
                 <Link
                   href={`/dashboard/tournament/${slug}/setup`}
-                  className={styles.cardNavBtn}
-                  aria-label="Tournament setup"
-                  title="Tournament setup"
+                  className={styles.heroGhostBtn}
                 >
-                  <Settings size={16} />
+                  <Settings size={16} /> Setup
                 </Link>
               </div>
             </div>
@@ -2055,38 +2335,6 @@ export default function TournamentSchedulePage() {
                   </div>
                 )}
 
-                <div className={styles.genBlock}>
-                  <span className={styles.genBlockTitle}>Dedicated courts per division</span>
-                  <div className={styles.genList}>
-                    {detail?.divisions.map(d => {
-                      const pools = d.drawConfig?.pools ?? 1;
-                      const auto = autoDedicatedCourts(pools);
-                      const val = overrides[d.id];
-                      return (
-                        <label key={d.id} className={`${styles.genListRow} ${styles.genListRowInput}`}>
-                          <span className={styles.genListName}>{d.label}</span>
-                          <span className={styles.genListMeta}>{pools} pool{pools === 1 ? '' : 's'}</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={config.courtCount}
-                            placeholder={`auto (${auto})`}
-                            value={val ?? ''}
-                            onChange={e => {
-                              const raw = e.target.value;
-                              setOverrides(prev => ({ ...prev, [d.id]: raw === '' ? null : Number(raw) }));
-                            }}
-                          />
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className={styles.genNote}>
-                    Leave courts blank to auto-size (half the pool count, min 1). Divisions with no matches yet reserve
-                    no courts.
-                  </p>
-                </div>
-
                 <p className={styles.genNote}>
                   Spare time doesn&apos;t guarantee a fit — a match still waits for its teams and the round before it.
                   Anything that can&apos;t fit in {dayCount} day{dayCount === 1 ? '' : 's'} is flagged as over-scheduled.
@@ -2121,9 +2369,24 @@ export default function TournamentSchedulePage() {
                 {' '}(V<sub>R</sub> {preview.venueRatio.toFixed(2)})
                 {' '}· {Math.floor(preview.dayCapacityMinutes / 60)}h {preview.dayCapacityMinutes % 60}m/court/day
                 {preview.pivots > 0 && <> · {preview.pivots} net change{preview.pivots === 1 ? '' : 's'}</>}
-                {' '}· {preview.backToBack === 0
-                  ? 'no back-to-back'
-                  : `${preview.backToBack} back-to-back`}
+                {preview.backToBack > 0 ? (
+                  <span className={styles.previewWarn}>
+                    <AlertTriangle size={13} /> {preview.backToBack} back-to-back
+                  </span>
+                ) : (
+                  <> · no back-to-back</>
+                )}
+                {problems.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.previewProblemBtn}
+                    onClick={() => setProblemListOpen(v => !v)}
+                    title="View schedule problems"
+                  >
+                    <AlertTriangle size={13} />{' '}
+                    {problems.length} problem{problems.length === 1 ? '' : 's'}
+                  </button>
+                )}
                 {dayCount > 1 && (
                   preview.openingRoundSpill > 0 ? (
                     <span className={styles.previewWarn}>
@@ -2196,11 +2459,11 @@ export default function TournamentSchedulePage() {
 
                       const m = row.m;
                       const movable = canMove(m);
-                      const picked = nav?.id === m.id;
                       const faults = problemsByMatch.get(m.id) ?? [];
                       return (
                         <div
                           key={m.id}
+                          id={`match-card-${m.id}`}
                           className={[
                             styles.matchItem,
                             m.status === 'live' ? styles.matchItemLive : '',
@@ -2209,23 +2472,15 @@ export default function TournamentSchedulePage() {
                             m.overScheduled ? styles.matchItemOverflow : '',
                             m.isEdited ? styles.matchItemEdited : '',
                             faults.length > 0 ? styles.matchItemFault : '',
-                            picked ? styles.matchItemPicked : '',
+                            pulsingMatchId === m.id ? styles.matchCardPulse : '',
                           ].filter(Boolean).join(' ')}
                           data-div={divColorIndex.get(m.divisionLabel) ?? 0}
-                          data-pickable={movable ? 'true' : undefined}
-                          onClick={e => {
-                            if (!movable) return;
-                            if ((e.target as HTMLElement).closest('button,input,select,textarea')) return;
-                            pickUp(m);
-                          }}
                         >
-                          {picked && movable && navigator(m)}
-
                           {/* The buffer handle hangs off the edge the gap would
                               go in at, so the first match on a court can have
                               one too — a late start is as real as a mid-day
                               break. */}
-                          {editMode && !blockMode && !picked && movable && (
+                          {editMode && movable && (
                             <div className={styles.cardBuffer}>
                               {insertAt?.matchId === m.id ? (
                                 <BufferPrompt
@@ -2233,7 +2488,8 @@ export default function TournamentSchedulePage() {
                                   onCancel={() => setInsertAt(null)}
                                   onConfirm={minutes => {
                                     const at = fromHHMM(m.time);
-                                    if (at != null) insertBuffer(m.court, m.day, at, minutes);
+                                    const isNetFault = faults.some(p => p.kind === 'netChange');
+                                    if (at != null) insertBuffer(m.court, m.day, at, minutes, isNetFault ? NET_ADJUST_LABEL : BUFFER_LABEL);
                                   }}
                                 />
                               ) : (
@@ -2249,7 +2505,8 @@ export default function TournamentSchedulePage() {
                                     })
                                   }
                                 >
-                                  <Plus size={13} />
+                                  <Plus size={16} strokeWidth={2.5} />
+                                  <span className={styles.cardBufferTooltip}>Add buffer time</span>
                                 </button>
                               )}
                             </div>
@@ -2319,7 +2576,28 @@ export default function TournamentSchedulePage() {
                           {faults.length > 0 && (
                             <ul className={styles.gridFaults}>
                               {faults.map((f, fi) => (
-                                <li key={fi}><AlertTriangle size={11} /> {f.message}</li>
+                                <li key={fi}>
+                                  <AlertTriangle size={11} />
+                                  <div className={styles.gridFaultContent}>
+                                    <span>{f.message}</span>
+                                    {f.kind === 'netChange' && editMode && (
+                                      <button
+                                        type="button"
+                                        className={styles.gridFaultQuickBtn}
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          const at = fromHHMM(m.time);
+                                          if (at != null) {
+                                            insertBuffer(m.court, m.day, at, config?.netBufferMinutes || 10, NET_ADJUST_LABEL);
+                                          }
+                                        }}
+                                        title={`Insert a ${config?.netBufferMinutes || 10}-minute net adjust before ${m.matchNo}`}
+                                      >
+                                        <Plus size={11} /> Add {config?.netBufferMinutes || 10}m net adjust
+                                      </button>
+                                    )}
+                                  </div>
+                                </li>
                               ))}
                             </ul>
                           )}
@@ -2338,419 +2616,298 @@ export default function TournamentSchedulePage() {
           </div>
         ) : (
           <div>
-            {scheduleHeader(
-              'Court Schedule',
-              editMode ? (
-                <button
-                  type="button"
-                  className={`${styles.gridToolBtn} ${blockMode ? styles.gridToolBtnOn : ''}`}
-                  onClick={() => { setBlockMode(v => !v); setEditingTime(null); setNav(null); }}
-                  title="Click any empty slot to take that court time off the board"
-                >
-                  <Ban size={13} /> {blockMode ? 'Click a slot to block' : 'Block time'}
-                </button>
-              ) : null,
-            )}
+            {scheduleHeader('Court Schedule')}
 
             {editBar}
 
             <div className={`${styles.hintBanner} ${editMode ? styles.hintBannerOn : ''}`}>{editHint}</div>
 
-            {calendar.columns.length === 0 ? (
-              <p className={styles.gridNote}>No scheduled matches to show. Generate and save a schedule first.</p>
-            ) : (
-              calendar.days.map(day => (day.isEmpty && !expandedDays.has(day.day)) ? (
-                /* A day the event has, with nothing on it. It stays on the
-                   page — an organizer needs to see that Day 3 exists and is
-                   empty — but a full-height grid of nothing is the same
-                   vertical cost `06` is trying to win back, so it collapses to
-                   a strip that opens on a tap. */
-                <div key={day.day} className={styles.calDaySection}>
-                  <button
-                    type="button"
-                    className={styles.calEmptyDay}
-                    onClick={() => setExpandedDays(prev => new Set(prev).add(day.day))}
-                  >
-                    <span className={styles.calEmptyDayName}>
-                      {isOffEventDay(day.day, dayCount) ? 'Outside the event' : `Day ${day.day + 1}`}
-                      {day.dateLabel ? ` · ${day.dateLabel}` : ''}
-                    </span>
-                    <span className={styles.calEmptyDayNote}>Nothing scheduled</span>
-                    <ChevronDown size={14} aria-hidden="true" />
-                  </button>
-                </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={collisionDetectionStrategy}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+              {calendar.columns.length === 0 ? (
+                <p className={styles.gridNote}>No scheduled matches to show. Generate and save a schedule first.</p>
               ) : (
-                <div key={day.day} className={styles.calDaySection}>
-                  {dayCount > 1 && day.dateLabel && <div className={styles.calDayHeading}>{day.dateLabel}</div>}
-                  <div className={styles.calScroll}>
-                    <div
-                      className={styles.calGrid}
-                      style={{
-                        '--cal-courts': calendar.columns.length,
-                        '--cal-rows': day.slots,
-                        /* Rows are minutes made visible — see PX_PER_MIN. Both
-                           scales are handed over as data and the stylesheet
-                           chooses between them at its breakpoint; `.calGrid`
-                           reads one into `--cal-px-per-min` and everything else
-                           (row heights, `--cal-slot-h`, an off-pitch card's
-                           offset) is a calc against that. Setting the live
-                           scale here instead would win on specificity and no
-                           media query could ever retune it. */
-                        '--cal-ppm-wide': `${PX_PER_MIN}px`,
-                        '--cal-ppm-phone': `${phonePxPerMin(calendar.shortestMinutes).toFixed(2)}px`,
-                        '--cal-pitch': calendar.axis.pitch,
-                        /* Written out row by row rather than repeated, because
-                           the rows stopped being uniform when the day became
-                           two runs: lunch is its own row and each run leaves a
-                           scrap at its tail. Every height is a multiple of
-                           `--cal-px-per-min`, so the *shape* is fixed here and
-                           the *scale* stays a variable anyone can retune. */
-                        gridTemplateRows: rowTemplate(calendar.axis, day.slots),
-                      } as CSSProperties}
+                calendar.days.map(day => (day.isEmpty && !expandedDays.has(day.day)) ? (
+                  /* A day the event has, with nothing on it. It stays on the
+                     page — an organizer needs to see that Day 3 exists and is
+                     empty — but a full-height grid of nothing is the same
+                     vertical cost `06` is trying to win back, so it collapses to
+                     a strip that opens on a tap. */
+                  <div key={day.day} className={styles.calDaySection}>
+                    <button
+                      type="button"
+                      className={styles.calEmptyDay}
+                      onClick={() => setExpandedDays(prev => new Set(prev).add(day.day))}
                     >
-                      {/* Top-left corner: which day this grid is, and how much
-                          of the event sits under it. */}
-                      <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties}>
-                        {/* Only a day *of the event* gets a number. A schedule
-                            still sitting on dates the organizer has since moved
-                            away from is shown by its date alone, the same way
-                            the By Court headings read it — but it says so,
-                            rather than being marked by the *absence* of a
-                            number nobody counts. This is where "outside the
-                            event" is stated: once, about the day, instead of
-                            as a fault repeated on every card sitting on it.
-                            The cards themselves are checked like any others. */}
-                        {isOffEventDay(day.day, dayCount) ? (
-                          <span className={styles.calCornerOffEvent}>Outside the event</span>
-                        ) : (
-                          <span className={styles.calCornerDay}>Day {day.day + 1}</span>
-                        )}
-                        {day.dateLabel && (
-                          <>
-                            <span className={styles.calCornerWeekday}>{day.dateLabel.split(',')[0]}</span>
-                            <span className={styles.calCornerDate}>
-                              {day.dateLabel.split(',').slice(1).join(',').trim() || day.dateLabel}
-                            </span>
-                          </>
-                        )}
-                        <span className={styles.calCornerCount}>
-                          {day.matchCount} match{day.matchCount === 1 ? '' : 'es'}
-                        </span>
-                      </div>
+                      <span className={styles.calEmptyDayName}>
+                        {isOffEventDay(day.day, dayCount) ? 'Outside the event' : `Day ${day.day + 1}`}
+                        {day.dateLabel ? ` · ${day.dateLabel}` : ''}
+                      </span>
+                      <span className={styles.calEmptyDayNote}>Nothing scheduled</span>
+                      <ChevronDown size={14} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <div key={day.day} className={styles.calDaySection}>
+                    {dayCount > 1 && day.dateLabel && <div className={styles.calDayHeading}>{day.dateLabel}</div>}
+                    <div className={styles.calScroll}>
+                      <div
+                        className={styles.calGrid}
+                        style={{
+                          '--cal-courts': calendar.columns.length,
+                          '--cal-rows': day.slots,
+                          '--cal-ppm-wide': `${PX_PER_MIN}px`,
+                          '--cal-ppm-phone': `${phonePxPerMin(calendar.shortestMinutes).toFixed(2)}px`,
+                          '--cal-pitch': calendar.axis.pitch,
+                          gridTemplateRows: rowTemplate(calendar.axis, day.slots),
+                        } as CSSProperties}
+                      >
+                        {/* Top-left corner: which day this grid is, and how much
+                            of the event sits under it. */}
+                        <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties}>
+                          {isOffEventDay(day.day, dayCount) ? (
+                            <span className={styles.calCornerOffEvent}>Outside the event</span>
+                          ) : (
+                            <span className={styles.calCornerDay}>Day {day.day + 1}</span>
+                          )}
+                          {day.dateLabel && (
+                            <>
+                              <span className={styles.calCornerWeekday}>{day.dateLabel.split(',')[0]}</span>
+                              <span className={styles.calCornerDate}>
+                                {day.dateLabel.split(',').slice(1).join(',').trim() || day.dateLabel}
+                              </span>
+                            </>
+                          )}
+                          <span className={styles.calCornerCount}>
+                            {day.matchCount} match{day.matchCount === 1 ? '' : 'es'}
+                          </span>
+                        </div>
 
-                      {/* Top Sticky Court Headers */}
-                      {calendar.columns.map((court, ci) => {
-                        // This day's cards on this court — the ones drawn in
-                        // the column below. See `courtCounts`.
-                        const { total, played } = day.courtCounts.get(court) ?? { total: 0, played: 0 };
-                        const pct = total > 0 ? Math.round((played / total) * 100) : 0;
-                        // A column holding matches on a court the venue no
-                        // longer has. Named plainly rather than styled into a
-                        // warning: it is a fact about the schedule, and the
-                        // organizer fixes it by moving the matches left.
-                        const stranded = calendar.offRoster.includes(court);
-                        // The tray is a stack of matches with no slot, not a
-                        // court with a day's work on it, so it gets neither a
-                        // progress bar (which would sit at 0% forever — an
-                        // unplaced match is never `done`) nor a "played" line.
-                        // It reports the stack standing under it, which is the
-                        // whole tray in the one section that draws it and
-                        // nothing in the rest.
-                        const isTray = court === 'Unscheduled';
-                        return (
-                          <div key={court} className={styles.calCourtHead} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
-                            <div className={`${styles.calCourtHeadCard} ${stranded ? styles.calCourtHeadOff : ''}`}>
-                              <div className={styles.calCourtHeadTop}>
-                                <span className={styles.calCourtBadge}>{courtNumber(court)}</span>
-                                <span className={styles.calCourtName}>{court}</span>
-                              </div>
-                              <div className={styles.calCourtHeadBottom}>
-                                {stranded ? (
-                                  <span className={styles.calCourtOffNote} title={`${court} is not one of this venue's courts. Move these matches onto a court that is.`}>
-                                    Not on this venue · {total} match{total === 1 ? '' : 'es'}
-                                  </span>
-                                ) : isTray ? (
-                                  day.trayCount > 0 && (
-                                    <span className={styles.calCourtPlayed}>
-                                      {day.trayCount} waiting
+                        {/* Top Sticky Court Headers */}
+                        {calendar.columns.map((court, ci) => {
+                          const { total, played } = day.courtCounts.get(court) ?? { total: 0, played: 0 };
+                          const pct = total > 0 ? Math.round((played / total) * 100) : 0;
+                          const stranded = calendar.offRoster.includes(court);
+                          const isTray = court === 'Unscheduled';
+                          return (
+                            <div key={court} className={styles.calCourtHead} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
+                              <div className={`${styles.calCourtHeadCard} ${stranded ? styles.calCourtHeadOff : ''}`}>
+                                <div className={styles.calCourtHeadTop}>
+                                  <span className={styles.calCourtBadge}>{courtNumber(court)}</span>
+                                  <span className={styles.calCourtName}>{court}</span>
+                                </div>
+                                <div className={styles.calCourtHeadBottom}>
+                                  {stranded ? (
+                                    <span className={styles.calCourtOffNote} title={`${court} is not one of this venue's courts. Move these matches onto a court that is.`}>
+                                      Not on this venue · {total} match{total === 1 ? '' : 'es'}
                                     </span>
-                                  )
-                                ) : (
-                                  <>
-                                    <span className={styles.calCourtProgress}>
-                                      <span className={styles.calCourtProgressFill} style={{ width: `${pct}%` }} />
-                                    </span>
-                                    <span className={styles.calCourtPlayed}>
-                                      {played}/{total} played
-                                    </span>
-                                  </>
-                                )}
+                                  ) : isTray ? (
+                                    day.trayCount > 0 && (
+                                      <span className={styles.calCourtPlayed}>
+                                        {day.trayCount} waiting
+                                      </span>
+                                    )
+                                  ) : (
+                                    <>
+                                      <span className={styles.calCourtProgress}>
+                                        <span className={styles.calCourtProgressFill} style={{ width: `${pct}%` }} />
+                                      </span>
+                                      <span className={styles.calCourtPlayed}>
+                                        {played}/{total} played
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
 
-                      {/* Opaque backing for the sticky time column. Labels only
-                          exist on the hour, so without this the match blocks
-                          show through the gaps as courts scroll underneath. */}
-                      <div
-                        className={styles.calTimeGutter}
-                        style={{ gridColumn: 1, gridRow: `2 / span ${Math.max(1, day.slots)}` } as CSSProperties}
-                      />
-
-                      {/* Y-axis Left Sticky Time Labels. Hours are set in the
-                          display face with a rule and a dot; match starts in
-                          between are quieter, so the hour still reads as the
-                          anchor. */}
-                      {calendar.labels.map(l => (
+                        {/* Opaque backing for the sticky time column */}
                         <div
-                          key={`t${l.slot}`}
-                          className={`${styles.calTimeLabelCell} ${l.isHour ? styles.calTimeHour : styles.calTimeMinor}`}
-                          style={{ gridColumn: 1, gridRow: l.slot + 2 } as CSSProperties}
-                        >
-                          <span className={styles.calTimeText}>{l.time}</span>
-                          <span className={styles.calTimeRule} aria-hidden="true" />
-                          {l.isHour && <span className={styles.calTimeDot} aria-hidden="true" />}
-                        </div>
-                      ))}
+                          className={styles.calTimeGutter}
+                          style={{ gridColumn: 1, gridRow: `2 / span ${Math.max(1, day.slots)}` } as CSSProperties}
+                        />
 
-                      {/* Horizontal Gridlines */}
-                      {calendar.labels.map(l => (
-                        <div key={`ln${l.slot}`} className={styles.calGridLine} style={{ gridColumn: `2 / ${calendar.columns.length + 2}`, gridRow: l.slot + 2 } as CSSProperties} />
-                      ))}
+                        {/* Y-axis Left Sticky Time Labels */}
+                        {calendar.labels.map(l => (
+                          <div
+                            key={`t${l.slot}`}
+                            className={`${styles.calTimeLabelCell} ${l.isHour ? styles.calTimeHour : styles.calTimeMinor}`}
+                            style={{ gridColumn: 1, gridRow: l.slot + 2 } as CSSProperties}
+                          >
+                            <span className={styles.calTimeText}>{l.time}</span>
+                            <span className={styles.calTimeRule} aria-hidden="true" />
+                            {l.isHour && <span className={styles.calTimeDot} aria-hidden="true" />}
+                          </div>
+                        ))}
 
-                      {/* Slots to click while the block tool is armed. A cell
-                          per court per row is hundreds of nodes, and they are
-                          worth nothing the rest of the time — so they are only
-                          mounted once a press actually means something. */}
-                      {editMode && blockMode &&
-                        calendar.roster
-                          .map(court =>
+                        {/* Horizontal Gridlines */}
+                        {calendar.labels.map(l => (
+                          <div key={`ln${l.slot}`} className={styles.calGridLine} style={{ gridColumn: `2 / ${calendar.columns.length + 2}`, gridRow: l.slot + 2 } as CSSProperties} />
+                        ))}
+
+                        {/* Empty droppable slot cells for dragging to empty spaces */}
+                        {editMode &&
+                          calendar.columns.map(court =>
                             Array.from({ length: day.slots }, (_, slot) => {
-                              /* Lunch already takes this time off the board on
-                                 every court, so there is nothing to block. It
-                                 used to offer one anyway, labelled 12:45 —
-                                 the ladder's row time, not the day's. */
                               if (rowKind(calendar.axis, slot) === 'lunch') return null;
                               const startMin = rowStartMin(calendar.axis, slot);
                               const ci = calendar.columns.indexOf(court);
                               return (
-                                <div
-                                  key={`drop-${court}-${slot}`}
-                                  className={`${styles.calDropCell} ${styles.calDropCellBlock}`}
-                                  style={{ gridColumn: ci + 2, gridRow: slot + 2 } as CSSProperties}
-                                  title={`${court} · ${toHHMM(startMin)}`}
-                                  onClick={() => addBlock(court, day.day, startMin)}
+                                <GridDroppableSlot
+                                  key={`drop-slot-${court}-${day.day}-${slot}`}
+                                  court={court}
+                                  day={day.day}
+                                  slot={slot}
+                                  startMin={startMin}
+                                  ci={ci}
                                 />
                               );
                             }),
                           )}
 
-                      {/* Court time the organizer has taken off the board. */}
-                      {day.blocked.map(b => {
-                        const ci = calendar.columns.indexOf(b.court);
-                        if (ci < 0) return null;
-                        return (
+                        {/* Court time the organizer has taken off the board */}
+                        {day.blocked.map(b => {
+                          const ci = calendar.columns.indexOf(b.court);
+                          if (ci < 0) return null;
+                          return (
+                            <div
+                              key={`blk-${b.index}-${b.court}`}
+                              className={styles.calBlockedSlot}
+                              style={{
+                                gridColumn: ci + 2,
+                                gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
+                                ...offsetStyle(b.offsetMinutes, b.minutes),
+                                ...(b.offsetMinutes <= 0
+                                  ? { height: `calc(${b.minutes} * var(--cal-px-per-min))` }
+                                  : {}),
+                              } as CSSProperties}
+                            >
+                              {gapStrip(
+                                { index: b.index, label: b.label, from: b.from, to: b.to, minutes: b.minutes },
+                                styles.gapStripFill,
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Lunch Break Slot Banner */}
+                        {day.lunchBlock && (
                           <div
-                            key={`blk-${b.index}-${b.court}`}
-                            className={styles.calBlockedSlot}
+                            className={styles.lunchBreakSlot}
                             style={{
-                              gridColumn: ci + 2,
-                              gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
-                              ...offsetStyle(b.offsetMinutes, b.minutes),
+                              gridColumn: `2 / ${calendar.roster.length + 2}`,
+                              gridRow: day.lunchBlock.startSlot + 2,
                             } as CSSProperties}
                           >
-                            {gapStrip(
-                              { index: b.index, label: b.label, from: b.from, to: b.to, minutes: b.minutes },
-                              styles.gapStripFill,
-                            )}
+                            <div className={styles.lunchBreakContent}>
+                              <Utensils size={15} />
+                              <span>{day.lunchBlock.text}</span>
+                            </div>
                           </div>
-                        );
-                      })}
+                        )}
 
-                      {/* Lunch Break Slot Banner */}
-                      {day.lunchBlock && (
-                        <div
-                          className={styles.lunchBreakSlot}
-                          style={{
-                            gridColumn: `2 / ${calendar.roster.length + 2}`,
-                            gridRow: day.lunchBlock.startSlot + 2,
-                          } as CSSProperties}
-                        >
-                          <div className={styles.lunchBreakContent}>
-                            <Utensils size={15} />
-                            <span>{day.lunchBlock.text}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Match Block Cards placed at their exact Y-axis time row! */}
-                      {day.blocks.map(b => {
-                        const ci = calendar.columns.indexOf(b.court);
-                        if (ci < 0) return null;
-                        const divIdx = divColorIndex.get(b.m.divisionLabel) ?? 0;
-                        const faults = problemsByMatch.get(b.m.id) ?? [];
-                        const movable = canMove(b.m) && b.court !== 'Unscheduled';
-                        const picked = nav?.id === b.m.id;
-                        return (
-                          <div
-                            key={b.m.id}
-                            className={[
-                              styles.gridMatchCard,
-                              b.m.status === 'live' ? styles.gridMatchCardLive : '',
-                              b.m.isEdited ? styles.gridMatchCardEdited : '',
-                              faults.length > 0 ? styles.gridMatchCardFault : '',
-                              picked ? styles.gridMatchCardPicked : '',
-                            ].filter(Boolean).join(' ')}
-                            data-div={divIdx}
-                            data-pickable={movable ? 'true' : undefined}
-                            onClick={e => {
-                              if (!movable) return;
-                              // The time is a button; let a click on it be a click.
-                              if ((e.target as HTMLElement).closest('button,input,select,textarea')) return;
-                              pickUp(b.m);
-                            }}
-                            style={{
-                              gridColumn: ci + 2,
-                              gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
-                              ...offsetStyle(b.offsetMinutes, b.minutes),
-                            } as CSSProperties}
-                          >
-                            {picked && movable && navigator(b.m)}
-
-                            {/* Buffer goes in *before* this match, so the handle
-                                sits on the edge it would be inserted at. Hanging
-                                off the card's top rather than living between two
-                                cards means it belongs to a match you can point
-                                at, and the first match on a court can have one
-                                too — a late start is as real as a mid-day break. */}
-                            {editMode && !blockMode && !picked && movable && (
-                              <div className={styles.cardBuffer}>
-                                {insertAt?.matchId === b.m.id ? (
-                                  <BufferPrompt
-                                    suggested={insertAt.suggested}
-                                    onCancel={() => setInsertAt(null)}
-                                    onConfirm={minutes =>
-                                      insertBuffer(
-                                        b.court,
-                                        day.day,
-                                        fromHHMM(b.m.time) ?? rowStartMin(calendar.axis, b.startSlot),
-                                        minutes,
-                                      )
-                                    }
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className={styles.cardBufferBtn}
-                                    title={`Add buffer time before ${b.m.matchNo} (${b.m.time})`}
-                                    aria-label={`Add buffer time before ${b.m.matchNo}`}
-                                    onClick={() =>
-                                      setInsertAt({
-                                        matchId: b.m.id,
-                                        suggested: bufferSuggestion(b.m),
-                                      })
-                                    }
-                                  >
-                                    <Plus size={13} />
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                            <div className={styles.gridMatchTop}>
-                              <div className={styles.gridMatchTimeWrap}>
-                                {editingTime === b.m.id ? (
-                                  <input
-                                    className={styles.gridTimeInput}
-                                    type="time"
-                                    defaultValue={b.m.time}
-                                    autoFocus
-                                    onBlur={e => {
-                                      const v = e.target.value;
-                                      if (/^\d{2}:\d{2}$/.test(v) && v !== b.m.time) {
-                                        moveMatch(b.m.id, b.m.court, b.m.day, v);
-                                      }
-                                      setEditingTime(null);
-                                    }}
-                                    onKeyDown={e => {
-                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                      if (e.key === 'Escape') setEditingTime(null);
-                                    }}
-                                  />
-                                ) : movable ? (
-                                  <button
-                                    type="button"
-                                    className={styles.gridMatchTime}
-                                    onClick={() => setEditingTime(b.m.id)}
-                                    title="Click to set a new time"
-                                    data-editable="true"
-                                  >
-                                    {b.m.time}
-                                  </button>
-                                ) : (
-                                  /* Locked, so the time is just the time — a
-                                     button here would draw a control the
-                                     organizer can't use. */
-                                  <span className={styles.gridMatchTime}>{b.m.time}</span>
-                                )}
-                                <span className={styles.gridMatchDuration}>{b.m.durationMinutes || 45} m</span>
-                              </div>
-                              <span className={styles.gridMatchTags}>
-                                {b.m.roundName && <span className={styles.gridMatchRound}>{b.m.roundName}</span>}
-                                <span className={styles.gridMatchNo}>{b.m.matchNo}</span>
-                              </span>
-                            </div>
-                            <div className={`${styles.gridTeamRow} ${styles.gridTeamRowA}`}>
-                              <span className={styles.gridTeamName}>{b.m.teamA}</span>
-                              <div className={styles.gridScores}>
-                                {b.m.scoreA && b.m.scoreA.length > 0 ? (
-                                  b.m.scoreA.map((s, idx) => (
-                                    <span key={idx} className={styles.gridScoreBadgeWin}>{s}</span>
-                                  ))
-                                ) : (
-                                  <>
-                                    <span className={styles.gridScoreEmpty} />
-                                    <span className={styles.gridScoreEmpty} />
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            <div className={styles.gridVsRow}>
-                              <span className={styles.gridVsLine} />
-                              <span className={styles.gridVsText}>vs</span>
-                              <span className={styles.gridVsLine} />
-                            </div>
-                            <div className={`${styles.gridTeamRow} ${styles.gridTeamRowB}`}>
-                              <span className={styles.gridTeamName}>{b.m.teamB}</span>
-                              <div className={styles.gridScores}>
-                                {b.m.scoreB && b.m.scoreB.length > 0 ? (
-                                  b.m.scoreB.map((s, idx) => (
-                                    <span key={idx} className={styles.gridScoreBadge}>{s}</span>
-                                  ))
-                                ) : (
-                                  <>
-                                    <span className={styles.gridScoreEmpty} />
-                                    <span className={styles.gridScoreEmpty} />
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            {faults.length > 0 && (
-                              <ul className={styles.gridFaults}>
-                                {faults.map((f, i) => (
-                                  <li key={i}><AlertTriangle size={11} /> {f.message}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        );
-                      })}
+                        {/* Match Block Cards placed at their exact Y-axis time row */}
+                        {day.blocks.map(b => {
+                          const ci = calendar.columns.indexOf(b.court);
+                          if (ci < 0) return null;
+                          const divIdx = divColorIndex.get(b.m.divisionLabel) ?? 0;
+                          const faults = problemsByMatch.get(b.m.id) ?? [];
+                          const movable = canMove(b.m) && b.court !== 'Unscheduled';
+                          return (
+                            <GridMatchCardItem
+                              key={b.m.id}
+                              b={b}
+                              ci={ci}
+                              divIdx={divIdx}
+                              faults={faults}
+                              movable={movable}
+                              editMode={editMode}
+                              editingTime={editingTime}
+                              insertAt={insertAt}
+                              activeDragMatch={activeDragMatch}
+                              setEditingTime={setEditingTime}
+                              setInsertAt={setInsertAt}
+                              insertBuffer={insertBuffer}
+                              bufferSuggestion={bufferSuggestion}
+                              moveMatch={moveMatch}
+                              day={day.day}
+                              axis={calendar.axis}
+                              netBufferMinutes={config?.netBufferMinutes || 15}
+                              isPulsing={pulsingMatchId === b.m.id}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+
+              <DragOverlay dropAnimation={null}>
+                {activeDragMatch ? (
+                  <div
+                    className={`${styles.gridMatchCard} ${styles.dragOverlayCard}`}
+                    data-div={divColorIndex.get(activeDragMatch.divisionLabel) ?? 0}
+                  >
+                    <div className={styles.gridMatchTop}>
+                      <div className={styles.gridMatchTimeWrap}>
+                        <span className={styles.gridMatchTime}>{activeDragMatch.time}</span>
+                        <span className={styles.gridMatchDuration}>{activeDragMatch.durationMinutes || 45} m</span>
+                      </div>
+                      <span className={styles.gridMatchTags}>
+                        {activeDragMatch.roundName && <span className={styles.gridMatchRound}>{activeDragMatch.roundName}</span>}
+                        <span className={styles.gridMatchNo}>{activeDragMatch.matchNo}</span>
+                        <span className={styles.gridGripIcon} aria-hidden="true">
+                          <GripVertical size={13} />
+                        </span>
+                      </span>
+                    </div>
+                    <div className={`${styles.gridTeamRow} ${styles.gridTeamRowA}`}>
+                      <span className={styles.gridTeamName}>{activeDragMatch.teamA}</span>
+                      <div className={styles.gridScores}>
+                        {activeDragMatch.scoreA && activeDragMatch.scoreA.length > 0 ? (
+                          activeDragMatch.scoreA.map((s, idx) => (
+                            <span key={idx} className={styles.gridScoreBadgeWin}>{s}</span>
+                          ))
+                        ) : (
+                          <>
+                            <span className={styles.gridScoreEmpty} />
+                            <span className={styles.gridScoreEmpty} />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.gridVsRow}>
+                      <span className={styles.gridVsLine} />
+                      <span className={styles.gridVsText}>vs</span>
+                      <span className={styles.gridVsLine} />
+                    </div>
+                    <div className={`${styles.gridTeamRow} ${styles.gridTeamRowB}`}>
+                      <span className={styles.gridTeamName}>{activeDragMatch.teamB}</span>
+                      <div className={styles.gridScores}>
+                        {activeDragMatch.scoreB && activeDragMatch.scoreB.length > 0 ? (
+                          activeDragMatch.scoreB.map((s, idx) => (
+                            <span key={idx} className={styles.gridScoreBadge}>{s}</span>
+                          ))
+                        ) : (
+                          <>
+                            <span className={styles.gridScoreEmpty} />
+                            <span className={styles.gridScoreEmpty} />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           </div>
         )}
       </main>
@@ -2822,6 +2979,65 @@ export default function TournamentSchedulePage() {
               <p className={styles.genHint}>
                 Byes are left out — they are never played, so they take no court time.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {problemListOpen && (
+        <div
+          className={styles.problemPopoverOverlay}
+          role="presentation"
+          onClick={e => { if (e.target === e.currentTarget) setProblemListOpen(false); }}
+        >
+          <div
+            className={styles.problemPopover}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="problemPopoverTitle"
+          >
+            <div className={styles.problemPopoverHeader}>
+              <div>
+                <h3 className={styles.problemPopoverTitle} id="problemPopoverTitle">
+                  <AlertTriangle size={15} color="#D64545" /> Schedule Problems ({problems.length})
+                </h3>
+                <div className={styles.problemPopoverSubtitle}>
+                  Click a problem to jump to its card on the schedule
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.problemPopoverClose}
+                onClick={() => setProblemListOpen(false)}
+                aria-label="Close problems list"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className={styles.problemPopoverBody}>
+              {problems.map((p, idx) => {
+                const m = allMatches.find(match => match.id === p.matchId);
+                const matchLabel = m?.matchNo || p.matchId;
+                const divLabel = m?.divisionLabel;
+                return (
+                  <button
+                    key={`${p.matchId}-${p.kind}-${idx}`}
+                    type="button"
+                    className={styles.problemPopoverItem}
+                    onClick={() => jumpToProblem(p)}
+                  >
+                    <AlertTriangle size={14} className={styles.problemPopoverIcon} />
+                    <div className={styles.problemPopoverText}>
+                      <div>{p.message}</div>
+                      <span className={styles.problemPopoverMeta}>
+                        {divLabel ? `${divLabel} · ` : ''}Match {matchLabel}
+                        {m?.court && m.court !== 'Unscheduled' ? ` · ${m.court}` : ''}
+                        {m?.time && m.time !== '—' ? ` @ ${m.time}` : ''}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

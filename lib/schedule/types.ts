@@ -157,17 +157,6 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
 /** Fallback match length (minutes) when a match/round declares none. */
 export const DEFAULT_MATCH_MINUTES = 45;
 
-/** A court/day/time an organizer has fixed by hand. Pinned placements are hard
- *  constraints on the next run: regenerating schedules *around* them rather
- *  than over them is what makes manual edits survive, and what makes an
- *  over-pinned tournament legitimately infeasible. */
-export interface PinnedPlacement {
-  matchId: string;
-  court: string;
-  day: number;
-  time: string; // "HH:MM"
-}
-
 export interface SchedulableMatch {
   id: string;
   teamA: string | null;      // team id (null for TBD / bye)
@@ -210,8 +199,6 @@ export interface ScheduleAssignment {
   court: string;   // e.g. "Court 2"
   day: number;     // 0-based day offset from the tournament start date
   time: string;    // "HH:MM" start time
-  /** true when this placement came from a pin rather than the solver. */
-  pinned?: boolean;
 }
 
 /** Court time available on one day of the event. */
@@ -297,4 +284,31 @@ export function courtRoster(config: ScheduleConfig): CourtSpec[] {
 /** Fill in anything a stored/partial config is missing. */
 export function normaliseConfig(partial: Partial<ScheduleConfig> | null | undefined): ScheduleConfig {
   return { ...DEFAULT_SCHEDULE_CONFIG, ...(partial ?? {}) };
+}
+
+/** Standard gender / format priority rank for wave placement:
+ *  0 = Men
+ *  1 = Women
+ *  2 = Mixed / Anyone / Open
+ *  3 = Multi-player / 4x4
+ */
+export function divisionGenderRank(d: { gender?: string | null; label?: string }): number {
+  const lbl = (d.label || '').toLowerCase();
+  if (/\b(4x4|4v4|6v6|4's|6's|quads|sixes)\b/i.test(lbl)) {
+    return 3;
+  }
+  const g = (d.gender || '').trim().toLowerCase();
+  if (g.startsWith('women') || /\b(women|female|girls)\b/i.test(lbl)) return 1;
+  if (g.startsWith('men') || /\b(men|male|boys)\b/i.test(lbl)) return 0;
+  if (g.startsWith('anyone') || g.startsWith('mixed') || g.startsWith('open') || /\b(mixed|co-ed|coed|open|anyone)\b/i.test(lbl)) return 2;
+  return 2;
+}
+
+/** Cohort classification:
+ *  0 = Gendered divisions (Men, Women) scheduled first in pool play.
+ *  1 = Non-gendered divisions (Mixed, Anyone, Open, 4x4, No Gender) scheduled after Cohort 0.
+ */
+export function divisionGenderCohort(d: { gender?: string | null; label?: string }): number {
+  const rank = divisionGenderRank(d);
+  return rank <= 1 ? 0 : 1;
 }

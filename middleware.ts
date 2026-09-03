@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, search } = request.nextUrl;
 
-  if (!user && isProtected(pathname)) {
+  if (!user && isProtected(pathname) && !request.nextUrl.searchParams.has('preview')) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.search = '';

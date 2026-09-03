@@ -60,6 +60,10 @@ export interface MatchNode {
 export interface DivisionShape {
   divisionId: string;
   label: string;
+  pools: number;
+  gender: string | null;
+  dedicatedCourts: number | null;
+  netHeight: number | null;
   /** Deepest level any of its matches sits at; the division's final round. */
   maxLevel: number;
   matchIds: string[];
@@ -198,6 +202,10 @@ export function buildGraph(
     divisionShapes.set(div.id, {
       divisionId: div.id,
       label: div.label,
+      pools: div.pools ?? 1,
+      gender: div.gender ?? null,
+      dedicatedCourts: div.dedicatedCourts ?? null,
+      netHeight: parseNetHeight(div.netHeight),
       maxLevel: 0,
       matchIds: div.matches.map(m => m.id),
       minutes: div.matches.reduce((s, m) => s + durationOf(m, blockMinutes), 0),

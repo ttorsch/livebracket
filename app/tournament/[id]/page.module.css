@@ -1159,6 +1159,18 @@
   gap: 14px;
   flex: 1;
 }
+.thirdPlaceBlock {
+  margin-top: auto;
+  padding-top: 14px;
+}
+.thirdPlaceLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+}
 
 .matchCard {
   background: var(--surface-card);

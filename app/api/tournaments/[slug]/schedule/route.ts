@@ -184,14 +184,11 @@ interface AssignBody {
   // day is the signed offset from the tournament start date (default 0):
   // negative for a placement sitting before the event's first day, which a
   // saved schedule does as soon as the organizer moves the dates.
-  // pinned marks a placement the organizer fixed by hand, which the generator
-  // must schedule around rather than overwrite on its next run.
   assignments: {
     matchId: string;
     court: string | null;
     time: string | null;
     day?: number;
-    pinned?: boolean;
   }[];
 }
 
@@ -298,7 +295,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         court: a.court || null,
         scheduled_time: scheduledTime,
         planned_time: scheduledTime,
-        pinned: a.pinned === true,
       })
       .eq('id', a.matchId);
     if (error) return NextResponse.json({ error: `Failed to save match ${a.matchId}: ${error.message}` }, { status: 500 });

@@ -11,7 +11,7 @@
 .backLink {
   position: fixed;
   top: 16px;
-  left: 24px;
+  left: 16px;
   z-index: 120;
   display: flex;
   align-items: center;
@@ -44,18 +44,15 @@
 .hero {
   position: relative;
   background-color: var(--sand-100, #F5F1EA);
-  /* The Bracket Generator's header rhythm: 28px above the title, 24px below
-     the event card. Its band is the same sand as the page, so the two
-     headers read as one screen rather than two. */
-  padding: 28px 40px 24px;
+  /* The Tournament Setup & Bracket Generator rhythm: 16px above the title, 24px below
+     the event card. Padding matches the shared 24px container gutter. */
+  padding: 16px 24px 24px;
   color: var(--ink-900, #14181E);
 }
 
 .heroInner {
-  /* 1440 is this page's measure — the sticky bar, the generator panel and
-     .main all use it, and a narrower header left the card inset from the
-     filter row below it. */
-  max-width: 1440px;
+  /* 1240px is the site's shared measure, matching Setup and Bracket pages. */
+  max-width: 1240px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -254,11 +251,11 @@
   transform: translateZ(0);
   will-change: transform, backdrop-filter;
   border-bottom: 1px solid var(--sand-300, #E7E2D9);
-  padding: 14px 40px;
+  padding: 14px 24px;
 }
 
 .stickyInner {
-  max-width: 1440px;
+  max-width: 1240px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -340,6 +337,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .viewToggleBtn { transition: none; }
+  .matchCardPulse {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 /* Was an inline style on the icon, which no media query could then undo. */
@@ -417,9 +418,9 @@
 
 /* ── Main Layout Container ───────────────────────────────────── */
 .main {
-  max-width: 1440px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 24px 24px 64px;
 }
 
 /* ── The editing hint ────────────────────────────────────────────
@@ -705,6 +706,7 @@
    as a match does — and it carries its own controls, so lengthening the gap
    before the final is a press rather than a trip to the generator panel. */
 .gapStrip {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -717,7 +719,34 @@
     rgba(217, 212, 201, 0.35) 0 8px,
     transparent 8px 16px
   );
-  overflow: hidden;
+  overflow: visible;
+}
+
+.gapTooltip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(60, 64, 70, 0.92);
+  backdrop-filter: blur(4px);
+  color: #FFFFFF;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 25;
+}
+
+.gapStrip:hover .gapTooltip {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* In the calendar the strip has to fill the rows the gap spans, rather than
@@ -833,6 +862,24 @@
   font-size: 12.5px;
   color: var(--ink-700, #3E4654);
 }
+.editBarProblemBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: #D64545;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.editBarProblemBtn:hover {
+  background: rgba(214, 69, 69, 0.12);
+}
 .editBarActions {
   display: inline-flex;
   align-items: center;
@@ -859,117 +906,151 @@
   border-color: #D64545 !important;
   background: rgba(214, 69, 69, 0.04);
 }
+
+@keyframes faultPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(214, 69, 69, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(214, 69, 69, 0.35);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(214, 69, 69, 0);
+    transform: scale(1);
+  }
+}
+
+.matchCardPulse {
+  animation: faultPulse 1.5s ease-out;
+  z-index: 10;
+}
 /* A card you can pick up says so — without this the cursor stays an arrow over
    something that is in fact a control. */
-.gridMatchCard[data-pickable='true'],
 .matchItem[data-pickable='true'] { cursor: pointer; }
 
 /* Both views' cards are positioning parents: the navigator and the buffer
    handle are drawn against their own edges. */
 .matchItem { position: relative; }
 
-/* ── The navigator ───────────────────────────────────────────────
-   Drawn over the card it is moving. Frosting the card out is the point: with
-   fifty cards on screen it says without ambiguity which one is in hand, and it
-   gives four arrows a target size a finger can hit on a card that may only be
-   forty pixels tall. */
-.navOverlay {
+/* ── Drag and Drop Mechanics ──────────────────────────────────
+   Match cards in Grid View can be dragged when Hand Edit is on. */
+.gridMatchCardDraggable {
+  cursor: grab !important;
+  touch-action: none;
+  user-select: none;
+  z-index: 6;
+}
+
+.gridMatchCardDraggable:hover {
+  box-shadow: 0 6px 18px rgba(238, 122, 76, 0.16);
+  transform: translateY(-1px);
+  z-index: 7;
+}
+
+.gridMatchCardDraggable:active {
+  cursor: grabbing !important;
+}
+
+.gridGripIcon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-400, #9EA8B6);
+  transition: color 0.15s ease;
+  margin-left: 3px;
+}
+
+.gridMatchCardDraggable:hover .gridGripIcon {
+  color: var(--coral-500, #EB6F43);
+}
+
+.gridMatchCardDragging {
+  opacity: 0.25;
+  filter: grayscale(40%);
+  transform: scale(0.98);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+}
+
+/* Insertion indicator line (when hovering over another match card) */
+.calDropLineIndicator {
   position: absolute;
-  inset: 0;
-  z-index: 9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: inherit;
-  background: rgba(255, 255, 255, 0.62);
-  -webkit-backdrop-filter: blur(6px) saturate(140%);
-  backdrop-filter: blur(6px) saturate(140%);
-  animation: navFade 140ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes navFade { from { opacity: 0 } to { opacity: 1 } }
-
-.navBar {
-  flex: 1;
-  align-self: stretch;
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  margin: 6px;
-  padding: 8px;
-  border-radius: 14px;
-  border: 1.5px solid var(--glass-border, rgba(255, 255, 255, 0.35));
-  background: rgba(255, 255, 255, 0.90);
-  box-shadow: 0 16px 40px -18px rgba(20, 31, 46, 0.45);
-}
-
-.navPad {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 32px 1fr 32px;
-  grid-template-rows: 1fr 1fr;
-  gap: 4px;
-  min-height: 46px;
-}
-
-.navPad button,
-.navCancel,
-.navSave {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  border: 1px solid var(--sand-300, #E7E2D9);
-  background: #FFFFFF;
-  color: var(--ink-900, #14181E);
-  cursor: pointer;
-  padding: 0;
-}
-
-.navPad button:not(:disabled):hover {
-  border-color: var(--coral-400, #F28864);
-  color: var(--coral-600, #E44F1C);
-}
-
-.navPad button:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-/* Left and right are full height: crossing to another court is a bigger move
-   than nudging a slot, and the shape says so. */
-.navLeft { grid-column: 1; grid-row: 1 / 3; }
-.navUp { grid-column: 2; grid-row: 1; width: 60%; justify-self: center; }
-.navDown { grid-column: 2; grid-row: 2; width: 60%; justify-self: center; }
-.navRight { grid-column: 3; grid-row: 1 / 3; }
-
-.navCancel {
-  flex: 0 0 34px;
-  border-radius: 10px;
-  color: var(--ink-500, #7A8294);
-}
-
-.navCancel:hover {
-  border-color: var(--ink-500, #7A8294);
-  color: var(--ink-900, #14181E);
-}
-
-.navSave {
-  flex: 0 0 34px;
-  border: none;
-  border-radius: 10px;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: 999px;
   background: var(--coral-500, #EB6F43);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(235, 111, 67, 0.40);
+  box-shadow: 0 0 12px rgba(235, 111, 67, 0.8), 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.navSave:hover { background: var(--coral-600, #E44F1C); }
+.calDropLineText {
+  position: absolute;
+  top: -22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
 
-/* The card the navigator is open on, once the overlay is out of the way. */
-.gridMatchCardPicked,
-.matchItemPicked {
-  border-color: var(--coral-500, #EB6F43);
-  box-shadow: 0 8px 24px rgba(235, 111, 67, 0.28);
+/* Empty slot droppable cells and ghost placeholder */
+.calDropSlotCell {
+  position: relative;
+  min-height: var(--cal-slot-h, 126px);
+  border-radius: 12px;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.calDropSlotCellOver {
+  z-index: 4;
+}
+
+.calDropGhostSlot {
+  position: absolute;
+  inset: 2px 4px;
+  border-radius: 14px;
+  border: 2px dashed var(--coral-500, #EB6F43);
+  background: rgba(235, 111, 67, 0.08);
+  box-shadow: inset 0 0 12px rgba(235, 111, 67, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--coral-500, #EB6F43);
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  animation: ghostPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes ghostPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.55; }
+}
+
+/* Drag overlay preview */
+.dragOverlayCard {
+  width: 280px !important;
+  max-width: 90vw !important;
+  cursor: grabbing !important;
+  z-index: 9999 !important;
+  border-radius: 18px !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 24px 50px -10px rgba(20, 31, 46, 0.35), 0 0 0 2px var(--coral-500, #EB6F43) !important;
+  transform: scale(1.03) rotate(1.2deg);
+  pointer-events: none;
 }
 
 /* A by-court card the organizer moved, and one that is now breaking something.
@@ -1040,39 +1121,81 @@
    does not sprout controls the moment you move across it. */
 .cardBuffer {
   position: absolute;
-  top: -11px;
+  top: -14px;
   left: 0;
   right: 0;
-  z-index: 7;
+  z-index: 15;
   display: flex;
   justify-content: center;
   pointer-events: none;
 }
 .cardBufferBtn {
+  position: relative;
   pointer-events: auto;
   opacity: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
-  border: 2px solid #fff;
+  border: 2px solid #FFFFFF;
   background: var(--coral-500, #EB6F43);
-  color: #fff;
+  color: #FFFFFF;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(235, 111, 67, 0.40);
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
 }
-.cardBufferBtn:hover { background: var(--coral-600, #E44F1C); }
+.cardBufferBtn:hover {
+  background: var(--coral-600, #E44F1C);
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(235, 111, 67, 0.55);
+}
 .gridMatchCard:hover .cardBufferBtn,
 .matchItem:hover .cardBufferBtn,
 .cardBufferBtn:focus-visible { opacity: 1; }
-.cardBufferBtn:hover { transform: scale(1.14); }
+
+.cardBufferTooltip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--ink-900, #14181E);
+  color: #FFFFFF;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+  box-shadow: 0 4px 14px rgba(20, 24, 30, 0.25);
+  z-index: 40;
+}
+
+.cardBufferTooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: var(--ink-900, #14181E) transparent transparent transparent;
+}
+
+.cardBufferBtn:hover .cardBufferTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
 /* No hover on a touch screen, so the handles are simply always there rather
    than being unreachable. */
 @media (hover: none) {
-  .cardBufferBtn { opacity: 0.5; }
+  .cardBufferBtn { opacity: 0.7; }
 }
 
 .seamPrompt {
@@ -1144,6 +1267,45 @@
   overflow-wrap: anywhere;
 }
 .gridFaults svg { flex: none; margin-top: 1px; }
+
+.gridFaultContent {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.gridFaultQuickBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 3px 8px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--coral-600, #E44F1C);
+  background: var(--coral-50, #FFF6F3);
+  border: 1px solid var(--coral-300, #F7AB90);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.gridFaultQuickBtn:hover {
+  background: var(--coral-500, #EB6F43);
+  border-color: var(--coral-500, #EB6F43);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(235, 111, 67, 0.25);
+  transform: translateY(-0.5px);
+}
+
+.gridFaultQuickBtn:active {
+  transform: translateY(0.5px);
+}
 
 /* ── Court calendar view (courts = X axis, time = Y axis) ────── */
 .calLegend {
@@ -1403,6 +1565,7 @@
    with one coloured edge is a schedule you can read. */
 .gridMatchCard {
   position: relative;
+  z-index: 5;
   background: var(--surface-card, #FFFFFF);
   border: none;
   border-left: 4px solid var(--div-accent, #EB6F43);
@@ -1412,7 +1575,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 2px 10px rgba(20, 24, 30, 0.06);
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
@@ -2449,9 +2612,9 @@
   color: #fff;
 }
 .previewInner {
-  max-width: 1440px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 12px 40px;
+  padding: 12px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2489,6 +2652,131 @@
   gap: 5px;
   color: #F6C560;
   font-weight: 600;
+}
+.previewProblemBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #FF8F8F;
+  background: rgba(214, 69, 69, 0.24);
+  border: 1px solid rgba(214, 69, 69, 0.5);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.previewProblemBtn:hover {
+  background: rgba(214, 69, 69, 0.38);
+  border-color: rgba(214, 69, 69, 0.7);
+}
+
+/* ── Problem Popover / List ───────────────────────────────────── */
+.problemPopoverOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  background: rgba(20, 24, 30, 0.35);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 64px 16px 24px;
+}
+.problemPopover {
+  width: min(480px, 100%);
+  max-height: min(480px, 80dvh);
+  background: #FFFFFF;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.20);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+}
+.problemPopoverHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--sand-300, #EAE5DD);
+  background: var(--sand-50, #FAF9F6);
+}
+.problemPopoverTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.problemPopoverSubtitle {
+  font-size: 11.5px;
+  color: var(--ink-500, #6B7280);
+  margin-top: 3px;
+}
+.problemPopoverClose {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-500, #6B7280);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+.problemPopoverClose:hover {
+  color: var(--ink-900, #14181E);
+  background: var(--sand-200, #ECE9E2);
+}
+.problemPopoverBody {
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.problemPopoverItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--ink-800, #2D3748);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  border-bottom: 1px solid var(--sand-100, #F4F2ED);
+}
+.problemPopoverItem:last-child {
+  border-bottom: none;
+}
+.problemPopoverItem:hover {
+  background: rgba(214, 69, 69, 0.06);
+}
+.problemPopoverIcon {
+  color: #D64545;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.problemPopoverText {
+  flex: 1;
+  line-height: 1.45;
+}
+.problemPopoverMeta {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-500, #6B7280);
+  margin-top: 3px;
+  font-weight: 500;
 }
 /* The draw-lock gate's reason. Amber rather than red: nothing is broken,
    the organizer simply has a step left, and the link is the step. */
@@ -2545,9 +2833,9 @@
 .previewSave:disabled { opacity: 0.6; cursor: default; }
 
 .saveMsg {
-  max-width: 1440px;
+  max-width: 1240px;
   margin: 12px auto 0;
-  padding: 0 40px;
+  padding: 0 24px;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-700, #3E4654);

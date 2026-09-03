@@ -28,7 +28,6 @@ export interface Placement {
   startAbs: number;
   endAbs: number;
   netChange: boolean;
-  pinned: boolean;
 }
 
 /** Everything the cost function reads that does not change during a run. */
@@ -90,8 +89,6 @@ export function resolveWeights(config: ScheduleConfig): CostWeights {
 export function restCost(rest: number, ctx: SolverContext): number {
   let cost = 0;
   if (rest <= 0) cost += ctx.weights.backToBack;
-  const deficit = Math.max(0, ctx.targetRestMinutes - rest);
-  if (deficit > 0) cost += ctx.weights.restDeficit * (deficit / ctx.grid.blockMinutes);
   return cost;
 }
 
@@ -221,8 +218,6 @@ export interface ScheduleMetrics {
   placed: number;
   /** Matches a team had to play with no gap at all. */
   backToBack: number;
-  /** Total rest shortfall across the event, in slots. */
-  restDeficitSlots: number;
   netChanges: number;
   /** Σ |actual day − planned day| over every match. */
   paceDeviationDays: number;
@@ -233,7 +228,6 @@ export interface ScheduleMetrics {
    *  that match actually got. Reported separately because the teams involved
    *  are unnamed at generation time and so never appear in the metric above. */
   tightestFeederGapMinutes: number;
-  averageRestMinutes: number;
   /** Σ over team-days of (last end − first start), in minutes. */
   venueSpanMinutes: number;
   /** Share of available court blocks actually used. */
@@ -260,13 +254,11 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
     totalCost: 0,
     placed: placements.length,
     backToBack: 0,
-    restDeficitSlots: 0,
     netChanges: 0,
     paceDeviationDays: 0,
     courtChurn: 0,
     tightestRestMinutes: Infinity,
     tightestFeederGapMinutes: Infinity,
-    averageRestMinutes: 0,
     venueSpanMinutes: 0,
     courtUtilisation: 0,
     finishAbs: 0,
@@ -274,8 +266,6 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
 
   const w = ctx.weights;
   const block = ctx.grid.blockMinutes;
-  let restSamples = 0;
-  let restTotal = 0;
 
   for (const p of ordered) {
     const node = ctx.graph.nodes.get(p.matchId);
@@ -291,12 +281,8 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
       }
       if (track.lastEnd !== -Infinity) {
         const rest = p.slot.abs - track.lastEnd;
-        restSamples++;
-        restTotal += rest;
         metrics.tightestRestMinutes = Math.min(metrics.tightestRestMinutes, rest);
         if (rest <= 0) metrics.backToBack++;
-        const deficit = Math.max(0, ctx.targetRestMinutes - rest);
-        if (deficit > 0) metrics.restDeficitSlots += deficit / block;
         metrics.totalCost += restCost(rest, ctx);
         if (track.lastCourt && track.lastCourt !== courtName) {
           metrics.courtChurn++;
@@ -318,8 +304,6 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
       const gap = p.slot.abs - feederEnd;
       metrics.tightestFeederGapMinutes = Math.min(metrics.tightestFeederGapMinutes, gap);
       if (gap <= 0) metrics.backToBack++;
-      const deficit = Math.max(0, ctx.targetRestMinutes - gap);
-      if (deficit > 0) metrics.restDeficitSlots += deficit / block;
       metrics.totalCost += restCost(gap, ctx);
     }
 
@@ -362,7 +346,6 @@ export function evaluate(placements: Placement[], ctx: SolverContext): ScheduleM
     }
   }
 
-  metrics.averageRestMinutes = restSamples > 0 ? restTotal / restSamples : 0;
   if (!Number.isFinite(metrics.tightestRestMinutes)) metrics.tightestRestMinutes = 0;
   if (!Number.isFinite(metrics.tightestFeederGapMinutes)) metrics.tightestFeederGapMinutes = 0;
 

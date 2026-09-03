@@ -1,7 +1,8 @@
 # Swapping two matches at the same time, on a phone
 
 Type: prototype
-Status: open
+Status: in_progress
+Assignee: Antigravity
 Blocked by: 02, 06
 
 ## Question

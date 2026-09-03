@@ -26,8 +26,9 @@
 // schedule the rest between a division's semifinal and its final, because the
 // other divisions' semifinals are that rest.
 
-import type { MatchGraph } from './graph.ts';
+import type { DivisionShape, MatchGraph } from './graph.ts';
 import { planPoolPlay, type PoolPlan } from './poolplay.ts';
+import { divisionGenderCohort, divisionGenderRank } from './types.ts';
 
 /** The medal rounds, in the order they are played. The numbers are the
  *  ordering: a wave waits for every wave of a lower phase. */
@@ -120,48 +121,123 @@ export function buildStaging(
   const thirdPlaceIds: string[] = [];
   const finals: StageWave[] = [];
   const poolWaves: StageWave[] = [];
-  const poolPlans: PoolPlan[] = [];
 
-  // ── Pool play, a rotation per division. ────────────────────────────────
+  // ── Pool play, cohort-based rotation. ─────────────────────────────────
   //
-  // A division whose pool play exactly fills the venue is planned first: it is
-  // the one that can be both dense and back-to-back free, so it should get the
-  // courts it needs before anything else competes for them. Everything after it
-  // fills whatever is left, largest appetite first.
-  const plans = [...graph.divisions.keys()]
-    .map(divisionId =>
-      planPoolPlay(
-        divisionId,
-        [...graph.nodes.values()].filter(n => n.divisionId === divisionId && n.isPool),
-        courtCount,
-      ),
-    )
-    .filter((p): p is PoolPlan => p !== null)
-    .sort(
-      (a, b) =>
-        Number(b.optimalCourts === courtCount) - Number(a.optimalCourts === courtCount) ||
-        b.optimalCourts - a.optimalCourts ||
-        (a.divisionId < b.divisionId ? -1 : 1),
-    );
+  // Cohort 0 (Gendered: Men, Women) plays first on dedicated courts.
+  // Cohort 1 (Non-gendered: Mixed, Open, 4x4) plays later, expanding to all venue courts.
+  const shapes = [...graph.divisions.values()];
+  const hasCohort0 = shapes.some(s => divisionGenderCohort(s) === 0);
 
-  plans.forEach((plan, priority) => {
-    poolPlans.push(plan);
-    let previous: string | null = null;
-    plan.waves.forEach((matchIds, i) => {
-      const key = `pool:${plan.divisionId}:${i}`;
-      poolWaves.push({
-        key,
-        phase: 'pool',
-        divisionId: plan.divisionId,
-        matchIds,
-        // Each turn waits for the one before it, which is what makes the other
-        // pools' turn the rest a pool gets.
-        after: previous ? [previous] : [],
-        order: priority * 1000 + i,
-      });
-      previous = key;
+  const plans = shapes
+    .map(shape => {
+      const poolMatches = [...graph.nodes.values()].filter(n => n.divisionId === shape.divisionId && n.isPool);
+      const cohort = divisionGenderCohort(shape);
+      const divDedicated = shape.dedicatedCourts;
+      // Cohort 0 uses dedicated courts (capped at courtCount).
+      // Cohort 1 (if Cohort 0 exists) expands to full venue (courtCount) per Option B.
+      const effectiveCourts = cohort === 1 && hasCohort0
+        ? (divDedicated != null && divDedicated >= courtCount ? Math.min(courtCount, divDedicated) : courtCount)
+        : (divDedicated != null && divDedicated > 0 ? Math.min(courtCount, divDedicated) : courtCount);
+      return {
+        shape,
+        cohort,
+        plan: planPoolPlay(shape.divisionId, poolMatches, effectiveCourts),
+      };
+    })
+    .filter((item): item is { shape: DivisionShape; cohort: number; plan: PoolPlan } => item.plan !== null);
+
+  const sortCohort = (
+    list: { shape: DivisionShape; cohort: number; plan: PoolPlan }[],
+  ) =>
+    [...list].sort((a, b) => {
+      // 1. Total court-minutes (biggest division first)
+      if (b.shape.minutes !== a.shape.minutes) {
+        return b.shape.minutes - a.shape.minutes;
+      }
+      // 2. Standard gender rank (Men -> Women)
+      const gA = divisionGenderRank({ gender: a.shape.gender, label: a.shape.label });
+      const gB = divisionGenderRank({ gender: b.shape.gender, label: b.shape.label });
+      if (gA !== gB) return gA - gB;
+      // 3. Stable tie-break by divisionId
+      return a.shape.divisionId < b.shape.divisionId ? -1 : 1;
     });
-  });
+
+  const cohort0 = sortCohort(plans.filter(p => p.cohort === 0));
+  const cohort1 = sortCohort(plans.filter(p => p.cohort === 1));
+  const poolPlans: PoolPlan[] = [...cohort0, ...cohort1].map(p => p.plan);
+
+  function stageCohort(
+    cohortDivs: { shape: DivisionShape; cohort: number; plan: PoolPlan }[],
+    baseOrder: number,
+    initialPrereqs: string[],
+  ): string[] {
+    if (cohortDivs.length === 0) return initialPrereqs;
+
+    const batches: { shape: DivisionShape; plan: PoolPlan; appetite: number }[][] = [];
+    let currentBatch: { shape: DivisionShape; plan: PoolPlan; appetite: number }[] = [];
+    let remainingCourts = courtCount;
+
+    for (const item of cohortDivs) {
+      const appetite = item.shape.dedicatedCourts != null && item.shape.dedicatedCourts > 0
+        ? Math.min(courtCount, item.shape.dedicatedCourts)
+        : Math.min(courtCount, item.plan.optimalCourts);
+
+      if (currentBatch.length === 0) {
+        currentBatch.push({ ...item, appetite });
+        remainingCourts = Math.max(0, courtCount - appetite);
+      } else if (remainingCourts >= appetite && appetite < courtCount) {
+        currentBatch.push({ ...item, appetite });
+        remainingCourts -= appetite;
+      } else {
+        batches.push(currentBatch);
+        currentBatch = [{ ...item, appetite }];
+        remainingCourts = Math.max(0, courtCount - appetite);
+      }
+    }
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+
+    let batchPrereqs = [...initialPrereqs];
+    for (let bIdx = 0; bIdx < batches.length; bIdx++) {
+      const batch = batches[bIdx];
+      const batchFinalKeys: string[] = [];
+      const prevKeyInDiv = new Map<string, string>();
+      const maxWavesInBatch = Math.max(0, ...batch.map(d => d.plan.waves.length));
+
+      for (let wIdx = 0; wIdx < maxWavesInBatch; wIdx++) {
+        batch.forEach(({ plan }, divPriority) => {
+          if (wIdx >= plan.waves.length) return;
+          const matchIds = plan.waves[wIdx];
+          const key = `pool:${plan.divisionId}:${wIdx}`;
+          const prev = prevKeyInDiv.get(plan.divisionId);
+          const after = wIdx === 0 && batchPrereqs.length > 0
+            ? [...batchPrereqs]
+            : (prev ? [prev] : []);
+
+          poolWaves.push({
+            key,
+            phase: 'pool',
+            divisionId: plan.divisionId,
+            matchIds,
+            after,
+            order: baseOrder + bIdx * 10_000 + wIdx * 1000 + divPriority,
+          });
+          prevKeyInDiv.set(plan.divisionId, key);
+          if (wIdx === plan.waves.length - 1) {
+            batchFinalKeys.push(key);
+          }
+        });
+      }
+      batchPrereqs = batchFinalKeys;
+    }
+
+    return batchPrereqs;
+  }
+
+  const cohort0FinalKeys = stageCohort(cohort0, 0, []);
+  stageCohort(cohort1, 100_000, cohort0FinalKeys);
 
   for (const [divisionId, shape] of graph.divisions) {
     // A division with no knockout has no medal rounds to stage.

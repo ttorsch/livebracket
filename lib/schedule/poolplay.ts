@@ -12,18 +12,22 @@
 //
 // From that comes the court count a division is *comfortable* at:
 //
-//     optimal courts = ⌊teams per pool / 2⌋ × pools ÷ 2
+//     optimal courts = ⌊pools ÷ 2⌋ × ⌊teams per pool / 2⌋
 //
-// Four pools of four is ⌊4/2⌋ × 4 ÷ 2 = 4 courts: pools A and B play two
+// Four pools of four is ⌊4/2⌋ × ⌊4/2⌋ = 4 courts: pools A and B play two
 // matches each while C and D rest, then they swap — dense and back-to-back
 // free at the same time. It is reported so an organizer can see what their
 // draw wants, and it decides which division gets the venue first.
 //
-// It is not a ceiling. Given more courts the rotation widens to use them:
-// a court standing empty for the whole round robin costs the event more than a
-// short gap costs a team. Rest is protected by *price* rather than by leaving
-// the floor bare — the cost function picks rested teams first and reaches for a
-// tired one only when the alternative is an idle court.
+// It is a *ceiling*: the most courts a division can be given while nobody
+// plays back to back. Fewer is always safe — the rotation simply takes longer,
+// and every team rests more. More is not, because the only way to fill the
+// extra courts is to put the resting half back on court, which is the one
+// thing the rotation exists to prevent.
+//
+// So a wide venue does not widen the rotation. It leaves courts standing for
+// *another division* to take, and a team's rest is a property of the shape
+// rather than a price the cost function may decline to pay.
 
 import type { MatchNode } from './graph.ts';
 
@@ -32,9 +36,9 @@ export interface PoolPlan {
   /** ⌊teams in pool / 2⌋ — matches one pool can have on court at once. */
   perPool: number;
   poolCount: number;
-  /** The court count this division's pool play actually wants. */
+  /** The most courts this division can use with nobody playing back to back. */
   optimalCourts: number;
-  /** How many pools are played at a time, given the courts on offer. */
+  /** How many pools play at a time: the ceiling, narrowed by the courts on offer. */
   poolsAtOnce: number;
   /** Ordered waves; each is a set of matches that start together, and each
    *  waits for the one before it. */
@@ -108,18 +112,29 @@ export function planPoolPlay(
   // the scheduler is not given directly.
   const perPool = Math.max(1, ...rounds.flat().map(r => r.length));
 
-  const optimalCourts = Math.max(1, Math.floor((perPool * poolCount) / 2));
+  // Pools pair up and alternate on the same courts, so half of them are on
+  // court at any moment. The pairing is floored, not the product: three pools
+  // make one pair and a spare, and the spare joins a pair rather than earning
+  // courts of its own — so three pools of four are comfortable at two courts,
+  // exactly as two pools of four are.
+  const optimalCourts = Math.max(1, Math.floor(poolCount / 2) * perPool);
 
-  // As many whole pools as the courts will hold.
+  // As many whole pools as will fit, measured against the *ceiling* rather than
+  // against the venue.
   //
-  // This used to stop at half the pools, so that the resting half guaranteed
-  // nobody ever played back to back. That guarantee turned out to cost more
-  // than it was worth: on a four-court venue a division wanting two courts left
-  // two of them standing empty for the whole round robin. Filling them is worth
-  // a short gap, so the ceiling is now the venue, and rest is left to the cost
-  // function — which still picks the rested teams first and reaches for a tired
-  // one only when the alternative is an idle court.
-  const fit = Math.max(1, Math.floor(courts / perPool));
+  // This is where the guarantee lives. Reading the venue alone is what made a
+  // roomy day worse than a cramped one: every pool went on court at once, every
+  // turn was every team, and the next turn was the same teams again. Clamping
+  // to `optimalCourts` first means consecutive turns hold disjoint teams, so a
+  // team's rest is a consequence of the rotation's shape and not a price the
+  // cost function may decline to pay.
+  //
+  // The courts this leaves standing are for another division to take, which is
+  // the only reason it is affordable. A division alone on a wide venue really
+  // does leave them bare — running it flat out to fill them is what the
+  // ceiling exists to refuse.
+  const usable = Math.min(courts, optimalCourts);
+  const fit = Math.max(1, Math.floor(usable / perPool));
   const poolsAtOnce = Math.max(1, Math.min(poolCount, fit));
 
   // Pools are dealt into groups that play together, and the groups take turns.
@@ -133,10 +148,13 @@ export function planPoolPlay(
 
   const maxRounds = Math.max(...rounds.map(r => r.length));
   const waves: string[][] = [];
+  const waveCapacity = Math.max(1, usable);
   for (let r = 0; r < maxRounds; r++) {
     for (const group of groups) {
       const wave = group.flatMap(p => rounds[p][r] ?? []);
-      if (wave.length > 0) waves.push(wave);
+      for (let i = 0; i < wave.length; i += waveCapacity) {
+        waves.push(wave.slice(i, i + waveCapacity));
+      }
     }
   }
 

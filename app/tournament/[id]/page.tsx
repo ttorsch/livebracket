@@ -10,6 +10,7 @@ import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
   type DetailDivision,
 } from '../../../lib/data';
+import { isThirdPlaceRound } from '../../../lib/divisionMatches';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
 import { registrationState, nextOpening, isPublic, type Phase } from '../../../lib/tournamentLifecycle';
 import { ageLimitLabel } from '../../../lib/divisionEligibility';
@@ -359,7 +360,12 @@ export default function TournamentPage() {
 
   const knockoutRounds = useMemo(
     () => (activeDivision?.bracket ?? [])
-      .filter(r => !isGroupFormat(r.format) && r.matches.length > 0),
+      .filter(r => !isGroupFormat(r.format) && !(activeDivision && isThirdPlaceRound(activeDivision, r)) && r.matches.length > 0),
+    [activeDivision],
+  );
+
+  const thirdPlaceRound = useMemo(
+    () => (activeDivision ? (activeDivision.bracket ?? []).find(r => isThirdPlaceRound(activeDivision, r) && r.matches.length > 0) : undefined),
     [activeDivision],
   );
 
@@ -829,11 +835,17 @@ export default function TournamentPage() {
           knockoutRounds.length > 0 ? (
             <div className={styles.bracketScroll}>
               <div className={styles.bracketGrid}>
-                {knockoutRounds.map(round => (
+                {knockoutRounds.map((round, ri) => (
                   <div key={round.round} className={styles.bracketColumn}>
                     <div className={styles.bracketRoundLabel}>{round.round}</div>
                     <div className={styles.bracketMatches}>
                       {round.matches.map(m => <BracketCard key={m.id} match={m} />)}
+                      {ri === knockoutRounds.length - 1 && thirdPlaceRound?.matches[0] && (
+                        <div className={styles.thirdPlaceBlock}>
+                          <div className={styles.thirdPlaceLabel}>3rd Place</div>
+                          <BracketCard match={thirdPlaceRound.matches[0]} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

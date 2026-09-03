@@ -6,10 +6,12 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Settings, Trophy, Unlock, Users, X, ImagePlus } from 'lucide-react';
 import styles from './page.module.css';
 import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds';
-import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
+import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch } from '../../../../lib/data';
 import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
+import { isGroupFormat, isKnockoutFormat, roundFormatLabel } from '../../../../lib/roundFormat';
 import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../../../lib/tournamentLifecycle';
 import { describeDiscardCost, type DiscardCost } from '../../../../lib/schedule/discardCost';
+import { formatTeamFirstName } from '../../../../lib/teamName';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
 
@@ -26,12 +28,6 @@ interface DrawSettings {
 }
 
 const DEFAULT_DRAW: DrawSettings = { pools: 4, advance: 2, crossing: 'fivb', thirdPlace: false };
-
-const FORMAT_LABELS: Record<string, string> = {
-  'round-robin': 'Round Robin',
-  single: 'Single Elimination',
-  double: 'Double Elimination',
-};
 
 /* ── Bracket view model ───────────────────────────────────────
    One shape whether the rounds come from the database (generated
@@ -63,6 +59,7 @@ interface ViewRound {
 
 interface BracketView {
   rounds: ViewRound[];
+  thirdPlaceMatch?: ViewMatch | null;
   champion: string | null; // null = undecided
   fromDb: boolean;
 }
@@ -185,10 +182,9 @@ function emptyBracket(teamCount: number, prefix: string, startNo: number): Brack
    and slot names come from the shared division labelling, so the bracket, the
    schedule and the match list all call a match the same thing. */
 function dbBracket(division: DetailDivision, labels: Map<string, MatchLabel>): BracketView | null {
-  const allKnockout = division.bracket.filter(r => (r.format === 'single' || r.format === 'double') && r.matches.length > 0);
+  const allKnockout = division.bracket.filter(r => isKnockoutFormat(r.format) && r.matches.length > 0);
   // The play-off for 3rd hangs off the semifinals, not off the round before it,
-  // so it is not part of the halving tree and must not be drawn into it — no
-  // connector runs to it, and the champion still comes out of the final.
+  // so it is not part of the halving tree and is positioned below the final.
   const knockout = allKnockout.filter(r => !isThirdPlaceRound(division, r));
   const thirdPlace = allKnockout.filter(r => isThirdPlaceRound(division, r));
   if (knockout.length === 0) return null;
@@ -196,18 +192,18 @@ function dbBracket(division: DetailDivision, labels: Map<string, MatchLabel>): B
   const seedOf = new Map(division.teamsList.map(t => [t.id, t.seed]));
   const total = knockout.length;
 
-  const rounds: ViewRound[] = [...knockout, ...thirdPlace].map((r, ri) => {
+  const mkRow = (id: string | null, name: string, winnerSide: boolean, m: DetailMatch): ViewRow => ({
+    seed: id ? seedOf.get(id) ?? null : null,
+    name,
+    win: winnerSide,
+    lost: !!id && m.status === 'done' && m.winner !== undefined && !winnerSide,
+    live: m.status === 'live',
+  });
+
+  const rounds: ViewRound[] = knockout.map((r, ri) => {
     const isTree = ri < total;
     const matches = r.matches.map((m, mi) => {
       const label = labels.get(m.id);
-
-      const mkRow = (id: string | null, name: string, winnerSide: boolean): ViewRow => ({
-        seed: id ? seedOf.get(id) ?? null : null,
-        name,
-        win: winnerSide,
-        lost: !!id && m.status === 'done' && m.winner !== undefined && !winnerSide,
-        live: m.status === 'live',
-      });
 
       return {
         no: label?.no ?? '',
@@ -215,18 +211,34 @@ function dbBracket(division: DetailDivision, labels: Map<string, MatchLabel>): B
         hasRight: isTree && ri < total - 1,
         hasLeft: isTree && ri > 0,
         hasSpine: isTree && ri < total - 1 && mi % 2 === 0,
-        rowA: mkRow(m.teamAId, label?.teamA ?? 'TBD', m.status === 'done' && m.winner === 'A'),
-        rowB: mkRow(m.teamBId, label?.teamB ?? 'TBD', m.status === 'done' && m.winner === 'B'),
+        rowA: mkRow(m.teamAId, label?.teamA ?? 'TBD', m.status === 'done' && m.winner === 'A', m),
+        rowB: mkRow(m.teamBId, label?.teamB ?? 'TBD', m.status === 'done' && m.winner === 'B', m),
       };
     });
 
     return { name: r.round, matches };
   });
 
+  let thirdPlaceMatch: ViewMatch | null = null;
+  const tpRound = thirdPlace[0];
+  if (tpRound && tpRound.matches.length > 0) {
+    const m = tpRound.matches[0];
+    const label = labels.get(m.id);
+    thirdPlaceMatch = {
+      no: label?.no ?? '',
+      live: m.status === 'live',
+      hasRight: false,
+      hasLeft: false,
+      hasSpine: false,
+      rowA: mkRow(m.teamAId, label?.teamA ?? 'TBD', m.status === 'done' && m.winner === 'A', m),
+      rowB: mkRow(m.teamBId, label?.teamB ?? 'TBD', m.status === 'done' && m.winner === 'B', m),
+    };
+  }
+
   const final = knockout[total - 1].matches[0];
   const champion = final?.winner === 'A' ? final.teamAName : final?.winner === 'B' ? final.teamBName : null;
 
-  return { rounds, champion, fromDb: true };
+  return { rounds, thirdPlaceMatch, champion, fromDb: true };
 }
 
 /* A 409 from the draw route means "well formed, but it would cost you this".
@@ -323,11 +335,11 @@ export default function OrganizerBracketPage() {
         config[d.id] = d.drawConfig
           ? {
               pools: d.drawConfig.pools,
-              advance: drawn ? d.drawConfig.advance : d.advancePerPool,
-              crossing: drawn ? d.drawConfig.crossing : d.crossing,
+              advance: d.drawConfig.advance ?? d.advancePerPool ?? 2,
+              crossing: d.drawConfig.crossing ?? d.crossing ?? 'fivb',
               thirdPlace: !!d.drawConfig.thirdPlace,
             }
-          : { ...DEFAULT_DRAW, advance: d.advancePerPool, crossing: d.crossing };
+          : { ...DEFAULT_DRAW, advance: d.advancePerPool ?? 2, crossing: d.crossing ?? 'fivb' };
       });
       // Keep whatever top seeds were already picked for a division across a
       // reload (e.g. right after Draw Pool) instead of clearing them. On a
@@ -374,12 +386,28 @@ export default function OrganizerBracketPage() {
     return !!division?.drawConfig?.isLocked;
   }, [activeDiv, lockedByDiv, division]);
 
+  const prevActiveDivRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!activeDiv) return;
+    if (prevActiveDivRef.current !== activeDiv) {
+      prevActiveDivRef.current = activeDiv;
+      const div = detail?.divisions.find(d => d.id === activeDiv);
+      const isLocked = lockedByDiv[activeDiv] !== undefined
+        ? lockedByDiv[activeDiv]
+        : !!div?.drawConfig?.isLocked;
+      setRound1Tab(isLocked ? 'standings' : 'config');
+    }
+  }, [activeDiv, detail, lockedByDiv]);
+
   const toggleLockDraw = async () => {
     if (!division) return;
     const nextLocked = !isDrawLocked;
     setLockedByDiv(prev => ({ ...prev, [activeDiv]: nextLocked }));
     if (nextLocked) {
-      setRound1Tab('result');
+      setRound1Tab('standings');
+    } else {
+      setRound1Tab('config');
     }
     try {
       await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
@@ -450,9 +478,9 @@ export default function OrganizerBracketPage() {
     // whatever pool matches are already drawn.
     const prefix = divisionPrefix(division.label);
     const poolMatches = division.bracket
-      .filter(r => r.format === 'round-robin')
+      .filter(r => isGroupFormat(r.format))
       .reduce((sum, r) => sum + r.matches.length, 0);
-    const isRR = division.bracket.some(r => r.format === 'round-robin');
+    const isRR = division.bracket.some(r => isGroupFormat(r.format));
     return isRR
       ? projectBracket(seeds, prefix, poolMatches + 1)
       : emptyBracket(confirmedTeams.length, prefix, 1);
@@ -460,7 +488,7 @@ export default function OrganizerBracketPage() {
 
   const poolGroups = useMemo(() => {
     if (!division?.drawConfig) return [];
-    const poolRound = division.bracket.find(r => r.format === 'round-robin');
+    const poolRound = division.bracket.find(r => isGroupFormat(r.format));
     if (!poolRound || poolRound.matches.length === 0) return [];
     return assignPools(confirmedTeams, division.drawConfig.pools).map(pool => ({ name: pool.name, teams: pool.items }));
   }, [division, confirmedTeams]);
@@ -471,7 +499,7 @@ export default function OrganizerBracketPage() {
      round-robin matches. */
   const poolStandings = useMemo(() => {
     if (poolGroups.length === 0) return [];
-    const poolRound = division?.bracket.find(r => r.format === 'round-robin');
+    const poolRound = division?.bracket.find(r => isGroupFormat(r.format));
     const matches = poolRound?.matches ?? [];
 
     interface Standing {
@@ -544,18 +572,18 @@ export default function OrganizerBracketPage() {
   // The Round 1 feature set (draw config, pool results) belongs to the
   // round-robin format; other formats get their own features later.
   const firstRoundFormat = division?.bracket[0]?.format ?? 'round-robin';
-  const isRoundRobin = firstRoundFormat === 'round-robin';
+  const isRoundRobin = isGroupFormat(firstRoundFormat);
 
   const hasRoundRobin = useMemo(() => {
-    return division?.bracket.some(r => r.format === 'round-robin') ?? false;
+    return division?.bracket.some(r => isGroupFormat(r.format)) ?? false;
   }, [division]);
 
   const hasKnockout = useMemo(() => {
-    return division?.bracket.some(r => r.format === 'single' || r.format === 'double') ?? false;
+    return division?.bracket.some(r => isKnockoutFormat(r.format)) ?? false;
   }, [division]);
 
   const knockoutFormat = useMemo(() => {
-    const r = division?.bracket.find(r => r.format === 'single' || r.format === 'double');
+    const r = division?.bracket.find(r => isKnockoutFormat(r.format));
     return r?.format ?? 'single';
   }, [division]);
 
@@ -854,7 +882,7 @@ export default function OrganizerBracketPage() {
 
   const perPool = Math.max(1, Math.round(confirmedTeams.length / config.pools) || 1);
   const firstRoundMatches = bracket?.rounds[0]?.matches.length ?? 0;
-  const colHeight = Math.max(firstRoundMatches * 95, 190);
+  const colHeight = Math.max(firstRoundMatches * 95, bracket?.thirdPlaceMatch ? 240 : 190);
 
   // Pure single-elimination summary (bracket padded to the next power of two).
   const seTeams = confirmedTeams.length;
@@ -996,27 +1024,27 @@ export default function OrganizerBracketPage() {
                 </button>
               ))}
             </div>
-            <Link
-              href={`/dashboard/tournament/${detail.slug}/schedule`}
-              className={styles.scheduleLinkBtn}
-              style={{ textDecoration: 'none' }}
-              aria-label="Schedule"
-            >
-              <Calendar size={16} />
-              <span className={styles.scheduleBtnText}>Schedule</span>
-            </Link>
-            {/* Phone-only. The desktop header has room for its own routes;
-                on a phone the bar is the only thing pinned, so setup rides
-                next to the schedule. */}
-            <Link
-              href={`/dashboard/tournament/${detail.slug}/setup`}
-              className={styles.setupLinkBtn}
-              style={{ textDecoration: 'none' }}
-              aria-label="Tournament setup"
-              title="Tournament setup"
-            >
-              <Settings size={16} />
-            </Link>
+            <div className={styles.stickyDivisionActions}>
+              <Link
+                href={`/dashboard/tournament/${detail.slug}/setup`}
+                className={styles.setupLinkBtn}
+                style={{ textDecoration: 'none' }}
+                aria-label="Tournament setup"
+                title="Tournament setup"
+              >
+                <Settings size={16} />
+                <span className={styles.setupBtnText}>Setup</span>
+              </Link>
+              <Link
+                href={`/dashboard/tournament/${detail.slug}/schedule`}
+                className={styles.scheduleLinkBtn}
+                style={{ textDecoration: 'none' }}
+                aria-label="Schedule"
+              >
+                <Calendar size={16} />
+                <span className={styles.scheduleBtnText}>Schedule</span>
+              </Link>
+            </div>
           </div>
         </div>
       )}
@@ -1090,7 +1118,7 @@ export default function OrganizerBracketPage() {
                     <span className={styles.roundPrefix}>Round 1</span>
                     <span className={styles.roundDot}>·</span>
                     <span className={styles.roundFormat}>
-                      {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat}
+                      {roundFormatLabel(firstRoundFormat)}
                     </span>
                   </h2>
                 </div>
@@ -1339,15 +1367,27 @@ export default function OrganizerBracketPage() {
                         <span className={styles.poolCardCount}>{pool.teams.length} teams</span>
                       </div>
                       <div className={styles.poolTeamList}>
-                        {pool.teams.map(t => (
-                          <div
-                            key={t.id}
-                            className={`${styles.poolTeamRow} ${poolAnim ? styles.poolTeamAnim : ''}`}
-                            style={poolAnim ? { animationDelay: `${poolAnim.teamDelay.get(t.id) ?? 0}s` } : undefined}
-                          >
-                            {formatTeamFirstName(t.name)}
-                          </div>
-                        ))}
+                        {pool.teams.map(t => {
+                          const display = formatTeamFirstName(t.name);
+                          const parts = display.split('/');
+                          return (
+                            <div
+                              key={t.id}
+                              className={`${styles.poolTeamRow} ${poolAnim ? styles.poolTeamAnim : ''}`}
+                              style={poolAnim ? { animationDelay: `${poolAnim.teamDelay.get(t.id) ?? 0}s` } : undefined}
+                              title={t.name}
+                            >
+                              {parts.length > 1 ? (
+                                <div className={styles.stackedTeamNames}>
+                                  <span className={styles.stackedPlayer}>{parts[0]}</span>
+                                  <span className={styles.stackedPlayer}>{parts[1]}</span>
+                                </div>
+                              ) : (
+                                <span className={styles.singleTeamName}>{display}</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -1386,15 +1426,28 @@ export default function OrganizerBracketPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {pool.standings.map((s, i) => (
-                            <tr key={s.teamId}>
-                              <td>{i + 1}</td>
-                              <td className={styles.standingsTeam}>{formatTeamFirstName(s.name)}</td>
-                              <td>{s.wins}</td>
-                              <td>{s.losses}</td>
-                              <td>{s.pointsFor - s.pointsAgainst > 0 ? '+' : ''}{s.pointsFor - s.pointsAgainst}</td>
-                            </tr>
-                          ))}
+                          {pool.standings.map((s, i) => {
+                            const display = formatTeamFirstName(s.name);
+                            const parts = display.split('/');
+                            return (
+                              <tr key={s.teamId}>
+                                <td>{i + 1}</td>
+                                <td className={styles.standingsTeam} title={s.name}>
+                                  {parts.length > 1 ? (
+                                    <div className={styles.stackedTeamNames}>
+                                      <span className={styles.stackedPlayer}>{parts[0]}</span>
+                                      <span className={styles.stackedPlayer}>{parts[1]}</span>
+                                    </div>
+                                  ) : (
+                                    <span className={styles.singleTeamName}>{display}</span>
+                                  )}
+                                </td>
+                                <td>{s.wins}</td>
+                                <td>{s.losses}</td>
+                                <td>{s.pointsFor - s.pointsAgainst > 0 ? '+' : ''}{s.pointsFor - s.pointsAgainst}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1406,7 +1459,7 @@ export default function OrganizerBracketPage() {
             </>
             ) : (
               <div className={styles.emptyNote}>
-                {FORMAT_LABELS[firstRoundFormat] ?? firstRoundFormat} features for this round are coming soon.
+                {roundFormatLabel(firstRoundFormat)} features for this round are coming soon.
               </div>
             )}
             </div>
@@ -1424,7 +1477,7 @@ export default function OrganizerBracketPage() {
                     <span className={styles.roundPrefix}>{hasRoundRobin ? 'Round 2' : 'Round 1'}</span>
                     <span className={styles.roundDot}>·</span>
                     <span className={styles.roundFormat}>
-                      {FORMAT_LABELS[knockoutFormat] ?? knockoutFormat ?? 'Single Elimination'}
+                      {roundFormatLabel(knockoutFormat)}
                     </span>
                   </h2>
                 </div>
@@ -1802,6 +1855,34 @@ export default function OrganizerBracketPage() {
                                 </div>
                               );
                             })}
+
+                            {ri === bracket.rounds.length - 1 && bracket.thirdPlaceMatch && (
+                              <div className={styles.thirdPlaceBlock}>
+                                <div className={styles.thirdPlaceLabel}>3rd Place</div>
+                                <div className={styles.matchCard}>
+                                  <span className={styles.matchNo}>{bracket.thirdPlaceMatch.no}</span>
+                                  {bracket.thirdPlaceMatch.live && (
+                                    <div className={styles.matchLiveRow}>
+                                      <span className={styles.liveTag}>
+                                        <span className={styles.liveTagDot} aria-hidden="true" />
+                                        Live
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className={styles.matchRow}>
+                                    <span className={rowClass(bracket.thirdPlaceMatch.rowA)}>
+                                      {rowDisplay(bracket.thirdPlaceMatch.rowA)}
+                                    </span>
+                                  </div>
+                                  <div className={styles.matchDivider} />
+                                  <div className={styles.matchRow}>
+                                    <span className={rowClass(bracket.thirdPlaceMatch.rowB)}>
+                                      {rowDisplay(bracket.thirdPlaceMatch.rowB)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1875,16 +1956,7 @@ export default function OrganizerBracketPage() {
   );
 }
 
-function formatTeamFirstName(name: string): string {
-  if (!name) return '';
-  const players = name.split('/').map(p => p.trim()).filter(Boolean);
-  if (players.length === 0) return name;
-  const firstNames = players.map(p => {
-    const parts = p.split(/\s+/).filter(Boolean);
-    return parts[0] || p;
-  });
-  return firstNames.join('/');
-}
+
 
 function parseTeamPlayers(name: string): string[] {
   const parts = name.split('/').map(s => s.trim()).filter(Boolean);

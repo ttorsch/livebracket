@@ -23,3 +23,19 @@ export function formatTeamName<T extends string | null | undefined>(name: T): T 
   if (!name) return name;
   return joinTeamName(name.split(SEPARATOR)) as T;
 }
+
+/**
+ * Format a team name for compact views (like pool draw results and standings):
+ * - If there is a team name (no '/'), show the full team name (e.g. "Sun Chasers").
+ * - If there is no team name (player names joined by '/'), show player first name / player first name (e.g. "Ananda/Mali").
+ */
+export function formatTeamFirstName(name: string | null | undefined): string {
+  if (!name) return '';
+  const players = name.split(SEPARATOR).map(p => p.trim()).filter(Boolean);
+  if (players.length <= 1) return name;
+  const firstNames = players.map(p => {
+    const parts = p.split(/\s+/).filter(Boolean);
+    return parts[0] || p;
+  });
+  return firstNames.join(SEPARATOR);
+}

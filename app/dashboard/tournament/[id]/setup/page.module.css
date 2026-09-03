@@ -2914,9 +2914,9 @@
 }
 .desktop2aHeaderCardBody {
   display: flex;
+  align-items: center;
   gap: 24px;
   padding: 20px;
-  padding-right: 64px;
 }
 .desktop2aPoster {
   width: 140px;
@@ -2943,6 +2943,41 @@
   justify-content: center;
   gap: 12px;
   min-width: 0;
+  flex: 1;
+}
+.cardActionsCol {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 175px;
+  justify-content: center;
+}
+.cardGhostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
+  background: #FFFFFF;
+  color: var(--ink-900, #14181E);
+  box-shadow: 0 1px 3px rgba(20, 31, 46, 0.04);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cardGhostBtn:hover {
+  background: var(--sand-200, #EFEAE0);
+  border-color: rgba(20, 31, 46, 0.15);
+  transform: translateY(-1px);
 }
 .desktop2aEventTitle {
   font-family: var(--font-display, var(--font-heading));
@@ -3429,8 +3464,9 @@
 .divisionNavRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
@@ -3441,7 +3477,6 @@
   padding: 4px;
   border-radius: var(--radius-pill, 999px);
   background: var(--sand-200, #EAE5DC);
-  max-width: calc(100% - 170px);
   overflow-x: auto;
 }
 
@@ -3482,7 +3517,6 @@
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
-  margin-left: auto;
   flex-shrink: 0;
   transition: background 0.15s ease, transform 0.15s ease;
 }

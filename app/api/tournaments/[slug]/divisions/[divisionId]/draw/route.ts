@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
 import type { CrossSlot } from '../../../../../../../lib/data';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
+import { isGroupFormat, isKnockoutFormat } from '../../../../../../../lib/roundFormat';
 import {
   NO_DISCARD_COST,
   isEmptyCost,
@@ -501,7 +502,7 @@ async function readDiscardCost(roundIds: string[]): Promise<DiscardCost | { erro
   if (roundIds.length === 0) return NO_DISCARD_COST;
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .select('court, planned_time, scheduled_time, pinned, referee_team_id')
+    .select('court, planned_time, scheduled_time, referee_team_id')
     .in('round_id', roundIds);
   if (error) return { error: error.message };
   return tallyDiscardCost((data ?? []) as PlacementRow[]);
@@ -556,11 +557,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const prevDraw = (settings.draw ?? {}) as Record<string, unknown>;
 
     const prevRounds = division.rounds ?? [];
-    const poolRound = prevRounds.find(r => r.format === 'round-robin');
+    const poolRound = prevRounds.find(r => isGroupFormat(r.format));
     if (!poolRound) {
       return NextResponse.json({ error: 'This division has no pool round — draw the pools first' }, { status: 400 });
     }
-    const elimRounds = prevRounds.filter(r => r.format === 'single' || r.format === 'double');
+    const elimRounds = prevRounds.filter(r => isKnockoutFormat(r.format));
     if (elimRounds.length === 0) {
       return NextResponse.json({ error: 'This division has no knockout round to apply a crossing to' }, { status: 400 });
     }
@@ -666,14 +667,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (body.generate) {
     // Carry each format's scoring rules over from the rounds configured in setup.
     const prevRounds = division.rounds ?? [];
-    const poolRules = prevRounds.find(r => r.format === 'round-robin')?.scoring_rules ?? {};
-    const elimRules = prevRounds.find(r => r.format === 'single' || r.format === 'double')?.scoring_rules ?? {};
+    const poolRules = prevRounds.find(r => isGroupFormat(r.format))?.scoring_rules ?? {};
+    const elimRules = prevRounds.find(r => isKnockoutFormat(r.format))?.scoring_rules ?? {};
 
     const { error: delError } = await supabaseAdmin.from('rounds').delete().eq('division_id', divisionId);
     if (delError) return NextResponse.json({ error: `Failed to clear rounds: ${delError.message}` }, { status: 500 });
 
-    const hasRoundRobin = prevRounds.some(r => r.format === 'round-robin');
-    const hasElimRound = prevRounds.some(r => r.format === 'single' || r.format === 'double');
+    const hasRoundRobin = prevRounds.some(r => isGroupFormat(r.format));
+    const hasElimRound = prevRounds.some(r => isKnockoutFormat(r.format));
 
     const matches: MatchInsert[] = [];
     let roundRows: RoundInsert[];

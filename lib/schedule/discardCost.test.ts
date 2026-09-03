@@ -18,13 +18,12 @@ import {
   type PlacementRow,
 } from './discardCost.ts';
 
-/** An unplaced, unpinned, unrefereed match — the empty starting point. */
+/** An unplaced, unrefereed match — the empty starting point. */
 function row(patch: Partial<PlacementRow> = {}): PlacementRow {
   return {
     court: null,
     planned_time: null,
     scheduled_time: null,
-    pinned: false,
     referee_team_id: null,
     ...patch,
   };
@@ -58,15 +57,6 @@ describe('tallyDiscardCost', () => {
     assert.equal(cost.placed, 2);
   });
 
-  it('counts a pin even when the pinned match is not placed', () => {
-    // A pin the generator has not yet honoured is still organizer intent, and
-    // still destroyed by the redraw. Undercounting it would be a lie.
-    const cost = tallyDiscardCost([row({ pinned: true })]);
-    assert.equal(cost.pinned, 1);
-    assert.equal(cost.placed, 0);
-    assert.equal(isEmptyCost(cost), false);
-  });
-
   it('counts referee duty separately from placement', () => {
     const cost = tallyDiscardCost([
       row({ ...PLACED, referee_team_id: 'team-a' }),
@@ -76,44 +66,38 @@ describe('tallyDiscardCost', () => {
     assert.equal(cost.placed, 1);
   });
 
-  it('tallies a fully worked division across all three categories', () => {
+  it('tallies a fully worked division across both categories', () => {
     const cost = tallyDiscardCost([
-      row({ ...PLACED, pinned: true, referee_team_id: 'team-a' }),
+      row({ ...PLACED, referee_team_id: 'team-a' }),
       row(PLACED),
       row(),
     ]);
-    assert.deepEqual(cost, { placed: 2, pinned: 1, refereed: 1 });
+    assert.deepEqual(cost, { placed: 2, refereed: 1 });
   });
 });
 
 describe('describeDiscardCost', () => {
   it('names one category on its own', () => {
-    assert.equal(describeDiscardCost({ placed: 46, pinned: 0, refereed: 0 }), '46 scheduled matches');
+    assert.equal(describeDiscardCost({ placed: 46, refereed: 0 }), '46 scheduled matches');
   });
 
-  it('joins two with "and", and three with a comma then "and"', () => {
+  it('joins two with "and"', () => {
     assert.equal(
-      describeDiscardCost({ placed: 46, pinned: 14, refereed: 0 }),
-      '46 scheduled matches and 14 manual edits',
-    );
-    assert.equal(
-      describeDiscardCost({ placed: 46, pinned: 14, refereed: 3 }),
-      '46 scheduled matches, 14 manual edits and 3 referee assignments',
+      describeDiscardCost({ placed: 46, refereed: 3 }),
+      '46 scheduled matches and 3 referee assignments',
     );
   });
 
   it('never names a category that is empty', () => {
-    // "0 manual edits" in a warning reads as noise and teaches the organizer
-    // to skim the sentence that is meant to stop them.
-    const text = describeDiscardCost({ placed: 0, pinned: 5, refereed: 0 });
-    assert.equal(text, '5 manual edits');
+    const text = describeDiscardCost({ placed: 0, refereed: 5 });
+    assert.equal(text, '5 referee assignments');
     assert.ok(!text.includes('0 '));
   });
 
   it('singularises each category', () => {
     assert.equal(
-      describeDiscardCost({ placed: 1, pinned: 1, refereed: 1 }),
-      '1 scheduled match, 1 manual edit and 1 referee assignment',
+      describeDiscardCost({ placed: 1, refereed: 1 }),
+      '1 scheduled match and 1 referee assignment',
     );
   });
 

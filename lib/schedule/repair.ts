@@ -77,7 +77,6 @@ export function repair(placements: Placement[], ctx: SolverContext): RepairResul
 /** Could these two placements trade positions without changing how much of the
  *  grid they occupy, or introducing a net change nobody budgeted time for? */
 function exchangeable(a: Placement, b: Placement, ctx: SolverContext): boolean {
-  if (a.pinned || b.pinned) return false;             // pins are the organizer's word
   if (a.span !== b.span) return false;                 // would resize the booking
   if (a.courtIndex === b.courtIndex && a.slot.abs === b.slot.abs) return false;
 

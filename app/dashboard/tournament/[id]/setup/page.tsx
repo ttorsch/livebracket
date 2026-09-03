@@ -36,7 +36,7 @@ import {
   FileSpreadsheet,
   Download,
   Search,
-  Link2, Share2, RotateCcw, Archive
+  Link2, Share2, RotateCcw, Archive, Trophy
 } from 'lucide-react';
 import styles from './page.module.css';
 import DateRangePicker from '../../../../../components/DateRangePicker';
@@ -55,18 +55,18 @@ import {
   DIVISION_GENDERS, AGE_LIMITS, ageLimitLabel, normalizeGender, normalizeAgeLimit,
   type DivisionGender, type AgeLimit,
 } from '../../../../../lib/divisionEligibility';
-import { Button, Card, Badge, Icon } from '@/components/livebracket-ds';
+import { Button, Card, Badge, Icon, BracketIcon } from '@/components/livebracket-ds';
 import RosterFields, { type RosterPlayer } from '@/components/registration/RosterFields';
 import { SKILL_LEVELS } from '@/lib/registrationFields';
 import {
   BASE_REG_FIELDS, FORMAT_PLAYERS, targetFor, type RegField, type RegFieldType, type PresetKey,
 } from '../../../../../lib/registrationFields';
+import { ROUND_FORMAT_LABEL, type RoundFormat } from '../../../../../lib/roundFormat';
 
 
 // The registration schema types live in lib/registrationFields because the
 // public registration page renders the very list this page authors.
 type OnSandFormat = '2v2' | '3v3' | '4v4' | '6v6';
-type RoundFormat = 'round-robin' | 'single' | 'double';
 
 interface TournamentRound {
   id: string;
@@ -77,29 +77,27 @@ interface TournamentRound {
 
 const DEFAULT_MATCH_MINUTES = 45;
 
-const ROUND_FORMATS: { value: RoundFormat; label: string }[] = [
-  { value: 'round-robin', label: 'Round Robin' },
-  { value: 'single', label: 'Single Elimination' },
-  { value: 'double', label: 'Double Elimination' },
-];
+/* This picker is the only way a round gets a format, which is why the list
+   is exhaustive over RoundFormat rather than a hand-written subset: a format
+   the schema allows but this list forgets would be a format no organizer can
+   choose and every reader downstream still has to handle. Labels come from
+   the shared map so the picker and every screen that names a round back
+   agree by construction. */
+const ROUND_FORMAT_DESC: Record<RoundFormat, string> = {
+  'round-robin': 'Every team plays every team in its pool.',
+  single: 'One loss and a team is out.',
+  double: 'A loss drops teams to the lower bracket.',
+};
 
-const ROUND_FORMAT_CARDS: { value: RoundFormat; label: string; desc: string }[] = [
-  {
-    value: 'round-robin',
-    label: 'Round Robin',
-    desc: 'Every team plays every team in its pool.',
-  },
-  {
-    value: 'single',
-    label: 'Single Elimination',
-    desc: 'One loss and a team is out.',
-  },
-  {
-    value: 'double',
-    label: 'Double Elimination',
-    desc: 'A loss drops teams to the lower bracket.',
-  },
-];
+const ROUND_FORMAT_CARDS: { value: RoundFormat; label: string; desc: string }[] =
+  (Object.keys(ROUND_FORMAT_DESC) as RoundFormat[]).map(value => ({
+    value,
+    label: ROUND_FORMAT_LABEL[value],
+    desc: ROUND_FORMAT_DESC[value],
+  }));
+
+const ROUND_FORMATS: { value: RoundFormat; label: string }[] =
+  ROUND_FORMAT_CARDS.map(({ value, label }) => ({ value, label }));
 
 const roundLabel = (i: number) => `Round ${i + 1}`;
 
@@ -2002,46 +2000,15 @@ export default function OrganizerSetup() {
 
           {/* ── Basic Info & Setup Workspace (Design 2A Desktop View) ── */}
           <div className={styles.desktopOnly}>
-            {/* 1A header: eyebrow + title on the left, actions on the right */}
+            {/* 1A header: eyebrow + title on the left */}
             <div className={styles.setupHeaderRow}>
               <div>
                 <p className={styles.setupEyebrow}>Organizer</p>
                 <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
               </div>
-              <div className={styles.setupHeaderActions}>
-                {basicInfo && isPublic(basicInfo.phase as Phase) ? (
-                  <>
-                    <Button
-                      variant="general"
-                      size="medium"
-                      iconLeft={<Link2 size={15} />}
-                      onClick={copyLiveLink}
-                    >
-                      {liveLinkCopied ? 'Link copied' : 'Copy Live Link'}
-                    </Button>
-                    <Button variant="primary" size="medium" iconLeft={<Pencil size={15} />} onClick={openBasicInfoEdit}>
-                      Edit Tournament
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button variant="general" size="medium" iconLeft={<Pencil size={15} />} onClick={openBasicInfoEdit}>
-                      Edit Details
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="medium"
-                      iconLeft={<Globe size={15} />}
-                      onClick={() => setShowPublishModal(true)}
-                    >
-                      Publish Tournament
-                    </Button>
-                  </>
-                )}
-              </div>
             </div>
 
-            {/* 1A Header Card — poster, summary, and the event's seat total */}
+            {/* 1A Header Card — poster, summary, and action buttons */}
             <Card padding={0} radius="xl" className={styles.desktop2aHeaderCard}>
               <div className={styles.desktop2aHeaderCardBody}>
                 {/* The cover opens full size. Replacing it lives in the Edit
@@ -2084,18 +2051,65 @@ export default function OrganizerSetup() {
                       </div>
                     )}
                   </div>
-
                 </div>
 
-                {/* Seats across the whole event, not just the open division. */}
-                {seatTotals.cap > 0 && (
-                  <div className={styles.headerSeats}>
-                    <p className={styles.headerSeatsValue}>{seatTotals.filled}/{seatTotals.cap}</p>
-                    <p className={styles.headerSeatsLabel}>
-                      seats filled across {divisions.length} division{divisions.length === 1 ? '' : 's'}
-                    </p>
-                  </div>
-                )}
+                <div className={styles.cardActionsCol}>
+                  {basicInfo && isPublic(basicInfo.phase as Phase) ? (
+                    <>
+                      <Button
+                        variant="primary"
+                        size="medium"
+                        iconLeft={<Pencil size={15} />}
+                        onClick={openBasicInfoEdit}
+                        fullWidth
+                      >
+                        Edit Tournament
+                      </Button>
+                      <Button
+                        variant="general"
+                        size="medium"
+                        iconLeft={liveLinkCopied ? <Check size={15} /> : <Link2 size={15} />}
+                        onClick={copyLiveLink}
+                        fullWidth
+                      >
+                        {liveLinkCopied ? 'Link copied' : 'Copy Live Link'}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="primary"
+                        size="medium"
+                        iconLeft={<Globe size={15} />}
+                        onClick={() => setShowPublishModal(true)}
+                        fullWidth
+                      >
+                        Publish Tournament
+                      </Button>
+                      <Button
+                        variant="general"
+                        size="medium"
+                        iconLeft={<Pencil size={15} />}
+                        onClick={openBasicInfoEdit}
+                        fullWidth
+                      >
+                        Edit Details
+                      </Button>
+                    </>
+                  )}
+                  <Link
+                    href={`/dashboard/tournament/${slug}`}
+                    className={styles.cardGhostBtn}
+                  >
+                    <BracketIcon size={15} /> Bracket
+                  </Link>
+                  <Link
+                    href={`/dashboard/tournament/${slug}/schedule`}
+                    className={styles.cardGhostBtn}
+                  >
+                    <Calendar size={15} /> Schedule
+                  </Link>
+                </div>
               </div>
             </Card>
 

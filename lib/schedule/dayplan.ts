@@ -17,8 +17,7 @@
 // together and same-net-height divisions sharing court tracks.
 
 import type { CourtSpec, DayPlanStrategy, ScheduleConfig, SchedulableDivision } from './types.ts';
-import { autoDedicatedCourts, parseNetHeight } from './types.ts';
-import { isOpenToAnyone } from '../divisionEligibility.ts';
+import { autoDedicatedCourts, divisionGenderCohort, divisionGenderRank, parseNetHeight } from './types.ts';
 import type { Grid } from './grid.ts';
 import type { MatchGraph } from './graph.ts';
 
@@ -62,24 +61,16 @@ export function buildDayPlan(
     );
     quota.set(divisionId, row);
 
-    // Walk the division's matches in dependency order, filling one day's quota
-    // before moving to the next.
+    // Walk the division's matches in dependency order.
+    // Pool play and opening stages target the earliest available day (first).
+    // Finals target the last day when finalsOnLastDay is enabled.
+    // Artificial per-day minute quotas are retired so court time is filled greedily.
     const ordered = graph.order.filter(id => graph.nodes.get(id)!.divisionId === divisionId);
-    let day = first;
-    let used = 0;
     for (const id of ordered) {
       const node = graph.nodes.get(id)!;
-      // A whole level moves together: splitting one round across a day
-      // boundary mid-level would let half a pool round play on day two for no
-      // reason. Roll to the next day only between levels.
-      if (used > 0 && used + node.durationMinutes > perDay && day < last) {
-        day++;
-        used = 0;
-      }
       const isFinalRound = node.level === shape.maxLevel && shape.maxLevel > 0;
       const holdForFinals = config.finalsOnLastDay && days > 1 && isFinalRound;
-      targetDay.set(id, holdForFinals ? last : Math.min(day, last));
-      used += node.durationMinutes;
+      targetDay.set(id, holdForFinals ? last : first);
     }
 
     // A dependency can never be planned after the match that waits on it.
@@ -145,10 +136,6 @@ export function courtAffinity(
    *  time. The organizer's explicit override still wins over both. */
   appetite: Map<string, number> = new Map(),
 ): Map<string, Set<string>> {
-  // "Mixed" is now spelled "Anyone", and legacy rows still carry the old
-  // word — isOpenToAnyone reads both. See lib/divisionEligibility.
-  const isMixed = (d: SchedulableDivision) => isOpenToAnyone(d.gender);
-
   const groups = new Map<string, SchedulableDivision[]>();
   for (const d of divisions) {
     const h = parseNetHeight(d.netHeight);
@@ -163,72 +150,107 @@ export function courtAffinity(
     .sort((a, b) => b.volume - a.volume)
     .flatMap(g =>
       [...g.ds].sort((a, b) => {
-        const am = isMixed(a) ? 1 : 0;
-        const bm = isMixed(b) ? 1 : 0;
-        if (am !== bm) return am - bm;
+        const gA = divisionGenderRank({ gender: a.gender, label: a.label });
+        const gB = divisionGenderRank({ gender: b.gender, label: b.label });
+        if (gA !== gB) return gA - gB;
         if (a.matches.length !== b.matches.length) return b.matches.length - a.matches.length;
         return a.id < b.id ? -1 : 1;
       }),
     );
 
-  const want = ordered.map(div =>
+  const dedicated = ordered.map(div =>
     Math.max(
       1,
-      Math.min(
-        courts.length,
+      Math.trunc(
+        div.dedicatedCourts ?? appetite.get(div.id) ?? autoDedicatedCourts(div.pools),
+      ) || 1,
+    ),
+  );
+
+  const totalDedicated = dedicated.reduce((s, n) => s + n, 0);
+  const out = new Map<string, Set<string>>();
+  const hasCohort0 = ordered.some(d => divisionGenderCohort(d) === 0);
+  const cohort0Divs = ordered.filter(d => divisionGenderCohort(d) === 0);
+  const cohort1Divs = ordered.filter(d => divisionGenderCohort(d) === 1);
+
+  if (hasCohort0 && cohort0Divs.length > 0) {
+    const c0Dedicated = cohort0Divs.map(div =>
+      Math.max(
+        1,
         Math.trunc(
           div.dedicatedCourts ?? appetite.get(div.id) ?? autoDedicatedCourts(div.pools),
         ) || 1,
       ),
-    ),
-  );
-
-  // Appetites can add up to more than the venue — two divisions each wanting
-  // every court is a normal thing to want. Scale them back proportionally so
-  // the blocks below stay disjoint; a shared court belongs to nobody and ends
-  // up hosting every height, which is the churn this is here to prevent.
-  const total = want.reduce((s, n) => s + n, 0);
-  if (total > courts.length) {
-    let left = courts.length;
-    for (let i = 0; i < want.length; i++) {
-      const share = Math.max(1, Math.round((want[i] / total) * courts.length));
-      want[i] = Math.max(1, Math.min(share, left - (want.length - 1 - i)));
-      left -= want[i];
-    }
-  }
-
-  // Hand out any court nobody asked for, to whichever division is carrying the
-  // most matches per court it already has. Leaving courts unclaimed is what
-  // makes a schedule churn nets: matches spill onto them in whatever order they
-  // come up, and a court that belongs to nobody ends up hosting every height.
-  let spare = courts.length - want.reduce((s, n) => s + n, 0);
-  while (spare > 0) {
-    let pick = -1;
-    let heaviest = -1;
-    for (let i = 0; i < ordered.length; i++) {
-      if (want[i] >= courts.length || want[i] >= ordered[i].matches.length) continue;
-      const load = ordered[i].matches.length / want[i];
-      if (load > heaviest) {
-        heaviest = load;
-        pick = i;
+    );
+    let cursor = 0;
+    cohort0Divs.forEach((div, i) => {
+      const wantCount = c0Dedicated[i];
+      const prefer = new Set<string>();
+      if (wantCount >= courts.length) {
+        for (const c of courts) prefer.add(c.name);
+      } else {
+        for (let k = 0; k < wantCount; k++) {
+          prefer.add(courts[(cursor + k) % courts.length].name);
+        }
+        cursor = (cursor + wantCount) % courts.length;
       }
+      out.set(div.id, prefer);
+    });
+
+    // Cohort 1 (non-gendered) divisions play after Cohort 0 finishes and expand to full venue (Option B)
+    cohort1Divs.forEach(div => {
+      out.set(div.id, new Set(courts.map(c => c.name)));
+    });
+  } else if (totalDedicated <= courts.length) {
+    // Dedicated courts fit concurrently in the venue. Allocate disjoint contiguous court blocks.
+    let cursor = 0;
+    ordered.forEach((div, i) => {
+      const prefer = new Set<string>();
+      for (let k = 0; k < dedicated[i]; k++) {
+        prefer.add(courts[cursor % courts.length].name);
+        cursor++;
+      }
+      out.set(div.id, prefer);
+    });
+
+    // Hand out any spare court to whichever division has the highest load per court
+    let spare = courts.length - cursor;
+    while (spare > 0) {
+      let pick = -1;
+      let heaviest = -1;
+      for (let i = 0; i < ordered.length; i++) {
+        const set = out.get(ordered[i].id)!;
+        if (set.size >= courts.length || set.size >= ordered[i].matches.length) continue;
+        const load = ordered[i].matches.length / set.size;
+        if (load > heaviest) {
+          heaviest = load;
+          pick = i;
+        }
+      }
+      if (pick < 0) break;
+      out.get(ordered[pick].id)!.add(courts[cursor % courts.length].name);
+      cursor++;
+      spare--;
     }
-    if (pick < 0) break;
-    want[pick]++;
-    spare--;
+  } else {
+    // Total dedicated courts exceed the venue count, so divisions run in block waves.
+    // If a division has dedicated courts >= courts.length (or fits the full venue),
+    // it uses all courts during its wave without divisionSpread penalty.
+    let cursor = 0;
+    ordered.forEach((div, i) => {
+      const wantCount = dedicated[i];
+      const prefer = new Set<string>();
+      if (wantCount >= courts.length) {
+        for (const c of courts) prefer.add(c.name);
+      } else {
+        for (let k = 0; k < wantCount; k++) {
+          prefer.add(courts[(cursor + k) % courts.length].name);
+        }
+        cursor = (cursor + wantCount) % courts.length;
+      }
+      out.set(div.id, prefer);
+    });
   }
 
-  // Contiguous blocks, in the clustered order, so divisions needing the same
-  // net height end up on neighbouring courts.
-  const out = new Map<string, Set<string>>();
-  let cursor = 0;
-  ordered.forEach((div, i) => {
-    const prefer = new Set<string>();
-    for (let k = 0; k < want[i]; k++) {
-      prefer.add(courts[cursor % courts.length].name);
-      cursor++;
-    }
-    out.set(div.id, prefer);
-  });
   return out;
 }

@@ -25,9 +25,9 @@
 // a schedule can never be made illegal by a change of preference.
 
 import type {
+  BlockedPeriod,
   DayCapacity,
   DivisionDemand,
-  PinnedPlacement,
   Relaxation,
   ScheduleAssignment,
   ScheduleConfig,
@@ -45,7 +45,7 @@ import {
   type ScheduleMetrics,
   type SolverContext,
 } from './cost.ts';
-import { assignMatches, type PinConflict } from './assign.ts';
+import { assignMatches } from './assign.ts';
 import { repair } from './repair.ts';
 import { scheduleInventory, type Inventory } from './inventory.ts';
 
@@ -58,7 +58,7 @@ export { buildGrid, type Grid, type Slot, DAY_SPAN } from './grid.ts';
 export { buildDayPlan, courtAffinity, type DayPlan } from './dayplan.ts';
 export { buildStaging, type StagePhase, type StageWave, type Staging } from './staging.ts';
 export { evaluate, type Placement, type ScheduleMetrics, type SolverContext } from './cost.ts';
-export { assignMatches, hungarian, type PinConflict } from './assign.ts';
+export { assignMatches, hungarian } from './assign.ts';
 export { repair } from './repair.ts';
 export {
   validateSchedule,
@@ -87,6 +87,7 @@ export interface ScheduleResult {
   capacity: DayCapacity[];                             // supply vs use, per day
   demand: DivisionDemand[];                            // what each division needs
   backToBack: number;                                  // matches a team played with no gap
+  blocks?: BlockedPeriod[];                            // blocks including auto-generated Net Adjust periods
 
   // ── Diagnostics. A schedule you can argue with beats one you have to
   //    accept, so the generator explains itself rather than just answering. ──
@@ -94,8 +95,6 @@ export interface ScheduleResult {
   inventory: Inventory;
   /** Promises the solver had to break to place everything. Empty is ideal. */
   relaxations: Relaxation[];
-  /** Pins that could not be honoured, and why. */
-  pinConflicts: PinConflict[];
   /** Longest dependency chain — the floor on how long the event can take. */
   criticalPathMinutes: number;
   criticalPathMatches: number;
@@ -111,18 +110,10 @@ export interface ScheduleResult {
   plan: DayPlan;
 }
 
-export interface GenerateOptions {
-  /** Court/day/time an organizer fixed by hand. Honoured as hard constraints;
-   *  anything that cannot be honoured is reported in `pinConflicts` rather than
-   *  quietly dropped. */
-  pins?: PinnedPlacement[];
-}
-
 export function generateSchedule(
   divisions: SchedulableDivision[],
   rawConfig: Partial<ScheduleConfig>,
   days = 1,
-  options: GenerateOptions = {},
 ): ScheduleResult {
   const config = normaliseConfig(rawConfig);
   // The grid's resolution follows the lengths actually declared, so a
@@ -188,7 +179,7 @@ export function generateSchedule(
     maxTailMinutes,
   };
 
-  const assigned = assignMatches(ctx, options.pins ?? []);
+  const assigned = assignMatches(ctx);
   const repaired = repair(assigned.placements, ctx);
   const placements = repaired.placements;
   const metrics = repaired.metrics.placed > 0 ? repaired.metrics : evaluate(placements, ctx);
@@ -200,7 +191,6 @@ export function generateSchedule(
       court: p.courtName,
       day: p.slot.day,
       time: toHHMM(p.startAbs - p.slot.day * DAY_SPAN),
-      pinned: p.pinned,
     }))
     .sort((a, b) => a.day - b.day || a.time.localeCompare(b.time) || a.court.localeCompare(b.court));
 
@@ -251,6 +241,49 @@ export function generateSchedule(
     }
   }
 
+  // Generate Net Adjust blocks for consecutive matches on the same court with differing net heights
+  const netBlocks: BlockedPeriod[] = [];
+  if (config.netBufferMinutes > 0) {
+    const placementsByCourtDay = new Map<string, typeof placements>();
+    for (const p of placements) {
+      const key = `${p.courtName}-${p.slot.day}`;
+      const list = placementsByCourtDay.get(key);
+      if (list) list.push(p);
+      else placementsByCourtDay.set(key, [p]);
+    }
+
+    for (const list of placementsByCourtDay.values()) {
+      list.sort((a, b) => a.startAbs - b.startAbs);
+      for (let i = 0; i < list.length - 1; i++) {
+        const curr = list[i];
+        const next = list[i + 1];
+        const currNode = graph.nodes.get(curr.matchId);
+        const nextNode = graph.nodes.get(next.matchId);
+        const currHeight = currNode?.netHeight;
+        const nextHeight = nextNode?.netHeight;
+        if (currHeight != null && nextHeight != null && currHeight !== nextHeight) {
+          const currEnd = curr.startAbs + (currNode?.durationMinutes ?? 0);
+          if (next.startAbs >= currEnd) {
+            const bufferLen = Math.min(next.startAbs - currEnd, config.netBufferMinutes);
+            if (bufferLen >= 5) {
+              const startDayMin = currEnd - curr.slot.day * DAY_SPAN;
+              netBlocks.push({
+                court: curr.courtName,
+                day: curr.slot.day,
+                start: toHHMM(startDayMin),
+                end: toHHMM(startDayMin + bufferLen),
+                label: 'Net Adjust',
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const existingBlocks = (config.blocks ?? []).filter(b => b.label !== 'Net Adjust');
+  const blocks = [...existingBlocks, ...netBlocks];
+
   return {
     assignments,
     overflow,
@@ -263,11 +296,11 @@ export function generateSchedule(
     capacity,
     demand: inventory.demand,
     backToBack: metrics.backToBack,
+    blocks,
 
     metrics,
     inventory,
     relaxations: assigned.relaxations,
-    pinConflicts: assigned.pinConflicts,
     criticalPathMinutes: graph.criticalPathMinutes,
     criticalPathMatches: graph.criticalPathMatches,
     bottleneck,

@@ -56,6 +56,15 @@ One place against a division's `division_team_cap`. Waitlisted teams hold none.
 **Round**:
 An ordered stage within a division — pool play first, then the knockout rounds.
 
+**Round format**:
+What kind of competition a round is: a round robin, a single elimination, or a
+double elimination. Whether a round robin is played in pools is *not* part of
+the format — that is the pool count on the draw. One pool is a round robin;
+several pools is pool play; both are the same format.
+_Avoid_: "Pool Play" as a format. It was a fourth name meaning the same as
+Round Robin, and the two were not treated the same, so the more obvious name
+produced the wrong behaviour.
+
 **Match**:
 One fixture between two sides. A side may be unknown: a team, a pool position,
 or nothing yet.
@@ -199,6 +208,63 @@ A venue-wide stop. Every court, every day, nobody plays.
 **Overflow**:
 A match the generator could not fit before the end of the last day. A reportable
 outcome, not an error.
+
+**Rotation ceiling**:
+The most courts a division's pool play can be given while no team plays back to
+back — half its pools on court, each running as many matches at once as its
+teams allow. A ceiling and not a target: fewer courts is always safe and simply
+takes longer, while the only way to fill more is to put the resting half back on
+court. What a wide venue offers beyond it belongs to another division.
+
+**Reservation**:
+The exclusive allocation of a specific block of courts to a division during its
+pool play turn. While reserved, only that division plays on those courts (except
+for temporary borrowing by an unreserved/idle match sharing the exact same net
+height), ensuring nets remain static and divisions stay together.
+_Avoid_: Affinity, dedication.
+
+**Handover**:
+The point at which a division finishes a round or stage on its reserved courts
+and transfers those courts to the next division (or to the open endgame pool).
+Net changes happen at handovers, where the net buffer is absorbed across the
+court block simultaneously.
+
+**Turn**:
+One entire round or stage within a division (a pool round robin, round of 16,
+quarterfinal, semifinal). A division holds its reserved courts for the duration
+of a turn and transfers them to the next division or to the open endgame pool at
+a *handover*.
+
+**Wave**:
+A synchronized group of matches that start together on court within a turn while
+other teams or pools rest.
+
+**Rest partner**:
+The pools that play while a given pool sits out. Half a division's pools are on
+court and half are resting, so a pool's *rest* is its partner's time on court —
+which is why the rest is a property of the arrangement and never has to be
+bought with an empty court.
+
+**Rest**:
+A whole match between two of a team's own matches. Two-state: a team either had
+one or it did not, and there is nothing in between. Never counted in minutes,
+and never manufactured by holding court time empty on purpose — rest comes from
+the arrangement, from half a division playing while the other half sits.
+
+**Back-to-back**:
+A team's next match starting with no rest before it. The thing the generator
+exists to avoid, and the last promise it gives up.
+
+**Given-up promise**:
+A rule the generator abandoned so that everything would fit. A fact about the
+whole event, and the answer to *why does the schedule look like this*.
+_Avoid_: relaxation, which is what the code calls it.
+
+**Problem**:
+Something wrong with one particular match on a schedule that already exists — a
+clash, a missing break, a match before the one it depends on. A thing to go and
+fix, never a reason. Distinct from a given-up promise, which explains rather
+than accuses.
 
 **Drift**:
 The projection of a running event once matches start going long, against the

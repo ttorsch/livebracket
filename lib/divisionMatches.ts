@@ -7,6 +7,7 @@
 // one rule for what an undecided side reads as.
 
 import type { CrossSlot, DetailDivision, DetailMatch, DetailRound } from './data';
+import { isKnockoutFormat } from './roundFormat.ts';
 
 const POOL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -42,8 +43,12 @@ export function crossLabel(slot: CrossSlot): string {
   return `#${slot.rank} Pool ${slot.pool}`;
 }
 
+/* Reads the one shared answer rather than repeating it — this used to
+   spell out `'single' || 'double'` for itself, which is how the codebase
+   ended up with two knockout tests and, worse, three disagreeing pool
+   tests. See lib/roundFormat. */
 export function isKnockoutRound(round: DetailRound): boolean {
-  return round.format === 'single' || round.format === 'double';
+  return isKnockoutFormat(round.format);
 }
 
 /* The play-off for 3rd, identified by the edge that defines it: it is the one

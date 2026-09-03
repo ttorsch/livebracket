@@ -376,7 +376,7 @@ describe('generateSchedule', () => {
     const result = generateSchedule([makeDivision('m', 6)], config({ courtCount: 3 }), 1);
     assertSound(result, 'rest impossible');
     assert.ok(
-      result.relaxations.includes('restIsHard') || result.overflow.length > 0,
+      result.relaxations.includes('backToBack') || result.overflow.length > 0,
       'either it reports breaking the rest rule, or it reports what did not fit',
     );
   });
@@ -448,42 +448,6 @@ describe('generateSchedule', () => {
   });
 });
 
-// ── Pinning ───────────────────────────────────────────────────────────────
-
-describe('pinned placements', () => {
-  it('honours a pin and schedules around it', () => {
-    const divisions = [makeDivision('m', 5)];
-    const pin = { matchId: 'm-p0-1', court: 'Court 3', day: 0, time: '11:15' };
-    const result = generateSchedule(divisions, config(), 1, { pins: [pin] });
-    assertSound(result, 'pinned');
-
-    const placed = result.placements.find(p => p.matchId === pin.matchId)!;
-    assert.equal(placed.courtName, 'Court 3');
-    assert.equal(placed.slot.day, 0);
-    assert.equal(placed.pinned, true);
-    assert.deepEqual(result.pinConflicts, []);
-  });
-
-  it('reports a pin it cannot honour instead of quietly moving it', () => {
-    const result = generateSchedule([makeDivision('m', 4)], config(), 1, {
-      pins: [{ matchId: 'm-p0-1', court: 'Court 99', day: 0, time: '10:00' }],
-    });
-    assert.equal(result.pinConflicts.length, 1);
-    assert.match(result.pinConflicts[0].reason, /No court named/);
-  });
-
-  it('refuses two pins fighting over the same court and slot', () => {
-    const result = generateSchedule([makeDivision('m', 5)], config(), 1, {
-      pins: [
-        { matchId: 'm-p0-1', court: 'Court 1', day: 0, time: '10:30' },
-        { matchId: 'm-p0-2', court: 'Court 1', day: 0, time: '10:30' },
-      ],
-    });
-    assert.equal(result.pinConflicts.length, 1);
-    assert.match(result.pinConflicts[0].reason, /already taken/);
-    assertSound(result, 'conflicting pins');
-  });
-});
 
 // ── Lunch ─────────────────────────────────────────────────────────────────
 
@@ -807,6 +771,44 @@ describe('pool-play rotation', () => {
     assert.equal(plan(4, 5, 4).optimalCourts, 4, '5 a pool → ⌊5/2⌋ = 2 each, one team rests');
   });
 
+  it('gives an odd pool no courts of its own — three pools pair as two', () => {
+    // Pools pair up and alternate, so the pairing is what is halved, not the
+    // court total. Three pools of four make one pair and a spare: the spare
+    // joins the rotation rather than earning courts of its own, so the division
+    // is comfortable at two courts, exactly as two pools of four are.
+    //
+    // The arithmetic used to halve the product instead — ⌊2 × 3 ÷ 2⌋ = 3 — and
+    // three courts is a width the rotation can never run at, because pools are
+    // taken whole and each wants two.
+    const plan = planPoolPlay(
+      'd',
+      [...buildGraph([pooled('d', 3, 4)], 45).nodes.values()].filter(n => n.isPool),
+      8,
+    )!;
+    assert.equal(plan.optimalCourts, 2, 'three pools of four are comfortable at two courts');
+    assert.equal(plan.poolsAtOnce, 1, 'one pool at a time');
+    for (const wave of plan.waves) assert.equal(wave.length, 2, 'two matches, one pool');
+  });
+
+  it('never runs wider than the courts the division is comfortable at', () => {
+    // The ceiling exists to prevent back-to-back play, so a roomy venue must
+    // not tempt the rotation past it: four pools of four are comfortable at
+    // four courts, and eight on offer changes nothing.
+    const plan = planPoolPlay(
+      'd',
+      [...buildGraph([pooled('d', 4, 4)], 45).nodes.values()].filter(n => n.isPool),
+      8,
+    )!;
+    assert.equal(plan.optimalCourts, 4, 'four pools of four are comfortable at four courts');
+    assert.equal(plan.poolsAtOnce, 2, 'two pools at a time, not all four');
+    for (const wave of plan.waves) {
+      assert.ok(
+        wave.length <= plan.optimalCourts,
+        `a turn of ${wave.length} matches overruns the ${plan.optimalCourts}-court ceiling`,
+      );
+    }
+  });
+
   it('plays half the pools at full capacity, then the other half', () => {
     const plan = planPoolPlay(
       'd',
@@ -831,6 +833,21 @@ describe('pool-play rotation', () => {
     for (const wave of plan.waves) assert.equal(wave.length, 2, 'two matches, one pool');
   });
 
+  it('holds a pool turn back rather than letting it start out of turn', () => {
+    // The rotation is only a guarantee if it is binding. Four pools of four on
+    // six courts: the ceiling says four courts, so the two courts left over
+    // must stay empty until the turn on court has finished — filling them with
+    // the *next* turn is the back-to-back play the rotation exists to prevent.
+    const result = generateSchedule([pooled('a', 4, 4, '2.43m')], config({ courtCount: 6 }), 2);
+    assertSound(result, 'binding rotation');
+    assert.equal(result.backToBack, 0, 'no team should play back to back');
+
+    const bySlot = new Map<number, number>();
+    for (const p of result.placements) bySlot.set(p.slot.abs, (bySlot.get(p.slot.abs) ?? 0) + 1);
+    const busiest = Math.max(...bySlot.values());
+    assert.ok(busiest <= 4, `${busiest} courts in use at once, over the four-court ceiling`);
+  });
+
   it('gives every team a rest between pool matches', () => {
     const result = generateSchedule([pooled('d', 4, 4)], config({ courtCount: 4 }), 2);
     assertSound(result, 'pool rotation');
@@ -841,76 +858,264 @@ describe('pool-play rotation', () => {
     );
   });
 
-  it('uses the courts it has rather than leaving them bare', () => {
-    // Four pools of four on six courts. The rotation is comfortable at four, but
-    // two courts standing empty for the whole round robin is worse than a short
-    // gap, so it widens to fill them.
+  it('leaves the courts past its ceiling standing, for another division to take', () => {
+    // Four pools of four on six courts. The rotation is comfortable at four, so
+    // two courts stand empty for the whole round robin. This used to be read as
+    // waste and the rotation widened to fill them, at the price of every team
+    // playing back to back — see the turn-holding test above.
+    //
+    // Left bare on purpose, and only affordable because a *second* division is
+    // meant to be playing on them. Until divisions take turns those two courts
+    // really are idle: this test is the signpost, and the ticket that fills
+    // them is `04-divisions-take-turns`, which will have to change it.
     const result = generateSchedule([pooled('a', 4, 4, '2.43m')], config({ courtCount: 6 }), 2);
-    assertSound(result, 'wide rotation');
+    assertSound(result, 'ceilinged rotation');
 
     const bySlot = new Map<number, number>();
     for (const p of result.placements) bySlot.set(p.slot.abs, (bySlot.get(p.slot.abs) ?? 0) + 1);
     const busiest = Math.max(...bySlot.values());
-    assert.ok(busiest > 4, `only ${busiest} courts ever in use out of 6`);
+    assert.equal(busiest, 4, 'the rotation fills its four-court ceiling and no more');
+    assert.equal(result.backToBack, 0, 'and nobody plays back to back to fill the other two');
   });
 
-  it('lets one division finish its round robin before another starts, so nets stay put', () => {
-    // Two heights, so a court used by both divisions is re-rigged exactly once,
-    // when the venue changes hands. That handover is the floor — what taking
-    // turns buys is that it happens once per court instead of every turn.
-    const result = generateSchedule(
-      [pooled('a', 4, 4, '2.43m'), pooled('b', 2, 4, '2.24m')],
-      config({ courtCount: 4 }),
-      2,
-    );
-    assertSound(result, 'division blocks');
-
-    const byCourt = new Map<string, typeof result.placements>();
-    for (const p of [...result.placements].sort((x, y) => x.startAbs - y.startAbs)) {
-      const list = byCourt.get(p.courtName);
-      if (list) list.push(p);
-      else byCourt.set(p.courtName, [p]);
-    }
-    let flips = 0;
-    for (const ps of byCourt.values()) {
-      let height: number | null = null;
-      for (const p of ps) {
-        const h = result.graph.nodes.get(p.matchId)!.netHeight;
-        if (h == null) continue;
-        if (height != null && height !== h) flips++;
-        height = h;
-      }
-    }
-    assert.ok(
-      flips <= result.grid.courts.length,
-      `pool play should re-rig each court at most once, needed ${flips} changes over ${result.grid.courts.length} courts`,
-    );
-
-    // And the handover really is a handover: one division's round robin is over
-    // before the other's begins.
-    const window = (prefix: string) => {
-      const ps = result.placements.filter(p => p.matchId.startsWith(prefix));
-      return { start: Math.min(...ps.map(p => p.startAbs)), end: Math.max(...ps.map(p => p.endAbs)) };
-    };
-    const a = window('a-');
-    const b = window('b-');
-    assert.ok(
-      a.end <= b.start || b.end <= a.start,
-      `the two round robins overlap: a ${a.start}-${a.end}, b ${b.start}-${b.end}`,
-    );
+  it('starts a division with 4 dedicated courts on all 4 courts at 9:00 AM on day one', () => {
+    const div = pooled('men', 4, 4, '2.43m');
+    div.gender = 'Men';
+    div.dedicatedCourts = 4;
+    const result = generateSchedule([div], config({ courtCount: 4, startTime: '09:00' }), 1);
+    assertSound(result, 'dedicated 4 courts');
+    const firstSlot = result.assignments.filter(a => a.day === 0 && a.time === '09:00');
+    assert.equal(firstSlot.length, 4, 'all 4 courts should be in use at 09:00 AM on day one');
+    const courtsUsed = new Set(firstSlot.map(a => a.court));
+    assert.equal(courtsUsed.size, 4, 'should occupy all 4 distinct courts');
   });
 
-  it('schedules the division that exactly fills the venue first', () => {
-    // Four pools of four wants exactly four courts; two pools of four wants two.
-    // With four courts on offer the first is the one that can be dense *and*
-    // back-to-back free, so it should be planned before the other.
-    const graph = buildGraph([pooled('small', 2, 4), pooled('exact', 4, 4)], 45);
+  it('runs full-venue division serially to completion before next division starts (Ticket 04)', () => {
+    const men = pooled('men', 4, 4, '2.43m');
+    men.gender = 'Men';
+    men.dedicatedCourts = 4;
+    const women = pooled('women', 4, 4, '2.24m');
+    women.gender = 'Women';
+    women.dedicatedCourts = 4;
+
+    const result = generateSchedule([men, women], config({ courtCount: 4, netBufferMinutes: 0 }), 2);
+    assertSound(result, 'serial turns on full venue');
+
+    // Men occupies all 4 courts until its pool play is completely finished
+    const menPlacements = result.assignments.filter(a => a.matchId.startsWith('men-'));
+    const womenPlacements = result.assignments.filter(a => a.matchId.startsWith('women-'));
+
+    assert.equal(menPlacements.length, 24, 'Men has 24 pool matches (4 pools of 4)');
+    assert.equal(womenPlacements.length, 24, 'Women has 24 pool matches (4 pools of 4)');
+
+    // Men runs its 6 rounds (09:00 through 13:45, skipping 12:00-13:00 lunch) exclusively
+    const menSlots = ['09:00', '09:45', '10:30', '11:15', '13:00', '13:45'];
+    for (const time of menSlots) {
+      const slot = result.assignments.filter(a => a.day === 0 && a.time === time);
+      assert.equal(slot.length, 4, `4 courts active at ${time}`);
+      assert.ok(slot.every(a => a.matchId.startsWith('men-')), `all matches at ${time} are Men`);
+    }
+
+    // Women starts only after Men finishes
+    const day0WomenTimes = new Set(
+      womenPlacements.filter(a => a.day === 0).map(a => a.time),
+    );
+    for (const time of menSlots) {
+      assert.ok(!day0WomenTimes.has(time), `Women should not play during Men turn at ${time} on Day 0`);
+    }
+
+    assert.equal(result.backToBack, 0, 'zero back-to-back play');
+  });
+
+  it('concurrently starts divisions when their dedicated court counts fit available courts', () => {
+    const divA = pooled('divA', 4, 4);
+    divA.gender = 'Men';
+    divA.dedicatedCourts = 4;
+    const divB = pooled('divB', 2, 4);
+    divB.gender = 'Women';
+    divB.dedicatedCourts = 2;
+
+    const result = generateSchedule([divA, divB], config({ courtCount: 6 }), 1);
+    assertSound(result, 'concurrent dedicated fit');
+
+    const slot0 = result.assignments.filter(a => a.day === 0 && a.time === '09:00');
+    assert.equal(slot0.length, 6, 'all 6 courts should be active at 09:00');
+    const divAInSlot0 = slot0.filter(a => a.matchId.startsWith('divA-'));
+    const divBInSlot0 = slot0.filter(a => a.matchId.startsWith('divB-'));
+    assert.equal(divAInSlot0.length, 4, 'divA uses 4 courts at 09:00');
+    assert.equal(divBInSlot0.length, 2, 'divB uses 2 courts at 09:00');
+  });
+
+  it('enforces rest as a hard filter in pool play when multiple pools exist (Ticket 04)', () => {
+    const div = pooled('p', 4, 4, '2.43m');
+    const result = generateSchedule([div], config({ courtCount: 4 }), 1);
+    assertSound(result, 'universal pool rest');
+    assert.equal(result.backToBack, 0, 'zero back to back matches in pool play');
+    assert.ok(result.metrics.tightestRestMinutes >= 45, 'every team gets at least a match length of rest');
+  });
+
+  it('lets a single-pool division play flat out without refusal (Ticket 04 & 10)', () => {
+    const div = pooled('single', 1, 4, '2.43m');
+    const result = generateSchedule([div], config({ courtCount: 2 }), 1);
+    assertSound(result, 'single pool plays flat out');
+    assert.equal(result.overflow.length, 0, 'all pool matches are placed');
+    assert.equal(result.placements.length, 6, 'all 6 round-robin matches placed');
+  });
+
+  it('absorbs net buffer across all reserved courts synchronously at handover (Ticket 04)', () => {
+    const men = pooled('men', 4, 4, '2.43m');
+    men.gender = 'Men';
+    men.dedicatedCourts = 4;
+    const women = pooled('women', 4, 4, '2.24m');
+    women.gender = 'Women';
+    women.dedicatedCourts = 4;
+
+    const result = generateSchedule([men, women], config({ courtCount: 4, netBufferMinutes: 15 }), 2);
+    assertSound(result, 'synchronous handover buffer');
+
+    const menPlacements = result.placements.filter(p => p.matchId.startsWith('men-'));
+    const womenPlacements = result.placements.filter(p => p.matchId.startsWith('women-'));
+
+    const menEnd = Math.max(...menPlacements.map(p => p.endAbs));
+    const womenStart = Math.min(...womenPlacements.map(p => p.startAbs));
+
+    assert.ok(
+      womenStart >= menEnd + 15,
+      `Women should wait for the 15-minute net change buffer: Men end at ${menEnd}, Women start at ${womenStart}`,
+    );
+
+    // All 4 courts of the incoming division start synchronously after net change
+    const firstWomenSlot = result.placements.filter(p => p.matchId.startsWith('women-') && p.startAbs === womenStart);
+    assert.equal(firstWomenSlot.length, 4, 'all 4 courts of Women start synchronously after net change');
+  });
+
+  it('orders wave priority by standard gender precedence: Men -> Women -> Mixed -> 4x4', () => {
+    const mixed = pooled('mix', 4, 4);
+    mixed.gender = 'Anyone';
+    mixed.label = 'MIXED OPEN';
+    const quads = pooled('quad', 4, 4);
+    quads.gender = 'Anyone';
+    quads.label = 'COED 4X4';
+    const women = pooled('wom', 4, 4);
+    women.gender = 'Women';
+    const men = pooled('men', 4, 4);
+    men.gender = 'Men';
+
+    const graph = buildGraph([quads, mixed, women, men], 45);
     const staging = buildStaging(graph, 4, true);
-    assert.equal(
-      staging.poolPlans[0].divisionId,
-      'exact',
-      'the division whose optimum matches the venue should be planned first',
+
+    const planDivs = staging.poolPlans.map(p => p.divisionId);
+    assert.deepEqual(planDivs, ['men', 'wom', 'mix', 'quad']);
+  });
+
+  it('correctly partitions 2 dedicated courts for Men and 2 for Women on a 4-court venue at 09:00', () => {
+    const men = pooled('men', 2, 4, '2.43m');
+    men.gender = 'Men';
+    men.dedicatedCourts = 2;
+    const women = pooled('women', 2, 4, '2.24m');
+    women.gender = 'Women';
+    women.dedicatedCourts = 2;
+    const mixed = pooled('mixed', 2, 4, '2.43m');
+    mixed.gender = 'Anyone';
+    mixed.dedicatedCourts = 2;
+
+    const result = generateSchedule([men, women, mixed], config({ courtCount: 4 }), 2);
+    assertSound(result, '2+2 dedicated courts');
+
+    const slot0 = result.assignments.filter(a => a.day === 0 && a.time === '09:00');
+    assert.equal(slot0.length, 4, '4 courts active at 09:00');
+
+    const menInSlot0 = slot0.filter(a => a.matchId.startsWith('men-'));
+    const womenInSlot0 = slot0.filter(a => a.matchId.startsWith('women-'));
+    const mixedInSlot0 = slot0.filter(a => a.matchId.startsWith('mixed-'));
+
+    assert.equal(menInSlot0.length, 2, 'Men should have exactly 2 matches on its 2 dedicated courts at 09:00');
+    assert.equal(womenInSlot0.length, 2, 'Women should have exactly 2 matches on its 2 dedicated courts at 09:00');
+    assert.equal(mixedInSlot0.length, 0, 'Mixed should wait for its wave turn');
+
+    const menCourts = new Set(menInSlot0.map(a => a.court));
+    const womenCourts = new Set(womenInSlot0.map(a => a.court));
+
+    assert.deepEqual(menCourts, new Set(['Court 1', 'Court 2']));
+    assert.deepEqual(womenCourts, new Set(['Court 3', 'Court 4']));
+  });
+
+  it('schedules Men and Women all pool play first, then Mixed afterward at its own ceiling', () => {
+    const men = pooled('men', 2, 4, '2.43m');
+    men.gender = 'Men';
+    men.dedicatedCourts = 2;
+    const women = pooled('women', 2, 4, '2.24m');
+    women.gender = 'Women';
+    women.dedicatedCourts = 2;
+    const mixed = pooled('mixed', 2, 4, '2.43m');
+    mixed.gender = 'Anyone';
+    mixed.dedicatedCourts = 2;
+
+    const result = generateSchedule([men, women, mixed], config({ courtCount: 4, netBufferMinutes: 0 }), 2);
+    assertSound(result, 'cohort staging');
+
+    const menPlacements = result.placements.filter(p => p.matchId.startsWith('men-'));
+    const womenPlacements = result.placements.filter(p => p.matchId.startsWith('women-'));
+    const mixedPlacements = result.placements.filter(p => p.matchId.startsWith('mixed-'));
+
+    const maxCohort0End = Math.max(
+      ...menPlacements.map(p => p.endAbs),
+      ...womenPlacements.map(p => p.endAbs),
     );
+    const minMixedStart = Math.min(...mixedPlacements.map(p => p.startAbs));
+
+    assert.ok(
+      minMixedStart >= maxCohort0End,
+      `Mixed should start only after Men and Women finish pool play: Mixed starts at ${minMixedStart}, Men/Women end at ${maxCohort0End}`,
+    );
+
+    // Mixed has the venue to itself once the gendered cohort is done, but two
+    // pools of four are comfortable at two courts: pool A plays, then pool B.
+    // Expanding to all four would put both pools on at once, which is every
+    // Mixed team playing back to back. An empty venue is not a reason to.
+    const mixedFirstSlot = result.placements.filter(p => p.startAbs === minMixedStart && p.matchId.startsWith('mixed-'));
+    const mixedCourts = new Set(mixedFirstSlot.map(p => p.courtName));
+    assert.equal(mixedCourts.size, 2, 'Mixed runs a pool at a time, not both at once');
+    assert.equal(result.backToBack, 0, 'no team plays back to back');
+  });
+
+  it('fills Day 0 afternoon through closing around a midday heat break rather than stopping early', () => {
+    // In outdoor tournaments, a 12:00-15:00 midday heat break is standard.
+    // The scheduler must not artificially cut off Day 0 matches around 13:30 due to
+    // an artificial per-day quota, leaving the afternoon empty.
+    const men = pooled('men', 2, 4, '2.43m');
+    men.gender = 'Men';
+    men.dedicatedCourts = 2;
+    const women = pooled('women', 2, 4, '2.24m');
+    women.gender = 'Women';
+    women.dedicatedCourts = 2;
+    const mixed = pooled('mixed', 2, 4, '2.43m');
+    mixed.gender = 'Anyone';
+    mixed.dedicatedCourts = 2;
+
+    const cfg = config({
+      courtCount: 4,
+      startTime: '09:00',
+      endTime: '17:00',
+      lunchStart: '12:00',
+      lunchEnd: '15:00',
+      netBufferMinutes: 0,
+    });
+
+    const result = generateSchedule([men, women, mixed], cfg, 2);
+    assertSound(result, 'greedy day 0 filling');
+
+    // Day 0 afternoon (15:00-17:00) must be actively utilized
+    const day0Afternoon = result.placements.filter(p => p.slot.day === 0 && p.startAbs >= 900); // 900 = 15:00
+    assert.ok(
+      day0Afternoon.length > 0,
+      'Day 0 afternoon (15:00-17:00) should have matches scheduled rather than remaining idle',
+    );
+
+    // Day 0 morning at 09:00 must only have Men and Women on their dedicated courts, never Mixed
+    const day0Morning = result.placements.filter(p => p.slot.day === 0 && p.slot.index === 0);
+    const mixedAt0900 = day0Morning.filter(p => p.matchId.startsWith('mixed-'));
+    assert.equal(mixedAt0900.length, 0, 'Mixed pool play must not start at 09:00 while Men & Women pool play is active');
   });
 });
 
@@ -957,6 +1162,14 @@ describe('validating a hand-edited schedule', () => {
     const problems = check([at('m-p0-1', 'Court 1', 540), at('m-p0-2', 'Court 2', 585)]);
     assert.ok(problems.some(p => p.kind === 'shortRest'), 'expected a short-rest problem');
     assert.ok(!problems.some(p => p.kind === 'teamClash'), 'back to back is tight, not impossible');
+  });
+
+  it('reports walk straight back on when feeder match ends at dependent match start', () => {
+    // Semifinal ends at 585 (540 + 45), final starts at 585
+    const problems = check([at('m-k2-0', 'Court 1', 540), at('m-k3-0', 'Court 2', 585)]);
+    const rest = problems.find(p => p.kind === 'shortRest' && p.matchId === 'm-k3-0');
+    assert.ok(rest, 'expected a short-rest problem on the final');
+    assert.match(rest.message, /walks straight back on/);
   });
 
   it('catches a match dragged off the end of the day', () => {
