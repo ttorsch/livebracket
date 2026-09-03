@@ -43,6 +43,13 @@ export interface AxisConfig {
    *  `collapsed`. Which court and which day a block falls on is the view's
    *  business, not the axis's. */
   blocks?: BlockedPeriod[];
+  /** True while the organizer is editing by hand.
+   *
+   *  The break only opens to true scale for someone who can put something in
+   *  it. Reading a published schedule, an hour of announced emptiness costs
+   *  about half a phone screen and says nothing the banner has not; dragging a
+   *  card, it is the difference between a target and a seam. */
+  editing?: boolean;
 }
 
 /** A placed match, as the axis needs to see it. */
@@ -172,7 +179,7 @@ export function buildCalendarAxis(config: AxisConfig, items: AxisItem[]): Calend
         startMin: lunch.start,
         minutes: lunch.end - lunch.start,
         kind: 'lunch',
-        collapsed: !occupies(lunch, items, config.blocks ?? []),
+        collapsed: !(config.editing && occupies(lunch, items, config.blocks ?? [])),
       });
     }
     /* Each run lays its rows from its own start — that is the whole point, and

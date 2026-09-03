@@ -1530,6 +1530,9 @@ export default function TournamentSchedulePage() {
         lunchStart: config?.lunchStart,
         lunchEnd: config?.lunchEnd,
         blocks: preview?.blocks ?? config?.blocks,
+        /* The break is a seam to read and a target to drop onto. Only the
+           second needs its true height. */
+        editing: editMode,
       },
       allMatches.flatMap(m => {
         if (m.unscheduled) return [];
@@ -1629,10 +1632,12 @@ export default function TournamentSchedulePage() {
          up — but its *length* is set by whichever day runs latest, and drawing
          all of them that tall gave a day that finished at five o'clock three
          hours of announced emptiness underneath it. So the ruler is shared and
-         the height is not: a day is drawn down to the configured closing time,
-         and past it only as far as its own matches actually reach.
-         The Unscheduled column may still make it taller — it is a stack rather
-         than a timeline, and can be longer than the day it sits beside. */
+         the height is not: a day stops at its own last match.
+         A day with nothing on it still shows the configured day, because that
+         is the one case where the empty rows are the answer rather than
+         padding. And the Unscheduled column may make it taller — it is a stack
+         rather than a timeline, and can be longer than the day it sits
+         beside. */
       const closeRows = axis.rows.reduce(
         (last, row, i) => (row.startMin < dayEndMin ? i + 1 : last),
         1,
@@ -1641,7 +1646,7 @@ export default function TournamentSchedulePage() {
       const maxUnscheduledSlot = unscheduledBlocks.reduce((max, b) => Math.max(max, b.startSlot + b.spanSlots), 0);
       const slots = Math.min(
         axis.slots,
-        Math.max(closeRows, usedRows, maxUnscheduledSlot),
+        Math.max(usedRows === 0 ? closeRows : usedRows, maxUnscheduledSlot),
       );
 
       // Court time taken off the board by hand, mapped onto this day's rows.

@@ -184,7 +184,7 @@ export function generateSchedule(
   }
 
   const kept = (config.blocks ?? []).filter(b => b.label !== 'Net Adjust');
-  const blocks = [...kept, ...netAdjustBlocks(placements, config)];
+  const blocks = [...kept, ...netAdjustBlocks(placements, config, grid)];
 
   return {
     assignments,
@@ -217,9 +217,10 @@ export function generateSchedule(
  *  organizer can see where the crew is working rather than wondering why a
  *  court stands empty for a quarter of an hour. Derived from the finished
  *  schedule and never stored — the next generate works them out again. */
-function netAdjustBlocks(placements: Placement[], config: ScheduleConfig): BlockedPeriod[] {
+function netAdjustBlocks(placements: Placement[], config: ScheduleConfig, grid: Grid): BlockedPeriod[] {
   if (!(config.netBufferMinutes > 0)) return [];
   const out: BlockedPeriod[] = [];
+  const lunch = grid.lunch;
 
   const byCourtDay = new Map<string, Placement[]>();
   for (const p of placements) {
@@ -238,6 +239,12 @@ function netAdjustBlocks(placements: Placement[], config: ScheduleConfig): Block
       const length = Math.min(gap, config.netBufferMinutes);
       if (length < 5) continue;
       const from = list[i].endAbs - list[i].day * DAY_SPAN;
+      // Nobody is waiting for a court during the break, so nobody is moving a
+      // net in it either — the crew has the whole of lunch to do it in. A
+      // marker drawn there is a claim about work that is not happening, and it
+      // also holds the lunch row open at full height for an hour of announced
+      // emptiness.
+      if (lunch && from < lunch.end && lunch.start < from + length) continue;
       out.push({
         court: list[i].courtName,
         day: list[i].day,

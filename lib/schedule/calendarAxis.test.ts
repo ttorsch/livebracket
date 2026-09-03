@@ -228,33 +228,42 @@ describe('a day with lunch in it', () => {
 /* The lunch row's height.
  *
  * An hour of announced emptiness costs about half a phone screen and says
- * nothing the banner does not. So the row collapses to a seam — but only while
- * it is genuinely empty, because an organizer may type any time they like and a
- * blocked period may overlap the break. */
-describe('the lunch row collapses only while nothing is in it', () => {
+ * nothing the banner does not, so the row collapses to a seam. It opens to
+ * true scale only for someone who can actually put something in it — that is,
+ * while the organizer is editing by hand. Reading a published schedule, the
+ * break is a seam; dragging a card, it is the difference between a target and
+ * a line. */
+describe('the lunch row is a seam unless the organizer is editing', () => {
+  const editing = { ...LUNCH_DAY, editing: true };
+
   it('collapses when the break is empty', () => {
-    const axis = buildCalendarAxis(LUNCH_DAY, [at('09:00'), at('13:00')]);
+    const axis = buildCalendarAxis(editing, [at('09:00'), at('13:00')]);
+    assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, true);
+  });
+
+  it('stays a seam while reading, whatever is in the break', () => {
+    const axis = buildCalendarAxis(LUNCH_DAY, [at('09:00'), at('12:30')]);
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, true);
   });
 
   it('re-opens for a hand edit inside the break', () => {
-    const axis = buildCalendarAxis(LUNCH_DAY, [at('09:00'), at('12:30')]);
+    const axis = buildCalendarAxis(editing, [at('09:00'), at('12:30')]);
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, false);
   });
 
   it('re-opens for a match that merely overlaps the break', () => {
-    const axis = buildCalendarAxis(LUNCH_DAY, [at('11:30', 60)]); // 11:30–12:30
+    const axis = buildCalendarAxis(editing, [at('11:30', 60)]); // 11:30–12:30
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, false);
   });
 
   it('is unmoved by a match that only touches the break', () => {
-    const axis = buildCalendarAxis(LUNCH_DAY, [at('11:15', 45)]); // ends exactly at 12:00
+    const axis = buildCalendarAxis(editing, [at('11:15', 45)]); // ends exactly at 12:00
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, true);
   });
 
   it('re-opens for a blocked period overlapping the break, on any court or day', () => {
     const axis = buildCalendarAxis(
-      { ...LUNCH_DAY, blocks: [{ court: null, day: 2, start: '12:30', end: '13:30', label: 'Ceremony' }] },
+      { ...editing, blocks: [{ court: null, day: 2, start: '12:30', end: '13:30', label: 'Ceremony' }] },
       [at('09:00')],
     );
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, false);
