@@ -216,7 +216,19 @@ export function generateSchedule(
 /** The gap a net change leaves on a court, drawn on the calendar so the
  *  organizer can see where the crew is working rather than wondering why a
  *  court stands empty for a quarter of an hour. Derived from the finished
- *  schedule and never stored — the next generate works them out again. */
+ *  schedule and never stored — the next generate works them out again.
+ *
+ *  The marker covers the whole gap the change costs, not just the crew's
+ *  minutes. A ten-minute net change on a fifteen-minute grid takes the court
+ *  out for fifteen: the crew finishes at 16:10 and the next match still cannot
+ *  begin until 16:15, because a match that starts off the grid takes the whole
+ *  column off it for the rest of the day. Drawing only the ten left five
+ *  minutes of unexplained white space under the marker and made the schedule
+ *  look like it had lost time nobody could account for.
+ *
+ *  Set `netBufferMinutes` to a whole number of grid steps and the rounding
+ *  disappears; below one, the difference is real court time and belongs on
+ *  screen rather than hidden. */
 function netAdjustBlocks(placements: Placement[], config: ScheduleConfig, grid: Grid): BlockedPeriod[] {
   if (!(config.netBufferMinutes > 0)) return [];
   const out: BlockedPeriod[] = [];
@@ -236,7 +248,9 @@ function netAdjustBlocks(placements: Placement[], config: ScheduleConfig, grid: 
       const next = list[i + 1];
       if (!next.netChange) continue;
       const gap = next.startAbs - list[i].endAbs;
-      const length = Math.min(gap, config.netBufferMinutes);
+      const step = Math.max(1, grid.slotMinutes);
+      const cost = Math.ceil(config.netBufferMinutes / step) * step;
+      const length = Math.min(gap, cost);
       if (length < 5) continue;
       const from = list[i].endAbs - list[i].day * DAY_SPAN;
       // Nobody is waiting for a court during the break, so nobody is moving a

@@ -1485,11 +1485,29 @@
   box-shadow: calc(-1 * var(--cal-scroll-pad, 12px)) 0 0 var(--sand-100, #F5F1EA);
 }
 
+/* The label names the *start* of its row, so it has to sit where that start is
+   drawn: at the row's top edge, where .calGridLine runs and where a card whose
+   offsetMinutes is 0 begins. It used to stretch the full row and centre itself
+   in it, which on the wide scale (8.1px/min, a 45-minute row) drew "09:00" 66px
+   — eight minutes — below the 09:00 line, under a card that reads 09:00 at its
+   own top. The axis said one time and the cards said another.
+
+   `align-self: start` is what fixes it: the cell stops filling its row and
+   shrinks to the lockup, so the `align-items: center` below goes back to
+   meaning what it says — the rule and the dot centred against the *text*,
+   rather than the text centred against the row. The full-height sand behind
+   the column is .calTimeGutter's job anyway, and it carries the same
+   left-reaching shadow, so nothing is lost by this box no longer covering the
+   whole track.
+
+   The 14px top is the card's own: .gridMatchCard is padding-top 14 with no top
+   margin, so both times set on the same line, in the same 17px display face. */
 .calTimeLabelCell {
   position: sticky;
   left: 0;
+  align-self: start;
   z-index: 4;
-  padding: 10px 8px 0 4px;
+  padding: 14px 8px 0 4px;
   background: var(--sand-100, #F5F1EA);
   white-space: nowrap;
   display: flex;
@@ -1519,6 +1537,10 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   color: var(--ink-900, #14181E);
+  /* .gridMatchTime's leading. The hour and the card's time are the same face at
+     the same size on purpose; matching the line box is what makes them land on
+     one line rather than within a pixel or two of it. */
+  line-height: 1.1;
 }
 .calTimeHour .calTimeRule { background: var(--sand-400, #D9D4C9); }
 
@@ -3145,7 +3167,7 @@
      items refuse to shrink below their content until told they may. */
   .gridMatchTop > div { min-width: 0; }
   .gridTeamName { min-width: 0; }
-  .calTimeLabelCell { padding: 10px 6px 0 4px; }
+  .calTimeLabelCell { padding: 14px 6px 0 4px; }
   .calTimeHour .calTimeText { font-size: 15px; }
   .calCourtHeadCard { height: 84px; padding: 10px 14px; border-radius: 16px; }
   .calCourtName { font-size: 17px; }
@@ -3223,8 +3245,13 @@
   }
   .courtCard { scroll-snap-align: start; }
 
+  /* 11px, not 14: the phone card tightens to a 3px top margin over 6px of
+     padding (see .gridMatchCard below), and its time is then nudged ~2px
+     further down because .gridMatchTop centres the row and the division badge
+     beside it is the taller item. The label tracks where the card's time
+     actually lands, not where the card's padding would put it. */
   .calTimeLabelCell {
-    padding: 12px 4px 0 4px;
+    padding: 11px 4px 0 4px;
     font-size: 11px;
   }
   /* Both restate the gridline that already runs across the courts. See the
