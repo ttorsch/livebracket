@@ -22,7 +22,7 @@
 // its published time must never find its match already under way.
 
 import { toHHMM } from './types.ts';
-import type { Placement } from './cost.ts';
+import type { Placement } from './place.ts';
 import type { MatchGraph } from './graph.ts';
 import { DAY_SPAN, type Grid } from './grid.ts';
 
@@ -84,7 +84,7 @@ export function projectSchedule(
   // One timeline per court per day — the unit drift propagates along.
   const lanes = new Map<string, Placement[]>();
   for (const p of placements) {
-    const key = `${p.slot.day}:${p.courtIndex}`;
+    const key = `${p.day}:${p.courtIndex}`;
     const lane = lanes.get(key);
     if (lane) lane.push(p);
     else lanes.set(key, [p]);
@@ -127,21 +127,21 @@ export function projectSchedule(
       projections.set(p.matchId, {
         matchId: p.matchId,
         courtName: p.courtName,
-        day: p.slot.day,
-        plannedTime: toHHMM(p.startAbs - p.slot.day * DAY_SPAN),
-        projectedTime: toHHMM(start - p.slot.day * DAY_SPAN),
+        day: p.day,
+        plannedTime: toHHMM(p.startAbs - p.day * DAY_SPAN),
+        projectedTime: toHHMM(start - p.day * DAY_SPAN),
         projectedStartAbs: start,
         projectedEndAbs: end,
         delayMinutes: delay,
         status,
-        pastDayEnd: end - p.slot.day * DAY_SPAN > grid.dayEnd,
+        pastDayEnd: end - p.day * DAY_SPAN > grid.dayEnd,
       });
     }
 
     if (laneDelay > 0 && lane.length > 0) {
       delayedCourts.push({
         courtName: lane[0].courtName,
-        day: lane[0].slot.day,
+        day: lane[0].day,
         delayMinutes: laneDelay,
       });
     }

@@ -40,10 +40,6 @@ import type { SchedulableDivision, SchedulableMatch } from './types.ts';
  *  the shape the schedule screen already memoises. */
 export type LabelsByDivision = Map<string, Map<string, MatchLabel>>;
 
-/** Court-affinity overrides the organizer has typed but not yet saved,
- *  keyed by division id. A `null` means "no override", not "zero". */
-export type CourtOverrides = Record<string, number | null>;
-
 /** Labels for a set of divisions, from the one place that decides them.
  *  Callers that already hold this map should pass their own rather than
  *  building a second one — two labellings of the same division would be
@@ -55,7 +51,6 @@ export function labelDivisions(divisions: DetailDivision[]): LabelsByDivision {
 export function toSchedulableDivisions(
   divisions: DetailDivision[],
   labels: LabelsByDivision,
-  overrides: CourtOverrides = {},
 ): SchedulableDivision[] {
   return divisions.map(division => {
     const divisionLabels = labels.get(division.id);
@@ -86,9 +81,6 @@ export function toSchedulableDivisions(
       pools: division.drawConfig?.pools ?? 1,
       netHeight: division.netHeight,
       gender: division.gender,
-      /* An unsaved override wins over the saved value; neither means the
-         generator derives the court count itself. */
-      dedicatedCourts: overrides[division.id] ?? division.dedicatedCourts ?? null,
       matches,
     };
   });

@@ -49,7 +49,6 @@ function division(patch: {
   teams?: number;
   bracket?: DetailRound[];
   drawConfig?: Partial<DrawConfig> | null;
-  dedicatedCourts?: number | null;
   netHeight?: string | null;
 } = {}): DetailDivision {
   const teamCount = patch.teams ?? 8;
@@ -65,7 +64,6 @@ function division(patch: {
       patch.drawConfig === null
         ? null
         : { pools: 2, advance: 2, crossing: 'fivb', attempts: 1, topSeedIds: [], ...patch.drawConfig },
-    dedicatedCourts: patch.dedicatedCourts ?? null,
     netHeight: patch.netHeight ?? '2.43m',
     gender: 'Men',
     ageLimit: '',
@@ -86,8 +84,8 @@ function division(patch: {
 }
 
 /** The handover, run over one division the way the schedule screen runs it. */
-function handover(div: DetailDivision, overrides: Record<string, number | null> = {}) {
-  const [out] = toSchedulableDivisions([div], labelDivisions([div]), overrides);
+function handover(div: DetailDivision) {
+  const [out] = toSchedulableDivisions([div], labelDivisions([div]));
   return out;
 }
 
@@ -223,23 +221,6 @@ describe('what the division itself carries', () => {
     assert.equal(handover(division({ drawConfig: null })).pools, 1);
   });
 
-  it('prefers an unsaved court override to the saved one', () => {
-    const div = division({ id: 'd1', dedicatedCourts: 2 });
-    assert.equal(handover(div, { d1: 4 }).dedicatedCourts, 4);
-  });
-
-  it('falls back to the saved court count when nothing is overridden', () => {
-    const div = division({ id: 'd1', dedicatedCourts: 2 });
-    assert.equal(handover(div, {}).dedicatedCourts, 2);
-  });
-
-  /* Null means "let the generator work the court count out", so an override
-     cleared back to null must not read as an override of zero. */
-  it('lets a cleared override fall through to the saved count', () => {
-    const div = division({ id: 'd1', dedicatedCourts: 2 });
-    assert.equal(handover(div, { d1: null }).dedicatedCourts, 2);
-  });
-
   it('carries net height and gender through for grouping', () => {
     const out = handover(division({ netHeight: '2.24m' }));
     assert.equal(out.netHeight, '2.24m');
@@ -248,16 +229,14 @@ describe('what the division itself carries', () => {
 });
 
 describe('more than one division', () => {
-  it('keeps each division to its own matches and its own override', () => {
+  it('keeps each division to its own matches', () => {
     const men = division({ id: 'men', bracket: [round('round-robin', [match('m1', 't1', 't2')])] });
     const women = division({ id: 'women', bracket: [round('single', [match('w1', 't1', 't2')])] });
-    const out = toSchedulableDivisions([men, women], labelDivisions([men, women]), { women: 3 });
+    const out = toSchedulableDivisions([men, women], labelDivisions([men, women]));
 
     assert.deepEqual(out.map(d => d.id), ['men', 'women']);
     assert.deepEqual(out[0].matches.map(m => m.id), ['m1']);
     assert.deepEqual(out[1].matches.map(m => m.id), ['w1']);
-    assert.equal(out[0].dedicatedCourts, null);
-    assert.equal(out[1].dedicatedCourts, 3);
   });
 
   it('returns nothing for no divisions', () => {

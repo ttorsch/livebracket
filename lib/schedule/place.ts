@@ -117,6 +117,9 @@ export function placeMatches(
   for (const [id, shape] of graph.divisions) heightOf.set(id, shape.netHeight);
 
   const blockedOn = courtBlocks(config, grid);
+  const dailyCap = Math.max(0, Math.trunc(config.maxMatchesPerTeamPerDay) || 0);
+  const stageEndgame = config.stageFinals !== false;
+  const holdFinals = config.finalsOnLastDay && grid.days > 1;
 
   const courts: CourtState[] = grid.courts.map((spec, index) => ({
     index,
@@ -134,6 +137,8 @@ export function placeMatches(
   const placements = new Map<string, Placement>();
   const endOf = new Map<string, number>();
   const teamBusy = new Map<string, Interval[]>();
+  /** team -> day -> matches played that day, for the per-day cap. */
+  const dayCount = new Map<string, Map<number, number>>();
   const poolLastStart = new Map<string, number>();
   /** The one court every final is played on, claimed by the first final. */
   let finalsCourt: number | null = null;
@@ -166,6 +171,32 @@ export function placeMatches(
   }
   const phaseMatches = (p: Phase) => byPhase.get(p) ?? [];
 
+  // A handful of endgame matches have to start *together* — a division's two
+  // semifinals side by side, every play-off for 3rd at once — because that is
+  // the programme an organizer runs, not an optimisation. They are the one
+  // thing a court queue cannot express on its own: courts drift apart as the
+  // day goes on, so two matches taken by two courts land at two times.
+  //
+  // Kept deliberately small. All-or-nothing placement across the *whole* event
+  // is what used to deadlock, stranding matches beside an idle venue; here it
+  // covers two to four matches at the very end, and dissolves into ordinary
+  // per-court placement if it cannot find its courts, so it can stall the
+  // endgame but never lose it.
+  const groups: { key: string; matchIds: string[] }[] = [];
+  if (stageEndgame) {
+    for (const [divisionId] of graph.divisions) {
+      const semis = phaseMatches('semifinal').filter(n => n.divisionId === divisionId);
+      if (semis.length >= 2) groups.push({ key: `sf:${divisionId}`, matchIds: semis.map(n => n.id) });
+    }
+    const thirds = phaseMatches('third');
+    if (thirds.length >= 2) groups.push({ key: 'third:all', matchIds: thirds.map(n => n.id) });
+  }
+  const groupOf = new Map<string, string>();
+  for (const g of groups) for (const id of g.matchIds) groupOf.set(id, g.key);
+  const dissolved = new Set<string>();
+  const stalled = new Map<string, number>();
+
+
   const allPlaced = (nodes: MatchNode[]) => nodes.every(n => placements.has(n.id));
   const latestEnd = (nodes: MatchNode[]) =>
     nodes.reduce((t, n) => Math.max(t, endOf.get(n.id) ?? -Infinity), -Infinity);
@@ -173,7 +204,18 @@ export function placeMatches(
   /** Is this match's phase open, and from when? -1 means "not yet". */
   const phaseFloor = (node: MatchNode): number => {
     const phase = phaseOf(node);
-    if (phase === 'pool' || phase === 'early') return -Infinity;
+
+    // The last round of a division is held for the final day of a multi-day
+    // event, so the event ends with finals rather than trailing off. It is a
+    // floor rather than a filter: the match is not refused, it is simply not
+    // available before that morning.
+    const shape = shapeOf(node.divisionId);
+    const isLastRound = !!shape && shape.maxLevel > 0 && node.level === shape.maxLevel;
+    const dayFloor = holdFinals && isLastRound
+      ? (grid.days - 1) * DAY_SPAN + grid.dayStart
+      : -Infinity;
+
+    if (phase === 'pool' || phase === 'early' || !stageEndgame) return dayFloor;
 
     if (phase === 'semifinal') {
       // One division's semifinals at a time: any other division that has
@@ -189,13 +231,13 @@ export function placeMatches(
         if (!allPlaced(theirs)) return -1; // mid-round elsewhere; wait
         floor = Math.max(floor, latestEnd(theirs));
       }
-      return floor;
+      return Math.max(floor, dayFloor);
     }
 
     if (phase === 'third') {
       const semis = phaseMatches('semifinal');
       if (!allPlaced(semis)) return -1;
-      return latestEnd(semis);
+      return Math.max(latestEnd(semis), dayFloor);
     }
 
     // A final waits on every play-off for 3rd, and on every earlier final —
@@ -208,12 +250,30 @@ export function placeMatches(
       const end = endOf.get(other.id);
       if (end !== undefined) floor = Math.max(floor, end);
     }
-    return floor;
+    return Math.max(floor, dayFloor);
   };
 
   /** The lowest round a division still has matches in. Placement never runs
    *  ahead of it, so a division finishes each round before opening the next
    *  and the endgame cannot start beside its own pool play. */
+  /** Does this match have to wait for its division's current round?
+   *
+   *  Pool play and the early knockout do: a division finishes each round
+   *  before opening the next, which is what keeps the endgame from starting
+   *  beside its own pool play.
+   *
+   *  The medal rounds do not, because round order is not play order there.
+   *  The play-off for 3rd is *drawn* after the final — it needs both losing
+   *  semifinalists — and *played* before it, so its round index is higher than
+   *  the final's. Gating it on round order deadlocked the pair: the final
+   *  waited for the play-off, and the play-off waited for a round that would
+   *  only come round after the final. Their true order is the phase
+   *  programme, and their dependencies are stated outright. */
+  const roundGated = (node: MatchNode): boolean => {
+    const phase = phaseOf(node);
+    return phase === 'pool' || phase === 'early';
+  };
+
   const currentRound = (divisionId: string): number => {
     let lowest = Infinity;
     for (const id of remaining) {
@@ -221,6 +281,23 @@ export function placeMatches(
       if (node.divisionId === divisionId) lowest = Math.min(lowest, node.roundIndex);
     }
     return lowest;
+  };
+
+  /** Is this division still in its round robin?
+   *
+   *  A block is a **reservation only while its owner is playing pools**. That
+   *  is what the appetite sized it for: half the division on court, half
+   *  resting. A knockout round is a different shape — four quarter-finals want
+   *  four courts for one slot and then hand them all back — so holding a
+   *  division to its pool block past the round robin strands the venue and
+   *  runs an entire bracket down a single column. Once the pools are done the
+   *  block opens to whoever is running. */
+  const inPoolPlay = (divisionId: string): boolean => {
+    for (const id of remaining) {
+      const node = graph.nodes.get(id)!;
+      if (node.divisionId === divisionId && node.isPool) return true;
+    }
+    return false;
   };
 
   const divisionDone = (divisionId: string): boolean => {
@@ -260,27 +337,60 @@ export function placeMatches(
     const roundOf = new Map<string, number>();
     for (const id of runningIds) roundOf.set(id, currentRound(id));
 
+    // Cleared every pass, not on every commit. A court with nothing to take is
+    // only exhausted *for this sweep*: the divisions advance a round between
+    // passes, so what a court may consider changes underneath it. Carrying the
+    // flag forward retired every court one pass before the finals became
+    // eligible, and the event finished with its finals unplaced.
+    for (const court of courts) court.exhausted = false;
+
     let placedThisPass = false;
+
+    for (const group of groups) {
+      if (dissolved.has(group.key)) continue;
+      if (group.matchIds.every(id => !remaining.has(id))) continue;
+      const outcome = placeTogether(group.matchIds, runningIds, roundOf);
+      if (outcome === 'placed') {
+        placedThisPass = true;
+        stalled.delete(group.key);
+      } else if (outcome === 'crowded') {
+        // Only a group that *should* be able to go counts as stalled. One
+        // still waiting its turn in the queue, or on an earlier phase, is not
+        // stuck — it simply is not due yet.
+        const tries = (stalled.get(group.key) ?? 0) + 1;
+        stalled.set(group.key, tries);
+        // The programme is worth waiting for, but not worth losing matches
+        // over: once it is clear the venue will not offer the courts side by
+        // side, the round is placed the ordinary way and the organizer sees a
+        // staggered endgame rather than an unplaced one.
+        if (tries > courts.length + 2) dissolved.add(group.key);
+      }
+    }
+
     for (const court of courts) {
       if (court.exhausted || remaining.size === 0) continue;
 
-      const ownerFinished = court.ownerId == null || divisionDone(court.ownerId);
+      const reserved = court.ownerId != null && inPoolPlay(court.ownerId);
       let best: { node: MatchNode; start: number; netChange: boolean; score: number; tie: ReturnType<typeof tieOf> } | null = null;
       let earliestSeen = Infinity;
 
       for (const id of remaining) {
         const node = graph.nodes.get(id)!;
         if (!runningIds.has(node.divisionId)) continue;
-        if (node.roundIndex !== roundOf.get(node.divisionId)) continue;
+        if (roundGated(node) && node.roundIndex !== roundOf.get(node.divisionId)) continue;
 
-        // Court ownership. A division plays on its own block. Another
-        // division may borrow an idle court only at **zero net change** —
-        // which is what a reservation always should have been, and what a
-        // 26-point preference never was. A block whose owner has finished
-        // everything is released outright, and re-rigged once.
+        // Court ownership, while the owner is still playing its pools. A
+        // division plays on its own block; another division may borrow an idle
+        // court there only at **zero net change** — which is what a
+        // reservation always should have been, and what a 26-point preference
+        // never was. Once the owner is out of pool play the block is released:
+        // the endgame uses what is free, and pays for any net it moves.
         const owns = node.divisionId === court.ownerId;
         const freeSwap = node.netHeight == null || court.height == null || court.height === node.netHeight;
-        if (!owns && !ownerFinished && !freeSwap) continue;
+        if (reserved && !owns && !freeSwap) continue;
+
+        const group = groupOf.get(node.id);
+        if (group !== undefined && !dissolved.has(group)) continue;
 
         const floor = phaseFloor(node);
         if (floor === -1) continue;
@@ -315,7 +425,15 @@ export function placeMatches(
       placedThisPass = true;
     }
 
-    if (!placedThisPass) break;
+    // A pass that places nothing is not necessarily the end: an endgame group
+    // holding out for courts side by side will either get them as the venue
+    // empties, or give up and dissolve.
+    if (!placedThisPass) {
+      const holdingOut = groups.some(
+        g => !dissolved.has(g.key) && g.matchIds.some(id => remaining.has(id)),
+      );
+      if (!holdingOut) break;
+    }
   }
 
   const ordered = [...placements.values()].sort(
@@ -323,6 +441,51 @@ export function placeMatches(
   );
 
   return { placements: ordered, unplaced: [...remaining], appetites, queue };
+
+  /** Put every match of a group on its own court, all starting at the same
+   *  minute. Each match takes the earliest court it can, and the whole group
+   *  is then aligned to the latest of those starts — so the group goes as soon
+   *  as the venue can hold all of it at once, and not before. */
+  function placeTogether(
+    matchIds: string[],
+    runningIds: Set<string>,
+    roundOf: Map<string, number>,
+  ): 'placed' | 'waiting' | 'crowded' {
+    const pending = matchIds.filter(id => remaining.has(id));
+    if (pending.length === 0) return 'waiting';
+    const nodes = pending.map(id => graph.nodes.get(id)!);
+
+    for (const node of nodes) {
+      if (!runningIds.has(node.divisionId)) return 'waiting';
+      if (roundGated(node) && node.roundIndex !== roundOf.get(node.divisionId)) return 'waiting';
+      if (phaseFloor(node) === -1) return 'waiting';
+    }
+
+    const taken = new Set<number>();
+    const picks: { node: MatchNode; court: CourtState; start: number }[] = [];
+    for (const node of nodes) {
+      let best: { court: CourtState; start: number } | null = null;
+      for (const court of courts) {
+        if (taken.has(court.index)) continue;
+        const option = earliestOn(node, court, phaseFloor(node));
+        if (!option) continue;
+        if (!best || option.start < best.start) best = { court, start: option.start };
+      }
+      if (!best) return 'crowded';
+      taken.add(best.court.index);
+      picks.push({ node, court: best.court, start: best.start });
+    }
+
+    const together = Math.max(...picks.map(p => p.start));
+    const settled: { node: MatchNode; court: CourtState; netChange: boolean }[] = [];
+    for (const pick of picks) {
+      const option = earliestOn(pick.node, pick.court, Math.max(together, phaseFloor(pick.node)));
+      if (!option || option.start !== together) return 'crowded';
+      settled.push({ node: pick.node, court: pick.court, netChange: option.netChange });
+    }
+    for (const s of settled) commit(s.node, s.court, together, s.netChange);
+    return 'placed';
+  }
 
   // ── Feasibility ─────────────────────────────────────────────────────────
 
@@ -362,10 +525,24 @@ export function placeMatches(
     }
 
     let netChange = false;
-    for (let round = 0; round < 4; round++) {
+    for (let round = 0; round < 8; round++) {
       const settled = settle(node, court, t, duration);
       if (settled === null) return null;
       t = settled;
+
+      // Most matches one team may be given in a day. A team that has had its
+      // fill waits for tomorrow rather than being refused outright — which is
+      // only meaningful on a multi-day event, and on a single day is the same
+      // as not placing the match at all.
+      if (dailyCap > 0) {
+        const day = Math.floor(t / DAY_SPAN);
+        const full = teamsOf(node).some(team => (dayCount.get(team)?.get(day) ?? 0) >= dailyCap);
+        if (full) {
+          if (day + 1 >= grid.days) return null;
+          t = (day + 1) * DAY_SPAN + grid.dayStart;
+          continue;
+        }
+      }
 
       // A net change is a wait, not a flat charge: the crew starts the moment
       // the previous match ends, so a match already sitting far enough after
@@ -515,10 +692,11 @@ export function placeMatches(
       const list = teamBusy.get(team);
       if (list) list.push({ s: start, e: end });
       else teamBusy.set(team, [{ s: start, e: end }]);
+      const days = dayCount.get(team) ?? new Map<number, number>();
+      days.set(day, (days.get(day) ?? 0) + 1);
+      dayCount.set(team, days);
     }
     if (phaseOf(node) === 'final' && finalsCourt === null) finalsCourt = court.index;
-    // A court that has been given work is worth asking again.
-    for (const c of courts) c.exhausted = false;
   }
 }
 

@@ -257,8 +257,8 @@ describe('the solver and the validator agree', () => {
     const placements: EditedPlacement[] = result.placements.map(p => ({
       matchId: p.matchId,
       court: p.courtName,
-      day: p.slot.day,
-      startMin: p.startAbs - p.slot.day * DAY_SPAN,
+      day: p.day,
+      startMin: p.startAbs - p.day * DAY_SPAN,
       durationMinutes: result.graph.nodes.get(p.matchId)!.durationMinutes,
     }));
 

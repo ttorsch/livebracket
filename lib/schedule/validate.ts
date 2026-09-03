@@ -17,7 +17,13 @@
 // touching the solver, and so it can be tested without a schedule at all.
 
 import type { MatchGraph } from './graph.ts';
-import { teamsOf } from './cost.ts';
+/** Teams a match occupies: the two playing, plus whoever is refereeing it.
+ *  Referee duty left the *solver* — referees are assigned by hand once the
+ *  schedule exists — but it is still court time here, because an organizer
+ *  moving a card wants to know they have put a team on two courts at once. */
+function teamsOf(node: { teamA: string | null; teamB: string | null; refereeTeam: string | null }): string[] {
+  return [node.teamA, node.teamB, node.refereeTeam].filter((t): t is string => Boolean(t));
+}
 import { DAY_SPAN, type Grid } from './grid.ts';
 import { netStateBefore, netShortfall, normaliseBuffer, type NetPredecessor } from './netChange.ts';
 

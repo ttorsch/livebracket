@@ -752,7 +752,6 @@ export interface DetailDivision {
   teamsList: DetailTeam[];
   bracket: DetailRound[];
   drawConfig: DrawConfig | null;
-  dedicatedCourts: number | null; // D_d override from settings.schedule (null = auto)
   netHeight: string | null;       // settings.netHeight (free text, e.g. "2.24m")
   // Advertised eligibility, normalised out of the settings blob — legacy
   // spellings like "Mixed" and "Open" read as Anyone. See
@@ -1040,7 +1039,6 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     scheduleConfig: readScheduleConfig(row.schedule_config),
     divisions: row.divisions.map((d) => {
       const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;
-      const sched = (d.settings as { schedule?: { dedicatedCourts?: number } } | null)?.schedule;
       const settings = (d.settings ?? {}) as {
         netHeight?: unknown; genderEligibility?: unknown; ageLimit?: unknown;
         registrationOpenDate?: unknown; registrationCloseDate?: unknown;
@@ -1099,7 +1097,6 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               loserFeeders: draw.loserFeeders ?? {},
             }
           : null,
-        dedicatedCourts: typeof sched?.dedicatedCourts === 'number' ? sched.dedicatedCourts : null,
         netHeight: typeof settings.netHeight === 'string' ? settings.netHeight : null,
         gender: normalizeGender(settings.genderEligibility),
         ageLimit: normalizeAgeLimit(settings.ageLimit),

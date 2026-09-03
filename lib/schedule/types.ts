@@ -27,61 +27,6 @@ export interface CourtSpec {
   isShowCourt?: boolean;
 }
 
-/** Which day-plan shape to use on a multi-day event. */
-export type DayPlanStrategy =
-  /** Every division advances a little every day; all finals land on the last
-   *  day. The organizer's choice for this build. */
-  | 'parallel-daily'
-  /** Each division starts and finishes inside as few consecutive days as
-   *  possible, so teams travel on fewer days. */
-  | 'compress-division';
-
-/** Relative importance of each soft goal. Because every preference in this
- *  generator is a weight rather than a branch, changing what "a good schedule"
- *  means — max rest vs. finish earliest vs. divisions finishing together — is
- *  an edit to these numbers, not to the algorithm. */
-export interface CostWeights {
-  /** Per slot a team falls short of its target rest. The organizer chose max
-   *  rest as the primary goal, so this dominates everything else. */
-  restDeficit: number;
-  /** Flat surcharge on top of restDeficit for a genuinely back-to-back match
-   *  (zero gap), which players feel far more than a merely short gap. */
-  backToBack: number;
-  /** Moving a court's net to a different height. Charged once per change; the
-   *  physical buffer is charged separately as real court time. */
-  netChange: number;
-  /** Per slot a team's day is stretched — first match to last. Keeps a team
-   *  from being at the venue 09:00–18:00 to play three matches. */
-  venueSpan: number;
-  /** Per day a match lands away from the day plan's target, which is what
-   *  keeps every division progressing together instead of one racing ahead. */
-  paceDeviation: number;
-  /** Critical-path urgency: matches with a long chain of matches still ahead
-   *  of them go first, because they are what decides when the event can
-   *  finish. (Keeping a semi-final off day one is the day plan's job, not
-   *  this one.) */
-  depthUrgency: number;
-  /** A pool match occupying the show court. */
-  showCourtMisuse: number;
-  /** A team being moved to a different court than its previous match, which
-   *  costs it a walk across the venue. */
-  courtChurn: number;
-  /** A division straying off the courts it has been clustered onto. */
-  divisionSpread: number;
-}
-
-export const DEFAULT_WEIGHTS: CostWeights = {
-  restDeficit: 1000,
-  backToBack: 4000,
-  netChange: 260,
-  venueSpan: 55,
-  paceDeviation: 420,
-  depthUrgency: 34,
-  showCourtMisuse: 120,
-  courtChurn: 18,
-  divisionSpread: 26,
-};
-
 /** A stretch of court time the organizer has taken off the board — a
  *  ceremony, a presentation, a net repair, a longer break than lunch.
  *
@@ -117,11 +62,10 @@ export interface ScheduleConfig {
   /** The court roster. When absent, `courtCount` generic courts are used, so
    *  existing tournaments keep working untouched. */
   courts?: CourtSpec[];
-  /** Target gap between a team's matches, in slots. */
+  /** Gap a team should get between matches, in slots. Read by the validator
+   *  when it judges a hand-edited schedule; placement itself treats rest as
+   *  two-state — a whole match between a team's matches, or none. */
   minRestSlots: number;
-  /** true = never break the rest rule, overflowing instead. false = break it
-   *  only when the alternative is not placing the match at all. */
-  restIsHard: boolean;
   /** Court time taken off the board by hand. */
   blocks?: BlockedPeriod[];
   /** Hold every division's last round for the final day of a multi-day event. */
@@ -130,11 +74,6 @@ export interface ScheduleConfig {
    *  rounds — side by side across courts, one division's round at a time —
    *  instead of placing each of those matches independently. */
   stageFinals: boolean;
-  dayPlan: DayPlanStrategy;
-  /** Upper bound on improvement swaps in the repair pass. 0 disables repair. */
-  repairIterations: number;
-  /** Overrides merged over DEFAULT_WEIGHTS. */
-  weights?: Partial<CostWeights>;
 }
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
@@ -147,11 +86,8 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   netBufferMinutes: 15,
   maxMatchesPerTeamPerDay: 0,
   minRestSlots: 1,
-  restIsHard: false,
   finalsOnLastDay: true,
   stageFinals: true,
-  dayPlan: 'parallel-daily',
-  repairIterations: 4000,
 };
 
 /** Fallback match length (minutes) when a match/round declares none. */
@@ -186,10 +122,9 @@ export interface SchedulableMatch {
 export interface SchedulableDivision {
   id: string;
   label: string;
-  pools: number;                    // used to auto-derive court affinity
+  pools: number;                    // reported; the appetite is read off the draw
   netHeight?: string | null;        // free text, e.g. "2.24m" — parsed for pivots/grouping
-  gender?: string | null;           // e.g. "Men" / "Mixed" — for crossover ordering
-  dedicatedCourts?: number | null;  // organizer override for court affinity
+  gender?: string | null;           // e.g. "Men" / "Mixed" — decides the queue order
   matches: SchedulableMatch[];
 }
 
@@ -230,25 +165,6 @@ export interface FeasibilityLever {
 
 export type FeasibilityVerdict = 'fits' | 'tight' | 'overflow';
 
-/** A constraint the solver had to give up on to place everything. Reported
- *  rather than hidden — a schedule you can argue with beats one you can't. */
-export type Relaxation =
-  /** Divisions had to share the venue during pool play instead of taking it in
-   *  turns, which means moving nets more often. */
-  | 'poolBlocks'
-  | 'finalsOnLastDay'
-  /** The endgame had to be placed match-by-match: keeping a round together
-   *  left something with nowhere to go. */
-  | 'stageFinals'
-  /** Teams got less than the target gap between matches. */
-  | 'restIsHard'
-  | 'maxMatchesPerTeamPerDay'
-  | 'dayQuota'
-  /** The last resort: some teams played with no gap at all. Kept separate from
-   *  `restIsHard` because a short gap and no gap are different promises, and an
-   *  organizer needs to know which one broke. */
-  | 'backToBack';
-
 export function parseHHMM(v: string): number {
   const [h, m] = (v ?? '').split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
@@ -267,11 +183,6 @@ export function parseNetHeight(raw?: string | null): number | null {
   if (!raw) return null;
   const m = /(\d+(?:\.\d+)?)/.exec(raw);
   return m ? Number(m[1]) : null;
-}
-
-/** Auto court-affinity count for a division: half its pools, min 1. */
-export function autoDedicatedCourts(pools: number): number {
-  return Math.max(1, Math.ceil((pools || 1) / 2));
 }
 
 /** The court roster a config describes, however it describes it. */

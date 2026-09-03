@@ -1,65 +1,59 @@
 // Tournament schedule generator.
 //
 // A pure, deterministic function: given the divisions (with their matches and
-// team pairings) and the venue/day constraints, it assigns every match a court
+// team pairings) and the venue/day constraints, it gives every match a court
 // and a start time. No randomness, no I/O — trivially unit-testable, and the
 // same input always produces the same schedule, which matters because
-// organizers re-run this constantly and a schedule that reshuffles itself every
-// time is one nobody trusts.
+// organizers re-run this constantly and a schedule that reshuffles itself
+// every time is one nobody trusts.
 //
 // The work is split into phases, each in its own module and each useful alone:
 //
 //   graph.ts      the tournament as a dependency graph — what must precede
 //                 what, how deep each match sits, and the critical path
 //   inventory.ts  does the event fit at all, and if not, which lever fixes it
-//   dayplan.ts    which day each match belongs on, and which courts each
-//                 division prefers
-//   grid.ts       courts × slots × days, with staggered lunch
-//   cost.ts       what makes one legal schedule better than another
-//   assign.ts     the solver: optimal court assignment within each slot
-//   repair.ts     bounded local search over the finished schedule
+//   grid.ts       the playing day: courts, runs, lunch and blocked time
+//   appetite.ts   how many courts each division wants, and which it gets
+//   score.ts      which match a free court takes next
+//   place.ts      the walk — every court a column, filled downward
+//   metrics.ts    what the finished schedule came out as
 //   drift.ts      live projection once matches start running long
 //
-// The split is not decoration. Preferences live only in cost.ts, so changing
-// what "good" means is an edit to numbers; legality lives only in assign.ts, so
-// a schedule can never be made illegal by a change of preference.
+// The split is not decoration. What a court is *allowed* to take lives only in
+// place.ts and what it *prefers* lives only in score.ts, so a change of taste
+// can never make a schedule illegal.
 
 import type {
   BlockedPeriod,
   DayCapacity,
   DivisionDemand,
-  Relaxation,
   ScheduleAssignment,
   ScheduleConfig,
   SchedulableDivision,
 } from './types.ts';
-import { courtRoster, normaliseConfig, parseNetHeight, toHHMM } from './types.ts';
+import { courtRoster, normaliseConfig, toHHMM } from './types.ts';
 import { buildGraph, type MatchGraph } from './graph.ts';
 import { buildGrid, DAY_SPAN, type Grid } from './grid.ts';
-import { buildDayPlan, courtAffinity, type DayPlan } from './dayplan.ts';
-import { buildStaging } from './staging.ts';
-import {
-  evaluate,
-  resolveWeights,
-  type Placement,
-  type ScheduleMetrics,
-  type SolverContext,
-} from './cost.ts';
-import { assignMatches } from './assign.ts';
-import { repair } from './repair.ts';
+import { placeMatches, type Placement } from './place.ts';
+import { measure, type ScheduleMetrics } from './metrics.ts';
+import type { Appetite } from './appetite.ts';
 import { scheduleInventory, type Inventory } from './inventory.ts';
 
-// Re-exported so callers have one import for the whole subsystem, and so the
-// existing pages keep working unchanged.
+// Re-exported so callers have one import for the whole subsystem.
 export * from './types.ts';
 export { scheduleInventory, type Inventory } from './inventory.ts';
 export { buildGraph, type MatchGraph, type MatchNode } from './graph.ts';
 export { buildGrid, type Grid, type Slot, DAY_SPAN } from './grid.ts';
-export { buildDayPlan, courtAffinity, type DayPlan } from './dayplan.ts';
-export { buildStaging, type StagePhase, type StageWave, type Staging } from './staging.ts';
-export { evaluate, type Placement, type ScheduleMetrics, type SolverContext } from './cost.ts';
-export { assignMatches, hungarian } from './assign.ts';
-export { repair } from './repair.ts';
+export {
+  appetiteOf,
+  allotBlocks,
+  divisionQueue,
+  type Appetite,
+  type Block,
+} from './appetite.ts';
+export { scoreCandidate, compareCandidates, type CourtHistory } from './score.ts';
+export { placeMatches, type Placement } from './place.ts';
+export { measure, type ScheduleMetrics } from './metrics.ts';
 export {
   validateSchedule,
   type EditedPlacement,
@@ -77,37 +71,36 @@ export {
 
 export interface ScheduleResult {
   assignments: ScheduleAssignment[];
-  overflow: { matchId: string; divisionId: string }[]; // didn't fit before endTime
-  dedicatedCourts: Record<string, number>;             // divisionId -> preferred court count
-  mode: 'parallel' | 'wave';                           // V_R ≤ 1 vs > 1
-  venueRatio: number;                                  // V_R = Σ D_d / courtCount
+  overflow: { matchId: string; divisionId: string }[]; // no room inside the event
+  /** divisionId -> courts its block was cut to. */
+  dedicatedCourts: Record<string, number>;
+  mode: 'parallel' | 'wave';                           // does the venue hold everyone at once
+  venueRatio: number;                                  // total appetite / courts
   pivots: number;                                      // net-height changes
   dayCapacityMinutes: number;                          // playable minutes/court/day
   openingRoundSpill: number;                           // opening-round matches past day one
   capacity: DayCapacity[];                             // supply vs use, per day
   demand: DivisionDemand[];                            // what each division needs
   backToBack: number;                                  // matches a team played with no gap
-  blocks?: BlockedPeriod[];                            // blocks including auto-generated Net Adjust periods
+  blocks?: BlockedPeriod[];                            // blocks including auto Net Adjust periods
 
-  // ── Diagnostics. A schedule you can argue with beats one you have to
-  //    accept, so the generator explains itself rather than just answering. ──
+  // -- Diagnostics. A schedule you can argue with beats one you have to
+  //    accept, so the generator explains itself rather than just answering. --
   metrics: ScheduleMetrics;
   inventory: Inventory;
-  /** Promises the solver had to break to place everything. Empty is ideal. */
-  relaxations: Relaxation[];
+  /** What each division wanted from the venue, and the order they took it in. */
+  appetites: Appetite[];
+  queue: string[];
   /** Longest dependency chain — the floor on how long the event can take. */
   criticalPathMinutes: number;
   criticalPathMatches: number;
   /** Where the venue is most congested. */
   bottleneck: { day: number; utilisation: number } | null;
-  /** Exchanges the repair pass accepted. */
-  improvements: number;
-  /** The raw placements, for the drift projector and any UI that wants slots
-   *  rather than wall-clock strings. */
+  /** The raw placements, for the drift projector and any UI that wants
+   *  minutes rather than wall-clock strings. */
   placements: Placement[];
   graph: MatchGraph;
   grid: Grid;
-  plan: DayPlan;
 }
 
 export function generateSchedule(
@@ -117,7 +110,8 @@ export function generateSchedule(
 ): ScheduleResult {
   const config = normaliseConfig(rawConfig);
   // The grid's resolution follows the lengths actually declared, so a
-  // 20-minute pool match books twenty minutes rather than a whole nominal block.
+  // 20-minute pool match books twenty minutes rather than a whole nominal
+  // block.
   const grid = buildGrid(
     config,
     days,
@@ -125,76 +119,21 @@ export function generateSchedule(
   );
   const graph = buildGraph(divisions, grid.blockMinutes);
 
-  const plan = buildDayPlan(graph, grid, config);
-
-  // Staging is worked out before court affinity, because the pool rotation is
-  // what says how many courts a division actually occupies — and affinity
-  // handing it fewer than that is what makes a division spill onto its
-  // neighbour's courts and move a net every turn.
-  const staging = buildStaging(graph, grid.courts.length, config.stageFinals);
-  const affinity = courtAffinity(
-    divisions,
-    grid.courts,
-    new Map(staging.poolPlans.map(p => [p.divisionId, p.poolsAtOnce * p.perPool])),
-  );
-
-  // Rig the nets before play starts.
-  //
-  // A court whose height nobody has declared costs nothing to use at any
-  // height, so the very first match on it is free whatever it needs — and the
-  // clustering courtAffinity just worked out is thrown away by whichever
-  // division happens to reach the court first. Seeding each unspecified court
-  // with the height of the division that claims it reflects what actually
-  // happens at a venue (nets are set in the morning, not mid-match) and makes
-  // straying onto someone else's court cost a net change from the first slot.
-  const heightOf = new Map(divisions.map(d => [d.id, parseNetHeight(d.netHeight)]));
-  const seeded = new Set<string>();
-  for (const [divisionId, prefer] of affinity) {
-    const height = heightOf.get(divisionId);
-    if (height == null) continue;
-    for (const name of prefer) {
-      if (seeded.has(name)) continue;
-      const court = grid.courts.find(c => c.name === name);
-      if (court && court.netHeight == null) {
-        court.netHeight = height;
-        seeded.add(name);
-      }
-    }
-  }
-
-  let maxTailMinutes = 0;
-  for (const node of graph.nodes.values()) {
-    maxTailMinutes = Math.max(maxTailMinutes, node.tailMinutes);
-  }
-
-  const ctx: SolverContext = {
-    graph,
-    grid,
-    plan,
-    config,
-    weights: resolveWeights(config),
-    affinity,
-    staging,
-    targetRestMinutes: Math.max(0, config.minRestSlots) * grid.blockMinutes,
-    maxTailMinutes,
-  };
-
-  const assigned = assignMatches(ctx);
-  const repaired = repair(assigned.placements, ctx);
-  const placements = repaired.placements;
-  const metrics = repaired.metrics.placed > 0 ? repaired.metrics : evaluate(placements, ctx);
+  const placed = placeMatches(graph, grid, config);
+  const placements = placed.placements;
+  const metrics = measure(placements, graph, grid);
 
   const assignments: ScheduleAssignment[] = placements
     .map(p => ({
       matchId: p.matchId,
       divisionId: graph.nodes.get(p.matchId)?.divisionId ?? '',
       court: p.courtName,
-      day: p.slot.day,
-      time: toHHMM(p.startAbs - p.slot.day * DAY_SPAN),
+      day: p.day,
+      time: toHHMM(p.startAbs - p.day * DAY_SPAN),
     }))
     .sort((a, b) => a.day - b.day || a.time.localeCompare(b.time) || a.court.localeCompare(b.court));
 
-  const overflow = assigned.unplaced.map(id => ({
+  const overflow = placed.unplaced.map(id => ({
     matchId: id,
     divisionId: graph.nodes.get(id)?.divisionId ?? '',
   }));
@@ -210,9 +149,10 @@ export function generateSchedule(
     matches: 0,
   }));
   for (const p of placements) {
-    const node = graph.nodes.get(p.matchId);
-    capacity[p.slot.day].matchMinutes += node?.durationMinutes ?? 0;
-    capacity[p.slot.day].matches += 1;
+    const row = capacity[p.day];
+    if (!row) continue;
+    row.matchMinutes += graph.nodes.get(p.matchId)?.durationMinutes ?? 0;
+    row.matches += 1;
   }
 
   let bottleneck: { day: number; utilisation: number } | null = null;
@@ -221,68 +161,30 @@ export function generateSchedule(
     if (!bottleneck || u > bottleneck.utilisation) bottleneck = { day: c.day, utilisation: u };
   }
 
-  // Legacy shape indicators, kept so the existing dashboard reads unchanged.
+  // What each division asked the venue for. A ratio above 1 means they cannot
+  // all be on court at once and have to take turns — not a fault, it is what
+  // the queue is for.
   const dedicatedCourts: Record<string, number> = {};
-  let sumDd = 0;
-  for (const div of divisions) {
-    const n = div.matches.length === 0 ? 0 : (affinity.get(div.id)?.size ?? 0);
-    dedicatedCourts[div.id] = n;
-    sumDd += n;
+  let wanted = 0;
+  for (const appetite of placed.appetites) {
+    dedicatedCourts[appetite.divisionId] = appetite.appetite;
+    wanted += appetite.appetite;
   }
+  for (const div of divisions) dedicatedCourts[div.id] ??= 0;
   const courtCount = Math.max(1, courtRoster(config).length);
-  const venueRatio = sumDd / courtCount;
+  const venueRatio = wanted / courtCount;
 
-  // Matches in each division's first round that slipped past day one.
+  // Matches in a division's opening round that slipped past day one.
   let openingRoundSpill = 0;
   if (grid.days > 1) {
-    const placedDay = new Map(placements.map(p => [p.matchId, p.slot.day]));
+    const dayOf = new Map(placements.map(p => [p.matchId, p.day]));
     for (const node of graph.nodes.values()) {
-      if (node.level === 0 && (placedDay.get(node.id) ?? 0) > 0) openingRoundSpill++;
+      if (node.level === 0 && (dayOf.get(node.id) ?? 0) > 0) openingRoundSpill++;
     }
   }
 
-  // Generate Net Adjust blocks for consecutive matches on the same court with differing net heights
-  const netBlocks: BlockedPeriod[] = [];
-  if (config.netBufferMinutes > 0) {
-    const placementsByCourtDay = new Map<string, typeof placements>();
-    for (const p of placements) {
-      const key = `${p.courtName}-${p.slot.day}`;
-      const list = placementsByCourtDay.get(key);
-      if (list) list.push(p);
-      else placementsByCourtDay.set(key, [p]);
-    }
-
-    for (const list of placementsByCourtDay.values()) {
-      list.sort((a, b) => a.startAbs - b.startAbs);
-      for (let i = 0; i < list.length - 1; i++) {
-        const curr = list[i];
-        const next = list[i + 1];
-        const currNode = graph.nodes.get(curr.matchId);
-        const nextNode = graph.nodes.get(next.matchId);
-        const currHeight = currNode?.netHeight;
-        const nextHeight = nextNode?.netHeight;
-        if (currHeight != null && nextHeight != null && currHeight !== nextHeight) {
-          const currEnd = curr.startAbs + (currNode?.durationMinutes ?? 0);
-          if (next.startAbs >= currEnd) {
-            const bufferLen = Math.min(next.startAbs - currEnd, config.netBufferMinutes);
-            if (bufferLen >= 5) {
-              const startDayMin = currEnd - curr.slot.day * DAY_SPAN;
-              netBlocks.push({
-                court: curr.courtName,
-                day: curr.slot.day,
-                start: toHHMM(startDayMin),
-                end: toHHMM(startDayMin + bufferLen),
-                label: 'Net Adjust',
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  const existingBlocks = (config.blocks ?? []).filter(b => b.label !== 'Net Adjust');
-  const blocks = [...existingBlocks, ...netBlocks];
+  const kept = (config.blocks ?? []).filter(b => b.label !== 'Net Adjust');
+  const blocks = [...kept, ...netAdjustBlocks(placements, config)];
 
   return {
     assignments,
@@ -300,14 +202,50 @@ export function generateSchedule(
 
     metrics,
     inventory,
-    relaxations: assigned.relaxations,
+    appetites: placed.appetites,
+    queue: placed.queue,
     criticalPathMinutes: graph.criticalPathMinutes,
     criticalPathMatches: graph.criticalPathMatches,
     bottleneck,
-    improvements: repaired.improvements,
     placements,
     graph,
     grid,
-    plan,
   };
+}
+
+/** The gap a net change leaves on a court, drawn on the calendar so the
+ *  organizer can see where the crew is working rather than wondering why a
+ *  court stands empty for a quarter of an hour. Derived from the finished
+ *  schedule and never stored — the next generate works them out again. */
+function netAdjustBlocks(placements: Placement[], config: ScheduleConfig): BlockedPeriod[] {
+  if (!(config.netBufferMinutes > 0)) return [];
+  const out: BlockedPeriod[] = [];
+
+  const byCourtDay = new Map<string, Placement[]>();
+  for (const p of placements) {
+    const key = `${p.courtName} ${p.day}`;
+    const list = byCourtDay.get(key);
+    if (list) list.push(p);
+    else byCourtDay.set(key, [p]);
+  }
+
+  for (const list of byCourtDay.values()) {
+    list.sort((a, b) => a.startAbs - b.startAbs);
+    for (let i = 0; i < list.length - 1; i++) {
+      const next = list[i + 1];
+      if (!next.netChange) continue;
+      const gap = next.startAbs - list[i].endAbs;
+      const length = Math.min(gap, config.netBufferMinutes);
+      if (length < 5) continue;
+      const from = list[i].endAbs - list[i].day * DAY_SPAN;
+      out.push({
+        court: list[i].courtName,
+        day: list[i].day,
+        start: toHHMM(from),
+        end: toHHMM(from + length),
+        label: 'Net Adjust',
+      });
+    }
+  }
+  return out;
 }

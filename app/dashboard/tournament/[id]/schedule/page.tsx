@@ -55,7 +55,6 @@ import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../..
 import {
   generateSchedule,
   scheduleInventory,
-  autoDedicatedCourts,
   buildGraph,
   buildGrid,
   validateSchedule,
@@ -258,19 +257,6 @@ function fromHHMM(time: string): number | null {
   const x = /^(\d{2}):(\d{2})$/.exec(time);
   return x ? Number(x[1]) * 60 + Number(x[2]) : null;
 }
-
-// What a broken promise means in the organizer's language. The generator gives
-// up constraints in a fixed order when an event won't otherwise fit, and which
-// one it gave up is the most useful thing it can tell you — a schedule that
-// quietly stopped honouring a setting is worse than one that says so.
-const RELAXATION_TEXT: Record<string, string> = {
-  finalsOnLastDay: 'finals not all held for the last day',
-  stageFinals: 'knockout rounds not staged — no room to run them side by side',
-  restIsHard: 'some teams got less than the target rest',
-  maxMatchesPerTeamPerDay: 'the per-day match cap was exceeded',
-  dayQuota: 'divisions ran ahead of their day plan',
-  backToBack: 'some teams played with no gap at all',
-};
 
 /** How long the break is. Pre-filled with the length of the match above it,
  *  which is the usual answer, and committed on Enter or the tick. */
@@ -661,10 +647,9 @@ export default function TournamentSchedulePage() {
   const [viewMode, setViewMode] = useState<'court' | 'grid'>('grid');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'done'>('all');
 
-  // Generator: config, per-division D_d overrides, unsaved preview.
+  // Generator: venue config and the unsaved preview.
   const [panelOpen, setPanelOpen] = useState(false);
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
-  const [overrides, setOverrides] = useState<Record<string, number | null>>({});
   const [preview, setPreview] = useState<ScheduleResult | null>(null);
   const [problemListOpen, setProblemListOpen] = useState(false);
   const [pulsingMatchId, setPulsingMatchId] = useState<string | null>(null);
@@ -804,11 +789,9 @@ export default function TournamentSchedulePage() {
           return;
         }
         setDetail(res);
-        // Seed the generator config + per-division overrides from the load.
+        // Seed the generator config from the load. Court appetite is read
+        // off each division's draw, so there is nothing per-division to seed.
         setConfig(res.scheduleConfig);
-        const ov: Record<string, number | null> = {};
-        res.divisions.forEach(d => { ov[d.id] = d.dedicatedCourts; });
-        setOverrides(ov);
         setLoading(false);
       })
       .catch(() => {
@@ -858,8 +841,8 @@ export default function TournamentSchedulePage() {
      (whether a match is pool play, above all) reshapes every later phase
      silently. */
   const schedulableDivisions = useMemo<SchedulableDivision[]>(
-    () => toSchedulableDivisions(detail?.divisions ?? [], labelsByDivision, overrides),
-    [detail, overrides, labelsByDivision],
+    () => toSchedulableDivisions(detail?.divisions ?? [], labelsByDivision),
+    [detail, labelsByDivision],
   );
 
   // Division whose full match list is open in the modal (null = closed).
@@ -1038,14 +1021,10 @@ export default function TournamentSchedulePage() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const divisionOverrides = detail.divisions.map(d => ({
-        divisionId: d.id,
-        dedicatedCourts: overrides[d.id] ?? null,
-      }));
       const patchRes = await fetch(`/api/tournaments/${slug}/schedule`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, divisionOverrides }),
+        body: JSON.stringify({ config }),
       });
       if (!patchRes.ok) throw new Error((await patchRes.json().catch(() => ({}))).error || 'Failed to save config');
 
@@ -2400,12 +2379,6 @@ export default function TournamentSchedulePage() {
                 {preview.overflow.length > 0 && (
                   <span className={styles.previewWarn}>
                     <AlertTriangle size={13} /> {preview.overflow.length} over-scheduled (won&apos;t fit in {dayCount} day{dayCount === 1 ? '' : 's'})
-                  </span>
-                )}
-                {preview.relaxations.length > 0 && (
-                  <span className={styles.previewWarn}>
-                    <AlertTriangle size={13} /> To fit everything:{' '}
-                    {preview.relaxations.map(r => RELAXATION_TEXT[r] ?? r).join('; ')}
                   </span>
                 )}
               </span>
