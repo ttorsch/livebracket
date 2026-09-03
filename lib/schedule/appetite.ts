@@ -149,12 +149,32 @@ export function cohortRank(d: { gender?: string | null; label?: string }): numbe
  *  rather than on a rule.
  *
  *  A smaller division that would be left under one court does not start at
- *  all; it waits its turn, and the bigger one takes the venue. */
-export function allotBlocks(running: Appetite[], courtCount: number): Block[] {
+ *  all; it waits its turn, and the bigger one takes the venue.
+ *
+ *  `fillVenue` is false once some division is past its round robin and has a
+ *  knockout waiting. Then each block is cut to exactly its appetite and the
+ *  rest of the roster is left **unreserved** — open to whoever can use it.
+ *  Handing the whole venue to the last division still playing pools would
+ *  otherwise lock every other division's endgame out of a court, which is a
+ *  worse kind of idle than an empty column. */
+export function allotBlocks(running: Appetite[], courtCount: number, fillVenue = true): Block[] {
   const courts = Math.max(0, Math.trunc(courtCount) || 0);
   if (courts === 0 || running.length === 0) return [];
 
   const all = Array.from({ length: courts }, (_, i) => i);
+
+  if (!fillVenue) {
+    const out: Block[] = [];
+    let cursor = 0;
+    for (const division of running) {
+      const width = Math.min(division.appetite, courts - cursor);
+      if (width < 1) break;
+      out.push({ divisionId: division.divisionId, courts: all.slice(cursor, cursor + width) });
+      cursor += width;
+    }
+    return out;
+  }
+
   if (running.length === 1) return [{ divisionId: running[0].divisionId, courts: all }];
 
   const [first, second] = running;

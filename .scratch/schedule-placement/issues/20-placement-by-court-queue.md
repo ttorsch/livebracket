@@ -339,6 +339,55 @@ rule that protects the roster.
 
 ---
 
+### 10. Built — four corrections the first build forced
+
+**The queue is about pool play, not about divisions.** Holding a queue slot
+until a division was *entirely* finished deadlocked the event, and the cause
+was a circular wait rather than a shortage of court time: the play-off for 3rd
+waits on every division's semifinals, the last division could not reach its
+semifinals because the first two still held both slots, so the first two could
+never finish. Measured on the organizer's own tournament — 22 of 54 matches
+stranded, one whole division plus both play-off/final pairs, with the venue
+idle from midday on day one. A division now leaves the queue when its **round
+robin** ends; its knockout competes for free courts like anything else. The
+roster-overlap exposure is a non-gendered round robin against a gendered
+*knockout*, where four of eight teams play rather than all of them.
+
+**A non-gendered round robin waits for every gendered one, by the clock.** A
+free slot is not an invitation: Mixed overlaps *both* gendered draws, so one of
+them finishing early does not let it in. And the gate alone is not enough —
+courts drift apart, so the block Mixed is given can stand free while the last
+Men's pool match still runs beside it. It is a time floor as well as a gate.
+
+**The reservation binds both ways.** Nobody else plays on a block whose owner
+is mid-round-robin, *and* a round robin never spills off its own block. Leaving
+either half open undoes the appetite arithmetic: a knockout at matching net
+height took the block out from under the division about to use it, and a round
+robin allowed onto the unreserved courts beside it ran four matches at once
+instead of two — all eight of its teams on court, every one of them back to
+back. Measured: 12 back-to-back matches, all one division spilling off its own
+two courts. The zero-net-change borrow survives only for **unreserved** courts.
+
+**The endgame may run past closing on the last day** (`08`). Only the medal
+rounds: an event whose day is genuinely too short should show the organizer a
+final at 17:55 and let them decide, where an unplaced final is just an absence.
+Pool play gets no such licence — a round robin that does not fit *is* the event
+not fitting, and inventing evening court time for it would hide the problem.
+
+### Measured on the organizer's tournament
+
+3 divisions x 18 matches, 4 courts, 2 days, 09:00-17:00 with a 12:00-15:30
+heat break (270 playable minutes per court per day against 1,890 needed).
+
+| | placed | overflow | back-to-back | net changes |
+|---|---|---|---|---|
+| first build | 32 | **22** | 2 | 0 |
+| queue on pool play | 54 | 0 | 18 | 7 |
+| + reservation both ways | 54 | 0 | 8 | 4 |
+| + non-gendered floor | **54** | **0** | **0** | **4** |
+
+---
+
 ## Open
 
-Nothing. Ready to build.
+Nothing. Built and measured.

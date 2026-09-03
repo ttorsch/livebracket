@@ -160,12 +160,26 @@ function assertSound(
     }
   }
 
-  // 4. Everything sits inside the playing window.
+  // 4. Everything sits inside the playing window — except a medal round on the
+  //    last day, which may run past closing rather than go unplaced. An event
+  //    whose day is too short should show the organizer a final at 18:20 and
+  //    let them decide; an absent final is just an absence.
   for (const p of result.placements) {
     const startOfDay = p.day * DAY_SPAN;
+    const node = result.graph.nodes.get(p.matchId)!;
+    const shape = result.graph.divisions.get(node.divisionId);
+    const medal =
+      !node.isPool &&
+      !!shape &&
+      shape.maxLevel > 0 &&
+      (node.isThirdPlace || node.level >= shape.maxLevel - 1);
+
     assert.ok(p.startAbs - startOfDay >= result.grid.dayStart, `${label}: match before opening time`);
-    assert.ok(p.endAbs - startOfDay <= result.grid.dayEnd, `${label}: match past closing time`);
     assert.ok(p.day < result.grid.days, `${label}: match on a day that doesn't exist`);
+    if (p.endAbs - startOfDay > result.grid.dayEnd) {
+      assert.ok(medal, `${label}: ${p.matchId} runs past closing and is not a medal round`);
+      assert.equal(p.day, result.grid.days - 1, `${label}: ${p.matchId} runs late on a day that is not the last`);
+    }
   }
 
   // 5. Nothing is lost: every match is either placed or reported as overflow.

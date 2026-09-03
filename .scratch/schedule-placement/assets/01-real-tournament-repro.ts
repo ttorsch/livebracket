@@ -30,7 +30,7 @@ console.log(`config: ${JSON.stringify(detail.scheduleConfig)}`);
 for (const d of divisions) {
   const byRound = new Map<number, number>();
   for (const m of d.matches) byRound.set(m.roundIndex, (byRound.get(m.roundIndex) ?? 0) + 1);
-  console.log(`  ${d.label}: ${d.matches.length} schedulable matches, pools=${d.pools}, net=${d.netHeight}, dedicated=${d.dedicatedCourts}`);
+  console.log(`  ${d.label}: ${d.matches.length} schedulable matches, pools=${d.pools}, net=${d.netHeight}, dedicated=auto`);
   console.log(`     rounds: ${[...byRound].map(([r, n]) => `r${r}=${n}${d.matches.find(m => m.roundIndex === r)!.isPool ? '(pool)' : ''}×${d.matches.find(m => m.roundIndex === r)!.durationMinutes}m`).join(' ')}`);
 }
 

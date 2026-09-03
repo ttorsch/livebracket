@@ -67,10 +67,13 @@ export interface PlaceResult {
  *  actually happening there. */
 const OVERRUN = 0.2;
 
-/** Divisions on court at once. Two: any more and roster overlap starts
+/** Divisions in **pool play** at once. Two: any more and roster overlap starts
  *  double-booking real people, who are entered in several divisions under
- *  unrelated team ids the solver cannot connect. */
-const CONCURRENT_DIVISIONS = 2;
+ *  unrelated team ids the solver cannot connect.
+ *
+ *  It counts round robins and nothing else. A division past its pools is out
+ *  of the queue entirely — see the walk. */
+const CONCURRENT_POOL_DIVISIONS = 2;
 
 type Phase = 'pool' | 'early' | 'semifinal' | 'third' | 'final';
 
@@ -171,6 +174,14 @@ export function placeMatches(
   }
   const phaseMatches = (p: Phase) => byPhase.get(p) ?? [];
 
+  /** Is this a gendered division? Non-gendered draws take their players from
+   *  the gendered ones, so their round robins can never overlap. */
+  const gendered = (divisionId: string): boolean => {
+    const shape = shapeOf(divisionId);
+    return cohortRank({ gender: shape?.gender, label: shape?.label }) === 0;
+  };
+  const genderedPools = [...graph.nodes.values()].filter(n => n.isPool && gendered(n.divisionId));
+
   // A handful of endgame matches have to start *together* — a division's two
   // semifinals side by side, every play-off for 3rd at once — because that is
   // the programme an organizer runs, not an optimisation. They are the one
@@ -215,6 +226,14 @@ export function placeMatches(
       ? (grid.days - 1) * DAY_SPAN + grid.dayStart
       : -Infinity;
 
+    // A non-gendered round robin waits for the last gendered one to *finish*,
+    // not merely to be placed. Courts drift apart as the day goes on, so the
+    // block a Mixed draw is given can stand free while the last Men's pool
+    // match is still running on the court beside it — and the same people
+    // would be on both.
+    if (phase === 'pool' && !gendered(node.divisionId)) {
+      return Math.max(dayFloor, latestEnd(genderedPools));
+    }
     if (phase === 'pool' || phase === 'early' || !stageEndgame) return dayFloor;
 
     if (phase === 'semifinal') {
@@ -312,17 +331,53 @@ export function placeMatches(
   for (let pass = 0; pass < maxPasses; pass++) {
     if (remaining.size === 0) break;
 
-    // The front of the queue takes the venue. When a division finishes, the
-    // next one enters and the blocks are re-cut around it — which is the
-    // handover, and the one moment a whole block may be re-rigged at once.
-    const running = queue
-      .filter(id => !divisionDone(id))
-      .slice(0, CONCURRENT_DIVISIONS)
-      .map(id => appetiteOfDivision.get(id)!)
-      .filter(Boolean);
-    if (running.length === 0) break;
+    // ── Who is on the venue ──────────────────────────────────────────────
+    //
+    // **The queue is about pool play, and nothing else.** Two round robins run
+    // at a time; a division leaves the queue the moment its pools are done,
+    // and its knockout then competes for whatever court is free like any other
+    // work. The next division's pools start immediately behind it.
+    //
+    // Holding a queue slot until a division was *entirely* finished deadlocked
+    // the event outright, and the cause was a circular wait rather than a
+    // shortage of court time: the play-off for 3rd waits on every division's
+    // semifinals, the last division could not reach its semifinals because the
+    // first two still held both slots, and so the first two could never
+    // finish. Measured on the organizer's own tournament: 22 of 54 matches
+    // stranded — one whole division and both play-off/final pairs — with the
+    // venue idle from midday on day one.
+    //
+    // The cost is that a non-gendered division's pools may now overlap a
+    // gendered division's *knockout*. That is a far smaller exposure than the
+    // rule was written for: a round robin has every team playing, a knockout
+    // has four of eight, and it buys back the courts that were standing empty.
+    const unfinished = queue.filter(id => !divisionDone(id));
+    if (unfinished.length === 0) break;
 
-    for (const block of allotBlocks(running, courts.length)) {
+    // A free slot is not an invitation. A Mixed draw overlaps *both* gendered
+    // draws, so it may only begin once neither of them is still in its round
+    // robin — one of the two finishing early does not let it in. Without this
+    // the smaller gendered division finishes, Mixed takes its slot, and the
+    // same people are booked on two courts while the other gendered division
+    // is still playing.
+    const genderedStillPooling = unfinished.some(id => gendered(id) && inPoolPlay(id));
+    const pooling = unfinished
+      .filter(id => inPoolPlay(id) && (gendered(id) || !genderedStillPooling))
+      .slice(0, CONCURRENT_POOL_DIVISIONS);
+    const pastPools = unfinished.filter(id => !inPoolPlay(id));
+    const runningIds = new Set([...pooling, ...pastPools]);
+
+    // Blocks are cut for the round robins. While nothing else needs a court
+    // the pair fills the venue between them; once a knockout is waiting, each
+    // block shrinks to its appetite and the rest of the roster is unreserved.
+    for (const court of courts) court.ownerId = null;
+    const blocks = allotBlocks(
+      pooling.map(id => appetiteOfDivision.get(id)!).filter(Boolean),
+      courts.length,
+      pastPools.length === 0,
+    );
+    const blocked_ = new Set(blocks.map(b => b.divisionId));
+    for (const block of blocks) {
       for (const c of block.courts) courts[c].ownerId = block.divisionId;
     }
     // A court whose net nobody has declared takes its owner's height for free:
@@ -333,7 +388,6 @@ export function placeMatches(
       }
     }
 
-    const runningIds = new Set(running.map(r => r.divisionId));
     const roundOf = new Map<string, number>();
     for (const id of runningIds) roundOf.set(id, currentRound(id));
 
@@ -379,15 +433,27 @@ export function placeMatches(
         if (!runningIds.has(node.divisionId)) continue;
         if (roundGated(node) && node.roundIndex !== roundOf.get(node.divisionId)) continue;
 
-        // Court ownership, while the owner is still playing its pools. A
-        // division plays on its own block; another division may borrow an idle
-        // court there only at **zero net change** — which is what a
-        // reservation always should have been, and what a 26-point preference
-        // never was. Once the owner is out of pool play the block is released:
-        // the endgame uses what is free, and pays for any net it moves.
+        // Court ownership, while the owner is still playing its pools.
+        //
+        // A reservation binds **both ways**, and it has to, because the
+        // appetite is the only thing keeping half a division off court:
+        //
+        //   - nobody else plays on a block whose owner is mid-round-robin, and
+        //   - a round robin never spills off its own block.
+        //
+        // Leaving either half open undoes the arithmetic. A knockout allowed
+        // onto a reserved court at matching net height took the block out from
+        // under the division about to use it; a round robin allowed onto the
+        // unreserved courts beside it ran four matches at once instead of two,
+        // put all eight of its teams on court, and every one of them played
+        // back to back. Measured on the organizer's tournament: 12 back-to-back
+        // matches, all of them one division spilling off its own two courts.
+        //
+        // Once the owner is out of pool play the block is released outright:
+        // the endgame uses whatever is free and pays for any net it moves.
         const owns = node.divisionId === court.ownerId;
-        const freeSwap = node.netHeight == null || court.height == null || court.height === node.netHeight;
-        if (reserved && !owns && !freeSwap) continue;
+        if (reserved && !owns) continue;
+        if (node.isPool && blocked_.has(node.divisionId) && !owns) continue;
 
         const group = groupOf.get(node.id);
         if (group !== undefined && !dissolved.has(group)) continue;
@@ -467,6 +533,7 @@ export function placeMatches(
       let best: { court: CourtState; start: number } | null = null;
       for (const court of courts) {
         if (taken.has(court.index)) continue;
+        if (court.ownerId != null && inPoolPlay(court.ownerId)) continue;
         const option = earliestOn(node, court, phaseFloor(node));
         if (!option) continue;
         if (!best || option.start < best.start) best = { court, start: option.start };
@@ -526,7 +593,7 @@ export function placeMatches(
 
     let netChange = false;
     for (let round = 0; round < 8; round++) {
-      const settled = settle(node, court, t, duration);
+      const settled = settle(node, court, t, duration, mayRunLate(node));
       if (settled === null) return null;
       t = settled;
 
@@ -581,11 +648,12 @@ export function placeMatches(
     court: CourtState,
     from: number,
     duration: number,
+    late: boolean,
   ): number | null {
     let t = from;
     for (let i = 0; i < 64; i++) {
       const clearOfTeams = pastTeamBookings(node, t, duration);
-      const fitted = fitToDay(court, clearOfTeams, duration);
+      const fitted = fitToDay(court, clearOfTeams, duration, late);
       if (fitted === null) return null;
       if (fitted === clearOfTeams) return fitted;
       t = fitted;
@@ -616,13 +684,18 @@ export function placeMatches(
 
   /** Slide `t` into the first minute of a playing run that can hold the whole
    *  match, on this day or a later one. */
-  function fitToDay(court: CourtState, from: number, duration: number): number | null {
+  function fitToDay(
+    court: CourtState,
+    from: number,
+    duration: number,
+    late: boolean,
+  ): number | null {
     let t = from;
     const tolerance = Math.floor(duration * OVERRUN);
 
     for (let i = 0; i < 512; i++) {
       const day = Math.floor(t / DAY_SPAN);
-      if (day >= grid.days) return null;
+      if (day >= grid.days) return late ? runLate(court, from, duration) : null;
       const base = day * DAY_SPAN;
       const start = t - base;
 
@@ -653,6 +726,41 @@ export function placeMatches(
       return t;
     }
     return null;
+  }
+
+  /** May this match be played after the configured end of the last day?
+   *
+   *  Only the medal rounds. An event whose day is genuinely too short should
+   *  say so rather than quietly drop its own final: a play-off and a final
+   *  that spill past closing are a schedule the organizer can look at and
+   *  decide about — moving them, extending the day, adding a court — where an
+   *  unplaced final is just an absence.
+   *
+   *  Pool play gets no such licence. A round robin that does not fit is the
+   *  event not fitting, and inventing evening court time for a hundred pool
+   *  matches would hide exactly the problem the organizer needs to see. */
+  function mayRunLate(node: MatchNode): boolean {
+    const phase = phaseOf(node);
+    return phase === 'semifinal' || phase === 'third' || phase === 'final';
+  }
+
+  /** Where a match goes when it has run out of event. On the last day, after
+   *  whatever the court already holds, past closing time. */
+  function runLate(court: CourtState, from: number, duration: number): number {
+    const base = (grid.days - 1) * DAY_SPAN;
+    let t = Math.max(from, court.freeAt, base + grid.dayStart);
+    if (t < base) t = base + grid.dayStart;
+    if (grid.lunch) {
+      const open = base + grid.lunch.start;
+      const shut = base + grid.lunch.end;
+      if (t >= open && t < shut) t = shut;
+    }
+    let blocked = blockedUntil(court.index, grid.days - 1, t - base, duration);
+    for (let i = 0; blocked !== null && i < 64; i++) {
+      t = base + blocked;
+      blocked = blockedUntil(court.index, grid.days - 1, t - base, duration);
+    }
+    return t;
   }
 
   /** End of the first blocked period this match would run into, or null. */

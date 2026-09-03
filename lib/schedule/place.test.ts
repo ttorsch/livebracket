@@ -174,28 +174,35 @@ describe('placeMatches', () => {
     assert.deepEqual(courtsOf('women'), [4, 5, 6]);
   });
 
-  it('keeps a non-gendered division off court until the gendered ones finish', () => {
+  it('keeps a non-gendered round robin off court until the gendered ones finish', () => {
     // Roster overlap: a Mixed team's players come from the gendered draws, and
-    // the solver cannot see that they are the same people.
+    // the solver cannot see that they are the same people, so the round robins
+    // never run together.
+    //
+    // It is *round robins* the queue separates, not whole divisions. Holding a
+    // queue slot until a division was entirely finished deadlocked the event —
+    // the play-off for 3rd waits on every division's semifinals, and the last
+    // division could never reach its semifinals — so a division leaves the
+    // queue when its pools are done and its knockout competes for free courts
+    // like anything else. A knockout has four of eight teams playing where a
+    // round robin has all of them, so the exposure is much smaller.
     const men = division('men', 2, 4, { gender: 'Men' });
     const women = division('women', 2, 4, { gender: 'Women' });
     const mixed = division('mixed', 2, 4, { gender: 'Mixed' });
     const { result, graph } = run([men, women, mixed], 8);
 
     assert.equal(result.unplaced.length, 0);
-    const endOfGendered = Math.max(
-      ...result.placements
-        .filter(p => graph.nodes.get(p.matchId)!.divisionId !== 'mixed')
-        .map(p => p.endAbs),
-    );
-    const startOfMixed = Math.min(
-      ...result.placements
-        .filter(p => graph.nodes.get(p.matchId)!.divisionId === 'mixed')
-        .map(p => p.startAbs),
-    );
+    const poolsOf = (test: (id: string) => boolean) =>
+      result.placements.filter(p => {
+        const node = graph.nodes.get(p.matchId)!;
+        return node.isPool && test(node.divisionId);
+      });
+
+    const genderedEnd = Math.max(...poolsOf(id => id !== 'mixed').map(p => p.endAbs));
+    const mixedStart = Math.min(...poolsOf(id => id === 'mixed').map(p => p.startAbs));
     assert.ok(
-      startOfMixed >= endOfGendered,
-      `mixed started at ${startOfMixed}, gendered play ran to ${endOfGendered}`,
+      mixedStart >= genderedEnd,
+      `mixed pools started at ${mixedStart}, gendered pools ran to ${genderedEnd}`,
     );
   });
 
