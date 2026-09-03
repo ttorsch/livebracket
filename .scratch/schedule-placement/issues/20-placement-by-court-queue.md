@@ -129,12 +129,38 @@ those courts idle on the team filter rather than by rule.
 
 ---
 
-### 3. The first row
+### 3. The rhythm of a round robin — measured, and not what was specified
 
-Take the opening match of each pool of each running division. One per court.
+The ticket originally said: take the opening match of **each pool**, one per
+court. Built and measured, that destroys the rest guarantee it exists to serve.
 
-Where there are more courts than pools, keep adding matches that share no
-player with anything already on that row, until the row is full.
+Once a pool of four has played `AB` and `CD`, every match it has left pairs one
+of `A,B` with one of `C,D` — so the third row *must* reuse whoever played in
+the second. Four pools of four across four courts:
+
+| Opening row | Back-to-back | Rows used |
+|---|---|---|
+| one match per pool | **8** | 6 |
+| whole pools alternating | **0** | 6 |
+
+Same six rows, same finish time, eight fewer back-to-backs. So the rule is
+**pools already on court finish before new ones start**: a whole pool goes up
+across the courts it needs, plays its round, and sits down while the next group
+plays.
+
+    09:00  A1vA2  A3vA4  B1vB2  B3vB4     <- pools A and B, whole
+    09:20  C1vC2  C3vC4  D1vD2  D3vD4     <- C and D, while A and B rest
+    09:40  A1vA3  A2vA4  B1vB3  B2vB4     <- A and B again, rested
+    ...
+
+It falls out of one tie-break (`poolLastStart`, ranked descending) rather than
+a rule of its own, and needs no concept of a "group": the score refuses a
+back-to-back, so a pool that has just played cannot come straight back up even
+though the tie-break would like it to.
+
+An **odd pool count cannot pair evenly** — three pools of four on three courts
+leaves one pool sharing a court group with half of another, and measures 2
+back-to-back. Reported, not fixed.
 
 ---
 
