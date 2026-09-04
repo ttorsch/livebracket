@@ -75,7 +75,7 @@ describe('formatUpNext', () => {
       roundName: 'Round 1',
       division: 'Men Open',
     });
-    assert.deepEqual(result, { tag: null, teamA: 'Ananda / Mali', teamB: 'Lukas / Felix' });
+    assert.deepEqual(result, { round: 'Round 1', tag: null, teamA: 'Ananda / Mali', teamB: 'Lukas / Felix' });
   });
 
   it('formats TBD vs TBD with round and division', () => {
@@ -85,7 +85,7 @@ describe('formatUpNext', () => {
       roundName: 'Quarterfinals',
       division: 'Women Open',
     });
-    assert.deepEqual(result, { tag: 'Quarterfinals · Women Open', teamA: 'TBD', teamB: 'TBD' });
+    assert.deepEqual(result, { round: 'Quarterfinals', tag: 'Women Open', teamA: 'TBD', teamB: 'TBD' });
   });
 
   it('formats partial TBD without extra round prefix', () => {
@@ -95,7 +95,7 @@ describe('formatUpNext', () => {
       roundName: 'Quarterfinals',
       division: 'Women Open',
     });
-    assert.deepEqual(result, { tag: null, teamA: 'Ananda / Mali', teamB: 'TBD' });
+    assert.deepEqual(result, { round: 'Quarterfinals', tag: null, teamA: 'Ananda / Mali', teamB: 'TBD' });
   });
 });
 
@@ -130,7 +130,7 @@ describe('buildCourtRows', () => {
     assert.equal(court1.court, 'Court 1');
     assert.equal(court1.hasLive, false);
     assert.equal(court1.upNextTime, '09:30');
-    assert.deepEqual(court1.upNext, { tag: null, teamA: 'Ananda / Mali', teamB: 'Lukas / Felix' });
+    assert.deepEqual(court1.upNext, { round: 'Pool Round', tag: null, teamA: 'Ananda / Mali', teamB: 'Lukas / Felix' });
   });
 
   it('formats upNext with round and division when next match is genuinely TBD', () => {
@@ -153,7 +153,7 @@ describe('buildCourtRows', () => {
     const court2 = rows[0];
     assert.equal(court2.court, 'Court 2');
     assert.equal(court2.upNextTime, '09:00');
-    assert.deepEqual(court2.upNext, { tag: 'Quarterfinals · Mixed Open', teamA: 'TBD', teamB: 'TBD' });
+    assert.deepEqual(court2.upNext, { round: 'Quarterfinals', tag: 'Mixed Open', teamA: 'TBD', teamB: 'TBD' });
   });
 
   it('keeps live match on court while correctly picking the next chronological upcoming match', () => {
@@ -200,6 +200,8 @@ describe('buildCourtRows', () => {
     assert.equal(court4.teamA, 'Somchai / Kanya');
     assert.equal(court4.teamB, 'Aroon / Chai');
     assert.equal(court4.upNextTime, '09:30');
-    assert.deepEqual(court4.upNext, { tag: null, teamA: 'Nok / Tem', teamB: 'Emma / Ana' });
+    assert.deepEqual(court4.upNext, { round: 'Pools', tag: null, teamA: 'Nok / Tem', teamB: 'Emma / Ana' });
+    // The round of the match actually on court, for the scoreboard header.
+    assert.equal(court4.round, 'Pools');
   });
 });

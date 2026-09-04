@@ -223,6 +223,17 @@ export default function OrganizerDashboard() {
     putCursorInSearch();
   }, [activeTab]);
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Close the More menu on an outside click or Escape, like the other menus.
   useEffect(() => {
     if (!moreOpen) return;
@@ -668,9 +679,10 @@ export default function OrganizerDashboard() {
                     to it would not forward. */}
                 <div ref={searchWrapRef} className={styles.searchWrap}>
                   <SearchField
-                    placeholder="Search tournaments, locations, divisions"
+                    placeholder={isMobile ? 'Search tournament' : 'Search tournaments, locations, divisions'}
                     value={query}
                     onChange={e => setQuery(e.target.value)}
+                    showMic={true}
                     style={{ background: 'var(--sand-200)' }}
                   />
                 </div>
@@ -848,6 +860,9 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
            * score just moved is the thing worth spotting. */
           const scoredA = r.lastScorer === 'a';
           const scoredB = r.lastScorer === 'b';
+          /* r.sets is padded to SET_COLUMNS with nulls for the sets not
+           * played yet; only the finished ones go in front of the score. */
+          const playedSets = r.sets.filter((set): set is NonNullable<typeof set> => set !== null);
           /* Undefined on a court with nothing left to play, and on the
              "Unassigned" bucket — buildCourtRows and the scorekeeper API
              name that bucket differently, and a match with no court has
@@ -900,15 +915,30 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
                         return secs === null ? '--:--' : formatClock(secs);
                       })()}
                     </span>
+                    {/* Which round, then which division — the two things
+                        that place a match in the draw. The round is the
+                        quieter of the pair: it changes through the day,
+                        while the division is what the card belongs to. */}
+                    {r.round && <span className={styles.courtBoardRound}>{r.round}</span>}
                     <span className={styles.courtBoardDivision}>{r.division}</span>
                   </div>
 
+                  {/* On a phone each side's finished sets sit just in
+                      front of its live score, the way the homepage hero
+                      scoreboard reads — the SET chips below cost a third
+                      of the card's height to say the same thing, and the
+                      wide card keeps them. */}
                   <div className={styles.courtTeamRow}>
                     <span className={`${styles.courtTeamName} ${scoredA ? styles.courtTeamScored : ''}`}>
                       {r.teamA}
                     </span>
-                    <span className={`${styles.courtTeamScore} ${scoredA ? styles.courtTeamScored : ''}`}>
-                      {r.scoreA}
+                    <span className={styles.courtTeamRight}>
+                      {playedSets.map((set, i) => (
+                        <span key={i} className={styles.courtPrevSet}>{set.a}</span>
+                      ))}
+                      <span className={`${styles.courtTeamScore} ${scoredA ? styles.courtTeamScored : ''}`}>
+                        {r.scoreA}
+                      </span>
                     </span>
                   </div>
                   <div className={styles.courtBoardDivider} aria-hidden="true" />
@@ -916,11 +946,19 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
                     <span className={`${styles.courtTeamName} ${scoredB ? styles.courtTeamScored : ''}`}>
                       {r.teamB}
                     </span>
-                    <span className={`${styles.courtTeamScore} ${scoredB ? styles.courtTeamScored : ''}`}>
-                      {r.scoreB}
+                    <span className={styles.courtTeamRight}>
+                      {playedSets.map((set, i) => (
+                        <span key={i} className={styles.courtPrevSet}>{set.b}</span>
+                      ))}
+                      <span className={`${styles.courtTeamScore} ${scoredB ? styles.courtTeamScored : ''}`}>
+                        {r.scoreB}
+                      </span>
                     </span>
                   </div>
 
+                  {/* The wide card has the room to label each set, so it
+                      keeps the chips. Hidden on a phone, where the same
+                      numbers ride in front of the scores above. */}
                   <div className={styles.courtSetRow}>
                     {r.sets.map((set, i) => (
                       <div key={i} className={`${styles.courtSetChip} ${set ? '' : styles.courtSetChipEmpty}`}>
@@ -965,7 +1003,11 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
 
               <div className={styles.courtNext}>
                 <span className={styles.courtNextLabel}>
+                  {/* When and which round, in the same micro line — both
+                      are context for the names underneath rather than
+                      part of them. */}
                   Up next{r.upNextTime ? ` · ${r.upNextTime}` : ''}
+                  {r.upNext?.round ? ` · ${r.upNext.round}` : ''}
                 </span>
                 <span className={styles.courtNextValue}>
                   {r.upNext ? (
@@ -997,6 +1039,19 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
   );
 }
 
+
+/* The row's status badge, one size down from the design system's default
+ * so it sits over the title as a label rather than beside it as a peer.
+ * Built once per variant rather than inline, so the object identity is
+ * stable across the list's re-renders. */
+const ROW_BADGE_SIZE = { padding: '3px 8px', fontSize: 9.5, letterSpacing: '0.07em' } as const;
+const ROW_BADGE_STYLE: Record<string, React.CSSProperties> = {
+  status: ROW_BADGE_SIZE,
+  open: ROW_BADGE_SIZE,
+  live: ROW_BADGE_SIZE,
+  outline: ROW_BADGE_SIZE,
+  highlight: { ...ROW_BADGE_SIZE, background: 'var(--amber-100, #FEF3C7)' },
+};
 
 /* ── Compact tournament row (expandable) ────────────────────────── */
 
@@ -1046,23 +1101,19 @@ function TournamentRow({
         </span>
 
         <span className={styles.rowInfo}>
-          {/* The badge rides with the title rather than holding the card's
-              far corner — one phrase, "Test touney, announced", instead of
-              two things to look at. It wraps under the title when a long
-              name leaves it no room. */}
+          {/* Status first, then the name it belongs to — the badge reads
+              as a label over the title rather than something appended to
+              it, and a long name no longer decides where it sits. */}
           <span className={styles.rowTitleLine}>
-            <span className={styles.rowTitle}>{t.title}</span>
             <span className={styles.rowPills}>
-              {/* "Registration open" keeps the design system's own look —
+              {/* Small: it is a label above the title, not a peer of it.
+                  "Registration open" keeps the design system's own look —
                   a tinted fill and its dot. The highlight variant ships as
                   solid amber-300, which beside it reads as a different
                   kind of thing entirely, so it borrows the light amber and
                   matches. Overridden here rather than in Badge, which a
                   dozen other surfaces share. */}
-              <Badge
-                variant={status.variant}
-                style={status.variant === 'highlight' ? { background: 'var(--amber-100, #FEF3C7)' } : undefined}
-              >
+              <Badge variant={status.variant} style={ROW_BADGE_STYLE[status.variant]}>
                 {status.label}
               </Badge>
               {isLive && (
@@ -1071,6 +1122,7 @@ function TournamentRow({
                 </span>
               )}
             </span>
+            <span className={styles.rowTitle}>{t.title}</span>
           </span>
           <span className={styles.rowMeta}>
             {/* When and how big on one line, where on the next — the two

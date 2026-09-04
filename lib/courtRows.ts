@@ -18,6 +18,7 @@ export interface CourtRow {
   lastScorer: 'a' | 'b' | null;  // side that won the most recent point
   startedAt: number | null;      // epoch ms the match clock runs from
   sets: (SetScore | null)[];     // finished sets, padded to SET_COLUMNS
+  round: string | null;          // round of the match on court, e.g. "Quarterfinals"
   hasLive: boolean;
   upNext: UpNextMatch | null;
   upNextTime: string | null;
@@ -33,7 +34,9 @@ export function playerNames(players: DetailMatchPlayer[]): string {
  * weight and no way to tell which one splits the teams. The card styles
  * the pieces instead. */
 export interface UpNextMatch {
-  /** Round and division, set only when neither side is known yet. */
+  /** Which round of the draw, e.g. "Quarterfinals" — shown in the label. */
+  round: string | null;
+  /** Division, carried only when neither side is known yet. */
   tag: string | null;
   teamA: string;
   teamB: string;
@@ -45,12 +48,11 @@ export function formatUpNext(
   if (!match) return null;
   const teamA = playerNames(match.teamA);
   const teamB = playerNames(match.teamB);
-  /* Two unknown sides say nothing on their own, so the round and division
-   * stand in as the only useful thing about the match. */
-  const tag = teamA === 'TBD' && teamB === 'TBD'
-    ? [match.roundName, match.division].filter(Boolean).join(' · ') || null
-    : null;
-  return { tag, teamA, teamB };
+  /* Two unknown sides say nothing on their own, so the division stands in
+   * as the only other useful thing about the match — the round is on the
+   * label either way. */
+  const tag = teamA === 'TBD' && teamB === 'TBD' ? match.division || null : null;
+  return { round: match.roundName || null, tag, teamA, teamB };
 }
 
 export function buildCourtRows(detail: TournamentDetail): CourtRow[] {
@@ -114,6 +116,7 @@ export function buildCourtRows(detail: TournamentDetail): CourtRow[] {
         lastScorer: m.lastScorer ?? null,
         startedAt: m.startedAt ?? null,
         sets,
+        round: m.roundName || null,
         hasLive: true,
         upNext,
         upNextTime,
@@ -129,6 +132,7 @@ export function buildCourtRows(detail: TournamentDetail): CourtRow[] {
         lastScorer: null,
         startedAt: null,
         sets: Array(SET_COLUMNS).fill(null),
+        round: next.roundName || null,
         hasLive: false,
         upNext,
         upNextTime,

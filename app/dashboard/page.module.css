@@ -622,8 +622,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  /* Wraps rather than crushes: clock, round and division are three things
+     on a card that can be 240px wide, and the division badge dropping to
+     its own line beats any of them being squeezed. */
+  flex-wrap: wrap;
+  gap: 6px 10px;
   margin-bottom: 12px;
+}
+/* The round sits with the clock as the quiet half of the header — same
+   micro type as the clock, no pill, so the division badge stays the one
+   thing with a fill on this line. */
+.courtBoardRound {
+  margin-right: auto;
+  font-size: var(--text-micro-size, 10px);
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
 }
 /* Replaces the design's "Now playing" label: same slot, same weight, but
    carrying the running match clock. Tabular figures so the digits don't
@@ -675,6 +690,27 @@
    landed. Applied to both the name and the number of that team. */
 .courtTeamScored { color: var(--color-primary, #EB6F43); }
 
+/* The scoring side of a team row: sets already won, then the set on
+   court — the homepage hero's arrangement. Phone-only; a wide card has
+   the room for the labelled SET chips below instead. */
+.courtTeamRight {
+  display: flex;
+  /* Centred, not baseline-aligned. The set numbers are 15px against a
+     26-34px score, so sitting them on a shared baseline pushed the small
+     figures to the bottom of the row and read as misaligned. */
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.courtPrevSet {
+  display: none;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .courtBoardDivider {
   height: 1px;
   background: rgba(255, 255, 255, 0.12);
@@ -711,7 +747,6 @@
   color: #fff;
 }
 .courtSetValueEmpty { color: rgba(255, 255, 255, 0.35); }
-
 /* ── Idle court ───────────────────────────────────────────────── */
 .courtFree {
   margin: 0 12px;
@@ -911,8 +946,11 @@
   background-size: 15px;
   font-family: var(--font-ui);
   font-size: 17px;
-  color: var(--text-primary);
+  color: var(--text-muted, #7A8294);
   cursor: pointer;
+}
+.filterSelect option {
+  color: var(--text-primary, #14181E);
 }
 
 /* ── Compact tournament rows ──────────────────────────────────── */
@@ -1020,13 +1058,14 @@
   color: var(--text-muted, #7A8294);
 }
 
-/* Title and status on one line, the badge wrapping under a long name
-   rather than squeezing it. The top margin lives here so it covers both. */
+/* Status above the title, stacked. It was a single wrapping line with the
+   badge trailing the name, which made the badge's position a function of
+   how long the name happened to be. */
 .rowTitleLine {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
   margin-top: 6px;
 }
 .rowTitle {
@@ -1643,10 +1682,22 @@
      keep its own. */
   .rowCollapsingBtn .rowBtnLabel { display: none; }
   .rowCollapsingBtn {
-    width: 28px;
+    width: 34px;
     padding: 0;
     justify-content: center;
-    border-radius: 50%;
+    /* Bare icon, no pill. Stripped of its fill and border, the QR mark
+       gets the whole button to itself and can be drawn large enough to
+       read as a QR code rather than a smudge — at 14px inside a bordered
+       28px circle it was neither. */
+    border: 0;
+    background: transparent;
+  }
+  .rowCollapsingBtn svg {
+    /* flex: none or the icon is treated as a shrinkable flex item and
+       comes back narrower than the height it was given. */
+    flex: none;
+    width: 24px;
+    height: 24px;
   }
   /* The four are a tight fit once Setup is named, so the row trades a
      couple of pixels of gap and padding for the label. */
@@ -1656,6 +1707,36 @@
   /* Date and divisions still share a line here, just with less between
      them than a wide card can afford. */
   .rowMetaLine { gap: 4px 12px; }
+
+  /* ── Court card, phone size ─────────────────────────────────────
+     The board was a tall stack here: two big scores, then a band of SET
+     chips under them. The finished sets move up in front of each live
+     score — the homepage hero's arrangement — and the chip band goes,
+     which is most of the height back. The wide card keeps the chips. */
+  .courtPrevSet { display: inline; }
+  .courtSetRow { display: none; }
+  /* The 270px floor was drawn around the chip band; without it the card
+     would only be empty under the up-next line. */
+  .courtCard { min-height: 0; }
+  /* The score no longer has a whole row to itself. */
+  .courtTeamScore { font-size: 26px; line-height: 28px; }
+  /* An idle court is a code and nothing else here. The dashed sand panel
+     around it was drawing a second card inside the card — on a phone
+     that is a band of empty colour above and below a QR that already
+     reads perfectly well on the card's own white. */
+  .courtFree {
+    margin: 0;
+    padding: 4px 16px 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    min-height: 0;
+  }
+  /* Name and score were 12px apart with the score alone on the right;
+     now there are set numbers between them and less to separate. */
+  .courtTeamRow { gap: 8px; }
+  .courtTeamRight { gap: 11px; }
+  .courtBoardDivider { margin: 9px 0; }
   .divStatGrid { grid-template-columns: 1fr; }
   .filterTabs { display: none; }
   /* 70/30 across the row, halves of the 10px gap coming off each side.
@@ -1664,9 +1745,22 @@
      it 40% of the row. Safe now that .main is a definite width — it was
      .main sizing to content that let these percentages, indefinite
      during intrinsic sizing, push the page wider than the screen. */
-  .searchRow { display: flex; align-items: center; gap: 10px; }
-  .searchWrap { flex: 0 0 calc(70% - 5px); }
-  .filterSelect { display: block; flex: 0 0 calc(30% - 5px); }
+  .searchRow { display: flex; align-items: center; gap: 8px; }
+  .searchWrap { flex: 0 0 calc(75% - 6px); min-width: 0; }
+  .filterSelect {
+    display: block;
+    flex: 0 0 calc(25% - 2px);
+    min-width: 0;
+    height: 40px;
+    padding: 0 20px 0 10px;
+    font-size: 14px;
+    color: var(--text-muted, #7A8294);
+    background-position: right 6px center;
+    background-size: 13px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
 
   /* ── Search and filter, phone size ──────────────────────────────
      Both were 48px tall with 17px text — the design system's touch
@@ -1680,18 +1774,15 @@
      same reason .newTournamentBtn needs it. */
   .searchWrap > div {
     height: 40px !important;
-    padding: 0 14px !important;
+    padding: 0 12px !important;
     gap: 8px !important;
   }
-  .searchWrap input { font-size: 15px !important; }
-  .searchWrap svg { width: 18px !important; height: 18px !important; }
-  .filterSelect {
-    height: 40px;
-    padding: 0 26px 0 12px;
-    font-size: 15px;
-    background-position: right 9px center;
-    background-size: 14px;
+  .searchWrap input { font-size: 14.5px !important; }
+  .searchWrap input::placeholder {
+    color: var(--text-muted, #7A8294) !important;
+    opacity: 1 !important;
   }
+  .searchWrap svg { width: 17px !important; height: 17px !important; flex-shrink: 0 !important; }
   .newTournamentBtn {
     border-radius: 16px !important;
     height: 56px !important;
