@@ -304,3 +304,19 @@ export function getOrganizerDivisionBadge(
   }
 }
 
+/** Checks if a tournament is currently live based on its date range (inclusive). */
+export function isTournamentLiveDate(
+  startDate?: string | null,
+  endDate?: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (!startDate) return false;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayLocal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const todayUTC = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}`;
+  const end = endDate || startDate;
+  return (
+    (todayLocal >= startDate && todayLocal <= end) ||
+    (todayUTC >= startDate && todayUTC <= end)
+  );
+}

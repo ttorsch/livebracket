@@ -1,0 +1,553 @@
+/* ── Court Schedule View Styles ─────────────────────────── */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* ── Filter Bar ─────────────────────────────────────────── */
+.filterBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 0 10px;
+}
+
+.filterBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: var(--surface-card, #FFFFFF);
+  color: var(--ink-800, #2C323D);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.filterBtn:hover {
+  border-color: var(--sand-500, #C5BFB4);
+  background: var(--sand-50, #FAF8F5);
+  color: var(--ink-900, #14181E);
+}
+
+.filterBtnActive {
+  background: var(--orange, #EE7A4C);
+  color: #FFFFFF;
+  border-color: var(--orange, #EE7A4C);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(238, 122, 76, 0.28);
+}
+
+.filterBtnActive:hover {
+  background: var(--orange-dark, #E06737);
+  color: #FFFFFF;
+  border-color: var(--orange-dark, #E06737);
+}
+
+.filterBtn:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 2px;
+}
+
+.filterDivider {
+  width: 1px;
+  height: 22px;
+  flex: none;
+  background: var(--sand-400, #DCD7CE);
+}
+
+.segmented {
+  position: relative;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(118, 118, 128, 0.10);
+}
+
+.daySegmented .segBtn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.segBtn {
+  position: relative;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--ink-600, #3A414D);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.segBtn:hover {
+  color: var(--ink-900, #14181E);
+}
+
+.segBtn:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 2px;
+}
+
+.segBtnActive {
+  color: var(--ink-900, #14181E);
+  font-weight: 700;
+}
+
+.activeDatePill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.segBtnContent {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.dayPillNum {
+  font-weight: inherit;
+}
+
+.dayPillDate {
+  font-size: 11.5px;
+  font-weight: 500;
+  opacity: 0.62;
+  letter-spacing: 0;
+}
+
+@media (max-width: 640px) {
+  .filterBar {
+    gap: 8px;
+  }
+  .segmented {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .segmented::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Day Section ─────────────────────────────────────────── */
+.daySection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dayHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+  padding: 4px 0;
+}
+
+.dayHeadingMeta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-500, #7A8294);
+  margin-left: 4px;
+}
+
+/* ── Small Slide Bar above Court Names ───────────────────── */
+.courtSlideBarWrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.courtSlideBarTrack {
+  position: relative;
+  width: 140px;
+  height: 6px;
+  background: var(--sand-300, #E7E2D9);
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.courtSlideBarTrack:hover {
+  background: var(--sand-400, #DCD6CA);
+}
+
+.courtSlideBarThumb {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--coral-500, #EB6F43);
+  border-radius: 999px;
+  pointer-events: none;
+  transition: background 0.15s ease;
+}
+
+.courtSlideBarTrack:active .courtSlideBarThumb {
+  background: var(--coral-600, #D85A2E);
+}
+
+/* ── Courts Grid ─────────────────────────────────────────── */
+.courtsGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--court-count, 1), minmax(0, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  scroll-behavior: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sand-300, #E7E2D9) transparent;
+}
+
+.courtsGrid[data-multi-court='true'] {
+  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 42px) / 3.5));
+}
+
+@media (max-width: 1024px) {
+  .courtsGrid[data-multi-court='true'] {
+    grid-template-columns: repeat(var(--court-count, 4), calc((100% - 28px) / 2.3));
+  }
+}
+
+@media (max-width: 640px) {
+  .courtsGrid,
+  .courtsGrid[data-multi-court='true'] {
+    grid-template-columns: repeat(var(--court-count, 1), 85vw);
+    scroll-snap-type: x mandatory;
+  }
+  .courtCard {
+    scroll-snap-align: start;
+  }
+}
+
+.courtCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.courtHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--sand-300, #E7E2D9);
+}
+
+.courtHeader[data-draggable='true'] {
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.courtHeader[data-draggable='true']:active {
+  cursor: grabbing;
+}
+
+.gridGrabbing,
+.gridGrabbing * {
+  cursor: grabbing !important;
+  user-select: none !important;
+  scroll-behavior: auto !important;
+}
+
+.courtName {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+}
+
+.courtCountDot {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-400, #9CA3AF);
+  line-height: 1;
+}
+
+.courtCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500, #7A8294);
+  font-variant-numeric: tabular-nums;
+}
+
+.courtEnds {
+  text-align: center;
+  padding-top: 4px;
+  font-size: 12px;
+  color: var(--ink-500, #7A8294);
+  font-variant-numeric: tabular-nums;
+}
+
+.matchList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Match Item Card ─────────────────────────────────────── */
+.matchItem {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-left: 3px solid var(--cal-accent, var(--coral-500, #EB6F43));
+  background: var(--surface-card, #FFFFFF);
+  box-shadow: 0 2px 10px rgba(20, 31, 46, 0.05);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.matchItemLive {
+  border-color: rgba(235, 111, 67, 0.45);
+  box-shadow: 0 0 0 1px rgba(235, 111, 67, 0.35), 0 2px 10px rgba(20, 31, 46, 0.05);
+}
+
+.matchItemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.matchTime {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-500, #7A8294);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.matchTime svg { flex: none; }
+
+.matchTimeBtn {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--ink-900, #14181E);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 3px 6px;
+  cursor: default;
+}
+
+.matchDuration {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500, #7A8294);
+  font-variant-numeric: tabular-nums;
+}
+
+.badgeGroup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.roundBadge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-500, #7A8294);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.gridMatchNo {
+  flex: none;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #FFFFFF;
+  background: var(--div-accent, #EB6F43);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.matchTeams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teamRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-900, #14181E);
+}
+
+.teamRowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.teamRowNameWinner {
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+}
+
+.teamRowNameLoser {
+  color: var(--text-muted, #7A8294);
+  font-weight: 400;
+}
+
+.matchItemDone .matchTimeBtn,
+.matchItemDone .matchTime,
+.matchItemDone .matchDuration {
+  color: var(--text-muted, #7A8294);
+}
+
+.matchItemDone .teamScoreCell,
+.matchItemDone .teamScore {
+  color: var(--ink-900, #14181E);
+}
+
+.teamScoreList {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.teamScoreCell {
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--orange, #EE7A4C);
+}
+
+.teamScore {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--orange, #EE7A4C);
+}
+
+/* ── Gap / Blocked Period Strip ───────────────────────────── */
+.gapStrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--sand-100, #F7F5F0);
+  border: 1px dashed var(--sand-400, #DCD6CA);
+  color: var(--ink-600, #4B5563);
+  font-size: 12.5px;
+}
+
+.gapStripIcon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-500, #7A8294);
+}
+
+.gapStripLabel {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.gapStripTime {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-500, #7A8294);
+  font-size: 11.5px;
+}
+
+/* ── Division Palette (0..5) ──────────────────────────────── */
+.matchItem[data-div="0"] { --cal-bg: rgba(238,122,76,0.12); --cal-border: rgba(238,122,76,0.40); --cal-accent: #E06838; }
+.matchItem[data-div="1"] { --cal-bg: rgba(59,130,246,0.12); --cal-border: rgba(59,130,246,0.40); --cal-accent: #2563EB; }
+.matchItem[data-div="2"] { --cal-bg: rgba(16,185,129,0.12); --cal-border: rgba(16,185,129,0.40); --cal-accent: #059669; }
+.matchItem[data-div="3"] { --cal-bg: rgba(139,92,246,0.12); --cal-border: rgba(139,92,246,0.40); --cal-accent: #7C3AED; }
+.matchItem[data-div="4"] { --cal-bg: rgba(236,72,153,0.12); --cal-border: rgba(236,72,153,0.40); --cal-accent: #DB2777; }
+.matchItem[data-div="5"] { --cal-bg: rgba(202,138,4,0.14); --cal-border: rgba(202,138,4,0.40); --cal-accent: #CA8A04; }
+
+.matchItem[data-div] {
+  --div-accent: var(--cal-accent);
+  --div-border: var(--cal-border);
+  --div-badge-bg: var(--cal-bg);
+}
+
+.filterDot[data-div="0"] { background: #E06838; }
+.filterDot[data-div="1"] { background: #2563EB; }
+.filterDot[data-div="2"] { background: #059669; }
+.filterDot[data-div="3"] { background: #7C3AED; }
+.filterDot[data-div="4"] { background: #DB2777; }
+.filterDot[data-div="5"] { background: #CA8A04; }
+
+/* ── Empty State ─────────────────────────────────────────── */
+.emptyState {
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--surface-card, #FFFFFF);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-radius: 16px;
+  color: var(--ink-500, #7A8294);
+}
+
+.emptyTitle {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+  margin-bottom: 6px;
+}
+
+.emptyBody {
+  font-size: 13.5px;
+  line-height: 1.5;
+}

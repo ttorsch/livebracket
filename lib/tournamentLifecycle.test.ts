@@ -22,6 +22,7 @@ import {
   getDivisionLifecycleStage,
   getPlayerActionBadge,
   getOrganizerDivisionBadge,
+  isTournamentLiveDate,
   type DivisionWindow,
 } from './tournamentLifecycle.ts';
 
@@ -182,6 +183,31 @@ describe('getDivisionLifecycleStage and Badges', () => {
     assert.equal(getDivisionLifecycleStage(d, now), 'completed');
     assert.deepEqual(getPlayerActionBadge(d, now), { label: 'Results', variant: 'status' });
     assert.deepEqual(getOrganizerDivisionBadge(d, now), { label: 'Completed', variant: 'status' });
+  });
+});
+
+describe('isTournamentLiveDate', () => {
+  it('returns true when now falls within start and end date', () => {
+    const now = at('2026-09-04T10:00:00Z');
+    assert.equal(isTournamentLiveDate('2026-09-04', '2026-09-04', now), true);
+    assert.equal(isTournamentLiveDate('2026-09-01', '2026-09-05', now), true);
+  });
+
+  it('returns false when now is before start date or after end date', () => {
+    const now = at('2026-09-04T10:00:00Z');
+    assert.equal(isTournamentLiveDate('2026-09-05', '2026-09-06', now), false);
+    assert.equal(isTournamentLiveDate('2026-09-01', '2026-09-03', now), false);
+  });
+
+  it('returns false when startDate is missing', () => {
+    assert.equal(isTournamentLiveDate(null, null), false);
+    assert.equal(isTournamentLiveDate('', '2026-09-05'), false);
+  });
+
+  it('handles single-day tournament without endDate', () => {
+    const now = at('2026-09-04T10:00:00Z');
+    assert.equal(isTournamentLiveDate('2026-09-04', null, now), true);
+    assert.equal(isTournamentLiveDate('2026-09-03', null, now), false);
   });
 });
 

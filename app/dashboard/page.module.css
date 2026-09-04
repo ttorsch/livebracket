@@ -620,7 +620,7 @@
 }
 .courtBoardHead {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   /* Wraps rather than crushes: clock, round and division are three things
      on a card that can be 240px wide, and the division badge dropping to
@@ -629,11 +629,29 @@
   gap: 6px 10px;
   margin-bottom: 12px;
 }
-/* The round sits with the clock as the quiet half of the header — same
-   micro type as the clock, no pill, so the division badge stays the one
-   thing with a fill on this line. */
+/* Round and division together on the right of the header. On desktop,
+   they stack into a column with the division badge on top and the round
+   flush-right under it; on mobile they sit side-by-side. */
+.courtBoardMeta {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+@media (max-width: 640px) {
+  .courtBoardHead {
+    align-items: center;
+  }
+  .courtBoardMeta {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+}
+/* The quiet half of the pair — same micro type as the clock, no pill, so
+   the division badge stays the one thing with a fill up here. */
 .courtBoardRound {
-  margin-right: auto;
   font-size: var(--text-micro-size, 10px);
   letter-spacing: var(--text-micro-tracking, 0.08em);
   text-transform: uppercase;
@@ -1599,10 +1617,16 @@
     left: 10px;
     border-color: #fff;
   }
+  /* The site header's account control, matched: same 38px, same white
+     ring and drop shadow. It is the same mark in the same corner as on
+     the homepage, so it should not be a different size or a bare disc
+     here. Values mirror components/auth/AccountButton.module.css. */
   .sideAvatar {
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
+    width: 38px;
+    height: 38px;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 10px rgba(20, 24, 30, 0.18);
+    font-size: 13px;
   }
   /* Was 80px of top padding to clear a bar pinned across the top. The
      bar is a corner control now, so this is just page spacing — and the

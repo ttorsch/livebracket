@@ -36,11 +36,12 @@ import {
 } from '../../../lib/data';
 import { isThirdPlaceRound } from '../../../lib/divisionMatches';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
-import { registrationState, nextOpening, isPublic, type Phase } from '../../../lib/tournamentLifecycle';
+import { registrationState, nextOpening, isPublic, isTournamentLiveDate, type Phase } from '../../../lib/tournamentLifecycle';
 import { ageLimitLabel } from '../../../lib/divisionEligibility';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../components/auth/useSignInHref';
 import { useSession } from '../../../components/auth/AuthProvider';
 import AccountButton from '../../../components/auth/AccountButton';
+import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
 
 // Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
@@ -247,7 +248,7 @@ export default function TournamentPage() {
   const [baseTournament, setBaseTournament] = useState<TournamentDetail | null>(null);
   const [liveScores, setLiveScores] = useState<LiveScoreMap>({});
   const [activeDiv, setActiveDiv] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<string>('Format & Rules');
+  const [activeTab, setActiveTab] = useState<string>('');
 
   const handleRestoreState = useCallback((state: { activeDiv?: string; activeTab?: string }) => {
     if (state.activeDiv) setActiveDiv(state.activeDiv);
@@ -255,20 +256,6 @@ export default function TournamentPage() {
   }, []);
 
   useRestoreScrollPosition(Boolean(baseTournament), handleRestoreState);
-
-  useEffect(() => {
-    const handleSave = () => {
-      if (typeof window !== 'undefined' && window.scrollY > 0) {
-        saveScrollPosition(undefined, { activeDiv, activeTab });
-      }
-    };
-    window.addEventListener('scroll', handleSave, { passive: true });
-    window.addEventListener('pagehide', handleSave);
-    return () => {
-      window.removeEventListener('scroll', handleSave);
-      window.removeEventListener('pagehide', handleSave);
-    };
-  }, [activeDiv, activeTab]);
 
   useEffect(() => {
     getTournamentDetail(slug).then((data) => {
@@ -415,33 +402,51 @@ export default function TournamentPage() {
     [activeDivision],
   );
 
-  const scheduleItems = useMemo(() => (activeDivision?.bracket ?? [])
-    .flatMap(r => r.matches.map(m => ({
-      id: m.id,
-      time: m.time,
-      sortKey: `${m.scheduledDate ?? '9999-99-99'} ${m.time || '99:99'}`,
-      court: m.court,
-      match: `${r.round} — ${m.teamAName ?? 'TBD'} vs ${m.teamBName ?? 'TBD'}`,
-      status: m.status,
-    })))
-    .sort((a, b) => a.sortKey.localeCompare(b.sortKey)), [activeDivision]);
+  const isLive = useMemo(
+    () => isTournamentLiveDate(tournament?.startDate, tournament?.endDate),
+    [tournament?.startDate, tournament?.endDate],
+  );
 
-  /* Tabs follow the design's order. A pool table only earns a tab when the
-     division actually has a group round, and vouchers only when the
-     organizer created some. */
+  const hasSchedule = useMemo(() => {
+    return (tournament?.divisions ?? []).some(d =>
+      d.bracket.some(r => r.matches.some(m => Boolean(m.court || m.time))),
+    );
+  }, [tournament]);
+
+  /* Tabs follow the design's order. When the tournament is live, the Schedule
+     tab appears first across all screen sizes. Otherwise it sits after Bracket.
+     A pool table only earns a tab when the division actually has a group round,
+     and vouchers only when the organizer created some. */
   const tabs = useMemo(() => {
-    const t = ['Format & Rules', 'Prize', 'Teams'];
-    // Every tab past the first three is offered only when it has something in
-    // it — a tab that opens onto "nothing here yet" is worse than no tab.
+    const t: string[] = [];
+    if (isLive && hasSchedule) {
+      t.push('Schedule');
+    }
+    t.push('Format & Rules', 'Prize', 'Teams');
     if (standings.length > 0) t.push('Standings');
     if (knockoutRounds.length > 0) t.push('Bracket');
-    if (scheduleItems.length > 0) t.push('Schedule');
+    if (!isLive && hasSchedule) t.push('Schedule');
     if ((tournament?.vouchers.length ?? 0) > 0) t.push('Vouchers');
     return t;
-  }, [standings, knockoutRounds, scheduleItems, tournament]);
+  }, [isLive, hasSchedule, standings, knockoutRounds, tournament]);
 
   // A division change can retire the tab that was open.
-  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
+  const defaultTab = isLive && hasSchedule ? 'Schedule' : 'Format & Rules';
+  const currentTab = tabs.includes(activeTab) ? activeTab : (tabs.includes(defaultTab) ? defaultTab : tabs[0]);
+
+  useEffect(() => {
+    const handleSave = () => {
+      if (typeof window !== 'undefined' && window.scrollY > 0) {
+        saveScrollPosition(undefined, { activeDiv, activeTab: currentTab });
+      }
+    };
+    window.addEventListener('scroll', handleSave, { passive: true });
+    window.addEventListener('pagehide', handleSave);
+    return () => {
+      window.removeEventListener('scroll', handleSave);
+      window.removeEventListener('pagehide', handleSave);
+    };
+  }, [activeDiv, currentTab]);
 
   if (!tournament) {
     return (
@@ -471,7 +476,7 @@ export default function TournamentPage() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader onSignInClick={() => saveScrollPosition(undefined, { activeDiv, activeTab })} />
+      <SiteHeader onSignInClick={() => saveScrollPosition(undefined, { activeDiv, activeTab: currentTab })} />
 
       {/* ── Event head ────────────────────────────────────────── */}
       <section className={styles.headSection}>
@@ -937,28 +942,12 @@ export default function TournamentPage() {
         )}
 
         {/* ── Schedule ────────────────────────────────────────── */}
-        {currentTab === 'Schedule' && (
-            <div className={styles.scheduleList}>
-              {scheduleItems.map(item => (
-                <div
-                  key={item.id}
-                  className={`${styles.scheduleRow} ${item.status === 'live' ? styles.scheduleRowLive : ''} ${item.status === 'done' ? styles.scheduleRowDone : ''}`}
-                >
-                  <span className={styles.scheduleTime}>{item.time || '—'}</span>
-                  <span className={styles.scheduleCourt}>{item.court}</span>
-                  <span className={styles.scheduleMatch}>{item.match}</span>
-                  <span
-                    className={
-                      item.status === 'live' ? styles.statusLive
-                        : item.status === 'done' ? styles.statusDone
-                          : styles.statusUpcoming
-                    }
-                  >
-                    {item.status === 'live' ? 'Live' : item.status === 'done' ? 'Final' : 'Upcoming'}
-                  </span>
-                </div>
-              ))}
-            </div>
+        {currentTab === 'Schedule' && tournament && (
+          <CourtScheduleView
+            tournament={tournament}
+            activeDivisionId={activeDiv}
+            onSelectDivision={handleSelectDivision}
+          />
         )}
 
         {/* ── Vouchers ────────────────────────────────────────── */}

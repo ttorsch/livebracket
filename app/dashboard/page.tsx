@@ -915,12 +915,17 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
                         return secs === null ? '--:--' : formatClock(secs);
                       })()}
                     </span>
-                    {/* Which round, then which division — the two things
-                        that place a match in the draw. The round is the
-                        quieter of the pair: it changes through the day,
-                        while the division is what the card belongs to. */}
-                    {r.round && <span className={styles.courtBoardRound}>{r.round}</span>}
-                    <span className={styles.courtBoardDivision}>{r.division}</span>
+                    {/* Which round and which division — the two things
+                        that place a match in the draw. Stacked on a wide
+                        card, division over round; side by side on a phone,
+                        where there is no height to spare. The round comes
+                        first in the markup so the phone keeps reading
+                        clock · round · division, and the desktop rule
+                        reverses the column to put the badge on top. */}
+                    <span className={styles.courtBoardMeta}>
+                      <span className={styles.courtBoardDivision}>{r.division}</span>
+                      {r.round && <span className={styles.courtBoardRound}>{r.round}</span>}
+                    </span>
                   </div>
 
                   {/* On a phone each side's finished sets sit just in

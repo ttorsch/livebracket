@@ -411,7 +411,7 @@
 
 /* ── Main Layout Container ───────────────────────────────────── */
 .main {
-  max-width: 1240px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 24px 24px 64px;
 }
@@ -499,7 +499,7 @@
    scrolls horizontally (rather than wrapping) once there are too many. */
 .courtsGrid {
   display: grid;
-  grid-template-columns: repeat(var(--court-count, 4), minmax(300px, 1fr));
+  grid-template-columns: repeat(var(--court-count, 1), minmax(0, 1fr));
   gap: 14px;
   overflow-x: auto;
   padding-bottom: 12px;
@@ -508,6 +508,50 @@
      page or to the browser's back gesture, exactly as the calendar does. */
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sand-300, #E7E2D9) transparent;
+}
+
+.courtsGrid[data-multi-court='true'] {
+  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 42px) / 3.5));
+}
+
+/* ── Small Slide Bar above Court Names ───────────────────────── */
+.courtSlideBarWrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  user-select: none;
+}
+
+.courtSlideBarTrack {
+  position: relative;
+  width: 140px;
+  height: 6px;
+  background: var(--sand-300, #E7E2D9);
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.courtSlideBarTrack:hover {
+  background: var(--sand-400, #DCD6CA);
+}
+
+.courtSlideBarThumb {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--coral-500, #EB6F43);
+  border-radius: 999px;
+  pointer-events: none;
+  transition: background 0.15s ease;
+}
+
+.courtSlideBarTrack:active .courtSlideBarThumb {
+  background: var(--coral-600, #D85A2E);
 }
 
 /* A court is a column, not a card: a hairline under its name and the run of
@@ -523,16 +567,44 @@
 .courtHeader {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 6px;
   padding: 0 4px 10px;
   border-bottom: 1px solid var(--sand-300, #E7E2D9);
 }
 
+.courtHeader[data-draggable='true'] {
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.courtHeader[data-draggable='true'] * {
+  cursor: inherit;
+}
+
+.courtHeader[data-draggable='true']:active {
+  cursor: grabbing;
+}
+
+.gridGrabbing,
+.gridGrabbing * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 .courtName {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--ink-900, #14181E);
+}
+
+.courtCountDot {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-400, #9CA3AF);
+  line-height: 1;
 }
 
 .courtCount {
@@ -661,9 +733,57 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
+  gap: 8px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--ink-900, #14181E);
+}
+
+.teamRowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.teamRowNameWinner {
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+}
+
+.teamRowNameLoser {
+  color: var(--text-muted, #7A8294);
+  font-weight: 400;
+}
+
+.matchItemDone .matchTimeBtn,
+.matchItemDone .matchTime,
+.matchItemDone .matchDuration {
+  color: var(--text-muted, #7A8294);
+}
+
+.matchItemDone .teamScoreCell,
+.matchItemDone .teamScore {
+  color: var(--ink-900, #14181E);
+}
+
+.teamScoreList {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.teamScoreCell {
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--orange, #EE7A4C);
 }
 
 .teamScore {
@@ -1683,24 +1803,68 @@
   border-radius: 999px;
 }
 
-.gridTeamRowA { margin-top: auto; }
-.gridTeamRowB { margin-bottom: auto; }
+.gridMatchTeams {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
 
 .gridTeamRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 19px;
+  gap: 8px;
+  min-height: 18px;
 }
 
 .gridTeamName {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   font-weight: 500;
   color: var(--ink-900, #14181E);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.gridTeamNameWinner {
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+}
+
+.gridTeamNameLoser {
+  color: var(--text-muted, #7A8294);
+  font-weight: 400;
+}
+
+.gridMatchCardDone .gridMatchTime,
+.gridMatchCardDone .gridMatchDuration {
+  color: var(--text-muted, #7A8294);
+}
+
+.gridMatchCardDone .gridScoreCell {
+  color: var(--ink-900, #14181E);
+}
+
+.gridScoreList {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.gridScoreCell {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--orange, #EE7A4C);
 }
 
 .gridScores {
@@ -3210,7 +3374,8 @@
      next, and a swipe that comes to rest on a court rather than between two.
      The column is stated rather than left at its 300px floor so the fraction
      on show is the same one the calendar gives. */
-  .courtsGrid {
+  .courtsGrid,
+  .courtsGrid[data-multi-court='true'] {
     grid-template-columns: repeat(var(--court-count, 1), calc((100vw - 32px - 14px) / 1.2));
   }
   .courtCard { scroll-snap-align: start; }
@@ -3263,6 +3428,8 @@
   .gridMatchRound { font-size: 8px; }
   .gridMatchNo { font-size: 8px; padding: 3px 9px; }
   .gridTeamName { font-size: 10px; }
+  .gridScoreList { gap: 6px; }
+  .gridScoreCell { min-width: 14px; font-size: 10px; }
   .gridVsText { font-size: 8px; }
   .gridScores { gap: 4px; }
   .gridScoreBadge,

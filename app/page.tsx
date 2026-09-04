@@ -757,7 +757,15 @@ function HeroScoreboard({ match, rollDelayMs }: { match: HeroLiveMatch; rollDela
     : '';
 
   return (
-    <div className={styles.floatingScoreboard}>
+    /* The whole card is the link. A scoreboard for a match in progress is
+     * the most direct thing on the page to follow, and tapping it landing
+     * nowhere is the obvious disappointment — so the target is the card
+     * rather than a control tucked inside it. */
+    <Link
+      href={`/tournament/${match.tournamentSlug}`}
+      className={styles.floatingScoreboard}
+      aria-label={`${match.tournamentTitle} — ${match.teamA.name} vs ${match.teamB.name} on ${match.court}`}
+    >
       <div className={styles.scoreboardHeadGroup}>
         <div className={styles.scoreboardHeader}>
           <span className={styles.scoreboardStatus}>
@@ -793,7 +801,7 @@ function HeroScoreboard({ match, rollDelayMs }: { match: HeroLiveMatch; rollDela
         live={isLive}
         scored={rolled && isLive && match.lastScorer === 'b'}
       />
-    </div>
+    </Link>
   );
 }
 
@@ -979,13 +987,55 @@ export default function LiveBracketHome() {
    * give way to the account button. */
   const { signedIn } = useSession();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('latest');
+  /* Soonest by default: this list is what is coming up, so the event
+   * nearest to now is the one a visitor is most likely to be looking for. */
+  const [sortBy, setSortBy] = useState<SortOption>('soonest');
   const [query, setQuery] = useState('');
 
   // Pagination & Swipe Track States
   const [currentPage, setCurrentPage] = useState(1);
   const cardsSwipeRef = useRef<HTMLDivElement>(null);
   const eventsSectionRef = useRef<HTMLElement>(null);
+
+  // Responsive mobile detection (<= 960px matches mobile card layout)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 960);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Mobile horizontal swipe handlers
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+
+  const handleMobileTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleMobileTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+
+    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+      if (deltaX < 0) {
+        // Swiped left -> Next page
+        if (currentPage < totalPages) {
+          goToPage(currentPage + 1);
+        }
+      } else {
+        // Swiped right -> Previous page
+        if (currentPage > 1) {
+          goToPage(currentPage - 1);
+        }
+      }
+    }
+  };
 
   // Navigation States & Ref
   const navRef = useRef<HTMLElement>(null);
@@ -1889,25 +1939,59 @@ export default function LiveBracketHome() {
             {/* Active & Upcoming Tournament List */}
             {filteredActiveUpcoming.length > 0 && (
               <>
-                {/* Horizontal Swipe/Slide Track (3 cards per screen on desktop, 3 compact cards on mobile) */}
-                <div
-                  ref={cardsSwipeRef}
-                  className={styles.cardsSwipeTrack}
-                  onScroll={handleTrackScroll}
-                >
-                  {tournamentPages.map((pageCards, pageIdx) => (
-                    <div key={pageIdx} className={styles.cardsPageSlide}>
-                      {pageCards.map((t) => (
+                {/* Tournament List: Staggered morph transition on mobile, horizontal slide track on desktop */}
+                {isMobile ? (
+                  <div
+                    className={styles.mobileCardsStack}
+                    onTouchStart={handleMobileTouchStart}
+                    onTouchEnd={handleMobileTouchEnd}
+                  >
+                    {(tournamentPages[currentPage - 1] || []).map((t, idx) => (
+                      <motion.div
+                        key={`${currentPage}-${t.id}`}
+                        style={{ transformOrigin: '100% 0%' }}
+                        initial={{ scale: CARD_SEED_SCALE, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{
+                          scale: {
+                            duration: 0.65,
+                            delay: idx * 0.08,
+                            ease: [0.22, 1, 0.36, 1],
+                          },
+                          opacity: {
+                            duration: 0.25,
+                            delay: idx * 0.08,
+                          },
+                        }}
+                      >
                         <TournamentCard
-                          key={t.id}
                           t={t}
                           styles={styles}
                           saveScrollPosition={saveScrollPosition}
                         />
-                      ))}
-                    </div>
-                  ))}
-                </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    ref={cardsSwipeRef}
+                    className={styles.cardsSwipeTrack}
+                    onScroll={handleTrackScroll}
+                  >
+                    {tournamentPages.map((pageCards, pageIdx) => (
+                      <div key={pageIdx} className={styles.cardsPageSlide}>
+                        {pageCards.map((t) => (
+                          <TournamentCard
+                            key={t.id}
+                            t={t}
+                            styles={styles}
+                            saveScrollPosition={saveScrollPosition}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Pagination: ‹ 1 • 2 • ... • 8 › */}
                 <PaginationControl

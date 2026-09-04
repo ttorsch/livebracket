@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -80,6 +80,7 @@ interface ScheduleMatch {
   teamB: string;
   scoreA?: number[];
   scoreB?: number[];
+  winner?: 'A' | 'B' | null;
   status: 'upcoming' | 'live' | 'done';
   day: number;           // 0-based day offset (-1 = unscheduled or off the event's days)
   date: string;          // 'YYYY-MM-DD' the match sits on ('' when unscheduled)
@@ -89,6 +90,29 @@ interface ScheduleMatch {
   unscheduled?: boolean; // no court/time assigned
   overScheduled?: boolean; // couldn't fit in the tournament's days (preview overflow)
   durationMinutes: number; // match slot length, for sizing calendar blocks
+}
+
+/** Determines winner of a completed match, returning 'A', 'B', or null. */
+function getMatchWinner(m: {
+  winner?: 'A' | 'B' | null;
+  status: 'upcoming' | 'live' | 'done';
+  scoreA?: number[];
+  scoreB?: number[];
+}): 'A' | 'B' | null {
+  if (m.status !== 'done') return null;
+  if (m.winner === 'A' || m.winner === 'B') return m.winner;
+  if (!m.scoreA || !m.scoreB || m.scoreA.length === 0 || m.scoreB.length === 0) return null;
+
+  let winsA = 0;
+  let winsB = 0;
+  const len = Math.min(m.scoreA.length, m.scoreB.length);
+  for (let i = 0; i < len; i++) {
+    if (m.scoreA[i] > m.scoreB[i]) winsA++;
+    else if (m.scoreB[i] > m.scoreA[i]) winsB++;
+  }
+  if (winsA > winsB) return 'A';
+  if (winsB > winsA) return 'B';
+  return null;
 }
 
 // Sort by (day, "HH:MM") ascending; unscheduled placeholders sink to the end.
@@ -305,7 +329,8 @@ function BufferPrompt({
  *  different label and is left where it is. */
 const BUFFER_LABEL = 'Buffer';
 const NET_ADJUST_LABEL = 'Net Adjust';
-const isBufferBlock = (label?: string) => label === BUFFER_LABEL || label === NET_ADJUST_LABEL;
+const isBufferBlock = (label?: string) =>
+  label === BUFFER_LABEL || label === NET_ADJUST_LABEL || (label ? /buffer|net\s*adjust/i.test(label) : false);
 
 /** Droppable empty time slot cell in Grid View. */
 function GridDroppableSlot({
@@ -444,6 +469,7 @@ function GridMatchCardItem({
         movable ? styles.gridMatchCardDraggable : '',
         isDragging || isSelfDragging ? styles.gridMatchCardDragging : '',
         b.m.status === 'live' ? styles.gridMatchCardLive : '',
+        b.m.status === 'done' ? styles.gridMatchCardDone : '',
         b.m.isEdited ? styles.gridMatchCardEdited : '',
         faults.length > 0 ? styles.gridMatchCardFault : '',
         isPulsing ? styles.matchCardPulse : '',
@@ -560,41 +586,37 @@ function GridMatchCardItem({
         </span>
       </div>
 
-      <div className={`${styles.gridTeamRow} ${styles.gridTeamRowA}`}>
-        <span className={styles.gridTeamName}>{b.m.teamA}</span>
-        <div className={styles.gridScores}>
-          {b.m.scoreA && b.m.scoreA.length > 0 ? (
-            b.m.scoreA.map((s, idx) => (
-              <span key={idx} className={styles.gridScoreBadgeWin}>{s}</span>
-            ))
-          ) : (
-            <>
-              <span className={styles.gridScoreEmpty} />
-              <span className={styles.gridScoreEmpty} />
-            </>
-          )}
-        </div>
-      </div>
-      <div className={styles.gridVsRow}>
-        <span className={styles.gridVsLine} />
-        <span className={styles.gridVsText}>vs</span>
-        <span className={styles.gridVsLine} />
-      </div>
-      <div className={`${styles.gridTeamRow} ${styles.gridTeamRowB}`}>
-        <span className={styles.gridTeamName}>{b.m.teamB}</span>
-        <div className={styles.gridScores}>
-          {b.m.scoreB && b.m.scoreB.length > 0 ? (
-            b.m.scoreB.map((s, idx) => (
-              <span key={idx} className={styles.gridScoreBadge}>{s}</span>
-            ))
-          ) : (
-            <>
-              <span className={styles.gridScoreEmpty} />
-              <span className={styles.gridScoreEmpty} />
-            </>
-          )}
-        </div>
-      </div>
+      {(() => {
+        const matchWinner = getMatchWinner(b.m);
+        const isWinnerA = matchWinner === 'A';
+        const isWinnerB = matchWinner === 'B';
+        const isLoserA = matchWinner === 'B';
+        const isLoserB = matchWinner === 'A';
+        return (
+          <div className={styles.gridMatchTeams}>
+            <div className={styles.gridTeamRow}>
+              <span className={`${styles.gridTeamName} ${isWinnerA ? styles.gridTeamNameWinner : ''} ${isLoserA ? styles.gridTeamNameLoser : ''}`}>{b.m.teamA}</span>
+              {b.m.scoreA && b.m.scoreA.length > 0 && (
+                <div className={styles.gridScoreList}>
+                  {b.m.scoreA.map((s, idx) => (
+                    <span key={idx} className={styles.gridScoreCell}>{s}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className={styles.gridTeamRow}>
+              <span className={`${styles.gridTeamName} ${isWinnerB ? styles.gridTeamNameWinner : ''} ${isLoserB ? styles.gridTeamNameLoser : ''}`}>{b.m.teamB}</span>
+              {b.m.scoreB && b.m.scoreB.length > 0 && (
+                <div className={styles.gridScoreList}>
+                  {b.m.scoreB.map((s, idx) => (
+                    <span key={idx} className={styles.gridScoreCell}>{s}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {faults.length > 0 && (
         <ul className={styles.gridFaults}>
           {faults.map((f, i) => (
@@ -624,6 +646,189 @@ function GridMatchCardItem({
         </ul>
       )}
     </div>
+  );
+}
+
+/** Court section block that manages horizontal scroll and provides a small slide bar above court names */
+function CourtSectionBlock({
+  section,
+  children,
+}: {
+  section: { key: string; title: string | null; courts: any[] };
+  children: (props: {
+    gridRef: React.RefObject<HTMLDivElement | null>;
+    onScroll: () => void;
+    courtHeaderProps: {
+      onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
+      onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+      onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
+      onPointerCancel: (e: React.PointerEvent<HTMLDivElement>) => void;
+      onLostPointerCapture: (e: React.PointerEvent<HTMLDivElement>) => void;
+      'data-draggable'?: string;
+    };
+    isGrabbing: boolean;
+  }) => React.ReactNode;
+}) {
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [scrollRatio, setScrollRatio] = useState(0);
+  const [thumbRatio, setThumbRatio] = useState(1);
+  const [canScroll, setCanScroll] = useState(false);
+  const isDragging = useRef(false);
+
+  // Header drag-to-scroll state
+  const isGrabbingCourts = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartScrollLeft = useRef(0);
+  const [isGrabbing, setIsGrabbing] = useState(false);
+
+  useEffect(() => {
+    if (!isGrabbing) return;
+    const prevCursor = document.body.style.cursor;
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
+    };
+  }, [isGrabbing]);
+
+  const updateScroll = useCallback(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    if (max > 2) {
+      setCanScroll(true);
+      setScrollRatio(Math.max(0, Math.min(1, el.scrollLeft / max)));
+      setThumbRatio(Math.max(0.15, Math.min(1, el.clientWidth / el.scrollWidth)));
+    } else {
+      setCanScroll(false);
+      setScrollRatio(0);
+      setThumbRatio(1);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateScroll();
+    window.addEventListener('resize', updateScroll);
+    return () => window.removeEventListener('resize', updateScroll);
+  }, [updateScroll, section.courts.length]);
+
+  const seek = (clientX: number) => {
+    const el = gridRef.current;
+    const track = trackRef.current;
+    if (!el || !track) return;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const max = el.scrollWidth - el.clientWidth;
+    el.scrollLeft = ratio * max;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDragging.current = true;
+    trackRef.current?.setPointerCapture(e.pointerId);
+    seek(e.clientX);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    seek(e.clientX);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDragging.current = false;
+    try {
+      trackRef.current?.releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleCourtHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || e.pointerType === 'touch') return;
+    const el = gridRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+
+    isGrabbingCourts.current = true;
+    dragStartX.current = e.clientX;
+    dragStartScrollLeft.current = el.scrollLeft;
+    setIsGrabbing(true);
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleCourtHeaderPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isGrabbingCourts.current) return;
+    const el = gridRef.current;
+    if (!el) return;
+
+    const deltaX = e.clientX - dragStartX.current;
+    el.scrollLeft = dragStartScrollLeft.current - deltaX;
+    updateScroll();
+  };
+
+  const handleCourtHeaderPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isGrabbingCourts.current) return;
+    isGrabbingCourts.current = false;
+    setIsGrabbing(false);
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const courtHeaderProps = {
+    onPointerDown: handleCourtHeaderPointerDown,
+    onPointerMove: handleCourtHeaderPointerMove,
+    onPointerUp: handleCourtHeaderPointerUp,
+    onPointerCancel: handleCourtHeaderPointerUp,
+    onLostPointerCapture: handleCourtHeaderPointerUp,
+    'data-draggable': canScroll ? 'true' : undefined,
+  };
+
+  const thumbWidthPct = thumbRatio * 100;
+  const thumbLeftPct = scrollRatio * (100 - thumbWidthPct);
+
+  return (
+    <section key={section.key} className={styles.daySection}>
+      {section.title && (
+        <div className={styles.dayHeading}>
+          <Calendar size={16} color="var(--orange, #EE7A4C)" />
+          <span>{section.title}</span>
+          <span className={styles.dayHeadingMeta}>
+            {section.courts.reduce((sum: number, c: any) => sum + c.matches.length, 0)} matches
+          </span>
+        </div>
+      )}
+
+      {section.courts.length > 3 && canScroll && (
+        <div className={styles.courtSlideBarWrap}>
+          <div
+            ref={trackRef}
+            className={styles.courtSlideBarTrack}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            title="Slide to view more courts"
+            role="scrollbar"
+            aria-label="Courts scrollbar"
+            aria-valuenow={Math.round(scrollRatio * 100)}
+          >
+            <div
+              className={styles.courtSlideBarThumb}
+              style={{
+                left: `${thumbLeftPct}%`,
+                width: `${thumbWidthPct}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {children({ gridRef, onScroll: updateScroll, courtHeaderProps, isGrabbing })}
+    </section>
   );
 }
 
@@ -999,6 +1204,7 @@ export default function TournamentSchedulePage() {
             teamB: label?.teamB ?? 'TBD',
             scoreA: m.scoreA,
             scoreB: m.scoreB,
+            winner: (m as any).winner ?? null,
             status: m.status,
             day,
             date: dateStr,
@@ -1420,6 +1626,8 @@ export default function TournamentSchedulePage() {
             if (courtName !== 'Unscheduled') {
               for (const { b, index } of blocks) {
                 if (b.court != null && b.court !== courtName) continue;
+                // Buffer blocks are hidden in By Court view
+                if (isBufferBlock(b.label)) continue;
                 const onDays = b.day == null ? [...days] : days.has(b.day) ? [b.day] : [];
                 const from = fromHHMM(b.start);
                 const to = fromHHMM(b.end);
@@ -2417,26 +2625,34 @@ export default function TournamentSchedulePage() {
             <div className={`${styles.hintBanner} ${editMode ? styles.hintBannerOn : ''}`}>{editHint}</div>
 
             {courtSections.map(section => (
-            <section key={section.key} className={styles.daySection}>
-            {section.title && (
-              <div className={styles.dayHeading}>
-                <Calendar size={16} color="var(--orange, #EE7A4C)" />
-                <span>{section.title}</span>
-                <span className={styles.dayHeadingMeta}>
-                  {section.courts.reduce((sum, c) => sum + c.matches.length, 0)} matches
-                </span>
-              </div>
-            )}
-            <div className={styles.courtsGrid} style={{ '--court-count': section.courts.length || 1 } as CSSProperties}>
+              <CourtSectionBlock key={section.key} section={section}>
+                {({ gridRef, onScroll, courtHeaderProps, isGrabbing }) => (
+                  <div
+                    ref={gridRef}
+                    onScroll={onScroll}
+                    className={`${styles.courtsGrid} ${isGrabbing ? styles.gridGrabbing : ''}`}
+                    data-multi-court={section.courts.length > 3 ? 'true' : undefined}
+                    style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
+                  >
               {section.courts.map(group => (
                 <div key={group.courtName} className={styles.courtCard}>
-                  <div className={styles.courtHeader}>
+                  <div
+                    className={styles.courtHeader}
+                    {...courtHeaderProps}
+                    title={courtHeaderProps['data-draggable'] ? 'Click and drag to slide courts' : undefined}
+                  >
                     <span className={styles.courtName}>{group.courtName}</span>
-                    <span className={styles.courtCount}>{group.matches.length} matches</span>
+                    <span className={styles.courtCountDot}>·</span>
+                    <span className={styles.courtCount}>
+                      {group.matches.length} {group.matches.length === 1 ? 'match' : 'matches'}
+                    </span>
                   </div>
                   <div className={styles.matchList}>
                     {group.rows.map(row => {
-                      if (row.kind === 'block') return <div key={row.key}>{gapStrip(row)}</div>;
+                      if (row.kind === 'block') {
+                        if (isBufferBlock(row.label)) return null;
+                        return <div key={row.key}>{gapStrip(row)}</div>;
+                      }
 
                       const m = row.m;
                       const movable = canMove(m);
@@ -2448,6 +2664,7 @@ export default function TournamentSchedulePage() {
                           className={[
                             styles.matchItem,
                             m.status === 'live' ? styles.matchItemLive : '',
+                            m.status === 'done' ? styles.matchItemDone : '',
                             m.isPreview ? styles.matchItemPreview : '',
                             m.unscheduled ? styles.matchItemUnscheduled : '',
                             m.overScheduled ? styles.matchItemOverflow : '',
@@ -2515,7 +2732,6 @@ export default function TournamentSchedulePage() {
                                 />
                               ) : (
                                 <>
-                                  <Clock size={13} />
                                   {/* The block heading already says the date. */}
                                   {!splitByDay && dayCount > 1 && m.dateLabel ? `${m.dateLabel} · ` : ''}
                                   <button
@@ -2540,20 +2756,37 @@ export default function TournamentSchedulePage() {
                               <span className={styles.gridMatchNo} title={m.divisionLabel}>{m.matchNo}</span>
                             </span>
                           </div>
-                          <div className={styles.matchTeams}>
-                            <div className={styles.teamRow}>
-                              <span>{m.teamA}</span>
-                              {m.scoreA && m.scoreA.length > 0 && (
-                                <span className={styles.teamScore}>{m.scoreA.join(' · ')}</span>
-                              )}
-                            </div>
-                            <div className={styles.teamRow}>
-                              <span>{m.teamB}</span>
-                              {m.scoreB && m.scoreB.length > 0 && (
-                                <span className={styles.teamScore}>{m.scoreB.join(' · ')}</span>
-                              )}
-                            </div>
-                          </div>
+                          {(() => {
+                            const matchWinner = getMatchWinner(m);
+                            const isWinnerA = matchWinner === 'A';
+                            const isWinnerB = matchWinner === 'B';
+                            const isLoserA = matchWinner === 'B';
+                            const isLoserB = matchWinner === 'A';
+                            return (
+                              <div className={styles.matchTeams}>
+                                <div className={styles.teamRow}>
+                                  <span className={`${styles.teamRowName} ${isWinnerA ? styles.teamRowNameWinner : ''} ${isLoserA ? styles.teamRowNameLoser : ''}`}>{m.teamA}</span>
+                                  {m.scoreA && m.scoreA.length > 0 && (
+                                    <div className={styles.teamScoreList}>
+                                      {m.scoreA.map((s, idx) => (
+                                        <span key={idx} className={styles.teamScoreCell}>{s}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className={styles.teamRow}>
+                                  <span className={`${styles.teamRowName} ${isWinnerB ? styles.teamRowNameWinner : ''} ${isLoserB ? styles.teamRowNameLoser : ''}`}>{m.teamB}</span>
+                                  {m.scoreB && m.scoreB.length > 0 && (
+                                    <div className={styles.teamScoreList}>
+                                      {m.scoreB.map((s, idx) => (
+                                        <span key={idx} className={styles.teamScoreCell}>{s}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
                           {faults.length > 0 && (
                             <ul className={styles.gridFaults}>
                               {faults.map((f, fi) => (
@@ -2591,8 +2824,9 @@ export default function TournamentSchedulePage() {
                   )}
                 </div>
               ))}
-            </div>
-            </section>
+                  </div>
+                )}
+              </CourtSectionBlock>
             ))}
           </div>
         ) : (
@@ -2849,7 +3083,7 @@ export default function TournamentSchedulePage() {
               <DragOverlay dropAnimation={null}>
                 {activeDragMatch ? (
                   <div
-                    className={`${styles.gridMatchCard} ${styles.dragOverlayCard}`}
+                    className={`${styles.gridMatchCard} ${styles.dragOverlayCard} ${activeDragMatch.status === 'done' ? styles.gridMatchCardDone : ''}`}
                     data-div={divColorIndex.get(activeDragMatch.divisionLabel) ?? 0}
                   >
                     <div className={styles.gridMatchTop}>
@@ -2865,41 +3099,37 @@ export default function TournamentSchedulePage() {
                         </span>
                       </span>
                     </div>
-                    <div className={`${styles.gridTeamRow} ${styles.gridTeamRowA}`}>
-                      <span className={styles.gridTeamName}>{activeDragMatch.teamA}</span>
-                      <div className={styles.gridScores}>
-                        {activeDragMatch.scoreA && activeDragMatch.scoreA.length > 0 ? (
-                          activeDragMatch.scoreA.map((s, idx) => (
-                            <span key={idx} className={styles.gridScoreBadgeWin}>{s}</span>
-                          ))
-                        ) : (
-                          <>
-                            <span className={styles.gridScoreEmpty} />
-                            <span className={styles.gridScoreEmpty} />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className={styles.gridVsRow}>
-                      <span className={styles.gridVsLine} />
-                      <span className={styles.gridVsText}>vs</span>
-                      <span className={styles.gridVsLine} />
-                    </div>
-                    <div className={`${styles.gridTeamRow} ${styles.gridTeamRowB}`}>
-                      <span className={styles.gridTeamName}>{activeDragMatch.teamB}</span>
-                      <div className={styles.gridScores}>
-                        {activeDragMatch.scoreB && activeDragMatch.scoreB.length > 0 ? (
-                          activeDragMatch.scoreB.map((s, idx) => (
-                            <span key={idx} className={styles.gridScoreBadge}>{s}</span>
-                          ))
-                        ) : (
-                          <>
-                            <span className={styles.gridScoreEmpty} />
-                            <span className={styles.gridScoreEmpty} />
-                          </>
-                        )}
-                      </div>
-                    </div>
+                    {(() => {
+                      const dragWinner = getMatchWinner(activeDragMatch);
+                      const isWinnerA = dragWinner === 'A';
+                      const isWinnerB = dragWinner === 'B';
+                      const isLoserA = dragWinner === 'B';
+                      const isLoserB = dragWinner === 'A';
+                      return (
+                        <div className={styles.gridMatchTeams}>
+                          <div className={styles.gridTeamRow}>
+                            <span className={`${styles.gridTeamName} ${isWinnerA ? styles.gridTeamNameWinner : ''} ${isLoserA ? styles.gridTeamNameLoser : ''}`}>{activeDragMatch.teamA}</span>
+                            {activeDragMatch.scoreA && activeDragMatch.scoreA.length > 0 && (
+                              <div className={styles.gridScoreList}>
+                                {activeDragMatch.scoreA.map((s, idx) => (
+                                  <span key={idx} className={styles.gridScoreCell}>{s}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className={styles.gridTeamRow}>
+                            <span className={`${styles.gridTeamName} ${isWinnerB ? styles.gridTeamNameWinner : ''} ${isLoserB ? styles.gridTeamNameLoser : ''}`}>{activeDragMatch.teamB}</span>
+                            {activeDragMatch.scoreB && activeDragMatch.scoreB.length > 0 && (
+                              <div className={styles.gridScoreList}>
+                                {activeDragMatch.scoreB.map((s, idx) => (
+                                  <span key={idx} className={styles.gridScoreCell}>{s}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : null}
               </DragOverlay>
