@@ -744,9 +744,36 @@ describe('grid resolution', () => {
     assert.notEqual(gap % 45, 0, 'and are no longer forced onto 45-minute boundaries');
   });
 
-  it('leaves a single-length event exactly as it was', () => {
-    const result = generateSchedule([makeDivision('m', 4, { duration: 45 })], config(), 2);
+  it('leaves a single-length event with nothing else to express exactly as it was', () => {
+    const result = generateSchedule(
+      [makeDivision('m', 4, { duration: 45 })],
+      config({ netBufferMinutes: 0 }),
+      2,
+    );
     assert.equal(result.grid.slotMinutes, 45, 'all-45 stays on a 45-minute grid');
+  });
+
+  it('steps finely enough to say what the net buffer costs', () => {
+    // The buffer is a start time: a court that frees at 16:00 owing ten minutes
+    // is next free at 16:10, and a lattice that cannot land there rounds the
+    // wait up to the next thing it can — which used to charge fifteen minutes
+    // for a ten-minute change and draw a "10 m" marker over the gap.
+    const result = generateSchedule(
+      [makeDivision('m', 4, { duration: 45 })],
+      config({ netBufferMinutes: 10 }),
+      2,
+    );
+    assert.equal(result.grid.slotMinutes, 5, '45s and a 10-minute buffer step in 5s');
+    assert.equal(10 % result.grid.slotMinutes, 0, 'the buffer lands on the grid exactly');
+  });
+
+  it('does not go finer than the buffer already fits', () => {
+    const result = generateSchedule(
+      [makeDivision('m', 4, { duration: 45 })],
+      config({ netBufferMinutes: 45 }),
+      2,
+    );
+    assert.equal(result.grid.slotMinutes, 45, 'a buffer the lengths already divide changes nothing');
   });
 });
 
@@ -978,6 +1005,53 @@ describe('net changes', () => {
       }
     }
     assert.ok(charged > 0, 'at least one net change delayed play, or this asserts nothing');
+  });
+
+  it('charges a net change exactly what the buffer says, not the next gridline', () => {
+    // The bug this guards: `place.ts` worked the wait out correctly — a court
+    // free at 16:00 owing ten minutes is next free at 16:10 — and then every
+    // start was snapped onto the grid, which the lengths alone ruled in 15s.
+    // 16:10 became 16:15, a ten-minute buffer cost the organizer fifteen, and
+    // the marker drawn over the gap still read "10 m". The grid now takes its
+    // resolution from the buffer too, so the wait can land where it ends.
+    const divisions = [
+      makeDivision('men', 4, { netHeight: '2.43m', gender: 'Men', duration: 30 }),
+      makeDivision('women', 4, { netHeight: '2.24m', gender: 'Women', duration: 45 }),
+    ];
+    const cfg = config({ courtCount: 1, stageFinals: false, netBufferMinutes: 10 });
+    const result = generateSchedule(divisions, cfg, 3);
+    assertSound(result, 'net change costs the buffer');
+
+    // 30 and 45 alone rule a 15-minute grid, which is what made 10 unsayable.
+    assert.equal(result.grid.slotMinutes, 5, 'the grid steps finely enough to say 10');
+
+    const heightOf = (id: string) => result.graph.nodes.get(id)!.netHeight;
+    const byCourtDay = new Map<string, typeof result.placements>();
+    for (const p of result.placements) {
+      const key = `${p.day}:${p.courtIndex}`;
+      byCourtDay.set(key, [...(byCourtDay.get(key) ?? []), p]);
+    }
+
+    const gaps: number[] = [];
+    for (const run of byCourtDay.values()) {
+      const order = [...run].sort((a, b) => a.startAbs - b.startAbs);
+      for (let i = 1; i < order.length; i++) {
+        const ha = heightOf(order[i - 1].matchId);
+        const hb = heightOf(order[i].matchId);
+        if (ha == null || hb == null || ha === hb) continue;
+        gaps.push(order[i].startAbs - order[i - 1].endAbs);
+      }
+    }
+
+    assert.ok(gaps.length > 0, 'no net change happened, so this asserts nothing');
+    // A gap may exceed the buffer for reasons of its own — a team owed rest, a
+    // blocked period — but nothing should ever be *unable* to sit at 10, which
+    // is what a 15-minute lattice guaranteed.
+    assert.equal(
+      Math.min(...gaps),
+      cfg.netBufferMinutes,
+      `the tightest net change should cost exactly ${cfg.netBufferMinutes}min, got ${Math.min(...gaps)}`,
+    );
   });
 
   it('keeps divisions on their own courts once the buffer stops being charged at the start of a day', () => {

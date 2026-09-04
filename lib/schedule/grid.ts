@@ -12,6 +12,7 @@
 // Absolute time is `day * 1440 + minuteOfDay` throughout, so comparing two
 // instants across days is just comparing two numbers.
 
+import { normaliseBuffer } from './netChange.ts';
 import type { CourtSpec, ScheduleConfig } from './types.ts';
 import { courtRoster, parseHHMM } from './types.ts';
 
@@ -36,8 +37,9 @@ export interface Grid {
    *  by it. It is deliberately not the grid's resolution. */
   blockMinutes: number;
   /** The grid's actual resolution — the largest step that divides every match
-   *  length in the event, so a 20-minute match takes twenty minutes and the
-   *  next one can start at 09:20 rather than 09:45. */
+   *  length in the event *and* the net-change buffer, so a 20-minute match
+   *  takes twenty minutes and the next one can start at 09:20 rather than
+   *  09:45, and a court owing a ten-minute net change is free again in ten. */
   slotMinutes: number;
   courts: CourtSpec[];
   dayStart: number;
@@ -91,11 +93,33 @@ export function gridResolution(minutes: number[], block: number): number {
 export function buildGrid(config: ScheduleConfig, days: number, matchMinutes: number[] = []): Grid {
   const courts = courtRoster(config);
   const block = Math.max(1, Math.trunc(config.blockMinutes) || 1);
-  // Only the match lengths. A net-change buffer sits *inside* a match's booking
-  // rather than starting on its own boundary, so folding it in here would make
-  // the grid finer than anything needs — an all-45 event would end up on a
-  // 15-minute grid for no gain.
-  const step = gridResolution(matchMinutes, block);
+  // The match lengths *and* the net-change buffer.
+  //
+  // The buffer is a start time like any other: a court that frees at 16:00 and
+  // owes a ten-minute net change is next free at 16:10, and `place.ts` works
+  // that out exactly. But every start is then snapped onto this lattice, so on
+  // a grid of gcd(30, 45) = 15 the 16:10 became 16:15 and a ten-minute buffer
+  // quietly cost the organizer fifteen — while the marker drawn under it,
+  // measured from the buffer, still read "10 m".
+  //
+  // This used to take the lengths alone, on the grounds that a buffer sits
+  // inside a match's booking rather than starting on its own boundary. It does
+  // not: it ends where the next match begins, which is a boundary by
+  // definition. Folding it in makes the grid able to express every time the
+  // solver can legitimately land on, so nothing has to be rounded away.
+  //
+  // It buys that with a finer grid — 30s, 45s and a 10-minute buffer give a
+  // 5-minute step where the lengths alone gave 15 — which costs slots to scan
+  // and blocked-time flags to hold, and nothing else: matches still start when
+  // the one before them ends, so a finer lattice only *permits* an off-15
+  // start, it never causes one. A zero buffer is filtered out and leaves the
+  // resolution exactly as it was.
+  //
+  // The calendar's row pitch is deliberately not this — see calendarAxis.ts,
+  // which rules its rows from the lengths alone so a nine-hour day stays 36
+  // rows rather than 108, and draws a 16:10 card ten minutes into its 16:00
+  // row rather than inventing a gridline for it.
+  const step = gridResolution([...matchMinutes, normaliseBuffer(config.netBufferMinutes)], block);
   const dayStart = parseHHMM(config.startTime);
   const dayEnd = parseHHMM(config.endTime);
   const dayCount = Math.max(1, Math.trunc(days) || 1);

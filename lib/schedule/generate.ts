@@ -219,16 +219,17 @@ export function generateSchedule(
  *  schedule and never stored — the next generate works them out again.
  *
  *  The marker covers the whole gap the change costs, not just the crew's
- *  minutes. A ten-minute net change on a fifteen-minute grid takes the court
- *  out for fifteen: the crew finishes at 16:10 and the next match still cannot
- *  begin until 16:15, because a match that starts off the grid takes the whole
- *  column off it for the rest of the day. Drawing only the ten left five
- *  minutes of unexplained white space under the marker and made the schedule
- *  look like it had lost time nobody could account for.
+ *  minutes, so no unexplained white space is left under it for the organizer
+ *  to wonder about.
  *
- *  Set `netBufferMinutes` to a whole number of grid steps and the rounding
- *  disappears; below one, the difference is real court time and belongs on
- *  screen rather than hidden. */
+ *  The two are usually now the same number. The grid takes its resolution from
+ *  the buffer as well as the match lengths (see `buildGrid`), so the crew
+ *  finishing at 16:10 means the next match starts at 16:10 and a ten-minute
+ *  buffer costs ten minutes. The `min`/`ceil` survives for the case that
+ *  resolution cannot reach: the step is floored at 5, so a buffer that is not a
+ *  multiple of five — 7 minutes, say — still rounds up onto the lattice, and
+ *  those minutes are real court time that belongs on screen rather than
+ *  hidden. */
 function netAdjustBlocks(placements: Placement[], config: ScheduleConfig, grid: Grid): BlockedPeriod[] {
   if (!(config.netBufferMinutes > 0)) return [];
   const out: BlockedPeriod[] = [];

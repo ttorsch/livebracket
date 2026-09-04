@@ -271,9 +271,12 @@ export default function OrganizerBracketPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false); // crossing config only
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [applyingThird, setApplyingThird] = useState(false); // 3rd-place play-off only
+  const [thirdError, setThirdError] = useState<string | null>(null);
+  const [lockError, setLockError] = useState<string | null>(null);
   /* Set when the server refuses a rebuild because it would discard a saved
      schedule. Holds the server's own count, never a client guess. */
-  const [discard, setDiscard] = useState<{ kind: 'draw' | 'crossing'; cost: DiscardCost } | null>(null);
+  const [discard, setDiscard] = useState<{ kind: 'draw' | 'crossing' | 'thirdPlace'; cost: DiscardCost } | null>(null);
   const [animDiv, setAnimDiv] = useState<string | null>(null); // division whose draw reveal is playing
   const [drawTick, setDrawTick] = useState(0); // remounts the pools grid so the reveal replays on every draw
 
@@ -397,27 +400,52 @@ export default function OrganizerBracketPage() {
         ? lockedByDiv[activeDiv]
         : !!div?.drawConfig?.isLocked;
       setRound1Tab(isLocked ? 'standings' : 'config');
+      // Carrying a 'config' tab across into a locked division would land on a
+      // tab that division does not offer.
+      if (isLocked) setRound2Tab('bracket');
     }
   }, [activeDiv, detail, lockedByDiv]);
 
+  /* The lock is shown optimistically and then *put back* if the server refuses.
+     It used to be shown optimistically and never put back: the response was
+     not checked at all and a failure went to console.error, so a rejected lock
+     still read "Draw Result Locked" until the next reload. That is a bad way
+     for any control to behave and a particularly bad one for this control —
+     locking the draw is what `scheduleGate` requires before a schedule can be
+     saved, so an organizer who believes they have locked it is sent back to
+     the schedule page to be told, again, that they have not. */
   const toggleLockDraw = async () => {
     if (!division) return;
     const nextLocked = !isDrawLocked;
+    const wasLocked = isDrawLocked;
+    const wasRound2Tab = round2Tab;
+    setLockError(null);
     setLockedByDiv(prev => ({ ...prev, [activeDiv]: nextLocked }));
-    if (nextLocked) {
-      setRound1Tab('standings');
-    } else {
-      setRound1Tab('config');
-    }
+    setRound1Tab(nextLocked ? 'standings' : 'config');
+    /* The knockout's config tab is about to disappear, so anyone standing on
+       it is moved to the bracket. Only on the way in: unlocking puts the tab
+       back and the organizer can choose it, where jumping them there would
+       move a pool-play division's view for a reason that has nothing to do
+       with its own crossing settings. */
+    if (nextLocked) setRound2Tab('bracket');
     try {
-      await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
+      const res = await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isLocked: nextLocked }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? `Could not ${nextLocked ? 'lock' : 'unlock'} the draw (${res.status})`);
+      }
       await load(division.id);
     } catch (err) {
-      console.error(err);
+      setLockedByDiv(prev => ({ ...prev, [activeDiv]: wasLocked }));
+      setRound1Tab(wasLocked ? 'standings' : 'config');
+      // The config tab is coming back, so put the organizer back on it if that
+      // is where the lock took them from. A refused lock should leave no trace.
+      setRound2Tab(wasRound2Tab);
+      setLockError(err instanceof Error ? err.message : 'Could not change the draw lock');
     }
   };
 
@@ -880,6 +908,48 @@ export default function OrganizerBracketPage() {
     }
   };
 
+  /* The play-off for 3rd, added to or taken off a bracket that already exists.
+     Its own action for the reason crossing is: the bracket has been drawn, and
+     a division should not have to be redrawn — losing its seeding and every
+     result on it — to change its mind about one match. The play-off is fed by
+     the two beaten semifinalists and feeds nothing, so the server can add or
+     drop it without touching a single other pairing.
+
+     Before the draw there is nothing to apply to: the checkbox simply rides
+     along with `saveDraw` and the round is built with the rest. */
+  const applyThirdPlace = async (confirmDiscard = false) => {
+    if (!division || applyingThird) return;
+    setApplyingThird(true);
+    setThirdError(null);
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'thirdPlace',
+          thirdPlace: config.thirdPlace,
+          ...(confirmDiscard ? { confirmDiscard: true } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const cost = readDiscardRefusal(res.status, body);
+        if (cost) {
+          setDiscard({ kind: 'thirdPlace', cost });
+          return;
+        }
+        throw new Error(body?.error ?? `Apply failed (${res.status})`);
+      }
+      setDiscard(null);
+      await load(division.id);
+      setRound2Tab('bracket');
+    } catch (err) {
+      setThirdError(err instanceof Error ? err.message : 'Failed to apply the play-off setting');
+    } finally {
+      setApplyingThird(false);
+    }
+  };
+
   const perPool = Math.max(1, Math.round(confirmedTeams.length / config.pools) || 1);
   const firstRoundMatches = bracket?.rounds[0]?.matches.length ?? 0;
   const colHeight = Math.max(firstRoundMatches * 95, bracket?.thirdPlaceMatch ? 240 : 190);
@@ -888,6 +958,16 @@ export default function OrganizerBracketPage() {
   const seTeams = confirmedTeams.length;
   const seSize = seTeams >= 2 ? (() => { let s = 2; while (s < seTeams) s *= 2; return s; })() : 0;
   const seByes = seSize > 0 ? seSize - seTeams : 0;
+  /* Four teams is the smallest draw with a play-off for 3rd in it. Three pads
+     to a four-team bracket too, but one of its semifinals is then a bye — and
+     a bye has no loser, so the play-off would be drawn from one team and an
+     empty seat. */
+  const seCanThirdPlace = seTeams >= 4;
+  /* Whether the checkbox has moved away from what the drawn bracket actually
+     has. Read off the division rather than tracked, so it cannot drift: after
+     an apply the reload brings the new value back and this goes quiet again. */
+  const seThirdPlaceDirty =
+    !!bracket?.fromDb && seCanThirdPlace && config.thirdPlace !== !!division?.drawConfig?.thirdPlace;
 
   // Winners are emphasized only for real, completed matches (from the DB) —
   // never for projections.
@@ -1341,6 +1421,7 @@ export default function OrganizerBracketPage() {
                     )}
                   </button>
                 </div>
+                {lockError && <p className={styles.saveError}>{lockError}</p>}
                 {/* Unlocking destroys nothing by itself — it only opens the
                     Draw Config tab, from which redrawing does. Said once, here,
                     rather than as a second dialog nobody reads. */}
@@ -1484,13 +1565,20 @@ export default function OrganizerBracketPage() {
               </div>
               <div className={styles.headBtns}>
                 <div className={styles.tabUnderlineGroup}>
-                  <button
-                    type="button"
-                    className={`${styles.tabUnderlineBtn} ${round2Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
-                    onClick={() => setRound2Tab('config')}
-                  >
-                    Bracket Config
-                  </button>
+                  {/* Hidden once the draw is locked, exactly as Round 1 hides
+                      Draw Config: a locked draw is one nobody is still
+                      configuring, and leaving the way back in on screen invites
+                      a redraw that the lock exists to prevent. Unlock first —
+                      which is the one action that says out loud what it costs. */}
+                  {!isDrawLocked && (
+                    <button
+                      type="button"
+                      className={`${styles.tabUnderlineBtn} ${round2Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
+                      onClick={() => setRound2Tab('config')}
+                    >
+                      Bracket Config
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={`${styles.tabUnderlineBtn} ${round2Tab === 'bracket' ? styles.tabUnderlineBtnActive : ''}`}
@@ -1502,7 +1590,7 @@ export default function OrganizerBracketPage() {
               </div>
             </div>
             <div className={styles.roundWrap}>
-            {round2Tab === 'config' && (
+            {round2Tab === 'config' && !isDrawLocked && (
               <>
                 {/* Seed / Draw Configuration for pure Single Elimination (no pool play) */}
                 {!hasRoundRobin && (
@@ -1524,6 +1612,62 @@ export default function OrganizerBracketPage() {
                           <span className={`${styles.statValue} ${seByes > 0 ? styles.statValueAccent : ''}`}>{seByes}</span>
                         </div>
                       </div>
+
+                      {/* The play-off for 3rd. Pool-play divisions have always
+                          had this, on the crossing card; a pure knockout had
+                          nowhere to ask for it, so the flag `saveDraw` already
+                          sends was permanently false.
+
+                          Disabled rather than hidden below four teams: the
+                          option existing and saying why it cannot be used yet
+                          is more use to an organizer mid-registration than an
+                          option that quietly appears later. */}
+                      <label
+                        className={styles.checkboxCard}
+                        style={{
+                          marginTop: 16,
+                          ...(seCanThirdPlace ? {} : { opacity: 0.55, cursor: 'not-allowed' }),
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={config.thirdPlace && seCanThirdPlace}
+                          disabled={!seCanThirdPlace}
+                          onChange={e => setConfig({ thirdPlace: e.target.checked })}
+                          className={styles.checkboxInput}
+                        />
+                        <div className={styles.checkboxTextCol}>
+                          <span className={styles.checkboxTitle}>Play off for 3rd place</span>
+                          <span className={styles.checkboxSubtitle}>
+                            {seCanThirdPlace
+                              ? 'Adds a match between the two beaten semifinalists.'
+                              : 'Needs at least 4 teams — a smaller draw has no semifinal to take the two beaten teams from.'}
+                          </span>
+                        </div>
+                      </label>
+
+                      {/* Only once there is a bracket to change. Before the
+                          draw the checkbox rides along with it and this would
+                          be a second button for the same thing. */}
+                      {seThirdPlaceDirty && (
+                        <div className={styles.drawBtnWrap} style={{ marginTop: 12 }}>
+                          <Button
+                            variant="secondary"
+                            size="medium"
+                            fullWidth
+                            loading={applyingThird}
+                            onClick={() => applyThirdPlace()}
+                            style={{ height: 44, borderRadius: 999 }}
+                          >
+                            {config.thirdPlace ? 'Add 3rd-place play-off' : 'Remove 3rd-place play-off'}
+                          </Button>
+                          <p className={styles.fieldNote} style={{ marginTop: 8, textAlign: 'center' }}>
+                            Changes only this match. The rest of the bracket, and any results on it, stay as they are.
+                          </p>
+                          {thirdError && <p className={styles.saveError}>{thirdError}</p>}
+                        </div>
+                      )}
+
                       <div className={styles.drawBtnWrap}>
                         <Button
                           variant="primary"
@@ -1809,6 +1953,58 @@ export default function OrganizerBracketPage() {
 
             {round2Tab === 'bracket' && (
               <>
+                {/* Locking the draw, for a division that has no pool round.
+                    The flag is one per division and pool play already offers it
+                    on its Draw Result panel — but that panel lives inside the
+                    Round 1 section, which a pure knockout does not have. So the
+                    only control was unreachable for exactly the divisions that
+                    still need it: `scheduleGate` refuses to save a schedule
+                    until every division's draw is locked, and the schedule page
+                    sends the organizer to "the bracket page", which had no
+                    button. A single-elimination tournament could not save a
+                    schedule at all.
+
+                    Only when there is a drawn bracket to lock: locking a
+                    projection would satisfy the schedule gate for a division
+                    that has no matches in it yet. */}
+                {!hasRoundRobin && bracket?.fromDb && (
+                  <div className={styles.poolsHead} style={{ marginBottom: 16 }}>
+                    <div className={styles.poolsHeadLeft}>
+                      <h3 className={styles.cardTitle}>Draw Result</h3>
+                      {!!division?.drawConfig?.attempts && (
+                        <span className={styles.attemptNote}>
+                          {division.drawConfig.attempts} attempt{division.drawConfig.attempts === 1 ? '' : 's'}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={isDrawLocked ? styles.lockBtnActive : styles.lockBtn}
+                      onClick={toggleLockDraw}
+                    >
+                      {isDrawLocked ? (
+                        <>
+                          <Lock size={14} /> Draw Result Locked
+                        </>
+                      ) : (
+                        <>
+                          <Unlock size={14} /> Lock Draw Result
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+                {!hasRoundRobin && lockError && (
+                  <p className={styles.saveError} style={{ marginBottom: 16 }}>{lockError}</p>
+                )}
+                {/* The same warning pool play gives: unlocking destroys nothing
+                    by itself, redrawing from the config tab does. */}
+                {!hasRoundRobin && bracket?.fromDb && !isDrawLocked && placedMatchCount > 0 && (
+                  <p className={styles.scheduleAtRiskNote} style={{ marginBottom: 16 }}>
+                    This division has a saved schedule ({placedMatchCount} match
+                    {placedMatchCount === 1 ? '' : 'es'} placed). Redrawing discards it.
+                  </p>
+                )}
                 {bracket ? (
                   <div className={styles.bracketScroll}>
                     <div className={styles.bracketRow}>
@@ -1913,7 +2109,11 @@ export default function OrganizerBracketPage() {
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Discard saved schedule">
           <div className={styles.confirmDialog}>
             <h3 className={styles.confirmTitle}>
-              {discard.kind === 'draw' ? 'Redraw and discard the schedule?' : 'Rebuild the bracket and discard its schedule?'}
+              {discard.kind === 'draw'
+                ? 'Redraw and discard the schedule?'
+                : discard.kind === 'thirdPlace'
+                  ? 'Remove the play-off and discard its schedule?'
+                  : 'Rebuild the bracket and discard its schedule?'}
             </h3>
             <p className={styles.confirmBody}>
               {discard.kind === 'draw' ? (
@@ -1921,6 +2121,13 @@ export default function OrganizerBracketPage() {
                   Redrawing <strong>{division?.label}</strong> rebuilds every match in it from
                   scratch, so its saved schedule goes with them —{' '}
                   <strong>{describeDiscardCost(discard.cost)}</strong>.
+                </>
+              ) : discard.kind === 'thirdPlace' ? (
+                <>
+                  Taking the play-off for 3rd off <strong>{division?.label}</strong> deletes that
+                  match, so what was scheduled on it goes too —{' '}
+                  <strong>{describeDiscardCost(discard.cost)}</strong>. The rest of the bracket
+                  keeps its times and courts.
                 </>
               ) : (
                 <>
@@ -1938,15 +2145,22 @@ export default function OrganizerBracketPage() {
               <button
                 type="button"
                 className={styles.btnDanger}
-                disabled={saving || applying}
+                disabled={saving || applying || applyingThird}
                 onClick={() => {
                   const kind = discard.kind;
                   setDiscard(null);
                   if (kind === 'draw') saveDraw(true);
+                  else if (kind === 'thirdPlace') applyThirdPlace(true);
                   else applyCrossing(true);
                 }}
               >
-                {saving || applying ? 'Working…' : discard.kind === 'draw' ? 'Redraw anyway' : 'Rebuild anyway'}
+                {saving || applying || applyingThird
+                  ? 'Working…'
+                  : discard.kind === 'draw'
+                    ? 'Redraw anyway'
+                    : discard.kind === 'thirdPlace'
+                      ? 'Remove anyway'
+                      : 'Rebuild anyway'}
               </button>
             </div>
           </div>

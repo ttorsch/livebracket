@@ -139,7 +139,7 @@ function hoursMinutes(mins: number): string {
    content needs and the shortest rows quietly stretch to fit — and a row
    stretches across *every* court, so one short match inflates that row for the
    whole venue. Re-measure it if the card's type scale changes. */
-const PX_PER_MIN = 8.1;
+const PX_PER_MIN = 3.8;
 
 /* What the *phone* card's content actually needs, measured rather than chosen:
    6px of padding top and bottom, a 20px top row (time, round, match number) and
@@ -148,7 +148,7 @@ const PX_PER_MIN = 8.1;
 
    It is a floor in pixels rather than a scale in pixels-per-minute because on a
    phone the scale is *derived* from it — see `phonePxPerMin`. */
-const PHONE_CARD_FLOOR_PX = 92;
+const PHONE_CARD_FLOOR_PX = 52;
 
 /* The phone's pixels-per-minute, derived per tournament from the shortest match
    in it rather than fixed the way `PX_PER_MIN` is.
@@ -1694,10 +1694,6 @@ export default function TournamentSchedulePage() {
       return {
         day: d.day, dateLabel: d.dateLabel, slots, blocks, lunchBlock, blocked, isEmpty,
         courtCounts,
-        // The corner's headline. `d.items` rather than `blocks`, which carries
-        // the tray on the first section and would have the corner claim
-        // unplaced matches as this day's.
-        matchCount: d.items.length,
         // The tray is drawn in one section only, so its header is a count of
         // that section's stack like every other column's — not of the event's.
         trayCount: dIdx === 0 ? unscheduledBlocks.length : 0,
@@ -2661,8 +2657,7 @@ export default function TournamentSchedulePage() {
                           gridTemplateRows: rowTemplate(calendar.axis, day.slots),
                         } as CSSProperties}
                       >
-                        {/* Top-left corner: which day this grid is, and how much
-                            of the event sits under it. */}
+                        {/* Top-left corner: which day this grid is. */}
                         <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties}>
                           {isOffEventDay(day.day, dayCount) ? (
                             <span className={styles.calCornerOffEvent}>Outside the event</span>
@@ -2677,9 +2672,6 @@ export default function TournamentSchedulePage() {
                               </span>
                             </>
                           )}
-                          <span className={styles.calCornerCount}>
-                            {day.matchCount} match{day.matchCount === 1 ? '' : 'es'}
-                          </span>
                         </div>
 
                         {/* Top Sticky Court Headers */}
@@ -2722,14 +2714,28 @@ export default function TournamentSchedulePage() {
                           );
                         })}
 
-                        {/* Opaque backing for the sticky time column */}
+                        {/* Opaque backing for the sticky time column. It covers the
+                            header row too, so the corner above it can stop painting
+                            over the first gridline — where the 09:00 label now sits —
+                            and still have the gutter's own sand behind it rather than
+                            whatever the scrollport happens to be. */}
                         <div
                           className={styles.calTimeGutter}
-                          style={{ gridColumn: 1, gridRow: `2 / span ${Math.max(1, day.slots)}` } as CSSProperties}
+                          style={{ gridColumn: 1, gridRow: `1 / span ${Math.max(1, day.slots) + 1}` } as CSSProperties}
                         />
 
-                        {/* Y-axis Left Sticky Time Labels */}
-                        {calendar.labels.map(l => (
+                        {/* Y-axis Left Sticky Time Labels.
+                            Clipped to this day's own rows. The axis is one ruler
+                            for the whole event, so its labels run to whichever
+                            day finishes latest — and a grid item placed past the
+                            explicit template does not overflow, it makes CSS
+                            grow an *implicit* row for itself. A day that ended
+                            at 17:40 was handed the whole event's evening back as
+                            ten auto-height strips carrying nothing but a label
+                            and a gridline: `--cal-rows` said 21, the DOM drew
+                            31. Trimming here is what makes day.slots mean
+                            something. */}
+                        {calendar.labels.filter(l => l.slot < day.slots).map(l => (
                           <div
                             key={`t${l.slot}`}
                             className={`${styles.calTimeLabelCell} ${l.isHour ? styles.calTimeHour : styles.calTimeMinor}`}
@@ -2741,8 +2747,9 @@ export default function TournamentSchedulePage() {
                           </div>
                         ))}
 
-                        {/* Horizontal Gridlines */}
-                        {calendar.labels.map(l => (
+                        {/* Horizontal Gridlines — clipped with the labels, and
+                            for the same reason. */}
+                        {calendar.labels.filter(l => l.slot < day.slots).map(l => (
                           <div key={`ln${l.slot}`} className={styles.calGridLine} style={{ gridColumn: `2 / ${calendar.columns.length + 2}`, gridRow: l.slot + 2 } as CSSProperties} />
                         ))}
 
@@ -2791,8 +2798,12 @@ export default function TournamentSchedulePage() {
                           );
                         })}
 
-                        {/* Lunch Break Slot Banner */}
-                        {day.lunchBlock && (
+                        {/* Lunch Break Slot Banner. Only when this day is drawn
+                            long enough to reach the break — a day that stops
+                            before it would otherwise grow an implicit row to
+                            hold the banner, announcing a lunch below its own
+                            last match. */}
+                        {day.lunchBlock && day.lunchBlock.startSlot < day.slots && (
                           <div
                             className={styles.lunchBreakSlot}
                             style={{

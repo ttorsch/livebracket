@@ -1836,6 +1836,26 @@
    standing warning at the unlock, the dialog is the blocking confirm at the
    act itself. */
 
+/* Every error this page can raise — a refused draw, a refused crossing, a
+   refused lock — is written as `styles.saveError`, and the class did not
+   exist. Six call sites rendered `className={undefined}`, so a failure came
+   out as an ordinary paragraph in body text: a rejected lock said "Not signed
+   in" in the same grey as the note above it, which is close enough to silence
+   that the button read as broken rather than refused. Same palette as
+   .scheduleAtRiskNote, which is the other thing on this page that says
+   something went wrong. */
+.saveError {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(192, 57, 43, 0.22);
+  background: rgba(192, 57, 43, 0.06);
+  color: #96271B;
+  font-size: 12.5px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
 .scheduleAtRiskNote {
   margin: 10px 0 0;
   padding: 9px 12px;

@@ -1006,7 +1006,7 @@
 /* Empty slot droppable cells and ghost placeholder */
 .calDropSlotCell {
   position: relative;
-  min-height: var(--cal-slot-h, 126px);
+  min-height: var(--cal-slot-h, 57px);
   border-radius: 12px;
   pointer-events: auto;
   z-index: 2;
@@ -1500,14 +1500,14 @@
    left-reaching shadow, so nothing is lost by this box no longer covering the
    whole track.
 
-   The 14px top is the card's own: .gridMatchCard is padding-top 14 with no top
-   margin, so both times set on the same line, in the same 17px display face. */
+   The 6px top is the card's own: .gridMatchCard is padding-top 6 with no top
+   margin, so both times set on the same line, in the same 12px display face. */
 .calTimeLabelCell {
   position: sticky;
   left: 0;
   align-self: start;
   z-index: 4;
-  padding: 14px 8px 0 4px;
+  padding: 6px 8px 0 4px;
   background: var(--sand-100, #F5F1EA);
   white-space: nowrap;
   display: flex;
@@ -1532,7 +1532,7 @@
    reference point, and is set back so it doesn't compete with it. */
 .calTimeHour .calTimeText {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
@@ -1546,7 +1546,7 @@
 
 .calTimeMinor { opacity: 0.85; }
 .calTimeMinor .calTimeText {
-  font-size: 12px;
+  font-size: 8.5px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--ink-500, #8A92A0);
@@ -1562,7 +1562,7 @@
   align-items: center;
   justify-content: center;
   z-index: 2;
-  min-height: 48px;
+  min-height: 30px;
 }
 
 .lunchBreakContent {
@@ -1591,9 +1591,9 @@
   background: var(--surface-card, #FFFFFF);
   border: none;
   border-left: 4px solid var(--div-accent, #EB6F43);
-  border-radius: 18px;
-  padding: 14px 18px 16px;
-  margin: 0 2px 10px;
+  border-radius: 12px;
+  padding: 6px 12px;
+  margin: 0 2px 4px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -1618,7 +1618,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .gridMatchTimeWrap {
@@ -1629,7 +1629,7 @@
 
 .gridMatchTime {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
@@ -1652,7 +1652,7 @@
 }
 
 .gridMatchDuration {
-  font-size: 14px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--ink-500, #8A92A0);
 }
@@ -1667,7 +1667,7 @@
 }
 
 .gridMatchRound {
-  font-size: 12px;
+  font-size: 8.5px;
   font-weight: 700;
   color: var(--ink-500, #8A92A0);
   white-space: nowrap;
@@ -1681,12 +1681,12 @@
 .gridMatchNo {
   flex: none;
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 13px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.01em;
   color: #FFFFFF;
   background: var(--div-accent, #EB6F43);
-  padding: 4px 12px;
+  padding: 2px 8px;
   border-radius: 999px;
 }
 
@@ -1698,11 +1698,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 28px;
+  min-height: 19px;
 }
 
 .gridTeamName {
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink-900, #14181E);
   white-space: nowrap;
@@ -1718,13 +1718,13 @@
 }
 
 .gridScoreBadgeWin {
-  width: 32px;
-  height: 28px;
-  border-radius: 9px;
+  width: 22px;
+  height: 18px;
+  border-radius: 5px;
   background: var(--div-accent, #EE7A4C);
   color: #FFFFFF;
   font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 11px;
+  font-size: 7.5px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -1732,14 +1732,14 @@
 }
 
 .gridScoreBadge {
-  width: 32px;
-  height: 28px;
-  border-radius: 9px;
+  width: 22px;
+  height: 18px;
+  border-radius: 5px;
   background: var(--sand-200, #F0EDE6);
   border: 1px solid var(--sand-300, #EAE5DD);
   color: var(--ink-800, #2C323D);
   font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 11px;
+  font-size: 7.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1747,9 +1747,9 @@
 }
 
 .gridScoreEmpty {
-  width: 32px;
-  height: 28px;
-  border-radius: 9px;
+  width: 22px;
+  height: 18px;
+  border-radius: 5px;
   border: 1px dashed var(--sand-400, #D9D4C9);
   background: transparent;
 }
@@ -1758,8 +1758,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 10px 0;
-  min-height: 14px;
+  margin: 2px 0;
+  min-height: 8px;
 }
 
 .gridVsLine {
@@ -1769,7 +1769,7 @@
 }
 
 .gridVsText {
-  font-size: 13px;
+  font-size: 9px;
   font-weight: 700;
   color: var(--ink-500, #8A92A0);
   text-transform: lowercase;
@@ -1854,7 +1854,7 @@
      every rule in this file. Everything sized in minutes is a calc against it:
      the row template the page writes out, --cal-slot-h below, and an off-pitch
      card's offset and height. */
-  --cal-px-per-min: var(--cal-ppm-wide, 8.1px);
+  --cal-px-per-min: var(--cal-ppm-wide, 3.8px);
   /* One pitch, in pixels — the height of an ordinary playing row. Derived
      rather than passed in, so it cannot disagree with the scale above. */
   --cal-slot-h: calc(var(--cal-pitch, 15) * var(--cal-px-per-min));
@@ -1870,9 +1870,9 @@
      to the scale would re-entangle the one thing the seam exists to keep
      separate. Matches .lunchBreakSlot's min-height, so the banner is never
      squeezed. */
-  --cal-lunch-h: 48px;
+  --cal-lunch-h: 30px;
   grid-template-columns: var(--cal-time-col, 96px) repeat(var(--cal-courts, 1), minmax(0, 1fr));
-  grid-template-rows: auto repeat(var(--cal-rows, 1), minmax(var(--cal-slot-h, 126px), auto));
+  grid-template-rows: auto repeat(var(--cal-rows, 1), minmax(var(--cal-slot-h, 57px), auto));
 }
 /* Sticky court-header row (top) */
 /* The corner says which day the grid below belongs to, and sits above the
@@ -3167,8 +3167,8 @@
      items refuse to shrink below their content until told they may. */
   .gridMatchTop > div { min-width: 0; }
   .gridTeamName { min-width: 0; }
-  .calTimeLabelCell { padding: 14px 6px 0 4px; }
-  .calTimeHour .calTimeText { font-size: 15px; }
+  .calTimeLabelCell { padding: 6px 6px 0 4px; }
+  .calTimeHour .calTimeText { font-size: 12px; }
   .calCourtHeadCard { height: 84px; padding: 10px 14px; border-radius: 16px; }
   .calCourtName { font-size: 17px; }
   .calCornerDay { font-size: 18px; }
@@ -3279,8 +3279,8 @@
      any of these and re-measure that constant, or the shortest card stops
      fitting its row and every court's row stretches with it. */
   .gridMatchCard { padding: 6px 9px; margin: 3px 4px; border-radius: 10px; }
-  .gridMatchTop { margin-bottom: 6px; }
-  .gridTeamRow { min-height: 24px; }
+  .gridMatchTop { margin-bottom: 4px; }
+  .gridTeamRow { min-height: 20px; }
   /* The card's length *is* the duration on a timeline — this chip is the one
      label the geometry already states, and the width it gives back is width the
      227px column wants. */
@@ -3289,15 +3289,15 @@
      score badges and already inside one card. It cost 35px — over a third of
      what the card needs — to say what the layout says. */
   .gridVsRow { display: none; }
-  .gridMatchTime { font-size: 14px; }
-  .gridMatchRound { font-size: 11px; }
-  .gridMatchNo { font-size: 11px; padding: 3px 9px; }
-  .gridTeamName { font-size: 14px; }
-  .gridVsText { font-size: 11px; }
+  .gridMatchTime { font-size: 10px; }
+  .gridMatchRound { font-size: 8px; }
+  .gridMatchNo { font-size: 8px; padding: 3px 9px; }
+  .gridTeamName { font-size: 10px; }
+  .gridVsText { font-size: 8px; }
   .gridScores { gap: 4px; }
   .gridScoreBadge,
   .gridScoreBadgeWin,
-  .gridScoreEmpty { width: 26px; height: 22px; border-radius: 7px; font-size: 11px; }
+  .gridScoreEmpty { width: 26px; height: 22px; border-radius: 7px; font-size: 8px; }
 
   .heroTitle { font-size: 22px; }
   .gridHeaderTitle { font-size: 18px; }

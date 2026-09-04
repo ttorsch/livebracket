@@ -5,6 +5,7 @@ import type { CrossSlot } from '../../../../../../../lib/data';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
 import { isGroupFormat, isKnockoutFormat } from '../../../../../../../lib/roundFormat';
+import { planThirdPlace, type KnockoutRound } from '../../../../../../../lib/thirdPlacePlan';
 import {
   NO_DISCARD_COST,
   isEmptyCost,
@@ -22,12 +23,19 @@ import {
 // are generated here (not read back from the insert) so the mapping never
 // depends on returned row order.
 //
-// Two write modes:
+// Three write modes:
 //   mode 'draw' (default) — the full draw: seeds, pools and (optionally) the
 //     whole bracket, regenerated from scratch.
 //   mode 'crossing' — bracket crossing only: pools, their matches and the
 //     seeds are left exactly as they are; just the knockout rounds are
 //     rebuilt from the new advance/crossing config.
+//   mode 'thirdPlace' — the play-off for 3rd, added or removed on its own. The
+//     narrowest write of the three: it touches one round and nothing else.
+//     'crossing' can already carry this flag, but it demands a pool round and
+//     rebuilds the whole knockout to deliver it — which a division that is
+//     *only* a knockout cannot ask for and should not have to pay. The
+//     play-off is a leaf: nothing is fed by it, so adding or removing it
+//     leaves every other match, and every result already recorded, alone.
 
 interface DrawBody {
   seedOrder: string[]; // team ids, index 0 = seed 1
@@ -36,7 +44,7 @@ interface DrawBody {
   crossing: string;
   generate?: boolean;
   topSeedIds?: string[]; // organizer-picked top seeds, in order (subset of seedOrder)
-  mode?: 'draw' | 'crossing';
+  mode?: 'draw' | 'crossing' | 'thirdPlace';
   thirdPlace?: boolean; // play off for 3rd between the beaten semifinalists
   // Acknowledges, in full knowledge of the count, that rebuilding these
   // rounds destroys the placements on them. See readDiscardCost.
@@ -629,6 +637,130 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (sError) return NextResponse.json({ error: `Failed to save crossing config: ${sError.message}` }, { status: 500 });
 
     return NextResponse.json({ ok: true, generated: true, mode: 'crossing' });
+  }
+
+  /* The play-off for 3rd, on its own.
+   *
+   * Everything else about the bracket stays exactly as it is — seeds, pools,
+   * every knockout pairing and every result already recorded. That is the
+   * whole point: this round is a leaf, nothing is fed by it, so it can be
+   * added to or taken off a bracket that is already being played.
+   *
+   * Works for a pure knockout and for a bracket drawn off pools alike, though
+   * only the first has no other way to ask: pool play reaches the same flag
+   * through 'crossing', which rebuilds its whole knockout to get there. */
+  if (body.mode === 'thirdPlace') {
+    const settings = (division.settings ?? {}) as Record<string, unknown>;
+    const prevDraw = (settings.draw ?? {}) as Record<string, unknown>;
+    const prevSlots = (prevDraw.slots ?? {}) as Record<string, string[]>;
+    const prevFeeders = (prevDraw.loserFeeders ?? {}) as Record<string, [string, string]>;
+
+    const elimRounds = (division.rounds ?? []).filter(r => isKnockoutFormat(r.format));
+
+    /* The rounds as the planner needs them: their matches read from the
+       matches themselves rather than from `settings.draw.slots`, which is a
+       record of the last draw and can be behind the board. */
+    const { data: elimMatches, error: emError } = await supabaseAdmin
+      .from('matches')
+      .select('id, round_id')
+      .in('round_id', elimRounds.map(r => r.id));
+    if (emError) {
+      return NextResponse.json({ error: `Failed to read the bracket: ${emError.message}` }, { status: 500 });
+    }
+    const byRound = new Map<string, string[]>();
+    for (const m of (elimMatches ?? []) as { id: string; round_id: string }[]) {
+      byRound.set(m.round_id, [...(byRound.get(m.round_id) ?? []), m.id]);
+    }
+    const rounds: KnockoutRound[] = elimRounds.map(r => ({
+      id: r.id,
+      sequence: r.sequence,
+      matchIds: byRound.get(r.id) ?? [],
+    }));
+
+    // Which round is the play-off, which round feeds it, and whether this is
+    // an add, a removal or nothing — decided in lib/thirdPlacePlan, where it
+    // is a pure function with its own tests. What is left here is the writing.
+    const plan = planThirdPlace(rounds, prevFeeders, wantsThirdPlace);
+    if (plan.action === 'impossible') {
+      return NextResponse.json({ error: plan.reason }, { status: 400 });
+    }
+
+    const saveDrawConfig = async (draw: Record<string, unknown>) => {
+      const { error } = await supabaseAdmin
+        .from('divisions')
+        .update({ settings: { ...settings, draw } })
+        .eq('id', divisionId);
+      return error ? `Failed to save the draw config: ${error.message}` : null;
+    };
+
+    if (plan.action === 'none') {
+      /* Nothing to build or delete, but the flag is still written: a division
+         whose bracket and whose config disagree is worth quietly repairing. */
+      const err = await saveDrawConfig({ ...prevDraw, thirdPlace: wantsThirdPlace });
+      if (err) return NextResponse.json({ error: err }, { status: 500 });
+      return NextResponse.json({ ok: true, mode: 'thirdPlace', thirdPlace: wantsThirdPlace, changed: false });
+    }
+
+    if (plan.action === 'add') {
+      /* The same builder the draw itself uses, so a round added to a live
+         bracket is indistinguishable from one drawn in from the start. It
+         writes into the collections it is handed; `slots` goes in carrying the
+         semifinal, which is what it reads to find its two feeders. */
+      const roundRows: RoundInsert[] = [];
+      const matches: MatchInsert[] = [];
+      const slots: Record<string, string[]> = {
+        ...prevSlots,
+        [String(plan.semi.sequence)]: plan.semi.matchIds,
+      };
+      const loserFeeders: Record<string, [string, string]> = { ...prevFeeders };
+      appendThirdPlace({
+        divisionId,
+        roundRows,
+        matches,
+        slots,
+        loserFeeders,
+        semiSequence: plan.semi.sequence,
+        sequence: plan.sequence,
+        scoringRules: elimRounds[0]?.scoring_rules ?? {},
+      });
+      if (roundRows.length === 0 || matches.length === 0) {
+        return NextResponse.json({ error: 'Could not build the play-off round' }, { status: 500 });
+      }
+
+      const { error: rInsError } = await supabaseAdmin.from('rounds').insert(roundRows);
+      if (rInsError) return NextResponse.json({ error: `Failed to create the play-off round: ${rInsError.message}` }, { status: 500 });
+      const { error: mInsError } = await supabaseAdmin.from('matches').insert(matches);
+      if (mInsError) return NextResponse.json({ error: `Failed to create the play-off match: ${mInsError.message}` }, { status: 500 });
+
+      const err = await saveDrawConfig({ ...prevDraw, thirdPlace: true, slots, loserFeeders });
+      if (err) return NextResponse.json({ error: err }, { status: 500 });
+      return NextResponse.json({ ok: true, mode: 'thirdPlace', thirdPlace: true, changed: true });
+    }
+
+    /* Removing. One round's worth of placements, but they are still someone's
+       work — the same accounting a crossing rebuild does, over a smaller
+       scope. */
+    if (body.confirmDiscard !== true) {
+      const cost = await readDiscardCost([plan.round.id]);
+      if ('error' in cost) {
+        return NextResponse.json({ error: `Failed to check the saved schedule: ${cost.error}` }, { status: 500 });
+      }
+      if (!isEmptyCost(cost)) return discardRefusal(cost, 'knockout');
+    }
+
+    const { error: mDelError } = await supabaseAdmin.from('matches').delete().eq('round_id', plan.round.id);
+    if (mDelError) return NextResponse.json({ error: `Failed to clear the play-off match: ${mDelError.message}` }, { status: 500 });
+    const { error: rDelError } = await supabaseAdmin.from('rounds').delete().eq('id', plan.round.id);
+    if (rDelError) return NextResponse.json({ error: `Failed to clear the play-off round: ${rDelError.message}` }, { status: 500 });
+
+    const nextSlots = { ...prevSlots };
+    delete nextSlots[String(plan.round.sequence)];
+    const nextFeeders = { ...prevFeeders };
+    for (const id of plan.round.matchIds) delete nextFeeders[id];
+
+    const err = await saveDrawConfig({ ...prevDraw, thirdPlace: false, slots: nextSlots, loserFeeders: nextFeeders });
+    if (err) return NextResponse.json({ error: err }, { status: 500 });
+    return NextResponse.json({ ok: true, mode: 'thirdPlace', thirdPlace: false, changed: true });
   }
 
   const teamIdSet = new Set(confirmedTeams.map(t => t.id));
