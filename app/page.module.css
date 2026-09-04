@@ -531,7 +531,9 @@
   position: relative;
   width: 100%;
   max-width: 480px;
-  height: 500px;
+  /* Tall enough for two stacked scoreboards to sit under the title without
+     crowding it off the photo. */
+  height: 560px;
   border-radius: 28px;
   overflow: hidden;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.16);
@@ -840,6 +842,124 @@
   color: var(--color-primary, #EB6F43);
 }
 
+/* ── Hero pulse card, fed by /api/live/now ──────────────────────── */
+
+/* The event's dates ride the top of the photo, its title and location the
+   bottom. Splitting them keeps the composition balanced now that the
+   court label has moved down into the scoreboard. */
+.showcaseDateChip {
+  /* The LIVE badge takes the left of the top row when a court is in play,
+     and the dates hold the right whether it is there or not — so this
+     pushes itself over rather than relying on a flex sibling existing. */
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Two courts, one photo. The stack sits where the single scoreboard used
+   to, and a card showing one court simply holds one child. */
+.scoreboardStack {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The scoreboard head reads over two lines — court and time, then division
+   and round — so the group owns their spacing rather than inheriting the
+   card's much looser row gap. */
+.scoreboardHeadGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scoreboardSubHeader {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #A2A9B8;
+}
+
+/* Two players, two circles, overlapping — the negative margin is what
+   makes them read as a pair rather than as a list. */
+.scoreboardAvatarStack {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.scoreboardAvatarStack .scoreboardAvatar {
+  border: 2px solid #FFFFFF;
+  overflow: hidden;
+  padding: 0;
+}
+.scoreboardAvatarStack .scoreboardAvatar + .scoreboardAvatar {
+  margin-left: -10px;
+}
+.scoreboardAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Whoever won the last point, not whoever leads — the same rule the
+   organizer's court board follows. On a card that repaints every few
+   seconds, the point that just moved is the thing worth spotting. */
+.scoreboardTeamScored {
+  color: var(--color-primary, #EB6F43);
+}
+
+/* Between matches there is no score to roll, so the court's start time
+   takes the LIVE badge's place and the points column goes blank. */
+.scoreboardStartTime {
+  color: #7A8294;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.scoreboardUpcomingScore {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 20px;
+  font-weight: 800;
+  color: #C3C9D4;
+  width: 16px;
+  text-align: center;
+}
+
+/* The rolling score was drawn for white-on-photo, so on the white
+   scoreboard it needs its own size and ink. The two-class selectors are
+   deliberate: .rollingDigitContainer and .activePoints are declared
+   further down this file and would otherwise win on source order.
+
+   Wide enough for two digits and right-aligned, so a score crossing from
+   9 to 10 grows leftward instead of shunting the column sideways. */
+.floatingScoreboard .scoreboardRolling {
+  font-size: 20px;
+  width: 1.45em;
+  justify-content: flex-end;
+}
+.floatingScoreboard .scoreboardRolling .activePoints {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-weight: 800;
+  color: #14181E;
+  text-shadow: none;
+}
+.floatingScoreboard .scoreboardRollingScored .activePoints {
+  color: var(--color-primary, #EB6F43);
+}
+
 /* Responsive Media Queries */
 @media (max-width: 960px) {
   .navSearchWrapper {
@@ -939,6 +1059,12 @@
     border-radius: 12px;
     gap: 6px;
   }
+  .scoreboardStack {
+    gap: 6px;
+  }
+  .scoreboardSubHeader {
+    font-size: 9.5px;
+  }
   .upNextPanel {
     margin-top: 18px;
     gap: 5px;
@@ -984,6 +1110,16 @@
   .scoreboardCurrentScore {
     font-size: 16px;
     width: 14px;
+  }
+  .scoreboardUpcomingScore {
+    font-size: 16px;
+    width: 14px;
+  }
+  .floatingScoreboard .scoreboardRolling {
+    font-size: 16px;
+  }
+  .scoreboardAvatarStack .scoreboardAvatar + .scoreboardAvatar {
+    margin-left: -8px;
   }
 }
 .nearbyCard:hover {

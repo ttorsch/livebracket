@@ -3471,6 +3471,7 @@
 }
 
 .divisionSegmented {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -3481,6 +3482,7 @@
 }
 
 .divisionSegment {
+  position: relative;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -3491,7 +3493,8 @@
   color: var(--text-secondary, #4B5563);
   padding: 9px 22px;
   border-radius: var(--radius-pill, 999px);
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: color 0.15s ease;
+  z-index: 1;
 }
 
 .divisionSegment:hover:not(.divisionSegmentActive) {
@@ -3499,9 +3502,34 @@
 }
 
 .divisionSegmentActive {
-  background: var(--color-primary, #EB6F43);
   color: #FFFFFF;
+}
+
+.divisionSegmentActivePill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-primary, #EB6F43);
   box-shadow: 0 2px 10px rgba(235, 111, 67, 0.35);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.divisionSegmentLabel {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sliderOverflowWrap {
+  overflow: hidden;
+  width: 100%;
+}
+
+.animatedContentWrap {
+  width: 100%;
 }
 
 .addDivisionBtn {
@@ -3802,6 +3830,7 @@
 }
 .mobileDivTabs { display: flex; gap: 8px; margin-bottom: 14px; }
 .mobileDivTab {
+  position: relative;
   flex: 1;
   padding: 11px 0;
   border-radius: 999px;
@@ -3812,8 +3841,29 @@
   font-weight: 700;
   background: #fff;
   color: var(--ink-1, #14181E);
+  z-index: 1;
 }
-.mobileDivTabActive { background: var(--orange, #EE7A4C); color: #fff; }
+.mobileDivTabActive {
+  background: transparent !important;
+  color: #fff;
+}
+.mobileDivTabActivePill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--orange, #EE7A4C);
+  box-shadow: 0 2px 8px rgba(238, 122, 76, 0.3);
+  z-index: 0;
+  pointer-events: none;
+}
+.mobileDivTabLabel {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* The add button closes the rail. Dashed and unfilled so it reads as an
    empty slot rather than as another division. */

@@ -180,11 +180,11 @@
 .desktop2aTitle {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 38px;
+  font-size: 28px;
   letter-spacing: -0.02em;
   color: var(--ink-1, #14181E);
   margin: 0;
-  line-height: 44px;
+  line-height: 34px;
 }
 
 .desktop2aHeaderCard {
@@ -235,8 +235,8 @@
 }
 .desktop2aEventTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 26px;
-  line-height: 32px;
+  font-size: 22px;
+  line-height: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink-900, #14181E);
@@ -263,7 +263,7 @@
 }
 .headerSeatsValue {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--ink-900, #14181E);
   margin: 0;
@@ -309,6 +309,7 @@
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 .segBtn {
+  position: relative;
   text-align: center;
   padding: 9px 24px;
   border-radius: 999px;
@@ -320,16 +321,35 @@
   white-space: nowrap;
   background: transparent;
   color: var(--ink-700, #3A414D);
-  transition: all 180ms ease;
+  transition: color 180ms ease;
+  z-index: 1;
 }
 .segBtn:hover:not(.segBtnActive) {
   color: var(--ink-900, #14181E);
 }
 .segBtnActive {
-  background: var(--orange, #EE7A4C) !important;
   color: #FFFFFF !important;
   font-weight: 700;
+}
+.segBtnActivePill {
+  position: absolute;
+  inset: -1px;
+  border-radius: 999px;
+  background: var(--orange, #EE7A4C);
   box-shadow: 0 2px 8px rgba(238, 122, 76, 0.3);
+  z-index: 0;
+  pointer-events: none;
+}
+.segBtnLabel {
+  position: relative;
+  z-index: 1;
+}
+.sliderOverflowWrap {
+  overflow: hidden;
+  width: 100%;
+}
+.animatedContentWrap {
+  width: 100%;
 }
 .stickyDivisionActions {
   display: inline-flex;
@@ -409,7 +429,7 @@
 .sectionTitle {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 24px;
+  font-size: 20px;
   letter-spacing: -0.02em;
   margin: 0;
   color: var(--ink-1, #14181E);
@@ -501,8 +521,7 @@
   color: var(--ink-1, #14181E);
   font-weight: 800;
 }
-.tabUnderlineBtnActive::after {
-  content: '';
+.tabUnderlineIndicator {
   position: absolute;
   bottom: 0;
   left: 10px;
@@ -510,6 +529,8 @@
   height: 3px;
   background: var(--orange, #EE7A4C);
   border-radius: 999px;
+  z-index: 2;
+  pointer-events: none;
 }
 .chevron {
   display: inline-flex;
@@ -822,7 +843,7 @@
   color: var(--coral-500);
 }
 .configCard .cardTitle {
-  font-size: 26px;
+  font-size: 20px;
   margin-bottom: 0;
 }
 .seedSelectRow {
@@ -1508,7 +1529,7 @@
     padding: 12px 20px;
   }
   .heroTitle {
-    font-size: 34px;
+    font-size: 24px;
   }
 }
 @media (max-width: 768px) {
@@ -1560,10 +1581,10 @@
     outline-offset: 2px;
   }
   .segBtnActive {
-    background: var(--orange, #EE7A4C) !important;
+    background: transparent !important;
     color: #FFFFFF !important;
     border-color: transparent !important;
-    box-shadow: 0 2px 8px rgba(238, 122, 76, 0.3) !important;
+    box-shadow: none !important;
   }
   /* Both drop their labels and become circles — two icons and the division
      rail is all the row can carry at this width. */

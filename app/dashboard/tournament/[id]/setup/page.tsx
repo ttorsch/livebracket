@@ -3,6 +3,30 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
+
+const cardVariants: Variants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? 50 : dir < 0 ? -50 : 0,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 350, damping: 30 },
+      opacity: { duration: 0.2 },
+    },
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? -50 : dir < 0 ? 50 : 0,
+    opacity: 0,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 350, damping: 30 },
+      opacity: { duration: 0.15 },
+    },
+  }),
+};
 import { 
   Check, 
   ChevronRight, 
@@ -713,6 +737,17 @@ export default function OrganizerSetup() {
   // Which division is currently selected in the top toggle, and which (if any)
   // the modal is editing (null = creating a new division).
   const [activeDivisionId, setActiveDivisionId] = useState<string | null>(null);
+  const [divDirection, setDivDirection] = useState<number>(0);
+
+  const handleSelectDivision = (newId: string) => {
+    if (newId === activeDivisionId) return;
+    const currentIndex = divisions.findIndex(d => d.id === activeDivisionId);
+    const newIndex = divisions.findIndex(d => d.id === newId);
+    if (currentIndex !== -1 && newIndex !== -1) {
+      setDivDirection(newIndex > currentIndex ? 1 : -1);
+    }
+    setActiveDivisionId(newId);
+  };
   const [detailsCollapsed, setDetailsCollapsed] = useState(true);
   const [registeredTeams, setRegisteredTeams] = useState<RegisteredTeamRow[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
@@ -2143,10 +2178,19 @@ export default function OrganizerSetup() {
                           role="tab"
                           aria-selected={active}
                           className={`${styles.divisionSegment} ${active ? styles.divisionSegmentActive : ''}`}
-                          onClick={() => setActiveDivisionId(d.id)}
+                          onClick={() => handleSelectDivision(d.id)}
                         >
-                          <span>{d.name}</span>
-                          <span style={{ fontSize: 11, opacity: 0.85 }}>({confirmed}/{d.divisionTeamCap})</span>
+                          {active && (
+                            <motion.span
+                              layoutId="setup-division-desktop-pill"
+                              className={styles.divisionSegmentActivePill}
+                              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                            />
+                          )}
+                          <span className={styles.divisionSegmentLabel}>
+                            <span>{d.name}</span>
+                            <span style={{ fontSize: 11, opacity: 0.85 }}>({confirmed}/{d.divisionTeamCap})</span>
+                          </span>
                         </button>
                       );
                     })}
@@ -2158,8 +2202,19 @@ export default function OrganizerSetup() {
                 </div>
 
                 {activeDivision && (
-                  <div className={styles.desktop2aGrid}>
-                    {/* Left Column: Registered Teams Table */}
+                  <div className={styles.sliderOverflowWrap}>
+                    <AnimatePresence mode="wait" initial={false} custom={divDirection}>
+                      <motion.div
+                        key={activeDivisionId}
+                        custom={divDirection}
+                        variants={cardVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        className={styles.animatedContentWrap}
+                      >
+                        <div className={styles.desktop2aGrid}>
+                          {/* Left Column: Registered Teams Table */}
                     <div className={styles.desktop2aMainCol}>
                       <section className={styles.card}>
                         <div className={styles.cardHeader}>
@@ -2451,6 +2506,9 @@ export default function OrganizerSetup() {
                       </section>
                     </div>
                   </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
                 )}
               </>
             )}
@@ -2463,17 +2521,27 @@ export default function OrganizerSetup() {
                   {/* Mobile had no way to change division at all before this. */}
                   {divisionCards.length > 0 && (
                     <div className={styles.mobileDivTabs}>
-                      {divisionCards.map(card => (
-                        <button
-                          key={card.id}
-                          type="button"
-                          className={`${styles.mobileDivTab} ${card.active ? styles.mobileDivTabActive : ''}`}
-                          onClick={() => setActiveDivisionId(card.id)}
-                          aria-pressed={card.active}
-                        >
-                          {card.name}
-                        </button>
-                      ))}
+                      {divisionCards.map(card => {
+                        const active = card.active;
+                        return (
+                          <button
+                            key={card.id}
+                            type="button"
+                            className={`${styles.mobileDivTab} ${active ? styles.mobileDivTabActive : ''}`}
+                            onClick={() => handleSelectDivision(card.id)}
+                            aria-pressed={active}
+                          >
+                            {active && (
+                              <motion.span
+                                layoutId="setup-division-mobile-pill"
+                                className={styles.mobileDivTabActivePill}
+                                transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                              />
+                            )}
+                            <span className={styles.mobileDivTabLabel}>{card.name}</span>
+                          </button>
+                        );
+                      })}
                       {/* Adding a division belongs at the end of the list
                           it adds to. Dashed, so it reads as the slot for
                           one more rather than as a division itself. */}
@@ -2489,6 +2557,17 @@ export default function OrganizerSetup() {
                   )}
 
                   {activeDivision && (
+                    <div className={styles.sliderOverflowWrap}>
+                      <AnimatePresence mode="wait" initial={false} custom={divDirection}>
+                        <motion.div
+                          key={activeDivisionId}
+                          custom={divDirection}
+                          variants={cardVariants}
+                          initial="enter"
+                          animate="center"
+                          exit="exit"
+                          className={styles.animatedContentWrap}
+                        >
                     <>
                       {/* Registration sits with the division toggle rather
                           than in the stat row: it is the one number here
@@ -2738,6 +2817,9 @@ export default function OrganizerSetup() {
                         </button>
                       </div>
                     </>
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
                   )}
                 </div>
               </div>

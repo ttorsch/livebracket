@@ -3,8 +3,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Settings, Trophy, Unlock, Users, X, ImagePlus } from 'lucide-react';
 import styles from './page.module.css';
+
+const cardVariants: Variants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? 50 : dir < 0 ? -50 : 0,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 350, damping: 30 },
+      opacity: { duration: 0.2 },
+    },
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? -50 : dir < 0 ? 50 : 0,
+    opacity: 0,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 350, damping: 30 },
+      opacity: { duration: 0.15 },
+    },
+  }),
+};
 import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch } from '../../../../lib/data';
 import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
@@ -258,8 +282,42 @@ export default function OrganizerBracketPage() {
   const [loading, setLoading] = useState(true);
 
   const [activeDiv, setActiveDiv] = useState<string>('');
+  const [divDirection, setDivDirection] = useState<number>(0);
+
+  const handleSelectDivision = useCallback((newId: string) => {
+    if (newId === activeDiv || !detail) return;
+    const currentIndex = detail.divisions.findIndex(d => d.id === activeDiv);
+    const newIndex = detail.divisions.findIndex(d => d.id === newId);
+    if (currentIndex !== -1 && newIndex !== -1) {
+      setDivDirection(newIndex > currentIndex ? 1 : -1);
+    }
+    setActiveDiv(newId);
+  }, [activeDiv, detail]);
   const [round1Tab, setRound1Tab] = useState<'config' | 'result' | 'standings'>('config');
+  const [r1TabDirection, setR1TabDirection] = useState<number>(0);
+  const handleSelectRound1Tab = (t: 'config' | 'result' | 'standings') => {
+    if (t === round1Tab) return;
+    const order: ('config' | 'result' | 'standings')[] = ['config', 'result', 'standings'];
+    const curIdx = order.indexOf(round1Tab);
+    const newIdx = order.indexOf(t);
+    if (curIdx !== -1 && newIdx !== -1) {
+      setR1TabDirection(newIdx > curIdx ? 1 : -1);
+    }
+    setRound1Tab(t);
+  };
+
   const [round2Tab, setRound2Tab] = useState<'config' | 'bracket'>('bracket');
+  const [r2TabDirection, setR2TabDirection] = useState<number>(0);
+  const handleSelectRound2Tab = (t: 'config' | 'bracket') => {
+    if (t === round2Tab) return;
+    const order: ('config' | 'bracket')[] = ['config', 'bracket'];
+    const curIdx = order.indexOf(round2Tab);
+    const newIdx = order.indexOf(t);
+    if (curIdx !== -1 && newIdx !== -1) {
+      setR2TabDirection(newIdx > curIdx ? 1 : -1);
+    }
+    setRound2Tab(t);
+  };
   const [seedsByDiv, setSeedsByDiv] = useState<Record<string, SeedTeam[]>>({});
   const [configByDiv, setConfigByDiv] = useState<Record<string, DrawSettings>>({});
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
@@ -1077,32 +1135,42 @@ export default function OrganizerBracketPage() {
         <div className={styles.stickyDivisionBar}>
           <div className={styles.stickyDivisionInner}>
             <div className={styles.segmentedControl}>
-              {detail.divisions.map(d => (
-                <button
-                  key={d.id}
-                  type="button"
-                  className={`${styles.segBtn} ${d.id === activeDiv ? styles.segBtnActive : ''}`}
-                  onClick={(e) => {
-                    setActiveDiv(d.id);
-                    setPendingSeed(null);
-                    setSaveError(null);
-                    const btn = e.currentTarget;
-                    const container = btn.parentElement;
-                    if (container) {
-                      const btnLeft = btn.offsetLeft;
-                      const btnWidth = btn.offsetWidth;
-                      const containerWidth = container.offsetWidth;
-                      container.scrollTo({
-                        left: btnLeft - containerWidth / 2 + btnWidth / 2,
-                        behavior: 'smooth',
-                      });
-                    }
-                  }}
-                  aria-pressed={d.id === activeDiv}
-                >
-                  {d.label}
-                </button>
-              ))}
+              {detail.divisions.map(d => {
+                const isActive = d.id === activeDiv;
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`${styles.segBtn} ${isActive ? styles.segBtnActive : ''}`}
+                    onClick={(e) => {
+                      handleSelectDivision(d.id);
+                      setPendingSeed(null);
+                      setSaveError(null);
+                      const btn = e.currentTarget;
+                      const container = btn.parentElement;
+                      if (container) {
+                        const btnLeft = btn.offsetLeft;
+                        const btnWidth = btn.offsetWidth;
+                        const containerWidth = container.offsetWidth;
+                        container.scrollTo({
+                          left: btnLeft - containerWidth / 2 + btnWidth / 2,
+                          behavior: 'smooth',
+                        });
+                      }
+                    }}
+                    aria-pressed={isActive}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="dashboard-division-pill"
+                        className={styles.segBtnActivePill}
+                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                      />
+                    )}
+                    <span className={styles.segBtnLabel}>{d.label}</span>
+                  </button>
+                );
+              })}
             </div>
             <div className={styles.stickyDivisionActions}>
               <Link
@@ -1130,6 +1198,17 @@ export default function OrganizerBracketPage() {
       )}
 
       <main className={styles.main}>
+        <div className={styles.sliderOverflowWrap}>
+          <AnimatePresence mode="wait" initial={false} custom={divDirection}>
+            <motion.div
+              key={activeDiv}
+              custom={divDirection}
+              variants={cardVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              className={styles.animatedContentWrap}
+            >
         {/* ── Registered teams ───────────────────────────────── */}
         <section className={styles.section}>
           <div className={styles.sectionHead}>
@@ -1209,27 +1288,48 @@ export default function OrganizerBracketPage() {
                     <button
                       type="button"
                       className={`${styles.tabUnderlineBtn} ${round1Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
-                      onClick={() => setRound1Tab('config')}
+                      onClick={() => handleSelectRound1Tab('config')}
                     >
-                      Draw Config
+                      {round1Tab === 'config' && (
+                        <motion.span
+                          layoutId="r1-tab-underline"
+                          className={styles.tabUnderlineIndicator}
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <span>Draw Config</span>
                     </button>
                   )}
                   {isRoundRobin && (
                     <button
                       type="button"
                       className={`${styles.tabUnderlineBtn} ${round1Tab === 'result' ? styles.tabUnderlineBtnActive : ''}`}
-                      onClick={() => setRound1Tab('result')}
+                      onClick={() => handleSelectRound1Tab('result')}
                     >
-                      Draw Result
+                      {round1Tab === 'result' && (
+                        <motion.span
+                          layoutId="r1-tab-underline"
+                          className={styles.tabUnderlineIndicator}
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <span>Draw Result</span>
                     </button>
                   )}
                   {isRoundRobin && (
                     <button
                       type="button"
                       className={`${styles.tabUnderlineBtn} ${round1Tab === 'standings' ? styles.tabUnderlineBtnActive : ''}`}
-                      onClick={() => setRound1Tab('standings')}
+                      onClick={() => handleSelectRound1Tab('standings')}
                     >
-                      Standing Table
+                      {round1Tab === 'standings' && (
+                        <motion.span
+                          layoutId="r1-tab-underline"
+                          className={styles.tabUnderlineIndicator}
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <span>Standing Table</span>
                     </button>
                   )}
                 </div>
@@ -1237,6 +1337,17 @@ export default function OrganizerBracketPage() {
             </div>
             <div className={styles.roundWrap}>
             {isRoundRobin ? (
+              <div className={styles.sliderOverflowWrap}>
+                <AnimatePresence mode="wait" initial={false} custom={r1TabDirection}>
+                  <motion.div
+                    key={round1Tab}
+                    custom={r1TabDirection}
+                    variants={cardVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    className={styles.animatedContentWrap}
+                  >
             <>
             {round1Tab === 'config' && !isDrawLocked && (
             <div className={styles.poolRow}>
@@ -1538,6 +1649,9 @@ export default function OrganizerBracketPage() {
               </div>
             )}
             </>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             ) : (
               <div className={styles.emptyNote}>
                 {roundFormatLabel(firstRoundFormat)} features for this round are coming soon.
@@ -1565,31 +1679,51 @@ export default function OrganizerBracketPage() {
               </div>
               <div className={styles.headBtns}>
                 <div className={styles.tabUnderlineGroup}>
-                  {/* Hidden once the draw is locked, exactly as Round 1 hides
-                      Draw Config: a locked draw is one nobody is still
-                      configuring, and leaving the way back in on screen invites
-                      a redraw that the lock exists to prevent. Unlock first —
-                      which is the one action that says out loud what it costs. */}
                   {!isDrawLocked && (
                     <button
                       type="button"
                       className={`${styles.tabUnderlineBtn} ${round2Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
-                      onClick={() => setRound2Tab('config')}
+                      onClick={() => handleSelectRound2Tab('config')}
                     >
-                      Bracket Config
+                      {round2Tab === 'config' && (
+                        <motion.span
+                          layoutId="r2-tab-underline"
+                          className={styles.tabUnderlineIndicator}
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <span>Bracket Config</span>
                     </button>
                   )}
                   <button
                     type="button"
                     className={`${styles.tabUnderlineBtn} ${round2Tab === 'bracket' ? styles.tabUnderlineBtnActive : ''}`}
-                    onClick={() => setRound2Tab('bracket')}
+                    onClick={() => handleSelectRound2Tab('bracket')}
                   >
-                    Bracket
+                    {round2Tab === 'bracket' && (
+                      <motion.span
+                        layoutId="r2-tab-underline"
+                        className={styles.tabUnderlineIndicator}
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    <span>Bracket</span>
                   </button>
                 </div>
               </div>
             </div>
             <div className={styles.roundWrap}>
+              <div className={styles.sliderOverflowWrap}>
+                <AnimatePresence mode="wait" initial={false} custom={r2TabDirection}>
+                  <motion.div
+                    key={round2Tab}
+                    custom={r2TabDirection}
+                    variants={cardVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    className={styles.animatedContentWrap}
+                  >
             {round2Tab === 'config' && !isDrawLocked && (
               <>
                 {/* Seed / Draw Configuration for pure Single Elimination (no pool play) */}
@@ -2091,9 +2225,15 @@ export default function OrganizerBracketPage() {
                 )}
               </>
             )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
           </section>
         )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
 
       {/* ── DISCARD-A-SCHEDULE CONFIRM ─────────────────────────────────

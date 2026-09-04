@@ -3,8 +3,32 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { MapPin, Calendar, Users, Clock, Share2, Check } from 'lucide-react';
 import styles from './page.module.css';
+
+const cardVariants: Variants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? 50 : dir < 0 ? -50 : 0,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 350, damping: 30 },
+      opacity: { duration: 0.2 },
+    },
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? -50 : dir < 0 ? 50 : 0,
+    opacity: 0,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 350, damping: 30 },
+      opacity: { duration: 0.15 },
+    },
+  }),
+};
 import { roundFormatLabel, isGroupFormat } from '@/lib/roundFormat';
 import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
@@ -286,6 +310,28 @@ export default function TournamentPage() {
   );
 
   const activeDivision = tournament?.divisions.find(d => d.id === activeDiv) ?? null;
+
+  const [slideDirection, setSlideDirection] = useState<number>(0);
+
+  const handleSelectDivision = (newId: string) => {
+    if (newId === activeDiv || !tournament) return;
+    const currentIndex = tournament.divisions.findIndex(d => d.id === activeDiv);
+    const newIndex = tournament.divisions.findIndex(d => d.id === newId);
+    if (currentIndex !== -1 && newIndex !== -1) {
+      setSlideDirection(newIndex > currentIndex ? 1 : -1);
+    }
+    setActiveDiv(newId);
+  };
+
+  const handleSelectTab = (t: string) => {
+    if (t === currentTab) return;
+    const currentIndex = tabs.indexOf(currentTab);
+    const newIndex = tabs.indexOf(t);
+    if (currentIndex !== -1 && newIndex !== -1) {
+      setSlideDirection(newIndex > currentIndex ? 1 : -1);
+    }
+    setActiveTab(t);
+  };
 
   /* Every court in play across the whole event, plus what is due on next —
      the panel is about the tournament, not the selected division. */
@@ -581,17 +627,27 @@ export default function TournamentPage() {
       {tournament.divisions.length > 0 && (
         <section className={styles.divisionSection}>
           <div className={styles.segmented}>
-            {tournament.divisions.map(d => (
-              <button
-                key={d.id}
-                type="button"
-                className={`${styles.segment} ${activeDiv === d.id ? styles.segmentActive : ''}`}
-                onClick={() => setActiveDiv(d.id)}
-                aria-pressed={activeDiv === d.id}
-              >
-                {d.label}
-              </button>
-            ))}
+            {tournament.divisions.map(d => {
+              const isActive = activeDiv === d.id;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`${styles.segment} ${isActive ? styles.segmentActive : ''}`}
+                  onClick={() => handleSelectDivision(d.id)}
+                  aria-pressed={isActive}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="tournament-division-pill"
+                      className={styles.activePill}
+                      transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    />
+                  )}
+                  <span className={styles.segmentLabel}>{d.label}</span>
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
@@ -599,20 +655,41 @@ export default function TournamentPage() {
       {/* ── Tabs ──────────────────────────────────────────────── */}
       <div className={styles.tabBar}>
         <div className={styles.tabBarInner}>
-          {tabs.map(t => (
-            <button
-              key={t}
-              className={`${styles.tab} ${currentTab === t ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(t)}
-            >
-              {t}
-            </button>
-          ))}
+          {tabs.map(t => {
+            const isActive = currentTab === t;
+            return (
+              <button
+                key={t}
+                className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
+                onClick={() => handleSelectTab(t)}
+              >
+                {isActive && (
+                  <motion.span
+                    layoutId="tournament-tab-underline"
+                    className={styles.tabUnderlineIndicator}
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  />
+                )}
+                <span>{t}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
       </div>
 
       <main className={styles.main}>
+        <div className={styles.sliderOverflowWrap}>
+          <AnimatePresence mode="wait" initial={false} custom={slideDirection}>
+            <motion.div
+              key={`${activeDiv}-${currentTab}`}
+              custom={slideDirection}
+              variants={cardVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              className={styles.animatedContentWrap}
+            >
 
         {/* ── Format & rules ──────────────────────────────────── */}
         {currentTab === 'Format & Rules' && activeDivision && (
@@ -896,6 +973,9 @@ export default function TournamentPage() {
             ))}
           </div>
         )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
     </div>
   );

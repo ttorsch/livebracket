@@ -31,21 +31,16 @@ import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '@/c
 import { useSession } from '@/components/auth/AuthProvider';
 import AccountButton from '@/components/auth/AccountButton';
 import { registrationState } from '@/lib/tournamentLifecycle';
+import {
+  fetchHeroLiveMatches,
+  nextSlots,
+  EMPTY_SLOTS,
+  type HeroLiveMatch,
+  type HeroPlayer,
+  type SlotState,
+} from '@/lib/heroLive';
 
 type Status = 'live' | 'upcoming' | 'finished';
-
-interface CarouselMatch {
-  id: string;
-  division: string;
-  round: string;
-  court: string;
-  teamAPlayers: { firstName: string; lastName: string; flag: string }[];
-  teamBPlayers: { firstName: string; lastName: string; flag: string }[];
-  currentPointsA: number;
-  currentPointsB: number;
-  sets: { a: number; b: number }[];
-  lastScorer?: 'A' | 'B';
-}
 
 interface RegistrationInfo {
   division: string;
@@ -127,7 +122,7 @@ function ProgressCircle({ filled, total }: { filled: number; total: number }) {
 function RollingDigit({ digit, className }: { digit: string; className?: string }) {
   return (
     <div className={`${styles.rollingDigitContainer} ${className || ''}`}>
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence initial={false}>
         <motion.span
           key={digit}
           initial={{ y: '100%', opacity: 0 }}
@@ -157,7 +152,13 @@ function RollingNumber({ value, className }: { value: number; className?: string
   return (
     <div style={{ display: 'inline-flex', overflow: 'hidden' }} className={className}>
       {digits.map((digit, idx) => (
-        <RollingDigit key={`${idx}-${digit}`} digit={digit} className={className} />
+        /* Keyed by position, not by value. Keying on the digit remounted the
+           whole RollingDigit on every change, which threw away the
+           AnimatePresence inside it — the new span mounted at its `initial`
+           offset and never animated off it, so a score that ticked over
+           simply vanished. Held steady, the inner AnimatePresence does the
+           work it was written for: old digit out, new digit in. */
+        <RollingDigit key={idx} digit={digit} className={className} />
       ))}
     </div>
   );
@@ -306,128 +307,6 @@ const TOURNAMENTS: Tournament[] = [
       { division: 'Mixed', filled: 12, total: 12 },
     ],
   },
-];
-
-// Carousel Slide Match Data Structure (aligned to user's layout references)
-const CAROUSEL_MATCHES: CarouselMatch[] = [
-  {
-    id: 'match-1',
-    division: "Men",
-    round: "Quarterfinals",
-    court: "Court 1",
-    teamAPlayers: [
-      { firstName: "Aroon", lastName: "Suwannarat", flag: "🇹🇭" },
-      { firstName: "Niran", lastName: "Boonmee", flag: "🇹🇭" }
-    ],
-    teamBPlayers: [
-      { firstName: "Lukas", lastName: "Weber", flag: "🇩🇪" },
-      { firstName: "Felix", lastName: "Schmidt", flag: "🇩🇪" }
-    ],
-    currentPointsA: 2,
-    currentPointsB: 1,
-    sets: [
-      { a: 21, b: 18 },
-      { a: 19, b: 21 }
-    ]
-  },
-  {
-    id: 'match-2',
-    division: "Women",
-    round: "Semifinals",
-    court: "Court 2",
-    teamAPlayers: [
-      { firstName: "Marie", lastName: "Fischer", flag: "🇩🇪" },
-      { firstName: "Klara", lastName: "Hoffmann", flag: "🇩🇪" }
-    ],
-    teamBPlayers: [
-      { firstName: "Larissa", lastName: "Souza", flag: "🇧🇷" },
-      { firstName: "Talita", lastName: "Ferreira", flag: "🇧🇷" }
-    ],
-    currentPointsA: 15,
-    currentPointsB: 12,
-    sets: [
-      { a: 21, b: 16 }
-    ]
-  },
-  {
-    id: 'match-3',
-    division: "Mixed",
-    round: "Final",
-    court: "Court 1",
-    teamAPlayers: [
-      { firstName: "Sarah", lastName: "Tremblay", flag: "🇨🇦" },
-      { firstName: "Melissa", lastName: "Roy", flag: "🇨🇦" }
-    ],
-    teamBPlayers: [
-      { firstName: "Alix", lastName: "Moreau", flag: "🇫🇷" },
-      { firstName: "Clémentine", lastName: "Girard", flag: "🇫🇷" }
-    ],
-    currentPointsA: 9,
-    currentPointsB: 7,
-    sets: [
-      { a: 19, b: 21 },
-      { a: 21, b: 17 }
-    ]
-  },
-  {
-    id: 'match-4',
-    division: "Men",
-    round: "Semifinals",
-    court: "Court 3",
-    teamAPlayers: [
-      { firstName: "Pablo", lastName: "Garcia", flag: "🇪🇸" },
-      { firstName: "Adrian", lastName: "Martinez", flag: "🇪🇸" }
-    ],
-    teamBPlayers: [
-      { firstName: "Marco", lastName: "Rossi", flag: "🇮🇹" },
-      { firstName: "Paolo", lastName: "Bianchi", flag: "🇮🇹" }
-    ],
-    currentPointsA: 4,
-    currentPointsB: 6,
-    sets: [
-      { a: 21, b: 18 }
-    ]
-  },
-  {
-    id: 'match-5',
-    division: "Women",
-    round: "Quarterfinals",
-    court: "Court 4",
-    teamAPlayers: [
-      { firstName: "Miki", lastName: "Tanaka", flag: "🇯🇵" },
-      { firstName: "Megumi", lastName: "Sato", flag: "🇯🇵" }
-    ],
-    teamBPlayers: [
-      { firstName: "Sophie", lastName: "Walker", flag: "🇦🇺" },
-      { firstName: "Emma", lastName: "Mitchell", flag: "🇦🇺" }
-    ],
-    currentPointsA: 18,
-    currentPointsB: 20,
-    sets: [
-      { a: 21, b: 19 },
-      { a: 17, b: 21 }
-    ]
-  },
-  {
-    id: 'match-6',
-    division: "Mixed",
-    round: "Semifinals",
-    court: "Court 2",
-    teamAPlayers: [
-      { firstName: "Emma", lastName: "Taylor", flag: "🇬🇧" },
-      { firstName: "Liam", lastName: "Wilson", flag: "🇬🇧" }
-    ],
-    teamBPlayers: [
-      { firstName: "Chloé", lastName: "Rochat", flag: "🇨🇭" },
-      { firstName: "Noah", lastName: "Baumann", flag: "🇨🇭" }
-    ],
-    currentPointsA: 20,
-    currentPointsB: 19,
-    sets: [
-      { a: 22, b: 20 },
-      { a: 15, b: 21 }
-    ]
-  }
 ];
 
 type StatusFilter = 'all' | Status;
@@ -766,6 +645,122 @@ const getPlayerInitial = (name: string) => {
   return name ? name.charAt(0).toUpperCase() : '?';
 };
 
+/* A team, as two overlapping circles: each player's photo where they have
+ * one on their profile, their initial where they don't. Capped at two —
+ * beyond a pair the stack stops reading as a team and starts reading as a
+ * crowd. */
+function HeroAvatars({ players }: { players: HeroPlayer[] }) {
+  const pair = players.slice(0, 2);
+  const slots = pair.length > 0 ? pair : [{ name: '', avatarUrl: null }];
+
+  return (
+    <span className={styles.scoreboardAvatarStack} aria-hidden="true">
+      {slots.map((p, i) => (
+        <span key={i} className={styles.scoreboardAvatar}>
+          {p.avatarUrl
+            ? <img src={p.avatarUrl} alt="" className={styles.scoreboardAvatarImg} />
+            : getPlayerInitial(p.name)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/* One court, as the hero card draws it: what and when on the first line,
+ * which division and round on the second, then the two teams. */
+function HeroScoreboard({ match }: { match: HeroLiveMatch }) {
+  const isLive = match.status === 'live';
+  /* Same clock either way — the word in front of it is what says whether
+   * the match has started. */
+  const when = match.startTime
+    ? (isLive ? match.startTime : `Starts ${match.startTime}`)
+    : '';
+
+  return (
+    <div className={styles.floatingScoreboard}>
+      <div className={styles.scoreboardHeadGroup}>
+        <div className={styles.scoreboardHeader}>
+          <span className={styles.scoreboardStatus}>
+            {[match.court, when].filter(Boolean).join(' \u00b7 ')}
+          </span>
+          {isLive && (
+            /* Per court, not per card: with two courts stacked, one can be
+               in play while the other is still waiting. */
+            <span className={styles.scoreboardLiveIndicator}>
+              <span className={styles.liveDotRedSmall} />
+              LIVE
+            </span>
+          )}
+        </div>
+        <div className={styles.scoreboardSubHeader}>
+          {[match.division, match.round].filter(Boolean).join(' \u00b7 ')}
+        </div>
+      </div>
+
+      <HeroScoreRow
+        team={match.teamA}
+        setPoints={match.sets.map((v) => v.a)}
+        points={match.pointsA}
+        live={isLive}
+        scored={isLive && match.lastScorer === 'a'}
+      />
+      <HeroScoreRow
+        team={match.teamB}
+        setPoints={match.sets.map((v) => v.b)}
+        points={match.pointsB}
+        live={isLive}
+        scored={isLive && match.lastScorer === 'b'}
+      />
+    </div>
+  );
+}
+
+/* One side of the hero scoreboard: who they are, the sets they have
+ * already finished, and the points in the set on court. */
+function HeroScoreRow({
+  team,
+  setPoints,
+  points,
+  live,
+  scored,
+}: {
+  team: HeroLiveMatch['teamA'];
+  setPoints: number[];
+  points: number;
+  live: boolean;
+  scored: boolean;
+}) {
+  return (
+    <div className={styles.scoreboardTeamRow}>
+      <div className={styles.scoreboardTeamLeft}>
+        <HeroAvatars players={team.players} />
+        <span className={`${styles.scoreboardTeamName} ${scored ? styles.scoreboardTeamScored : ''}`}>
+          {team.name}
+        </span>
+      </div>
+      <div className={styles.scoreboardTeamRight}>
+        {setPoints.map((v, i) => (
+          <span key={i} className={styles.scoreboardPrevSet}>{v}</span>
+        ))}
+        {live ? (
+          /* Rolls the whole number rather than each digit. Per-digit
+             rolling needs figures of uniform width, and the UI font has
+             none — measured, `tabular-nums` is a no-op on it — so a fixed
+             digit box clips a 0 and leaves a 1 stranded in the middle of
+             it, printing 11 as "1 1". The accent still follows the last
+             point, as on the organizer's court board. */
+          <RollingDigit
+            digit={String(points)}
+            className={`${styles.scoreboardRolling} ${scored ? styles.scoreboardRollingScored : ''}`}
+          />
+        ) : (
+          <span className={styles.scoreboardUpcomingScore}>&ndash;</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide[]; styles: Record<string, string> }) {
   const [active, setActive] = useState(0);
 
@@ -917,9 +912,15 @@ export default function LiveBracketHome() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Live Match Carousel State
-  const [carouselIndex, setCarouselIndex] = useState(0);
-  const [liveMatches, setLiveMatches] = useState<CarouselMatch[]>(CAROUSEL_MATCHES);
+  // Hero pulse card — the courts actually in play, from /api/live/now.
+  const [heroMatches, setHeroMatches] = useState<HeroLiveMatch[]>([]);
+  const [heroLoaded, setHeroLoaded] = useState(false);
+  /* Which two courts are on screen. The ref is the working copy the next
+   * poll reasons from; the state is what React draws. They are set
+   * together, in the fetch callback, so the slot rules never run during a
+   * render. */
+  const heroSlotsRef = useRef<SlotState>(EMPTY_SLOTS);
+  const [heroSlots, setHeroSlots] = useState<SlotState>(EMPTY_SLOTS);
 
   // User Geolocation & Upcoming Banner
   const [userLoc, setUserLoc] = useState<string>('Khao Lak, Phang Nga, Thailand');
@@ -1051,48 +1052,49 @@ export default function LiveBracketHome() {
     }
   }, []);
 
-  // Auto-play the live match carousel (recreating the timer on index change resets the countdown on user click)
+  /* Poll the courts, and let each answer decide what the card shows next.
+   *
+   * Ten seconds is deliberately slower than the scoring: the card is a
+   * glance from the top of the homepage, not a scoreboard being refereed,
+   * and it shouldn't hold a live connection open for a match nobody on
+   * this page is watching. It does mean the card follows the action up to
+   * ten seconds behind, which at a glance is indistinguishable from live.
+   *
+   * There is no timer moving the card along any more. It changes when the
+   * courts change and sits still otherwise. */
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCarouselIndex((prev) => (prev + 1) % CAROUSEL_MATCHES.length);
-    }, 9000);
-    return () => clearInterval(timer);
-  }, [carouselIndex]);
-
-  // Simulate live score updates (incrementing exactly one side by +1 once per slide duration)
-  useEffect(() => {
-    // Schedule a single score update 3.5 seconds into the slide's 9-second lifetime
-    const scoreTimer = setTimeout(() => {
-      setLiveMatches((prevMatches) => {
-        return prevMatches.map((match, idx) => {
-          if (idx === carouselIndex) {
-            // Alternating scoring randomly between Team A and Team B
-            const isTeamA = Math.random() > 0.5;
-            const currentA = match.currentPointsA;
-            const currentB = match.currentPointsB;
-
-            // Reset scores if they get too high (e.g. 25)
-            const nextA = isTeamA ? (currentA >= 25 ? 0 : currentA + 1) : currentA;
-            const nextB = !isTeamA ? (currentB >= 25 ? 0 : currentB + 1) : currentB;
-
-            return {
-              ...match,
-              currentPointsA: nextA,
-              currentPointsB: nextB,
-              lastScorer: isTeamA ? 'A' : 'B'
-            };
-          }
-          return match;
-        });
+    let cancelled = false;
+    const load = () => {
+      fetchHeroLiveMatches().then((matches) => {
+        if (cancelled) return;
+        setHeroMatches(matches);
+        const slots = nextSlots(heroSlotsRef.current, matches, Date.now());
+        heroSlotsRef.current = slots;
+        setHeroSlots(slots);
+        setHeroLoaded(true);
       });
-    }, 1800);
+    };
+    load();
+    const id = setInterval(load, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
 
-    return () => clearTimeout(scoreTimer);
-  }, [carouselIndex]);
-
-  const handleDotClick = (idx: number) => {
-    setCarouselIndex(idx);
-  };
+  /* The card's mode. The scoreboard used to appear whenever a tournament's
+   * dates covered today, which is not the same question — an event can be
+   * running with every court empty. It now follows the feed: a court in
+   * play (or the next one due) gets the scoreboard, and only when nothing
+   * at all is on does the card fall back to the soonest-starting
+   * tournaments. Until the feed resolves it shows neither, rather than
+   * flashing one and swapping to the other. */
+  const heroPage = useMemo(() => {
+    const byId = new Map(heroMatches.map((m) => [m.matchId, m]));
+    return heroSlots.ids
+      .map((id) => (id ? byId.get(id) : undefined))
+      .filter((m): m is HeroLiveMatch => m !== undefined);
+  }, [heroMatches, heroSlots]);
 
   const scrollToTop = (e: React.MouseEvent) => {
     if (typeof window !== 'undefined' && window.location.pathname === '/') {
@@ -1167,16 +1169,6 @@ export default function LiveBracketHome() {
   const marqueeTournament = useMemo(() => {
     return TOURNAMENTS.find((t) => t.status === 'live') || TOURNAMENTS[0];
   }, []);
-
-  // Hero pulse card mode: the live scoreboard only makes sense while a real
-  // tournament is running. With none live, the card lists the three
-  // soonest-starting tournaments instead. Until the fetch resolves we keep the
-  // live layout so the card doesn't flash the empty upcoming state.
-  const hasLiveTournament = useMemo(
-    () => events.some((t) => t.status === 'live'),
-    [events]
-  );
-  const showLiveCard = !eventsLoaded || hasLiveTournament;
 
   const upcomingSoon = useMemo(() => {
     return events
@@ -1506,61 +1498,33 @@ export default function LiveBracketHome() {
                 />
                 <div className={styles.showcaseGradientOverlay} />
 
-                {showLiveCard ? (
+                {heroPage.length > 0 ? (
                   <>
-                {/* Top Badges */}
+                {/* Top of the photo: live first, dates opposite. */}
                 <div className={styles.showcaseTopRow}>
-                  <span className={styles.showcaseLiveBadge}>
-                    <span className={styles.liveDotWhite} />
-                    LIVE
-                  </span>
-                  <span className={styles.showcaseCourtLabel}>Court 1 · Memories Beach</span>
-                </div>
-
-                {/* Middle Tournament Title */}
-                <div className={styles.showcaseTournamentInfo}>
-                  <h3 className={styles.showcaseTournamentTitle}>Khao Lak Open 2027</h3>
-                  <p className={styles.showcaseTournamentSub}>Men · Quarterfinal</p>
-                </div>
-
-                {/* Bottom Floating Scoreboard Card */}
-                <div className={styles.floatingScoreboard}>
-                  <div className={styles.scoreboardHeader}>
-                    <span className={styles.scoreboardStatus}>SET 3 · IN PROGRESS</span>
-                    <span className={styles.scoreboardLiveIndicator}>
-                      <span className={styles.liveDotRedSmall} />
+                  {heroPage.some((m) => m.status === 'live') && (
+                    <span className={styles.showcaseLiveBadge}>
+                      <span className={styles.liveDotWhite} />
                       LIVE
                     </span>
-                  </div>
+                  )}
+                  <span className={styles.showcaseDateChip}>{heroPage[0].dateLabel}</span>
+                </div>
 
-                  {/* Team A Row */}
-                  <div className={styles.scoreboardTeamRow}>
-                    <div className={styles.scoreboardTeamLeft}>
-                      <span className={styles.scoreboardAvatar}>A/</span>
-                      <span className={styles.scoreboardTeamName}>Aroon / Niran</span>
-                    </div>
-                    <div className={styles.scoreboardTeamRight}>
-                      <span className={styles.scoreboardPrevSet}>21</span>
-                      <span className={styles.scoreboardPrevSet}>19</span>
-                      <span className={`${styles.scoreboardCurrentScore} ${styles.scoreLead}`}>2</span>
-                    </div>
-                  </div>
+                {/* Bottom of the photo: which event, and where. */}
+                <div className={styles.showcaseTournamentInfo}>
+                  <h3 className={styles.showcaseTournamentTitle}>{heroPage[0].tournamentTitle}</h3>
+                  <p className={styles.showcaseTournamentSub}>{heroPage[0].location}</p>
+                </div>
 
-                  {/* Team B Row */}
-                  <div className={styles.scoreboardTeamRow}>
-                    <div className={styles.scoreboardTeamLeft}>
-                      <span className={styles.scoreboardAvatar}>L/</span>
-                      <span className={styles.scoreboardTeamName}>Lukas / Felix</span>
-                    </div>
-                    <div className={styles.scoreboardTeamRight}>
-                      <span className={styles.scoreboardPrevSet}>18</span>
-                      <span className={styles.scoreboardPrevSet}>21</span>
-                      <span className={styles.scoreboardCurrentScore}>1</span>
-                    </div>
-                  </div>
+                {/* One scoreboard per court. */}
+                <div className={styles.scoreboardStack}>
+                  {heroPage.map((m) => (
+                    <HeroScoreboard key={m.matchId} match={m} />
+                  ))}
                 </div>
                   </>
-                ) : upcomingSoon.length > 0 ? (
+                ) : !heroLoaded ? null : upcomingSoon.length > 0 ? (
                   /* Nothing is live, so the scoreboard has nothing to show.
                      The card carries the next tournaments instead, anchored
                      to the bottom so one or two sit where three would end

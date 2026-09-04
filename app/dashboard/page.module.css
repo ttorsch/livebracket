@@ -290,8 +290,8 @@
 .headerTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 40px;
-  line-height: 1.05;
+  font-size: 28px;
+  line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--ink-900, #14181E);
 }
@@ -364,8 +364,8 @@
 .heroTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 34px;
-  line-height: 1.05;
+  font-size: 24px;
+  line-height: 1.2;
   letter-spacing: -0.01em;
   margin: 0 0 6px;
 }
@@ -470,9 +470,9 @@
    rather than breaking the heading in half around it. */
 .courtsHeading {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: var(--text-h2-size, 28px);
-  line-height: var(--text-h2-line, 34px);
-  letter-spacing: var(--text-h2-tracking, -0.01em);
+  font-size: 20px;
+  line-height: 26px;
+  letter-spacing: -0.01em;
   font-weight: 700;
   color: var(--text-primary, #14181E);
   white-space: nowrap;
@@ -735,7 +735,7 @@
 .sectionTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 22px;
+  font-size: 20px;
   color: var(--ink-900, #14181E);
 }
 
@@ -927,7 +927,7 @@
 .rowTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 19px;
+  font-size: 17px;
   color: var(--ink-900, #14181E);
   white-space: nowrap;
   overflow: hidden;
@@ -1100,7 +1100,7 @@
 .divStatValue {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 26px;
+  font-size: 20px;
   line-height: 1;
   color: var(--ink-900, #14181E);
   margin-bottom: 10px;
@@ -1404,8 +1404,8 @@
     font-size: 18px;
   }
   .main { padding: 96px 20px 60px; }
-  .headerTitle { font-size: 30px; }
-  .heroTitle { font-size: 26px; }
+  .headerTitle { font-size: 24px; }
+  .heroTitle { font-size: 22px; }
 }
 
 @media (max-width: 640px) {
@@ -1419,10 +1419,10 @@
      the title, location and division count are what the row is for. */
   .rowThumb { display: none; }
   .rowTitle {
-    font-size: 23px;
-    font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
     white-space: normal;
   }
   /* Was `100% - 66px - 32px`: the 66px reserved the thumb and its gap,

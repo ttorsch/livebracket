@@ -505,9 +505,11 @@
   padding: 4px;
   border-radius: var(--radius-pill);
   background: var(--sand-200, #EAE5DC);
+  position: relative;
 }
 
 .segment {
+  position: relative;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -518,7 +520,8 @@
   color: var(--text-secondary, #4B5563);
   padding: 9px 20px;
   border-radius: var(--radius-pill);
-  transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
+  transition: color var(--duration-base) var(--ease-standard);
+  z-index: 1;
 }
 
 .segment:hover:not(.segmentActive) {
@@ -526,9 +529,34 @@
 }
 
 .segmentActive {
-  background: #FFFFFF;
   color: var(--text-primary, #14181E);
+}
+
+.activePill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill);
+  background: #FFFFFF;
   box-shadow: 0 2px 8px rgba(20, 24, 30, 0.08);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.segmentLabel {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sliderOverflowWrap {
+  overflow: hidden;
+  width: 100%;
+}
+
+.animatedContentWrap {
+  width: 100%;
 }
 
 /* ── Tabs ────────────────────────────────────────────────────── */
@@ -555,6 +583,7 @@
 .tabBarInner::-webkit-scrollbar-thumb { background: var(--sand-400); border-radius: var(--radius-pill); }
 
 .tab {
+  position: relative;
   border: none;
   cursor: pointer;
   white-space: nowrap;
@@ -567,13 +596,24 @@
   color: var(--text-secondary);
   border-bottom: 2.5px solid transparent;
   margin-bottom: -1px;
-  transition: color var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard);
+  transition: color var(--duration-base) var(--ease-standard);
 }
 .tab:hover:not(.tabActive) { color: var(--text-primary); }
 .tabActive {
   background: transparent;
   color: var(--text-primary);
-  border-bottom-color: var(--color-primary, #EB6F43);
+  border-bottom-color: transparent;
+}
+.tabUnderlineIndicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: var(--color-primary, #EB6F43);
+  border-radius: 999px;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* ── Main ────────────────────────────────────────────────────── */
