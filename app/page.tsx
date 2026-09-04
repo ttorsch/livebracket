@@ -1074,11 +1074,24 @@ export default function LiveBracketHome() {
         setHeroLoaded(true);
       });
     };
+    /* The first read always runs, hidden tab or not: it fills an empty
+     * card, which animates nothing, and a tab opened in the background
+     * should be ready the moment it is looked at. */
     load();
-    const id = setInterval(load, 10_000);
+    /* The repeats are what need gating. A backgrounded tab gets no
+     * animation frames, so a card swapped there would never finish
+     * leaving — poll after poll would stack another frozen card on its way
+     * out. Skipping those also spares the database requests nobody is
+     * reading. The listener below catches the tab up on return. */
+    const id = setInterval(() => {
+      if (!document.hidden) load();
+    }, 10_000);
+    const onVisibility = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       cancelled = true;
       clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
@@ -1089,12 +1102,18 @@ export default function LiveBracketHome() {
    * at all is on does the card fall back to the soonest-starting
    * tournaments. Until the feed resolves it shows neither, rather than
    * flashing one and swapping to the other. */
-  const heroPage = useMemo(() => {
+  const heroSlotMatches = useMemo(() => {
     const byId = new Map(heroMatches.map((m) => [m.matchId, m]));
-    return heroSlots.ids
-      .map((id) => (id ? byId.get(id) : undefined))
-      .filter((m): m is HeroLiveMatch => m !== undefined);
+    // Slot positions are preserved — each one owns its own transition, so
+    // a court arriving in the top slot must not be mistaken for the bottom
+    // slot's court having changed.
+    return heroSlots.ids.map((id) => (id ? byId.get(id) ?? null : null));
   }, [heroMatches, heroSlots]);
+
+  const heroPage = useMemo(
+    () => heroSlotMatches.filter((m): m is HeroLiveMatch => m !== null),
+    [heroSlotMatches]
+  );
 
   const scrollToTop = (e: React.MouseEvent) => {
     if (typeof window !== 'undefined' && window.location.pathname === '/') {
@@ -1517,10 +1536,44 @@ export default function LiveBracketHome() {
                   <p className={styles.showcaseTournamentSub}>{heroPage[0].location}</p>
                 </div>
 
-                {/* One scoreboard per court. */}
+                {/* One scoreboard per court, each swapping on its own.
+                    popLayout takes the outgoing card out of the flow the
+                    instant it starts leaving, so the card underneath
+                    doesn't wait for the slide to finish before settling —
+                    and the incoming card holds the slot's height from the
+                    first frame, while it is still only a dot. */}
                 <div className={styles.scoreboardStack}>
-                  {heroPage.map((m) => (
-                    <HeroScoreboard key={m.matchId} match={m} />
+                  {heroSlotMatches.map((m, slot) => (
+                    /* The slot's AnimatePresence is mounted whether or not
+                       it holds a court — it renders nothing when empty, so
+                       it costs no element and no gap, and a court arriving
+                       later still counts as a change and gets the morph
+                       rather than popping in. */
+                    <AnimatePresence key={slot} mode="popLayout" initial={false}>
+                      {m && (
+                        <motion.div
+                          key={m.matchId}
+                          /* Out to the left, quickly — this is the card
+                             being replaced, not something to dwell on. */
+                          exit={{ x: '-115%', opacity: 0 }}
+                          /* In from a dot at the card's right edge, which
+                             then opens out into the whole scoreboard. Both
+                             radii are percentages so the browser can
+                             interpolate between them. */
+                          initial={{ clipPath: 'circle(2% at 94% 50%)' }}
+                          animate={{ clipPath: 'circle(150% at 94% 50%)' }}
+                          transition={{
+                            x: { duration: 0.18, ease: [0.4, 0, 1, 1] },
+                            opacity: { duration: 0.18 },
+                            // Waits for the outgoing card to clear before
+                            // the dot opens.
+                            clipPath: { duration: 0.5, delay: 0.18, ease: [0.22, 1, 0.36, 1] },
+                          }}
+                        >
+                          <HeroScoreboard match={m} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   ))}
                 </div>
                   </>

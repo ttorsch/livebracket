@@ -46,7 +46,7 @@
   background-color: var(--sand-100, #F5F1EA);
   /* The Tournament Setup & Bracket Generator rhythm: 16px above the title, 24px below
      the event card. Padding matches the shared 24px container gutter. */
-  padding: 16px 24px 24px;
+  padding: 14px 20px 18px;
   color: var(--ink-900, #14181E);
 }
 
@@ -56,7 +56,7 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
 .headerTitleRow {
@@ -99,21 +99,21 @@
 .eventCard {
   background: #FFFFFF;
   border: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
-  border-radius: 24px;
+  border-radius: 16px;
   box-shadow: 0 2px 12px rgba(20, 31, 46, 0.04);
   overflow: hidden;
 }
 .eventCardBody {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 20px;
+  gap: 16px;
+  padding: 14px 18px;
 }
 .eventPoster,
 .eventPosterPlaceholder {
-  width: 140px;
+  width: 96px;
   aspect-ratio: 3 / 4;
-  border-radius: 16px;
+  border-radius: 12px;
   flex-shrink: 0;
 }
 .eventPoster { object-fit: cover; }
@@ -140,8 +140,8 @@
 }
 .eventTitle {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-size: 26px;
-  line-height: 32px;
+  font-size: 18px;
+  line-height: 24px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink-900, #14181E);
@@ -174,9 +174,9 @@
 
 .heroTitle {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-size: 38px;
+  font-size: 22px;
   font-weight: 800;
-  line-height: 44px;
+  line-height: 28px;
   margin: 0;
   letter-spacing: -0.02em;
   color: var(--ink-900, #14181E);
@@ -1348,12 +1348,12 @@
 
 .gridHeaderTitle {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-size: 30px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink-900, #14181E);
   margin: 0;
-  line-height: 1.1;
+  line-height: 24px;
 }
 
 .gridHeaderRight {
