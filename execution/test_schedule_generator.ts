@@ -255,7 +255,7 @@ export function auditTimelineGaps(
         }
         // 4. Check Staging / Semifinals / Finals Hold
         else if (config.stageFinals && nextMatch) {
-          const isSemi = nextMatch.roundIndex > 0;
+          const isSemi = (nextMatch.roundIndex ?? 0) > 0;
           classification = 'STAGING_HOLD';
           reason = `Synchronized staging hold (held for round alignment/centre court)`;
         } else {
