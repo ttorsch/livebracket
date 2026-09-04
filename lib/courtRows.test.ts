@@ -70,12 +70,12 @@ function mockTournament(bracket: { round: string; matches: DetailMatch[] }[], di
 describe('formatUpNext', () => {
   it('formats known teams cleanly', () => {
     const result = formatUpNext({
-      teamA: [{ name: 'Dig Dynasty', flag: '' }],
-      teamB: [{ name: 'Net Ninjas', flag: '' }],
+      teamA: [{ name: 'Ananda Suwan', flag: '' }, { name: 'Mali Sunthorn', flag: '' }],
+      teamB: [{ name: 'Lukas Meyer', flag: '' }, { name: 'Felix Schmidt', flag: '' }],
       roundName: 'Round 1',
       division: 'Men Open',
     });
-    assert.equal(result, 'Dig Dynasty vs Net Ninjas');
+    assert.deepEqual(result, { tag: null, teamA: 'Ananda / Mali', teamB: 'Lukas / Felix' });
   });
 
   it('formats TBD vs TBD with round and division', () => {
@@ -85,17 +85,17 @@ describe('formatUpNext', () => {
       roundName: 'Quarterfinals',
       division: 'Women Open',
     });
-    assert.equal(result, 'Quarterfinals · Women Open · TBD vs TBD');
+    assert.deepEqual(result, { tag: 'Quarterfinals · Women Open', teamA: 'TBD', teamB: 'TBD' });
   });
 
   it('formats partial TBD without extra round prefix', () => {
     const result = formatUpNext({
-      teamA: [{ name: 'Sand Kings', flag: '' }],
+      teamA: [{ name: 'Ananda Suwan', flag: '' }, { name: 'Mali Sunthorn', flag: '' }],
       teamB: [{ name: 'TBD', flag: '' }],
       roundName: 'Quarterfinals',
       division: 'Women Open',
     });
-    assert.equal(result, 'Sand Kings vs TBD');
+    assert.deepEqual(result, { tag: null, teamA: 'Ananda / Mali', teamB: 'TBD' });
   });
 });
 
@@ -107,8 +107,8 @@ describe('buildCourtRows', () => {
       court: 'Court 1',
       scheduledDate: '2026-09-03',
       time: '09:30',
-      teamA: [{ name: 'Dig Dynasty', flag: '' }],
-      teamB: [{ name: 'Net Ninjas', flag: '' }],
+      teamA: [{ name: 'Ananda Suwan', flag: '' }, { name: 'Mali Sunthorn', flag: '' }],
+      teamB: [{ name: 'Lukas Meyer', flag: '' }, { name: 'Felix Schmidt', flag: '' }],
     });
     const day2Match = mockMatch({
       id: 'm-day2',
@@ -130,7 +130,7 @@ describe('buildCourtRows', () => {
     assert.equal(court1.court, 'Court 1');
     assert.equal(court1.hasLive, false);
     assert.equal(court1.upNextTime, '09:30');
-    assert.equal(court1.upNext, 'Dig Dynasty vs Net Ninjas');
+    assert.deepEqual(court1.upNext, { tag: null, teamA: 'Ananda / Mali', teamB: 'Lukas / Felix' });
   });
 
   it('formats upNext with round and division when next match is genuinely TBD', () => {
@@ -153,7 +153,7 @@ describe('buildCourtRows', () => {
     const court2 = rows[0];
     assert.equal(court2.court, 'Court 2');
     assert.equal(court2.upNextTime, '09:00');
-    assert.equal(court2.upNext, 'Quarterfinals · Mixed Open · TBD vs TBD');
+    assert.deepEqual(court2.upNext, { tag: 'Quarterfinals · Mixed Open', teamA: 'TBD', teamB: 'TBD' });
   });
 
   it('keeps live match on court while correctly picking the next chronological upcoming match', () => {
@@ -163,8 +163,8 @@ describe('buildCourtRows', () => {
       status: 'live',
       scheduledDate: '2026-09-03',
       time: '09:00',
-      teamA: [{ name: 'Salt & Sand', flag: '' }],
-      teamB: [{ name: 'Tide Turners', flag: '' }],
+      teamA: [{ name: 'Somchai Boonmee', flag: '' }, { name: 'Kanya Rattana', flag: '' }],
+      teamB: [{ name: 'Aroon Niran', flag: '' }, { name: 'Chai Wira', flag: '' }],
       scoreA: [12],
       scoreB: [9],
     });
@@ -174,8 +174,8 @@ describe('buildCourtRows', () => {
       status: 'upcoming',
       scheduledDate: '2026-09-03',
       time: '09:30',
-      teamA: [{ name: 'Sand Sirens', flag: '' }],
-      teamB: [{ name: 'Coral Crushers', flag: '' }],
+      teamA: [{ name: 'Nok Ploy', flag: '' }, { name: 'Tem Boon', flag: '' }],
+      teamB: [{ name: 'Emma Sara', flag: '' }, { name: 'Ana Julia', flag: '' }],
     });
     const day2Match = mockMatch({
       id: 'm-day2',
@@ -197,9 +197,9 @@ describe('buildCourtRows', () => {
     const court4 = rows[0];
     assert.equal(court4.court, 'Court 4');
     assert.equal(court4.hasLive, true);
-    assert.equal(court4.teamA, 'Salt & Sand');
-    assert.equal(court4.teamB, 'Tide Turners');
+    assert.equal(court4.teamA, 'Somchai / Kanya');
+    assert.equal(court4.teamB, 'Aroon / Chai');
     assert.equal(court4.upNextTime, '09:30');
-    assert.equal(court4.upNext, 'Sand Sirens vs Coral Crushers');
+    assert.deepEqual(court4.upNext, { tag: null, teamA: 'Nok / Tem', teamB: 'Emma / Ana' });
   });
 });

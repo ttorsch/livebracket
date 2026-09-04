@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../../lib/supabaseAdmin';
-import { formatTeamName, joinTeamName } from '../../../../../../../../lib/teamName';
+import { formatPlayerNames, joinTeamName } from '../../../../../../../../lib/teamName';
 import { requireTournamentOwner } from '../../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../../lib/authResponse';
 
@@ -29,7 +29,7 @@ interface TeamRow {
 
 const toTeam = (t: TeamRow) => ({
   id: t.id,
-  name: formatTeamName(t.name),
+  name: formatPlayerNames(t.players, t.name, t.seed),
   seed: t.seed,
   paymentCleared: t.payment_cleared,
   status: t.status,
@@ -139,13 +139,9 @@ export async function PATCH(
       shirt_size: p.shirtSize?.trim() || null,
     }));
 
-    // If custom name not provided, derive team name from player names
-    if (body.name?.trim()) {
-      patch.name = body.name.trim();
-    } else {
-      const computedName = joinTeamName(cleanedPlayers.map((p) => p.name));
-      if (computedName) patch.name = computedName;
-    }
+    // Teams are always named by their players — custom names are never allowed
+    const computedName = joinTeamName(cleanedPlayers.map((p) => p.name));
+    if (computedName) patch.name = computedName;
 
     for (const p of cleanedPlayers) {
       if (p.id) {

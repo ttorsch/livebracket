@@ -74,7 +74,7 @@ import {
   PHASE, PHASE_LABEL, registrationCloseDefault, canDelete, DELETE_COPY, isPublic, type Phase,
   divisionRegistrationState, getOrganizerDivisionBadge,
 } from '../../../../../lib/tournamentLifecycle';
-import { joinTeamName } from '../../../../../lib/teamName';
+import { joinTeamName, formatPlayerNames } from '../../../../../lib/teamName';
 import {
   DIVISION_GENDERS, AGE_LIMITS, ageLimitLabel, normalizeGender, normalizeAgeLimit,
   type DivisionGender, type AgeLimit,
@@ -318,7 +318,7 @@ function TeamRow({
       <td className={waitlisted ? styles.teamRowNoWait : styles.teamRowNo}>{index}</td>
       <td>
         <div className={styles.teamRowName}>
-          {team.players.length > 0 ? joinTeamName(team.players.map(p => p.name)) : team.name}
+          {formatPlayerNames(team.players, team.name, team.seed)}
         </div>
       </td>
       <td style={{ fontWeight: 500 }}>{team.players[0]?.phone || '—'}</td>
@@ -1558,7 +1558,7 @@ export default function OrganizerSetup() {
     if (!activeDivision || registeredTeams.length === 0) return;
     const maxPlayers = registeredTeams.reduce((m, t) => Math.max(m, t.players.length), 0);
 
-    const headers = ['No.', 'Team', 'Seed', 'Status', 'Payment'];
+    const headers = ['No.', 'Players', 'Seed', 'Status', 'Payment'];
     for (let i = 1; i <= maxPlayers; i++) {
       headers.push(`Player ${i} Name`, `Player ${i} Phone`, `Player ${i} Email`, `Player ${i} Shirt Size`);
     }
@@ -1571,7 +1571,7 @@ export default function OrganizerSetup() {
         : confirmedRows.indexOf(t) + 1;
       const cells = [
         String(num),
-        t.name,
+        formatPlayerNames(t.players, t.name, t.seed),
         t.seed == null ? '' : String(t.seed),
         t.status,
         t.paymentCleared ? 'Paid' : 'Unpaid',
@@ -4039,9 +4039,7 @@ export default function OrganizerSetup() {
                 <>
                   <div className={styles.modalBody}>
                     <div className={styles.detailTeamName}>
-                      {teamDetail.players.length > 0
-                        ? joinTeamName(teamDetail.players.map(p => p.name))
-                        : teamDetail.name}
+                      {formatPlayerNames(teamDetail.players, teamDetail.name, teamDetail.seed)}
                     </div>
                     <div className={styles.detailBadgeRow}>
                       <span className={`${styles.statusBadge} ${teamDetail.status === 'confirmed' ? styles.statusConfirmed : teamDetail.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../lib/supabaseAdmin';
-import { formatTeamName } from '../../../../../../lib/teamName';
+import { formatPlayerNames } from '../../../../../../lib/teamName';
 import { requireTournamentOwner } from '../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../lib/authResponse';
 
@@ -280,7 +280,7 @@ export async function GET(
 
   const teams = (data ?? []).map((t) => ({
     id: t.id,
-    name: formatTeamName(t.name),
+    name: formatPlayerNames(t.players, t.name, t.seed),
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,

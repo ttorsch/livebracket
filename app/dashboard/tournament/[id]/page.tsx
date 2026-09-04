@@ -1548,7 +1548,7 @@ export default function OrganizerBracketPage() {
                       <div className={styles.poolTeamList}>
                         {pool.teams.map(t => {
                           const display = formatTeamFirstName(t.name);
-                          const parts = display.split('/');
+                          const parts = display.split('/').map(p => p.trim()).filter(Boolean);
                           return (
                             <div
                               key={t.id}
@@ -1558,8 +1558,9 @@ export default function OrganizerBracketPage() {
                             >
                               {parts.length > 1 ? (
                                 <div className={styles.stackedTeamNames}>
-                                  <span className={styles.stackedPlayer}>{parts[0]}</span>
-                                  <span className={styles.stackedPlayer}>{parts[1]}</span>
+                                  {parts.map((part, pIdx) => (
+                                    <span key={pIdx} className={styles.stackedPlayer}>{part}</span>
+                                  ))}
                                 </div>
                               ) : (
                                 <span className={styles.singleTeamName}>{display}</span>
@@ -1598,7 +1599,7 @@ export default function OrganizerBracketPage() {
                         <thead>
                           <tr>
                             <th>#</th>
-                            <th>Team</th>
+                            <th>Players</th>
                             <th>W</th>
                             <th>L</th>
                             <th>Pts</th>
@@ -1607,15 +1608,16 @@ export default function OrganizerBracketPage() {
                         <tbody>
                           {pool.standings.map((s, i) => {
                             const display = formatTeamFirstName(s.name);
-                            const parts = display.split('/');
+                            const parts = display.split('/').map(p => p.trim()).filter(Boolean);
                             return (
                               <tr key={s.teamId}>
                                 <td>{i + 1}</td>
                                 <td className={styles.standingsTeam} title={s.name}>
                                   {parts.length > 1 ? (
                                     <div className={styles.stackedTeamNames}>
-                                      <span className={styles.stackedPlayer}>{parts[0]}</span>
-                                      <span className={styles.stackedPlayer}>{parts[1]}</span>
+                                      {parts.map((part, pIdx) => (
+                                        <span key={pIdx} className={styles.stackedPlayer}>{part}</span>
+                                      ))}
                                     </div>
                                   ) : (
                                     <span className={styles.singleTeamName}>{display}</span>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
-import { joinTeamName, formatTeamName } from '../../../../../../../lib/teamName';
+import { joinTeamName, formatPlayerNames } from '../../../../../../../lib/teamName';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
 
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const teams = (created ?? []).map((t: any) => ({
     id: t.id,
-    name: formatTeamName(t.name),
+    name: formatPlayerNames(t.players, t.name, t.seed),
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,

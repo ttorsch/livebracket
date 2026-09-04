@@ -21,6 +21,17 @@ export const metadata: Metadata = {
     description: 'Real-time tournament brackets for beach volleyball organizers and players.',
     type: 'website',
   },
+  icons: {
+    icon: '/icon.svg',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Live Bracket',
+  },
 };
 
 /* Resolving the session here is what lets every header render its

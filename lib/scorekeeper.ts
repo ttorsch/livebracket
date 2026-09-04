@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './supabaseAdmin';
 import { redis } from './redis';
-import { formatTeamName } from './teamName';
+import { formatTeamName, formatPlayerNames } from './teamName';
 import type { ScoringRules } from './setCompletion';
 
 /* ── Live score state ─────────────────────────────────────────────
@@ -74,6 +74,12 @@ const DEFAULT_RULES: ScoringRules = {
   decidingSetPoints: 15,
 };
 
+export const SCOREKEEPER_COLUMNS = `
+  id, court, scheduled_time, status, score_a, score_b,
+  team_a:teams!matches_team_a_id_fkey(id,name,seed,players(id,name)),
+  team_b:teams!matches_team_b_id_fkey(id,name,seed,players(id,name))
+`;
+
 export interface ScorekeeperMatch {
   matchId: string;
   status: 'upcoming' | 'live' | 'done';
@@ -100,8 +106,8 @@ interface MatchTokenRow {
   status: 'upcoming' | 'live' | 'done';
   score_a: number[] | null;
   score_b: number[] | null;
-  team_a: { id: string; name: string } | null;
-  team_b: { id: string; name: string } | null;
+  team_a: { id: string; name: string; seed?: number | null; players?: { id: string; name: string }[] } | null;
+  team_b: { id: string; name: string; seed?: number | null; players?: { id: string; name: string }[] } | null;
   rounds: {
     name: string;
     scoring_rules: Partial<ScoringRules> | null;
@@ -124,8 +130,8 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
     .from('matches')
     .select(`
       id, court, scheduled_time, status, score_a, score_b,
-      team_a:teams!matches_team_a_id_fkey(id,name),
-      team_b:teams!matches_team_b_id_fkey(id,name),
+      team_a:teams!matches_team_a_id_fkey(id,name,seed,players(id,name)),
+      team_b:teams!matches_team_b_id_fkey(id,name,seed,players(id,name)),
       rounds!inner (
         name, scoring_rules,
         divisions!inner (
@@ -173,8 +179,8 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
     tournamentTitle: tournament?.title ?? '',
     divisionName: division?.name ?? '',
     roundName: round?.name ?? '',
-    teamA: { id: row.team_a?.id ?? null, name: formatTeamName(row.team_a?.name) || 'TBD' },
-    teamB: { id: row.team_b?.id ?? null, name: formatTeamName(row.team_b?.name) || 'TBD' },
+    teamA: { id: row.team_a?.id ?? null, name: formatPlayerNames(row.team_a?.players, row.team_a?.name, row.team_a?.seed) || 'TBD' },
+    teamB: { id: row.team_b?.id ?? null, name: formatPlayerNames(row.team_b?.players, row.team_b?.name, row.team_b?.seed) || 'TBD' },
     rules,
     live,
     finalScoreA: row.score_a,

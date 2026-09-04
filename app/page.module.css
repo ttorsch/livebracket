@@ -53,6 +53,32 @@
   box-shadow: none;
 }
 
+/* ── Auto-hiding bar (all widths) ─────────────────────────────────
+   The bar stays `position: fixed` at every scroll position, but only
+   *behaves* fixed once the reader scrolls back up. Near the top of the
+   page the scroll handler writes an inline translate that tracks the
+   scroll, so it reads as a static bar leaving with the hero; past that
+   it is parked off-screen (.navFloat) until a scroll up calls it back
+   (.navRevealed), and it leaves again on the next scroll down or after
+   a short pause with no scrolling.
+
+   Keeping it fixed throughout is deliberate: pulling it in and out of
+   flow at that boundary would shift the whole page by its own height. */
+.navFloat {
+  transform: translateY(-100%);
+  transition:
+    transform 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 200ms ease;
+  will-change: transform;
+}
+.navRevealed {
+  transform: translateY(0);
+  box-shadow: 0 8px 24px rgba(20, 31, 46, 0.10);
+}
+@media (prefers-reduced-motion: reduce) {
+  .navFloat { transition: none; }
+}
+
 /* Nav row - the interactive bar container */
 .navRow {
   position: relative;
@@ -111,64 +137,34 @@
   height: 100%;
 }
 
-/* Nav center search bar */
-.navSearchWrapper {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  max-width: 440px;
-  margin: 0 20px;
-}
-.navSearchPill {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--sand-200, #EFEAE0);
-  border: 1px solid rgba(20, 31, 46, 0.06);
-  border-radius: 9999px;
-  padding: 8px 18px;
-  transition: all 0.2s ease;
-}
-.navSearchPill:focus-within {
-  background: #FFFFFF;
-  border-color: var(--color-primary, #EB6F43);
-  box-shadow: 0 0 0 3px rgba(235, 111, 67, 0.12);
-}
-.navSearchIcon {
-  color: #7A8294;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-.navSearchIcon:hover {
-  color: #14181E;
-}
-.navSearchInput {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 16px;
-  font-weight: 500;
-  color: #14181E;
-}
-.navSearchInput::placeholder {
-  color: #7A8294;
-}
-.navMicIcon {
-  color: #7A8294;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
 /* Nav right actions */
 .navRightActions {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-shrink: 0;
+}
+.navSearchBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: transparent;
+  border: none;
+  color: #14181E;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+.navSearchBtn:hover {
+  color: var(--color-primary, #EB6F43);
+}
+.navSearchBtn:focus-visible {
+  outline: 2px solid var(--color-primary, #EB6F43);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 .navSignInLink {
   font-family: var(--font-ui, 'Inter', sans-serif);
@@ -200,18 +196,6 @@
 .navCreateBtn:hover {
   background: var(--color-primary-hover, #E44F1C);
   transform: translateY(-1px);
-}
-.mobileSearchToggle {
-  display: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: transparent;
-  border: none;
-  align-items: center;
-  justify-content: center;
-  color: #14181E;
-  cursor: pointer;
 }
 .mobileMenuToggle {
   display: none;
@@ -328,7 +312,7 @@
   display: grid;
   grid-template-columns: 1.15fr 0.95fr;
   gap: 56px;
-  align-items: center;
+  align-items: stretch;
   width: 100%;
 }
 
@@ -389,6 +373,8 @@
   font-size: 15px;
   font-weight: 700;
   text-decoration: none;
+  border: none;
+  cursor: pointer;
   box-shadow: 0 6px 18px rgba(235, 111, 67, 0.35);
   transition: all 0.15s ease;
 }
@@ -524,16 +510,14 @@
 .heroNewRightCol {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
   width: 100%;
 }
 .showcaseCard {
   position: relative;
   width: 100%;
   max-width: 480px;
-  /* Tall enough for two stacked scoreboards to sit under the title without
-     crowding it off the photo. */
-  height: 560px;
+  height: 100%;
   border-radius: 28px;
   overflow: hidden;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.16);
@@ -962,12 +946,6 @@
 
 /* Responsive Media Queries */
 @media (max-width: 960px) {
-  .navSearchWrapper {
-    display: none;
-  }
-  .mobileSearchToggle {
-    display: flex;
-  }
   .mobileMenuToggle {
     display: flex;
   }
@@ -978,7 +956,8 @@
     display: none;
   }
   .heroNew {
-    padding: 20px 0 36px;
+    /* 20px of hero air + the 70px bar the hero now sits beneath. */
+    padding: 90px 0 36px;
     min-height: auto;
   }
   .heroNewGrid {
@@ -1859,6 +1838,54 @@
   display: none;
 }
 
+.reorderSelect {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  background: var(--sand-300, #E7E2D9);
+  border: 1px solid rgba(20, 31, 46, 0.06);
+  transition: all 0.2s ease;
+}
+
+.reorderSelect:hover {
+  background: var(--sand-400, #DFD9CE);
+}
+
+.reorderSelect:focus-within {
+  background: #FFFFFF;
+  border-color: var(--color-primary, #EB6F43);
+  box-shadow: 0 0 0 3px rgba(235, 111, 67, 0.12);
+}
+
+.reorderSelect .sortSelectIcon {
+  display: none;
+}
+
+.reorderSelect .sortSignIcon {
+  display: block;
+  color: #14181E;
+  pointer-events: none;
+}
+
+.reorderSelect select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
 .search {
   position: relative;
   display: flex;
@@ -1903,6 +1930,36 @@
 }
 .search input::placeholder {
   color: #7A8294;
+}
+
+.search input::-webkit-search-cancel-button,
+.search input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+.searchClearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  color: #000000;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.searchClearBtn:hover {
+  opacity: 0.65;
+}
+
+.searchClearBtn:active {
+  transform: scale(0.9);
 }
 
 
@@ -1959,39 +2016,55 @@
 }
 
 /* Card List - Active & Upcoming */
-.desktopGrid,
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  width: 100%;
-}
-
-.mobileSwipeTrack {
+.desktopGrid {
   display: none;
 }
 
-.mobilePageSlide {
+.cardsSwipeTrack,
+.mobileSwipeTrack {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  width: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-top: -10px;
+  margin-bottom: -10px;
+}
+.cardsSwipeTrack::-webkit-scrollbar,
+.mobileSwipeTrack::-webkit-scrollbar {
+  display: none;
+}
+
+.cardsPageSlide,
+.mobilePageSlide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
 }
 
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 24px;
+  border-radius: 20px;
   overflow: hidden;
   background: #ffffff;
-  border: 1px solid rgba(20, 31, 46, 0.06);
-  box-shadow: 0 18px 44px -24px rgba(20, 31, 46, 0.32);
+  border: 1px solid rgba(20, 31, 46, 0.08);
+  box-shadow: none;
   color: var(--ink-1, #14181E);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
 }
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 28px 60px -26px rgba(20, 31, 46, 0.42);
+  box-shadow: none;
+  border-color: rgba(20, 31, 46, 0.16);
 }
 
 /* Poster + body are one link; the footer button sits outside it. */
@@ -2006,7 +2079,7 @@
 .cardMedia {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 7.2;
   overflow: hidden;
   background: rgba(20, 31, 46, 0.06);
 }
@@ -2034,17 +2107,17 @@
 
 .cardStatusBadge {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 12px;
+  left: 12px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 14px 7px 12px;
+  gap: 6px;
+  padding: 5px 12px 5px 10px;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--coral-400, #F28864), var(--coral-600, #E44F1C));
   color: #ffffff;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2052,8 +2125,8 @@
 }
 
 .cardStatusDot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #ffffff;
   flex-shrink: 0;
@@ -2091,30 +2164,30 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  padding: 24px 24px 0;
+  padding: 16px 20px 0;
   text-align: left;
 }
 
 .cardTitle {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  font-size: 25px;
-  line-height: 1.18;
+  font-size: 19px;
+  line-height: 1.22;
   letter-spacing: -0.01em;
   color: var(--ink-1, #14181E);
-  margin: 0 0 16px;
+  margin: 0 0 10px;
 }
 
 .cardMetaList {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 6px;
 }
 
 .cardMetaRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cardMetaIcon {
@@ -2124,7 +2197,7 @@
 
 .cardMetaText {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 500;
   line-height: 1.35;
   color: var(--ink-2, #3A414D);
@@ -2133,17 +2206,17 @@
 .cardDivisionsSection {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
-  margin-top: 20px;
-  padding-top: 20px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid rgba(20, 31, 46, 0.09);
 }
 
 .divisionItem {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
 }
 
@@ -2151,9 +2224,9 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14.5px;
+  font-size: 13px;
 }
 
 .divisionName {
@@ -2162,7 +2235,7 @@
 }
 
 .divisionSeats {
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--ink-3, #7A8294);
   white-space: nowrap;
@@ -2183,13 +2256,15 @@
   transition: width 0.3s ease;
 }
 
+.divisionItemHiddenDesktop {
+  display: none;
+}
+
 .moreDivisionsText {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: rgba(20, 24, 30, 0.45);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: var(--ink-3, #7A8294);
   text-align: left;
 }
 
@@ -2197,22 +2272,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin: 20px 24px 0;
-  padding: 18px 0 22px;
+  gap: 10px;
+  margin: 14px 20px 0;
+  padding: 12px 0 16px;
   border-top: 1px solid rgba(20, 31, 46, 0.09);
 }
 
 .organizerRow {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   min-width: 0;
 }
 
 .organizerAvatar {
-  width: 38px;
-  height: 38px;
+  position: relative;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: rgba(20, 31, 46, 0.07);
   color: var(--ink-3, #7A8294);
@@ -2220,10 +2296,21 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12.5px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.organizerAvatarImg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .organizerMeta {
@@ -2235,7 +2322,7 @@
 
 .organizerLabel {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2244,7 +2331,7 @@
 
 .organizerName {
   font-family: var(--font-body, 'DM Sans', sans-serif);
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ink-1, #14181E);
   overflow: hidden;
@@ -2257,22 +2344,22 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: 12px 20px;
+  padding: 8px 16px;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--coral-400, #F28864), var(--coral-600, #E44F1C));
   color: #ffffff;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14.5px;
+  font-size: 13px;
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
-  box-shadow: 0 10px 24px -10px rgba(228, 79, 28, 0.75);
+  box-shadow: 0 8px 20px -8px rgba(228, 79, 28, 0.75);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, filter 0.2s;
 }
 .cardRegisterBtn:hover {
   transform: translateY(-1px);
   filter: brightness(1.05);
-  box-shadow: 0 14px 28px -10px rgba(228, 79, 28, 0.85);
+  box-shadow: 0 12px 24px -8px rgba(228, 79, 28, 0.85);
 }
 /* ── Recently Completed Section (Subtle Style) ────────────────── */
 .completedSection {
@@ -2674,7 +2761,7 @@
   align-items: center;
   justify-content: center;
   gap: 14px;
-  margin-top: 36px;
+  margin-top: 24px;
   padding: 8px 16px;
   user-select: none;
 }
@@ -2770,8 +2857,6 @@
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .navRow { padding: 16px 20px; z-index: 2; }
-  .desktopGrid,
-  .grid { grid-template-columns: repeat(2, 1fr); }
   .links { display: none; }
   .pillContact { display: none; }
   .menuBtn { display: grid; }
@@ -2809,10 +2894,14 @@
 
 @media (max-width: 960px) {
   .nav {
-    position: relative;
-    top: auto;
-    left: auto;
-    right: auto;
+    /* Fixed like the desktop bar: it reads as static at the top because the
+       scroll handler translates it with the page, and that is what lets it
+       slide back in on a scroll up. .heroNew carries its height as padding
+       so nothing sits under it at rest. */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     /* Keeps the floating mobile menu above the hero/page sections below. */
     z-index: 1000;
     width: 100%;
@@ -2820,7 +2909,6 @@
     border-bottom: none;
     box-shadow: none;
     pointer-events: auto;
-    transition: none;
   }
   .onHero,
   .scrolled {
@@ -2940,29 +3028,19 @@
   }
 
   /* -- Compact list rows replace the poster cards on mobile ---------- */
-  .desktopGrid { display: none; }
+  .cardsSwipeTrack,
   .mobileSwipeTrack {
-    display: flex;
-    width: 100%;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    padding-top: 0;
     padding-bottom: 4px;
+    margin-top: 0;
+    margin-bottom: 0;
   }
-  .mobileSwipeTrack::-webkit-scrollbar {
-    display: none;
-  }
+  .cardsPageSlide,
   .mobilePageSlide {
-    flex: 0 0 100%;
-    min-width: 100%;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
     display: flex;
     flex-direction: column;
     gap: 14px;
   }
-  .grid { grid-template-columns: 1fr; gap: 14px; }
 
   .card { border-radius: 20px; padding: 16px 18px; }
   .card:hover { transform: none; }
@@ -3062,6 +3140,9 @@
     padding: 6px 12px;
     border-radius: 999px;
     background: rgba(20, 31, 46, 0.06);
+  }
+  .divisionItemHiddenDesktop {
+    display: flex;
   }
   .divisionHeader { gap: 7px; font-size: 13px; }
   .divisionName { font-size: 13px; }

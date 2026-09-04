@@ -1,5 +1,5 @@
 import type { TournamentDetail, DetailMatch, DetailMatchPlayer } from './data.ts';
-import { joinTeamName } from './teamName.ts';
+import { formatPlayerNames } from './teamName.ts';
 
 export const SET_COLUMNS = 3;
 
@@ -19,25 +19,38 @@ export interface CourtRow {
   startedAt: number | null;      // epoch ms the match clock runs from
   sets: (SetScore | null)[];     // finished sets, padded to SET_COLUMNS
   hasLive: boolean;
-  upNext: string | null;
+  upNext: UpNextMatch | null;
   upNextTime: string | null;
 }
 
 export function playerNames(players: DetailMatchPlayer[]): string {
-  return joinTeamName(players.map(p => p.name)) || 'TBD';
+  return formatPlayerNames(players) || 'TBD';
+}
+
+/* The two sides of the next match, kept apart rather than joined into one
+ * string. A pair's own name already carries a "/" between its players, so
+ * a flat "A / A vs B / B" hands the reader three separators of equal
+ * weight and no way to tell which one splits the teams. The card styles
+ * the pieces instead. */
+export interface UpNextMatch {
+  /** Round and division, set only when neither side is known yet. */
+  tag: string | null;
+  teamA: string;
+  teamB: string;
 }
 
 export function formatUpNext(
   match: { teamA: DetailMatchPlayer[]; teamB: DetailMatchPlayer[]; roundName?: string; division?: string } | undefined
-): string | null {
+): UpNextMatch | null {
   if (!match) return null;
-  const nameA = playerNames(match.teamA);
-  const nameB = playerNames(match.teamB);
-  if (nameA === 'TBD' && nameB === 'TBD') {
-    const prefix = [match.roundName, match.division].filter(Boolean).join(' · ');
-    return prefix ? `${prefix} · TBD vs TBD` : 'TBD vs TBD';
-  }
-  return `${nameA} vs ${nameB}`;
+  const teamA = playerNames(match.teamA);
+  const teamB = playerNames(match.teamB);
+  /* Two unknown sides say nothing on their own, so the round and division
+   * stand in as the only useful thing about the match. */
+  const tag = teamA === 'TBD' && teamB === 'TBD'
+    ? [match.roundName, match.division].filter(Boolean).join(' · ') || null
+    : null;
+  return { tag, teamA, teamB };
 }
 
 export function buildCourtRows(detail: TournamentDetail): CourtRow[] {

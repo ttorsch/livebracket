@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { redis } from '@/lib/redis';
 import { liveKey, type LiveScore } from '@/lib/scorekeeper';
-import { formatTeamName, formatTeamFirstName } from '@/lib/teamName';
+import { formatPlayerNames } from '@/lib/teamName';
 import type { HeroLiveMatch, HeroPlayer, HeroTeam } from '@/lib/heroLive';
 
 /* ── "What is being played anywhere, right now" ───────────────────
@@ -164,11 +164,11 @@ export async function GET() {
     const { data: teamRows } = teamIds.length
       ? await supabaseAdmin
           .from('teams')
-          .select('id, name, players ( id, name, user_id )')
+          .select('id, name, seed, players ( id, name, user_id )')
           .in('id', teamIds)
       : { data: [] as unknown[] };
 
-    type TeamRow = { id: string; name: string | null; players: { id: string; name: string; user_id: string | null }[] };
+    type TeamRow = { id: string; name: string | null; seed?: number | null; players: { id: string; name: string; user_id: string | null }[] };
     const teams = new Map<string, TeamRow>(
       ((teamRows ?? []) as unknown as TeamRow[]).map((t) => [t.id, t])
     );
@@ -215,7 +215,7 @@ export async function GET() {
       if (!id) return EMPTY;
       const t = teams.get(id);
       if (!t) return EMPTY;
-      const display = formatTeamFirstName(formatTeamName(t.name)) || 'TBD';
+      const display = formatPlayerNames(t.players, t.name, t.seed) || 'TBD';
       const players: HeroPlayer[] = (t.players ?? []).map((p) => ({
         name: p.name,
         avatarUrl: (p.user_id && avatars.get(p.user_id)) || null,

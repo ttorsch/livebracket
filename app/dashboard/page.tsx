@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Home, Clock,
-  LayoutList, Menu, Layers, Globe,
+  LayoutList, Menu, Users, Globe,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
@@ -12,6 +12,9 @@ import OrganizerProfileModal from './OrganizerProfileModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
 import ScorekeeperQrModal from './ScorekeeperQrModal';
 import PublishTournamentModal from '@/components/PublishTournamentModal';
+import QrCodeImage from '@/components/QrCodeImage';
+import { useScorekeeperLinks, ScorekeeperQrZoom, type ZoomedCode } from '@/components/ScorekeeperQrCards';
+import { nextPerCourt } from '../../lib/scorekeeperLinks';
 import { Button, SearchField, Icon, Badge, BracketIcon } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
@@ -379,7 +382,7 @@ export default function OrganizerDashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('tournament')}
-            className={`${styles.sideLink} ${styles.navTournaments} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}
+            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly} ${styles.navTournaments} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}
             title="My Tournament"
           >
             <span className={styles.sideIcon}>
@@ -420,7 +423,7 @@ export default function OrganizerDashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('notifications')}
-            className={`${styles.sideLink} ${styles.navNotifications} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}
+            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly} ${styles.navNotifications} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}
             title="Notifications"
           >
             <span className={styles.sideIcon}>
@@ -471,9 +474,29 @@ export default function OrganizerDashboard() {
         <div className={styles.moreWrap} ref={moreRef}>
           {moreOpen && (
             <div className={styles.morePopup} role="menu">
-              {/* History has no room in the mobile bar, so the menu is where
-                  it lives there. Hidden on desktop, where the rail still
-                  shows it directly. */}
+              {/* Everything the phone bar cannot hold lives here instead.
+                  The bar is down to the menu and the profile now, so My
+                  Tournament and Notifications join History in the menu —
+                  all three hidden on desktop, where the rail shows them
+                  directly. */}
+              <button
+                type="button"
+                className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
+                role="menuitem"
+                onClick={() => { setActiveTab('tournament'); setMoreOpen(false); }}
+              >
+                My Tournament
+              </button>
+              <button
+                type="button"
+                className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
+                role="menuitem"
+                onClick={() => { setActiveTab('notifications'); setMoreOpen(false); }}
+              >
+                {/* The count comes along, since the badge it used to wear
+                    on the bar is not there to carry it any more. */}
+                Notifications{notificationCount > 0 ? ` (${notificationCount})` : ''}
+              </button>
               <button
                 type="button"
                 className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
@@ -522,7 +545,7 @@ export default function OrganizerDashboard() {
       <main className={styles.main}>
         {/* Header */}
         <div className={styles.header}>
-          <div>
+          <div className={styles.headerIdentity}>
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
             {/* The organizer's own name, not a greeting. The session copy
                 is the fallback because it is server-rendered and therefore
@@ -566,23 +589,23 @@ export default function OrganizerDashboard() {
                         </span>
                       </div>
                       <h2 className={styles.heroTitle}>{t.title}</h2>
+                      {/* Same shape as the tournament rows below: when and
+                          how big on one line, where on the next. */}
                       <div className={styles.heroMeta}>
-                        <span><Calendar size={16} /> {t.date}</span>
+                        <div className={styles.heroMetaLine}>
+                          <span><Calendar size={16} /> {t.date}</span>
+                          <span><Users size={16} /> {t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
+                        </div>
                         <span><MapPin size={16} /> {t.location}</span>
                       </div>
+                      {/* Schedule leads — on event day it is the thing an
+                          organizer opens first — and is the only orange
+                          pill here, so the running order reads at a glance.
+                          The other three are white. */}
                       <div className={styles.heroActions}>
                         {/* New tab on purpose: on event day an organizer keeps
                             the live board up and dips into the bracket or the
                             schedule, rather than navigating away from it. */}
-                        <Link
-                          href={`/dashboard/tournament/${t.id}`}
-                          className={styles.heroPrimaryBtn}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <BracketIcon size={14} /> Open Bracket
-                          <span className={styles.srOnly}>(opens in a new tab)</span>
-                        </Link>
                         <Link
                           href={`/dashboard/tournament/${t.id}/schedule`}
                           className={styles.heroPrimaryBtn}
@@ -592,15 +615,34 @@ export default function OrganizerDashboard() {
                           <Calendar size={14} /> Schedule
                           <span className={styles.srOnly}>(opens in a new tab)</span>
                         </Link>
-                        <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
-                          <Settings size={14} /> Manage Setup
+                        <Link
+                          href={`/dashboard/tournament/${t.id}`}
+                          className={styles.heroWhiteBtn}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <BracketIcon size={14} /> Bracket
+                          <span className={styles.srOnly}>(opens in a new tab)</span>
+                        </Link>
+                        {/* Setup and Scorekeeper drop their labels on a
+                            phone and become icon buttons, which is what
+                            keeps all four hero actions on one line there. */}
+                        <Link
+                          href={`/dashboard/tournament/${t.id}/setup`}
+                          className={`${styles.heroWhiteBtn} ${styles.heroCollapsingBtn}`}
+                          aria-label="Setup"
+                        >
+                          <Settings size={14} />
+                          <span className={styles.heroBtnLabel}>Setup</span>
                         </Link>
                         <button
                           type="button"
-                          className={styles.heroGhostBtn}
+                          className={`${styles.heroWhiteBtn} ${styles.heroCollapsingBtn}`}
+                          aria-label="Scorekeeper"
                           onClick={() => setScorekeeperModalTournament({ id: t.id, title: t.title })}
                         >
-                          <QrCode size={14} /> Scorekeeper QR
+                          <QrCode size={14} />
+                          <span className={styles.heroBtnLabel}>Scorekeeper</span>
                         </button>
                       </div>
                     </div>
@@ -759,6 +801,17 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
   const rows = useMemo(() => (detail ? buildCourtRows(detail) : []), [detail]);
   const liveCount = rows.filter(r => r.hasLive).length;
 
+  /* The board knows what is on each court; it doesn't know the scoring
+   * token, which is what a QR has to encode. nextPerCourt picks the one
+   * match per court that needs a link right now — the running match, or
+   * the next one up — so a court's code is the code a referee standing
+   * there would want, in either state of the card. */
+  const { matches } = useScorekeeperLinks(detail?.slug ?? null);
+  const [origin] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
+  const linkByCourt = useMemo(() => new Map(nextPerCourt(matches)), [matches]);
+
+  const [zoomed, setZoomed] = useState<ZoomedCode | null>(null);
+
   /* The board polls every 15s, but a duration has to move every second to
    * read as running. Ticking `now` is enough — the origin is fixed. */
   const anyRunning = rows.some(r => r.startedAt !== null);
@@ -795,9 +848,18 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
            * score just moved is the thing worth spotting. */
           const scoredA = r.lastScorer === 'a';
           const scoredB = r.lastScorer === 'b';
+          /* Undefined on a court with nothing left to play, and on the
+             "Unassigned" bucket — buildCourtRows and the scorekeeper API
+             name that bucket differently, and a match with no court has
+             nowhere to tape a code anyway. Both fall back to text. */
+          const link = linkByCourt.get(r.court);
+          const url = link ? `${origin}/score/${link.token}` : null;
           return (
             <article key={r.court} className={styles.courtCard}>
               <div className={styles.courtCardHead}>
+                {/* Name and status read as one phrase — "Court 2, live" —
+                    so the badge sits against the name rather than being
+                    pushed to the far edge. The corner belongs to the QR. */}
                 <span className={`${styles.courtCardName} ${r.hasLive ? '' : styles.courtCardNameIdle}`}>
                   {r.court}
                 </span>
@@ -807,7 +869,22 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
                     Live
                   </span>
                 ) : (
+                  /* "Free" takes the corner rather than sitting against the
+                     name. On an idle card the code is already in the middle
+                     and is its own enlarge button, so the corner is free —
+                     and the two states then differ at a glance: something
+                     live on the left, an idle court marked on the right. */
                   <span className={styles.courtBadgeFree}>Free</span>
+                )}
+                {r.hasLive && url && link && (
+                  <button
+                    type="button"
+                    className={styles.courtQrBtn}
+                    onClick={() => setZoomed({ court: r.court, url, match: link })}
+                    aria-label={`Enlarge the scorekeeper code for ${r.court}`}
+                  >
+                    <QrCode size={16} aria-hidden="true" />
+                  </button>
                 )}
               </div>
 
@@ -857,10 +934,32 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
                 </div>
               ) : (
                 <div className={styles.courtFree}>
-                  <span className={styles.courtFreeTitle}>Court free</span>
-                  <span className={styles.courtFreeNext}>
-                    {r.upNextTime ? `Next match at ${r.upNextTime}` : 'Nothing scheduled yet'}
-                  </span>
+                  {/* An idle card has the room a live one doesn't, so the
+                      code goes where the "Court free" message was: a
+                      referee arriving at an empty court scans it off the
+                      board instead of hunting for the QR panel. With
+                      nothing scheduled there is no token, and the message
+                      stays. */}
+                  {url && link ? (
+                    <button
+                      type="button"
+                      className={styles.courtFreeQr}
+                      onClick={() => setZoomed({ court: r.court, url, match: link })}
+                      aria-label={`Enlarge the scorekeeper code for ${r.court}`}
+                    >
+                      <QrCodeImage
+                        value={url}
+                        size={104}
+                        className={styles.courtFreeQrImg}
+                        alt={`Scorekeeper QR for ${link.teamA} vs ${link.teamB}`}
+                      />
+                    </button>
+                  ) : (
+                    <>
+                      <span className={styles.courtFreeTitle}>Court free</span>
+                      <span className={styles.courtFreeNext}>Nothing scheduled yet</span>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -868,12 +967,32 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
                 <span className={styles.courtNextLabel}>
                   Up next{r.upNextTime ? ` · ${r.upNextTime}` : ''}
                 </span>
-                <span className={styles.courtNextValue}>{r.upNext ?? 'Nothing queued'}</span>
+                <span className={styles.courtNextValue}>
+                  {r.upNext ? (
+                    <>
+                      {r.upNext.tag && (
+                        <span className={styles.courtNextTag}>{r.upNext.tag} · </span>
+                      )}
+                      {/* Three separators used to sit on this line at the
+                          same weight — the "/" inside each pair's name and
+                          the "vs" between them. The names now carry the
+                          weight and the "vs" is a quiet marker, so the eye
+                          lands on the team split first. */}
+                      <span className={styles.courtNextTeam}>{r.upNext.teamA}</span>
+                      <span className={styles.courtNextVs}>vs</span>
+                      <span className={styles.courtNextTeam}>{r.upNext.teamB}</span>
+                    </>
+                  ) : (
+                    'Nothing queued'
+                  )}
+                </span>
               </div>
             </article>
           );
         })}
       </div>
+
+      <ScorekeeperQrZoom zoomed={zoomed} onClose={() => setZoomed(null)} />
     </>
   );
 }
@@ -927,30 +1046,51 @@ function TournamentRow({
         </span>
 
         <span className={styles.rowInfo}>
-          <span className={styles.rowPills}>
-            <Badge variant={status.variant}>{status.label}</Badge>
-            {isLive && (
-              <span className={styles.rowLive}>
-                <span className={styles.rowLiveDot} aria-hidden="true" /> Live
-              </span>
-            )}
+          {/* The badge rides with the title rather than holding the card's
+              far corner — one phrase, "Test touney, announced", instead of
+              two things to look at. It wraps under the title when a long
+              name leaves it no room. */}
+          <span className={styles.rowTitleLine}>
+            <span className={styles.rowTitle}>{t.title}</span>
+            <span className={styles.rowPills}>
+              {/* "Registration open" keeps the design system's own look —
+                  a tinted fill and its dot. The highlight variant ships as
+                  solid amber-300, which beside it reads as a different
+                  kind of thing entirely, so it borrows the light amber and
+                  matches. Overridden here rather than in Badge, which a
+                  dozen other surfaces share. */}
+              <Badge
+                variant={status.variant}
+                style={status.variant === 'highlight' ? { background: 'var(--amber-100, #FEF3C7)' } : undefined}
+              >
+                {status.label}
+              </Badge>
+              {isLive && (
+                <span className={styles.rowLive}>
+                  <span className={styles.rowLiveDot} aria-hidden="true" /> Live
+                </span>
+              )}
+            </span>
           </span>
-          <span className={styles.rowTitle}>{t.title}</span>
           <span className={styles.rowMeta}>
-            <span className={styles.rowMetaItem}>
-              <Calendar size={14} className={styles.rowMetaIcon} aria-hidden="true" />
-              <span>{t.date}</span>
+            {/* When and how big on one line, where on the next — the two
+                facts an organizer scans for are then a single glance
+                apart rather than stacked three deep. */}
+            <span className={styles.rowMetaLine}>
+              <span className={styles.rowMetaItem}>
+                <Calendar size={14} className={styles.rowMetaIcon} aria-hidden="true" />
+                <span>{t.date}</span>
+              </span>
+              <span className={styles.rowMetaItem}>
+                <Users size={14} className={styles.rowMetaIcon} aria-hidden="true" />
+                <span>{t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
+              </span>
             </span>
             <span className={styles.rowMetaItem}>
               <MapPin size={14} className={styles.rowMetaIcon} aria-hidden="true" />
               <span>{t.location}</span>
             </span>
-            <span className={styles.rowMetaItem}>
-              <Layers size={14} className={styles.rowMetaIcon} aria-hidden="true" />
-              <span>{t.divisions.length} division{t.divisions.length === 1 ? '' : 's'}</span>
-            </span>
           </span>
-
         </span>
 
         <span className={styles.rowActions} onClick={e => e.stopPropagation()}>
@@ -975,25 +1115,38 @@ function TournamentRow({
             </>
           ) : (
             <>
-              {!hideQr && (
-                <button
-                  type="button"
-                  className={styles.iconBtn}
-                  title="Generate scorekeeper QR"
-                  onClick={() => setQrOpen(qrOpen === t.id ? null : t.id)}
-                >
-                  <QrCode size={14} />
-                </button>
-              )}
+              {/* Setup, Bracket, Schedule, Scorekeeper — a column on a wide
+                  screen, one line on a phone. The two secondary actions
+                  carry their label only where there is room for it; on a
+                  phone they collapse back to the round icon buttons they
+                  were, which is what keeps all four on a single line. */}
+              <Link
+                href={`/dashboard/tournament/${t.id}/setup`}
+                className={`${styles.rowSetupBtn} ${styles.rowCollapsingBtn}`}
+                title="Manage setup"
+                aria-label="Setup"
+              >
+                <Settings size={14} />
+                <span className={styles.rowBtnLabel}>Setup</span>
+              </Link>
               <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
                 <BracketIcon size={13} /> Bracket
               </Link>
               <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.rowBracketBtn}>
                 <Calendar size={13} /> Schedule
               </Link>
-              <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.iconBtn} title="Manage setup" aria-label="Manage setup">
-                <Settings size={14} />
-              </Link>
+              {!hideQr && (
+                <button
+                  type="button"
+                  className={`${styles.rowSetupBtn} ${styles.rowCollapsingBtn}`}
+                  title="Generate scorekeeper QR"
+                  aria-label="Scorekeeper"
+                  onClick={() => setQrOpen(qrOpen === t.id ? null : t.id)}
+                >
+                  <QrCode size={14} />
+                  <span className={styles.rowBtnLabel}>Scorekeeper</span>
+                </button>
+              )}
             </>
           )}
         </span>

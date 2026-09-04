@@ -35,6 +35,7 @@ export interface DashboardTournament {
   cancelled: boolean;
   archived: boolean;
   organizerName: string | null;
+  organizerAvatarUrl: string | null;
   divisions: DashboardDivision[];
 }
 
@@ -349,12 +350,12 @@ interface TournamentRow {
   cancelled_at: string | null;
   archived_at: string | null;
   divisions: DivisionRow[];
-  organizers: { name: string } | null;
+  organizers: { name: string; avatar_url: string | null } | null;
 }
 
 const TOURNAMENT_CARD_SELECT =
   'slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, archived_at, ' +
-  'organizers(name), divisions(name, division_team_cap, settings, teams(status))';
+  'organizers(name, avatar_url), divisions(name, division_team_cap, settings, teams(status))';
 
 function toDashboardTournament(t: TournamentRow): DashboardTournament {
   return {
@@ -369,6 +370,7 @@ function toDashboardTournament(t: TournamentRow): DashboardTournament {
     cancelled: !!t.cancelled_at,
     archived: !!t.archived_at,
     organizerName: t.organizers?.name ?? null,
+    organizerAvatarUrl: t.organizers?.avatar_url ?? null,
     divisions: (t.divisions ?? []).map((d) => {
       const settings = (d.settings ?? {}) as Record<string, unknown>;
       return {
@@ -549,88 +551,71 @@ export async function getRecentlyCompletedDivisions(daysCutoff: number = 14): Pr
 
   for (const t of rows) {
     for (const d of t.divisions ?? []) {
-      const allDoneMatches: {
-        id: string;
-        status: string;
-        winner_team_id: string | null;
-        updated_at: string | null;
-        scheduled_time: string | null;
-        roundSequence: number;
-        roundName: string;
-        team_a_id: string | null;
-        team_b_id: string | null;
-        score_a: number[] | null;
-        score_b: number[] | null;
-      }[] = [];
-
       const rounds = [...(d.rounds ?? [])].sort((a, b) => a.sequence - b.sequence);
-      for (const r of rounds) {
-        for (const m of r.matches ?? []) {
-          if (m.status === 'done') {
-            allDoneMatches.push({ ...m, roundSequence: r.sequence, roundName: r.name });
-          }
+      if (rounds.length === 0) continue;
+
+      // Find the championship final round: a round named 'Final', 'Grand Final', or 'Championship'
+      // (excluding rounds named 'Semifinals', 'Quarterfinals', '3rd Place', etc.)
+      const finalRound = rounds.find(
+        (r) =>
+          /(^|\b)(grand\s*final|final|championship)\b/i.test(r.name) &&
+          !/semi/i.test(r.name) &&
+          !/quarter/i.test(r.name) &&
+          !/3rd|third|consolation/i.test(r.name)
+      );
+
+      let championMatch: CompletedQueryTournamentRow['divisions'][0]['rounds'][0]['matches'][0] | null = null;
+
+      if (finalRound) {
+        // When there is a designated final round, the championship match must be COMPLETED ('done')
+        // and have a determined winner.
+        const matchesInFinal = finalRound.matches ?? [];
+        championMatch =
+          matchesInFinal.find(
+            (m) => m.status === 'done' && (m.winner_team_id || (m.score_a && m.score_b))
+          ) ?? null;
+
+        // If the championship Final match has not been played/completed, the division is not completed!
+        if (!championMatch) continue;
+      } else {
+        // For pure round-robin divisions (no knockout final round):
+        // All matches in all rounds of the division must be completed.
+        const allMatches = rounds.flatMap((r) => r.matches ?? []);
+        if (allMatches.length === 0) continue;
+        const allDone = allMatches.every((m) => m.status === 'done');
+        if (!allDone) continue;
+
+        championMatch = allMatches.filter((m) => m.winner_team_id)[allMatches.length - 1] ?? allMatches[allMatches.length - 1];
+        if (!championMatch) continue;
+      }
+
+      let winningTeamId = championMatch.winner_team_id;
+      if (!winningTeamId && championMatch.score_a && championMatch.score_b && championMatch.team_a_id && championMatch.team_b_id) {
+        const sumA = championMatch.score_a.reduce((s, x) => s + x, 0);
+        const sumB = championMatch.score_b.reduce((s, x) => s + x, 0);
+        if (sumA !== sumB) {
+          winningTeamId = sumA > sumB ? championMatch.team_a_id : championMatch.team_b_id;
         }
       }
 
-      // If no matches are completed in this division, skip
-      if (allDoneMatches.length === 0) continue;
+      if (!winningTeamId) continue;
 
-      // Find latest completed match timestamp in this division
-      let latestCompletedAt: string | null = null;
-      for (const m of allDoneMatches) {
-        const ts = m.updated_at || m.scheduled_time || t.end_date || t.start_date;
-        if (ts) {
-          if (!latestCompletedAt || new Date(ts).getTime() > new Date(latestCompletedAt).getTime()) {
-            latestCompletedAt = ts;
-          }
-        }
+      const team = (d.teams ?? []).find((tm) => tm.id === winningTeamId);
+      if (!team || !team.name) continue;
+
+      // Reject placeholder or unfinished player names
+      const rawName = team.name.trim();
+      if (!rawName || /^player\s*tbd$/i.test(rawName) || /^tbd$/i.test(rawName) || /^bye$/i.test(rawName)) {
+        continue;
       }
 
-      // If latest match completed more than daysCutoff (14) days ago, skip
+      // Check completion timestamp
+      const latestCompletedAt = championMatch.updated_at || championMatch.scheduled_time || t.end_date || t.start_date;
       if (!latestCompletedAt || new Date(latestCompletedAt).getTime() < cutoffDate.getTime()) {
         continue;
       }
 
-      // Determine division champion:
-      // Priority 1: Match in a round named 'Final' with a winner
-      // Priority 2: Match in the highest sequence round with a winner
-      // Priority 3: Match with highest sequence
-      const finalRoundMatches = allDoneMatches.filter(
-        (m) => /final/i.test(m.roundName) && !/semi/i.test(m.roundName) && !/quarter/i.test(m.roundName)
-      );
-
-      let championMatch =
-        finalRoundMatches.find((m) => m.winner_team_id) ||
-        finalRoundMatches[0] ||
-        allDoneMatches.filter((m) => m.winner_team_id).sort((a, b) => b.roundSequence - a.roundSequence)[0] ||
-        allDoneMatches[allDoneMatches.length - 1];
-
-      let winningTeamId = championMatch?.winner_team_id;
-      if (!winningTeamId && championMatch) {
-        // In case winner_team_id is not set, infer from score_a vs score_b
-        if (championMatch.score_a && championMatch.score_b && championMatch.team_a_id && championMatch.team_b_id) {
-          const sumA = championMatch.score_a.reduce((s, x) => s + x, 0);
-          const sumB = championMatch.score_b.reduce((s, x) => s + x, 0);
-          winningTeamId = sumA >= sumB ? championMatch.team_a_id : championMatch.team_b_id;
-        }
-      }
-
-      let winningTeamName = '';
-      if (winningTeamId) {
-        const team = (d.teams ?? []).find((tm) => tm.id === winningTeamId);
-        if (team) {
-          winningTeamName = team.name;
-        }
-      }
-
-      if (!winningTeamName && championMatch?.team_a_id) {
-        const team = (d.teams ?? []).find((tm) => tm.id === championMatch.team_a_id);
-        if (team) winningTeamName = team.name;
-      }
-
-      if (!winningTeamName) continue;
-
-      const formattedName = formatTeamName(winningTeamName);
+      const formattedName = formatTeamName(rawName);
       const players = formattedName.includes('/')
         ? formattedName.split('/').map((p) => p.trim()).filter(Boolean)
         : [formattedName];
@@ -1177,7 +1162,7 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
 
   return (data as any[]).map((t) => ({
     id: t.id,
-    name: formatTeamName(t.name),
+    name: formatPlayerNames(t.players, t.name, t.seed),
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,

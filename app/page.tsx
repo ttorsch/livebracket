@@ -76,6 +76,7 @@ interface Tournament {
   registrations?: RegistrationInfo[];
   organizerName?: string;
   organizerInitials?: string;
+  organizerAvatarUrl?: string;
 }
 
 function ProgressCircle({ filled, total }: { filled: number; total: number }) {
@@ -309,6 +310,16 @@ const TOURNAMENTS: Tournament[] = [
   },
 ];
 
+/* Desktop nav: 'top' is the static bar riding the page down, 'hidden' is
+ * parked off-screen, 'shown' is floated back in over the content. */
+type NavMode = 'top' | 'hidden' | 'shown';
+/* How long the floated bar waits, with no scrolling, before sliding away. */
+const NAV_IDLE_HIDE_MS = 2000;
+/* Ignore scroll jitter (trackpad settle, rubber-banding) below this. */
+const NAV_SCROLL_DELTA = 4;
+/* Treated as "at the top": smooth-scroll landings rarely hit exactly 0. */
+const NAV_TOP_EPSILON = 2;
+
 type StatusFilter = 'all' | Status;
 type SortOption = 'latest' | 'soonest';
 
@@ -401,13 +412,18 @@ function statusLabels(t: Tournament): {
   return { long: 'Open Registration', short: 'Open Registration', variant: 'open' };
 }
 
-function toEventCard(t: DashboardTournament, index: number, organizerName: string | null): Tournament {
+function toEventCard(
+  t: DashboardTournament,
+  index: number,
+  organizerName: string | null,
+  organizerAvatarUrl?: string | null
+): Tournament {
   const today = todayLocal();
   const end = t.endDate || t.startDate;
   const status: Status =
     end < today ? 'finished' : t.startDate <= today ? 'live' : 'upcoming';
   const start = new Date(`${t.startDate}T00:00:00`);
-  const name = organizerName || 'Live Bracket';
+  const name = organizerName || t.organizerName || 'Live Bracket';
   const initials = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return {
@@ -433,6 +449,7 @@ function toEventCard(t: DashboardTournament, index: number, organizerName: strin
     registrations: t.divisions.map(d => ({ division: d.name, filled: d.filled, total: d.cap })),
     organizerName: name,
     organizerInitials: initials,
+    organizerAvatarUrl: organizerAvatarUrl ?? t.organizerAvatarUrl ?? undefined,
   };
 }
 
@@ -503,50 +520,67 @@ function TournamentCard({
 
           <div className={styles.cardMetaList}>
             <div className={styles.cardMetaRow}>
-              <Calendar size={17} className={styles.cardMetaIcon} />
+              <Calendar size={15} className={styles.cardMetaIcon} />
               <span className={styles.cardMetaText}>
                 {formatDateRange(t.dateLabel, t.endDateLabel)}
               </span>
             </div>
             <div className={styles.cardMetaRow}>
-              <MapPin size={17} className={styles.cardMetaIcon} />
+              <MapPin size={15} className={styles.cardMetaIcon} />
               <span className={styles.cardMetaText}>{t.location}</span>
             </div>
           </div>
 
-          {t.registrations && (
-            <div className={styles.cardDivisionsSection}>
-              {t.registrations.map((reg, idx) => (
-                <div key={idx} className={styles.divisionItem}>
-                  <div className={styles.divisionHeader}>
-                    <span className={styles.divisionName}>{reg.division}</span>
-                    <span className={styles.divisionSeats}>
-                      {reg.filled}/{reg.total}
-                      <span className={styles.divisionSeatsWord}> seats</span>
-                    </span>
+          {t.registrations && t.registrations.length > 0 && (() => {
+            const totalDivisions = Math.max(t.registrations.length, t.divisions?.length || 0);
+            const extraCount = totalDivisions - 2;
+            return (
+              <div className={styles.cardDivisionsSection}>
+                {t.registrations.map((reg, idx) => (
+                  <div
+                    key={idx}
+                    className={`${styles.divisionItem} ${idx >= 2 ? styles.divisionItemHiddenDesktop : ''}`}
+                  >
+                    <div className={styles.divisionHeader}>
+                      <span className={styles.divisionName}>{reg.division}</span>
+                      <span className={styles.divisionSeats}>
+                        {reg.filled}/{reg.total}
+                        <span className={styles.divisionSeatsWord}> seats</span>
+                      </span>
+                    </div>
+                    <div className={styles.progressBarBg}>
+                      <div
+                        className={styles.progressBarFill}
+                        style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className={styles.progressBarBg}>
-                    <div
-                      className={styles.progressBarFill}
-                      style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
-                    />
+                ))}
+                {extraCount > 0 && (
+                  <div className={styles.moreDivisionsText}>
+                    +{extraCount} more
                   </div>
-                </div>
-              ))}
-              {t.divisions && t.divisions.length > t.registrations.length && (
-                <div className={styles.moreDivisionsText}>
-                  + {t.divisions.length - t.registrations.length} more divisions available
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
         </div>
       </Link>
 
       <div className={styles.cardFooter}>
         <div className={styles.organizerRow}>
           <div className={styles.organizerAvatar}>
-            {t.organizerInitials || 'LB'}
+            {t.organizerAvatarUrl ? (
+              <img
+                src={t.organizerAvatarUrl}
+                alt={t.organizerName || 'Organizer'}
+                className={styles.organizerAvatarImg}
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
+              />
+            ) : null}
+            <span>{t.organizerInitials || 'LB'}</span>
           </div>
           <div className={styles.organizerMeta}>
             <span className={styles.organizerLabel}>Organizer</span>
@@ -575,7 +609,7 @@ function PaginationControl({
 }: {
   currentPage: number;
   totalPages: number;
-  goToPage: (page: number, shouldScroll?: boolean) => void;
+  goToPage: (page: number) => void;
   styles: Record<string, string>;
 }) {
   if (totalPages <= 1) return null;
@@ -587,7 +621,7 @@ function PaginationControl({
       <button
         type="button"
         className={styles.paginationArrowBtn}
-        onClick={() => goToPage(currentPage - 1, true)}
+        onClick={() => goToPage(currentPage - 1)}
         disabled={currentPage <= 1}
         aria-label="Previous page"
       >
@@ -612,7 +646,7 @@ function PaginationControl({
               <button
                 type="button"
                 className={`${styles.pageNumberBtn} ${isActive ? styles.pageNumberBtnActive : ''}`}
-                onClick={() => goToPage(item, true)}
+                onClick={() => goToPage(item)}
                 aria-label={`Page ${item}`}
                 aria-current={isActive ? 'page' : undefined}
               >
@@ -631,7 +665,7 @@ function PaginationControl({
       <button
         type="button"
         className={styles.paginationArrowBtn}
-        onClick={() => goToPage(currentPage + 1, true)}
+        onClick={() => goToPage(currentPage + 1)}
         disabled={currentPage >= totalPages}
         aria-label="Next page"
       >
@@ -948,17 +982,19 @@ export default function LiveBracketHome() {
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [query, setQuery] = useState('');
 
-  // Pagination & Mobile Swipe States
+  // Pagination & Swipe Track States
   const [currentPage, setCurrentPage] = useState(1);
-  const [isMobile, setIsMobile] = useState(false);
-  const mobileSwipeRef = useRef<HTMLDivElement>(null);
+  const cardsSwipeRef = useRef<HTMLDivElement>(null);
   const eventsSectionRef = useRef<HTMLElement>(null);
 
   // Navigation States & Ref
   const navRef = useRef<HTMLElement>(null);
   const tournamentSearchInputRef = useRef<HTMLInputElement>(null);
-  const [scrolled, setScrolled] = useState(false);
+  const [navMode, setNavMode] = useState<NavMode>('top');
+  const scrolled = navMode !== 'top';
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpenRef = useRef(false);
+  menuOpenRef.current = menuOpen;
 
   // Hero pulse card — the courts actually in play, from /api/live/now.
   const [heroMatches, setHeroMatches] = useState<HeroLiveMatch[]>([]);
@@ -1004,20 +1040,25 @@ export default function LiveBracketHome() {
   }, []);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 640);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
     setCurrentPage(1);
-    if (mobileSwipeRef.current) {
-      mobileSwipeRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
+    if (cardsSwipeRef.current) {
+      cardsSwipeRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
     }
   }, [query, statusFilter, sortBy]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (cardsSwipeRef.current) {
+        const width = cardsSwipeRef.current.clientWidth;
+        cardsSwipeRef.current.scrollTo({
+          left: (currentPage - 1) * width,
+          behavior: 'instant' as ScrollBehavior,
+        });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [currentPage]);
 
   const divisionsCount = useMemo(() => {
     const fromEvents = events.reduce((sum, t) => sum + (t.divisions?.length || 0), 0);
@@ -1059,7 +1100,7 @@ export default function LiveBracketHome() {
          * the moment a second signs up. */
         const cards = rows
           .filter(t => t.phase >= 2)
-          .map((t, i) => toEventCard(t, i, t.organizerName));
+          .map((t, i) => toEventCard(t, i, t.organizerName, t.organizerAvatarUrl));
         setEvents(cards);
         setCompletedSlides(slides);
         if (statsData) {
@@ -1202,15 +1243,121 @@ export default function LiveBracketHome() {
     }
   };
 
-  // Monitor scroll position to apply solid background transition when scrolled
+  const handleSeeAllTournaments = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (menuOpen) setMenuOpen(false);
+    setStatusFilter('all');
+    setQuery('');
+    const navHeight = navRef.current?.offsetHeight || 80;
+    const target = eventsSectionRef.current || document.getElementById('events');
+    if (target) {
+      const elementPosition = target.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = Math.max(0, elementPosition - navHeight - 16);
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      });
+    } else {
+      document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  /* Nav behaviour, the same on desktop and on mobile. At the top of the page
+   * the bar reads as static: an inline translate tracks the scroll so it
+   * leaves with the hero. Once it is gone it stays gone until the reader
+   * scrolls back up, which floats it in as a fixed bar; it slides away again
+   * on the next downward scroll, or after a pause with no scrolling — unless
+   * the pointer or the keyboard is inside it, or the mobile menu is hanging
+   * off it, which count as still using it. */
   useEffect(() => {
+    let mode: NavMode = 'top';
+    let navHeight = navRef.current?.offsetHeight || 80;
+    let lastY = window.scrollY;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearIdle = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    };
+
+    /* `offset` undefined hands the transform back to the stylesheet, which
+     * is what drives the slide; a number pins the bar to the scroll. */
+    const apply = (next: NavMode, offset?: number) => {
+      const el = navRef.current;
+      if (el) el.style.transform = offset === undefined ? '' : `translateY(${-offset}px)`;
+      if (next !== mode) {
+        mode = next;
+        setNavMode(next);
+      }
+    };
+
+    const armIdle = () => {
+      clearIdle();
+      idleTimer = setTimeout(() => {
+        const el = navRef.current;
+        // Hovering a link or tabbing through the bar is interaction: hold it
+        // open and ask again rather than pulling it out from under them.
+        if (
+          menuOpenRef.current ||
+          (el && (el.matches(':hover') || el.contains(document.activeElement)))
+        ) {
+          armIdle();
+          return;
+        }
+        if (mode === 'shown') apply('hidden');
+      }, NAV_IDLE_HIDE_MS);
+    };
+
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const y = window.scrollY;
+
+      // The mobile menu hangs off the bar, so hiding it would take the open
+      // menu with it. While it is open the bar only ever rides the top of the
+      // page or sits floated in, never parked off-screen.
+      if (menuOpenRef.current) {
+        clearIdle();
+        if (mode === 'top' && y <= navHeight) apply('top', y);
+        else apply('shown');
+        lastY = y;
+        return;
+      }
+
+      if (mode === 'top' && y <= navHeight) {
+        // Still in the band where the bar is scrolling off on its own.
+        apply('top', y);
+      } else if (y <= NAV_TOP_EPSILON) {
+        // Back at the top: the floated bar and the static one line up here,
+        // so handing over is invisible.
+        clearIdle();
+        apply('top', y);
+      } else if (y < lastY - NAV_SCROLL_DELTA) {
+        apply('shown');
+        armIdle();
+      } else if (y > lastY + NAV_SCROLL_DELTA) {
+        clearIdle();
+        apply('hidden');
+      }
+
+      lastY = y;
+    };
+
+    const handleResize = () => {
+      if (mode === 'top') navHeight = navRef.current?.offsetHeight || navHeight;
+      handleScroll();
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize);
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    return () => {
+      clearIdle();
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      if (navRef.current) navRef.current.style.transform = '';
+    };
   }, []);
 
   // Auto-hide mobile menu when clicking outside or pressing Escape
@@ -1275,54 +1422,37 @@ export default function LiveBracketHome() {
     });
   }, [events, statusFilter, sortBy, query]);
 
-  const DESKTOP_PAGE_SIZE = 6;
-  const MOBILE_PAGE_SIZE = 3;
+  const TOURNAMENTS_PER_PAGE = 3;
+  const totalPages = Math.max(1, Math.ceil(filteredActiveUpcoming.length / TOURNAMENTS_PER_PAGE));
 
-  const desktopTotalPages = Math.max(1, Math.ceil(filteredActiveUpcoming.length / DESKTOP_PAGE_SIZE));
-  const mobileTotalPages = Math.max(1, Math.ceil(filteredActiveUpcoming.length / MOBILE_PAGE_SIZE));
-  const totalPages = isMobile ? mobileTotalPages : desktopTotalPages;
-
-  const desktopPageTournaments = useMemo(() => {
-    const start = (currentPage - 1) * DESKTOP_PAGE_SIZE;
-    return filteredActiveUpcoming.slice(start, start + DESKTOP_PAGE_SIZE);
-  }, [filteredActiveUpcoming, currentPage]);
-
-  const mobilePages = useMemo(() => {
+  const tournamentPages = useMemo(() => {
     const pages: Tournament[][] = [];
-    for (let i = 0; i < filteredActiveUpcoming.length; i += MOBILE_PAGE_SIZE) {
-      pages.push(filteredActiveUpcoming.slice(i, i + MOBILE_PAGE_SIZE));
+    for (let i = 0; i < filteredActiveUpcoming.length; i += TOURNAMENTS_PER_PAGE) {
+      pages.push(filteredActiveUpcoming.slice(i, i + TOURNAMENTS_PER_PAGE));
     }
     return pages;
   }, [filteredActiveUpcoming]);
 
-  const handleMobileScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const handleTrackScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     if (!el || el.clientWidth === 0) return;
     const index = Math.round(el.scrollLeft / el.clientWidth);
     const page = index + 1;
-    if (page >= 1 && page <= mobileTotalPages && page !== currentPage) {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
       setCurrentPage(page);
     }
   };
 
-  const goToPage = (page: number, shouldScrollToSection = false) => {
-    const maxPages = isMobile ? mobileTotalPages : desktopTotalPages;
-    const target = Math.max(1, Math.min(page, maxPages));
+  const goToPage = (page: number) => {
+    const target = Math.max(1, Math.min(page, totalPages));
     setCurrentPage(target);
 
-    if (isMobile && mobileSwipeRef.current) {
-      const width = mobileSwipeRef.current.clientWidth;
-      mobileSwipeRef.current.scrollTo({
+    if (cardsSwipeRef.current) {
+      const width = cardsSwipeRef.current.clientWidth;
+      cardsSwipeRef.current.scrollTo({
         left: (target - 1) * width,
         behavior: 'smooth',
       });
-    }
-
-    if (shouldScrollToSection && eventsSectionRef.current) {
-      const rect = eventsSectionRef.current.getBoundingClientRect();
-      if (rect.top < 0) {
-        eventsSectionRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
     }
   };
 
@@ -1360,7 +1490,12 @@ export default function LiveBracketHome() {
       <header 
         id="livebracket-nav"
         ref={navRef}
-        className={`${styles.nav} ${scrolled ? styles.scrolled : styles.onHero}`}
+        className={[
+          styles.nav,
+          scrolled ? styles.scrolled : styles.onHero,
+          navMode !== 'top' ? styles.navFloat : '',
+          navMode === 'shown' ? styles.navRevealed : '',
+        ].filter(Boolean).join(' ')}
       >
         <div className={styles.navRow}>
           <Link href="/" className={styles.logo} aria-label="Live Bracket — home" onClick={scrollToTop}>
@@ -1380,36 +1515,18 @@ export default function LiveBracketHome() {
             <span className={styles.brandText}>LIVE BRACKET</span>
           </Link>
 
-          {/* Desktop Center Search Bar */}
-          <div className={styles.navSearchWrapper}>
-            <div className={styles.navSearchPill}>
-              <Search
-                size={16}
-                className={styles.navSearchIcon}
-                onClick={scrollToTournamentSearch}
-                role="button"
-                tabIndex={0}
-                aria-label="Search tournaments"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    scrollToTournamentSearch();
-                  }
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Find a tournament"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                className={styles.navSearchInput}
-              />
-              <Mic size={15} className={styles.navMicIcon} />
-            </div>
-          </div>
-
           {/* Right Action Buttons */}
           <div className={styles.navRightActions}>
+            {/* Search Button (links to tournament search bar) */}
+            <button 
+              className={styles.navSearchBtn}
+              onClick={scrollToTournamentSearch}
+              aria-label="Search tournaments"
+              title="Search tournaments"
+            >
+              <Search size={18} />
+            </button>
+
             {!signedIn && (
               <>
                 <Link
@@ -1428,15 +1545,6 @@ export default function LiveBracketHome() {
                 </Link>
               </>
             )}
-
-            {/* Mobile Search Button */}
-            <button 
-              className={styles.mobileSearchToggle}
-              onClick={scrollToTournamentSearch}
-              aria-label="Search tournaments"
-            >
-              <Search size={18} />
-            </button>
 
             {/* Signed-in Profile Button */}
             {signedIn && (
@@ -1509,7 +1617,11 @@ export default function LiveBracketHome() {
               </p>
 
               <div className={styles.heroCtasRow}>
-                <a href="#events" className={styles.heroPrimaryPill}>
+                <a 
+                  href="#events" 
+                  className={styles.heroPrimaryPill}
+                  onClick={handleSeeAllTournaments}
+                >
                   See all tournaments
                 </a>
                 <button 
@@ -1718,6 +1830,20 @@ export default function LiveBracketHome() {
                   onChange={(e) => setQuery(e.target.value)}
                   aria-label="Search tournaments"
                 />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('');
+                      tournamentSearchInputRef.current?.focus();
+                    }}
+                    className={styles.searchClearBtn}
+                    aria-label="Clear search"
+                    title="Clear search"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
                 <Mic size={15} className={styles.searchMicIcon} />
               </div>
               <div className={`${styles.sortSelect} ${styles.statusSelect}`}>
@@ -1763,26 +1889,14 @@ export default function LiveBracketHome() {
             {/* Active & Upcoming Tournament List */}
             {filteredActiveUpcoming.length > 0 && (
               <>
-                {/* Desktop Grid (6 cards per page) */}
-                <div className={styles.desktopGrid}>
-                  {desktopPageTournaments.map((t) => (
-                    <TournamentCard
-                      key={t.id}
-                      t={t}
-                      styles={styles}
-                      saveScrollPosition={saveScrollPosition}
-                    />
-                  ))}
-                </div>
-
-                {/* Mobile Horizontal Swipe Track (3 cards per slide) */}
+                {/* Horizontal Swipe/Slide Track (3 cards per screen on desktop, 3 compact cards on mobile) */}
                 <div
-                  ref={mobileSwipeRef}
-                  className={styles.mobileSwipeTrack}
-                  onScroll={handleMobileScroll}
+                  ref={cardsSwipeRef}
+                  className={styles.cardsSwipeTrack}
+                  onScroll={handleTrackScroll}
                 >
-                  {mobilePages.map((pageCards, pageIdx) => (
-                    <div key={pageIdx} className={styles.mobilePageSlide}>
+                  {tournamentPages.map((pageCards, pageIdx) => (
+                    <div key={pageIdx} className={styles.cardsPageSlide}>
                       {pageCards.map((t) => (
                         <TournamentCard
                           key={t.id}

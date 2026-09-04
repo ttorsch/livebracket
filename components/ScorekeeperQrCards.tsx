@@ -85,7 +85,7 @@ export function useQrPdfExport(slug: string) {
 
 /** One row per court — the next match on that court, its code, and the two
  *  ways to hand it to a referee: copy the link, or open the screen. */
-interface ZoomedCode {
+export interface ZoomedCode {
   court: string;
   url: string;
   match: ScorekeeperLinkRow;
@@ -97,20 +97,6 @@ export default function ScorekeeperQrCards({ matches }: { matches: ScorekeeperLi
   // Only ever rendered client-side, so window is there — a lazy initializer
   // avoids an effect just to read the origin.
   const [origin] = useState(() => (typeof window !== 'undefined' ? window.location.origin : ''));
-
-  /* Escape closes, and the page behind stops scrolling while it's open —
-   * both are what anyone expects of a thing covering the screen. */
-  useEffect(() => {
-    if (!zoomed) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomed(null); };
-    window.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [zoomed]);
 
   const copy = async (matchId: string, url: string) => {
     try {
@@ -193,42 +179,75 @@ export default function ScorekeeperQrCards({ matches }: { matches: ScorekeeperLi
         );
       })}
 
-      {/* Portalled to <body>: the card it lives in sets overflow: hidden, and
-          fixed positioning inside a transformed ancestor would be clipped. */}
-      {zoomed && createPortal(
-        <div
-          className={styles.lightbox}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Scorekeeper code for ${zoomed.court}`}
-          onClick={() => setZoomed(null)}
-        >
-          {/* Clicks inside the panel must not reach the backdrop's handler. */}
-          <div className={styles.lightboxPanel} onClick={e => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.lightboxClose}
-              onClick={() => setZoomed(null)}
-              aria-label="Close"
-              autoFocus
-            >
-              <X size={18} />
-            </button>
-            <span className={styles.lightboxCourt}>{zoomed.court}</span>
-            <QrCodeImage
-              value={zoomed.url}
-              size={600}
-              className={styles.lightboxCode}
-              alt={`Scorekeeper QR for ${zoomed.match.teamA} vs ${zoomed.match.teamB}`}
-            />
-            <span className={styles.lightboxMatchup}>
-              {zoomed.match.teamA} vs {zoomed.match.teamB}
-            </span>
-            <span className={styles.lightboxHint}>Scan to open the scoring screen</span>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ScorekeeperQrZoom zoomed={zoomed} onClose={() => setZoomed(null)} />
     </div>
+  );
+}
+
+
+/** The enlarged code, big enough to scan from across a court.
+ *
+ *  Its own component because two surfaces raise it: the QR panel's rows
+ *  here, and the dashboard's live court board. Same escape key, same
+ *  scroll lock, same panel — a code enlarged from either place is the one
+ *  thing, which is the same reason the row markup lives in this file. */
+export function ScorekeeperQrZoom({
+  zoomed,
+  onClose,
+}: {
+  zoomed: ZoomedCode | null;
+  onClose: () => void;
+}) {
+  /* Escape closes, and the page behind stops scrolling while it's open —
+   * both are what anyone expects of a thing covering the screen. */
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [zoomed, onClose]);
+
+  if (!zoomed) return null;
+
+  /* Portalled to <body>: the card it lives in sets overflow: hidden, and
+     fixed positioning inside a transformed ancestor would be clipped. */
+  return createPortal(
+    <div
+      className={styles.lightbox}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Scorekeeper code for ${zoomed.court}`}
+      onClick={onClose}
+    >
+      {/* Clicks inside the panel must not reach the backdrop's handler. */}
+      <div className={styles.lightboxPanel} onClick={e => e.stopPropagation()}>
+        <button
+          type="button"
+          className={styles.lightboxClose}
+          onClick={onClose}
+          aria-label="Close"
+          autoFocus
+        >
+          <X size={18} />
+        </button>
+        <span className={styles.lightboxCourt}>{zoomed.court}</span>
+        <QrCodeImage
+          value={zoomed.url}
+          size={600}
+          className={styles.lightboxCode}
+          alt={`Scorekeeper QR for ${zoomed.match.teamA} vs ${zoomed.match.teamB}`}
+        />
+        <span className={styles.lightboxMatchup}>
+          {zoomed.match.teamA} vs {zoomed.match.teamB}
+        </span>
+        <span className={styles.lightboxHint}>Scan to open the scoring screen</span>
+      </div>
+    </div>,
+    document.body
   );
 }

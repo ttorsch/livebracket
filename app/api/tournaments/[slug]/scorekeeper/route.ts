@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
-import { formatTeamName } from '../../../../../lib/teamName';
+import { formatPlayerNames } from '../../../../../lib/teamName';
 import { requireTournamentOwner } from '../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../lib/authResponse';
 
@@ -11,8 +11,11 @@ import { authErrorResponse } from '../../../../../lib/authResponse';
  * anyone holding one can score that match. That is why the guard below is
  * ownership, not merely authentication: any signed-in organizer must not be
  * able to pull the scoring tokens for someone else's event. */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await context.params;
   try {
     // Owning this tournament is the permission; being signed in is not.
     await requireTournamentOwner(slug);
@@ -37,8 +40,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .from('matches')
     .select(`
       id, court, scheduled_time, planned_time, status, scorekeeper_token,
-      team_a:teams!matches_team_a_id_fkey(id,name),
-      team_b:teams!matches_team_b_id_fkey(id,name),
+      team_a:teams!matches_team_a_id_fkey(id,name,seed,players(id,name)),
+      team_b:teams!matches_team_b_id_fkey(id,name,seed,players(id,name)),
       rounds!inner (
         name,
         divisions!inner ( name, tournament_id )
@@ -54,8 +57,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     planned_time: string | null;
     status: 'upcoming' | 'live' | 'done';
     scorekeeper_token: string;
-    team_a: { id: string; name: string } | null;
-    team_b: { id: string; name: string } | null;
+    team_a: { id: string; name: string; seed?: number | null; players?: { id: string; name: string }[] } | null;
+    team_b: { id: string; name: string; seed?: number | null; players?: { id: string; name: string }[] } | null;
     rounds: { name: string; divisions: { name: string } | null } | null;
   }
 
@@ -97,8 +100,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         status: m.status,
         division: m.rounds?.divisions?.name ?? '',
         round: m.rounds?.name ?? '',
-        teamA: formatTeamName(m.team_a?.name) || 'TBD',
-        teamB: formatTeamName(m.team_b?.name) || 'TBD',
+        teamA: formatPlayerNames(m.team_a?.players, m.team_a?.name, m.team_a?.seed) || 'TBD',
+        teamB: formatPlayerNames(m.team_b?.players, m.team_b?.name, m.team_b?.seed) || 'TBD',
       };
     });
 

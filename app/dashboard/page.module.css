@@ -275,8 +275,15 @@
    reach. That also makes its JS hover state moot, so the hover below
    has to restate the whole thing. */
 .newTournamentBtn {
-  height: 32px !important;
-  padding: 0 14px !important;
+  /* A dashed rectangle standing the full height of the eyebrow-and-title
+     block beside it, rather than a short pill floating against its top.
+     `stretch` takes the height from that block, so the two stay matched
+     when the organizer's name wraps; the phone rules below opt out and
+     set a height of their own. */
+  align-self: stretch !important;
+  height: auto !important;
+  padding: 0 22px !important;
+  border-radius: 12px !important;
   font-size: 12px !important;
   background: transparent !important;
   border: 1.5px dashed var(--coral-500, #EB6F43) !important;
@@ -300,13 +307,23 @@
 }
 
 /* ── Featured live hero ───────────────────────────────────────── */
-.liveSection { margin-bottom: 20px; }
+/* A wide gap under the live section — it ends on the court board, a busy
+   grid of cards, and "All Tournaments" needs clear air to read as a new
+   part of the page rather than more of the same one. Set here rather than
+   on .section so the other sections keep their ordinary 24px. */
+.liveSection { margin-bottom: 52px; }
 
 .hero {
   position: relative;
-  border-radius: var(--radius-2xl, 34px);
+  /* Squarer than the design system's 34px --radius-2xl: at this card's
+     width that read as a lozenge, and it now sits closer to the 16px
+     court cards directly beneath it. */
+  border-radius: 20px;
   overflow: hidden;
-  min-height: 190px;
+  /* No min-height. It used to be 190px, drawn around a taller stack of
+     text than the card carries now, so the surplus rendered as a band of
+     empty scrim under the buttons at every width. The card sizes to its
+     content; .heroBg covers whatever height that comes to. */
   background: var(--ink-900, #14181E);
   display: flex;
 }
@@ -321,7 +338,9 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 18px 24px;
+  /* Tighter under the actions than over the badge: they are the last
+     thing in the card and were sitting on a band of empty scrim. */
+  padding: 18px 24px 12px;
   color: #fff;
   width: 100%;
 }
@@ -329,28 +348,32 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
+/* Deliberately small and unfilled: it labels the card rather than
+   competing with the title, which is the loudest thing on the hero. No
+   pill, so it also starts on the title's own left edge instead of a
+   padding-width to the right of it. */
 .livePill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  background: var(--red-live, #F16767);
-  color: #fff;
+  gap: 6px;
+  background: transparent;
+  color: var(--red-live, #F16767);
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 6px 14px;
-  border-radius: var(--radius-pill, 999px);
+  padding: 0;
 }
 .livePillDot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #fff;
+  /* Follows the label now that there is no fill behind it to sit on. */
+  background: currentColor;
   animation: lbPulse 1.8s infinite;
 }
 @keyframes lbPulse {
@@ -367,22 +390,28 @@
 .heroTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 20px;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  margin: 0 0 6px;
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
 }
 .heroMeta {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.82);
+}
+.heroMetaLine {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 4px 18px;
 }
 .heroMeta span { display: inline-flex; align-items: center; gap: 6px; }
 .heroActions {
-  margin-top: 14px;
+  margin-top: 12px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -403,29 +432,20 @@
   transition: background 0.15s ease, transform 0.15s ease;
 }
 .heroPrimaryBtn:hover { background: var(--coral-600, #D95F35); transform: translateY(-1px); }
-/* Frosted glass over the hero photo, built from the design system's own
-   glass tokens rather than a second set of magic rgba values — the same
-   fill, blur and rim GlassCard uses in its dark tone.
-
-   The rim is an inset shadow, not a border, so it sits inside the pill and
-   doesn't fight the 1px border on the blur edge. */
-.heroGhostBtn {
+/* The hero's secondary actions. Solid white rather than the frosted glass
+   they used to be: the photo behind them varies per tournament, and an
+   opaque pill keeps the label at full contrast whatever it lands on, and
+   reads as clearly secondary next to the one orange pill. */
+.heroWhiteBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 0 14px;
   height: 32px;
   border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--glass-border-dark, rgba(255, 255, 255, 0.12));
-  background: var(--glass-fill-dark, rgba(20, 24, 30, 0.40));
-  /* Standard property only, and a literal value: Lightning CSS emits the
-     -webkit- prefix itself, and authoring both here made it keep only the
-     Safari-prefixed one — which Chrome ignores, so the blur silently
-     vanished. Value tracks --glass-blur (tokens/spacing.css) by hand,
-     since a var() also defeats the prefixer. */
-  backdrop-filter: blur(18px) saturate(150%);
-  box-shadow: var(--glass-rim, inset 0 0 0 1.5px rgba(255, 255, 255, 0.35));
-  color: #fff;
+  border: 1px solid transparent;
+  background: #fff;
+  color: var(--ink-900, #14181E);
   font-family: var(--font-text, 'DM Sans', sans-serif);
   font-size: 12px;
   font-weight: 700;
@@ -447,19 +467,14 @@
   border: 0;
 }
 
-.heroGhostBtn:hover {
-  background: rgba(255, 255, 255, 0.20);
+.heroWhiteBtn:hover {
+  background: var(--sand-100, #F5F1EA);
   transform: translateY(-1px);
 }
-
-/* Without backdrop-filter the fill alone is too dark to read as glass, so
-   fall back to the flat translucent pill this used to be. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .heroGhostBtn {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.45);
-  }
-}
+/* Setup and Scorekeeper. Labelled where there is room; the phone rules
+   below strip the label and square them to a 32px circle. */
+.heroCollapsingBtn { flex: none; }
+.heroBtnLabel { display: inline; }
 
 /* ── Live courts board ────────────────────────────────────────── */
 .courtsHeader {
@@ -524,10 +539,12 @@
   overflow: hidden;
   min-height: 270px;
 }
+/* Name, then status, then the corner. Was space-between with two children
+   pushed to opposite edges; the badge belongs against the name it
+   describes, so the QR button claims the free edge with its own margin. */
 .courtCardHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding: 12px 14px 10px;
 }
@@ -559,12 +576,39 @@
   animation: lbPulse 1.8s ease-out infinite;
 }
 .courtBadgeFree {
+  /* Pushed to the corner the QR button holds on a live card. */
+  margin-left: auto;
   font-size: var(--text-micro-size, 10px);
   line-height: var(--text-micro-line, 14px);
   letter-spacing: var(--text-micro-tracking, 0.08em);
   text-transform: uppercase;
   font-weight: 700;
   color: var(--text-muted, #7A8294);
+}
+
+/* Top-right of every card that has a match to score. Raises the same
+   enlarged code the QR panel's rows do, for the one court it sits on. */
+.courtQrBtn {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  /* Bare icon, no chrome — the border went with the fill, since an
+     outlined empty square reads as an unfinished button rather than a
+     quieter one. The hover tint is what still marks it as pressable. */
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-primary, #14181E);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.courtQrBtn:hover {
+  background: var(--sand-200, #EDE8DF);
 }
 
 /* ── Dark scoreboard on a live court ──────────────────────────── */
@@ -694,6 +738,27 @@
   text-align: center;
 }
 
+/* The code in the middle of an idle card, in place of the message that
+   used to sit here. On white rather than the dashed sand panel: a scanner
+   needs the quiet zone around the code to stay light and untextured. */
+.courtFreeQr {
+  padding: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  line-height: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.courtFreeQr:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(20, 24, 30, 0.12);
+}
+.courtFreeQrImg {
+  display: block;
+  border-radius: 6px;
+}
+
 /* ── Up next footer ───────────────────────────────────────────── */
 .courtNext {
   margin-top: auto;
@@ -715,6 +780,27 @@
   font-weight: 500;
   color: var(--text-secondary, #3A414D);
   text-wrap: pretty;
+}
+/* The two sides carry the weight; the marker between them gives it up.
+   Read together they set a clear order — team, separator, team — where
+   the line used to be five words of identical typography. */
+.courtNextTeam {
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+}
+.courtNextVs {
+  /* Margins rather than spaces: the spans are adjacent in the markup, so
+     this is the only gap, and it stays the same however the line wraps. */
+  margin: 0 8px;
+  font-size: var(--text-micro-size, 10px);
+  font-weight: 700;
+  letter-spacing: var(--text-micro-tracking, 0.08em);
+  text-transform: uppercase;
+  color: var(--text-muted, #7A8294);
+}
+/* Round and division, shown only when both sides are still TBD. */
+.courtNextTag {
+  color: var(--text-muted, #7A8294);
 }
 
 .courtsEmpty {
@@ -756,8 +842,11 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--sand-300, #E7E2D9);
-  background: var(--sand-50, #fff);
+  /* The same sand as the search field above them, which is set inline on
+     the SearchField. The border stays as a transparent 1px so the pills
+     keep their size and the active state can still draw one. */
+  border: 1px solid transparent;
+  background: var(--sand-200, #EFEAE0);
   font-family: var(--font-text, 'DM Sans', sans-serif);
   font-size: 12px;
   font-weight: 600;
@@ -766,7 +855,7 @@
   white-space: nowrap;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.filterTab:hover { border-color: var(--sand-400, #D9D4C9); }
+.filterTab:hover { background: var(--sand-300, #E7E2D9); }
 .filterTabActive,
 .filterTabActive:hover {
   background: var(--coral-500, #EB6F43);
@@ -849,7 +938,10 @@
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 10px 14px;
+  /* Tight on the poster's side and roomy on the text's: the image runs
+     nearly to the card edge, which is what lets it grow without the row
+     growing with it. */
+  padding: 8px 18px 8px 8px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -858,10 +950,10 @@
   border-radius: inherit;
 }
 .rowThumb {
-  width: 72px;
-  height: 90px;
+  width: 104px;
+  height: 130px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, var(--coral-500, #EB6F43), #F4A268);
   display: inline-flex;
   align-items: center;
@@ -872,7 +964,7 @@
 .rowThumbInitials {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 800;
-  font-size: 15px;
+  font-size: 20px;
   letter-spacing: -0.02em;
 }
 .rowThumbImg {
@@ -886,7 +978,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 .rowPills { display: flex; align-items: center; gap: 8px; }
 .pill {
@@ -928,22 +1020,41 @@
   color: var(--text-muted, #7A8294);
 }
 
+/* Title and status on one line, the badge wrapping under a long name
+   rather than squeezing it. The top margin lives here so it covers both. */
+.rowTitleLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 6px;
+}
 .rowTitle {
   font-family: var(--font-display, 'Space Grotesk', sans-serif);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 20px;
   color: var(--ink-900, #14181E);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Flush with the title above it — one left edge down the whole column,
+   title, meta and actions alike. */
 .rowMeta {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  gap: 5px;
   font-size: 12px;
   color: var(--text-secondary, #3A414D);
+}
+/* Date and division count, side by side. Wraps rather than overflowing
+   when a long date and a two-digit count meet a narrow card. */
+.rowMetaLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 18px;
 }
 .rowMetaItem {
   display: inline-flex;
@@ -956,6 +1067,8 @@
 }
 
 
+/* The phone shape: one line, scrolled sideways if it has to be. The
+   desktop rule below turns this into a column. */
 .rowActions {
   display: flex;
   align-items: center;
@@ -965,6 +1078,34 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   padding: 2px 0;
+}
+
+/* ── The wide-screen card ─────────────────────────────────────────
+   A grid rather than a flex row, so the actions can sit in the text
+   column directly under the location while the poster spans both rows
+   beside them. The alternative — wrapping a flex row — puts the actions
+   below the poster instead of next to it, and makes the card 50px
+   taller for no gain.
+
+     ┌────────┬───────────────────────────┬───┐
+     │        │ title  [status]           │   │
+     │ poster │ date · divisions          │ ∨ │
+     │        │ location                  │   │
+     │        ├───────────────────────────┤   │
+     │        │ setup bracket …           │   │
+     └────────┴───────────────────────────┴───┘ */
+@media (min-width: 641px) {
+  .rowMain {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: start;
+    gap: 10px 14px;
+  }
+  .rowThumb { grid-column: 1; grid-row: 1 / span 2; }
+  .rowInfo { grid-column: 2; grid-row: 1; }
+  .rowActions { grid-column: 2; grid-row: 2; overflow-x: visible; }
+  .rowChevron { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
 }
 .rowActions::-webkit-scrollbar {
   display: none;
@@ -1045,6 +1186,15 @@
   background: var(--sand-200, #EFEAE0);
   border-color: var(--sand-400, #DDD7CC);
 }
+
+/* Setup and Scorekeeper. Labelled pills wherever there is room; the phone
+   rules below strip the label and square them back to a 28px circle, so
+   all four actions still fit one line there. */
+.rowCollapsingBtn {
+  gap: 6px;
+  cursor: pointer;
+}
+.rowBtnLabel { display: inline; }
 
 .rowChevron {
   flex-shrink: 0;
@@ -1307,26 +1457,34 @@
 @media (max-width: 960px) {
   /* No rail here, so no gutter to reserve. */
   .page { flex-direction: column; padding-left: 0; padding-right: 0; }
+  .page { position: relative; }
   .sidebar {
     width: auto;
     height: auto;
-    position: fixed;
+    /* Down to the menu and the profile, the bar no longer needs a row of
+       its own — it sits in the page's top-right corner and the organizer's
+       name comes up beside it. Absolute rather than fixed: it still
+       scrolls away with the page, it just doesn't reserve a band across
+       the top for two controls. */
+    position: absolute;
     top: 0;
-    left: 0;
     right: 0;
+    left: auto;
     z-index: 1000;
-    background: rgba(255, 255, 255, 0.92);
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: space-between;
-    /* A plain bar across the top. It used to detach into a floating pill
-       on scroll — margins in, corners to 999px, a shadow underneath —
-       and shrink again on the way down. All of that is gone: the bar is
-       flush, square and the same size wherever the page is scrolled to,
-       so nothing about it moves while you read. */
+    /* A plain bar across the top. It used to be pinned there, and before
+       that it detached into a floating pill on scroll — margins in,
+       corners to 999px, a shadow underneath. All of that is gone: the
+       bar is flush, square, and scrolls off with the page, so nothing
+       about it moves or covers content while you read. */
     margin: 0;
-    padding: 12px 14px;
+    /* Top inset matches .main's, and .navProfile below drops its own
+       padding, so the avatar's top edge lands level with the eyebrow
+       that now starts the page beside it. */
+    padding: 16px 14px 12px;
     gap: 8px;
     box-shadow: none;
   }
@@ -1352,20 +1510,20 @@
   .brand { display: none; }
   .brandHome { display: none; }
 
-  .navTournaments { order: 1; }
-  .navNotifications { order: 2; }
-  .moreWrap {
-    display: flex;
-    order: 3;
-    /* Splits the bar — everything after this sits on the right. */
-    margin-left: auto;
-  }
-  .navProfile { order: 4; }
+  /* Menu, then profile. My Tournament and Notifications moved into the
+     menu, so there is nothing left to split the bar around. */
+  .moreWrap { display: flex; order: 1; }
+  .navProfile { order: 2; }
+  /* No padding of its own: the avatar is the tallest thing in the bar, so
+     letting it set the content box is what makes the top inset above land
+     on the avatar rather than 9px below it. Scoped through .sidebar to
+     outweigh the `.sideLink { padding: 9px 11px }` rule further down. */
+  .sidebar .navProfile { padding: 0; }
 
   .moreItemMobileOnly { display: block; }
 
-  /* The bar is pinned to the top here, so its menu drops down from the
-     trigger rather than rising off the screen edge. */
+  /* The bar sits at the top of the page here, so its menu drops down
+     from the trigger rather than rising off the screen edge. */
   .morePopup {
     top: calc(100% + 10px);
     bottom: auto;
@@ -1407,7 +1565,17 @@
     height: 44px;
     font-size: 18px;
   }
-  .main { padding: 80px 16px 40px; }
+  /* Was 80px of top padding to clear a bar pinned across the top. The
+     bar is a corner control now, so this is just page spacing — and the
+     header starts at the top of the page, level with the profile. */
+  .main { padding: 16px 16px 40px; }
+  /* Sits alongside the bar rather than under it: reserves the width the
+     menu and profile occupy, and matches their height so the New
+     Tournament button below still clears the corner. */
+  .headerIdentity {
+    padding-right: 116px;
+    min-height: 68px;
+  }
   .headerTitle { font-size: 20px; }
   .heroTitle { font-size: 18px; }
 }
@@ -1415,26 +1583,60 @@
 @media (max-width: 640px) {
   .header { flex-direction: column; align-items: stretch; }
   .header > :global(button) { width: 100%; justify-content: center; }
-  .heroContent { padding: 16px; }
+  .heroContent { padding: 14px 16px 12px; }
+  /* Schedule and Bracket share the width that is left; Setup and
+     Scorekeeper are fixed-size circles, so all four hold one line. */
+  .heroActions { flex-wrap: nowrap; }
   .heroActions a { flex: 1; justify-content: center; }
-  .rowMain { gap: 10px; padding: 10px 12px; flex-wrap: wrap; }
-  /* No poster on a phone. It is decorative — the span is aria-hidden and
-     carries either the cover image or an initials disc — and at this width
-     the title, location and division count are what the row is for. */
-  .rowThumb { display: none; }
+  .heroBtnLabel { display: none; }
+  /* Scoped through .heroActions so it outweighs the `.heroActions a`
+     rule above, which would otherwise stretch the Setup link. */
+  .heroActions .heroCollapsingBtn {
+    flex: none;
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .rowMain { gap: 12px; padding: 8px 12px 8px 8px; flex-wrap: wrap; }
+  /* The poster is back on a phone and is the biggest thing in the row.
+     It used to be hidden here as decoration, but at this size it is what
+     makes one tournament recognisable from another in a scrolled list —
+     the title alone all reads the same. */
+  .rowThumb {
+    display: inline-flex;
+    width: 88px;
+    height: 110px;
+  }
   .rowTitle {
-    font-size: 15px;
+    font-size: 18px;
     font-weight: 700;
     line-height: 1.25;
     letter-spacing: -0.01em;
     white-space: normal;
   }
-  /* Was `100% - 66px - 32px`: the 66px reserved the thumb and its gap,
-     the 32px is the row's own padding. With the thumb gone only the
-     padding comes off, or the text would stop short of the card edge. */
-  .rowInfo { flex-basis: calc(100% - 32px); }
-  .rowActions { order: 4; width: 100%; justify-content: flex-start; }
-  .rowChevron { order: 3; }
+  /* 88px of poster, the 12px gap beside it, and the row's own 20px of
+     padding all come off, so the text fills exactly the rest of the
+     first line and the actions wrap underneath. */
+  .rowInfo { flex-basis: calc(100% - 88px - 12px - 20px); }
+  /* Actions and the chevron share the line under the poster. The chevron
+     used to come first and the actions took the full width, which left it
+     stranded on a line of its own — a whole empty row per tournament. */
+  .rowActions { order: 3; flex: 1 1 auto; justify-content: flex-start; }
+  .rowChevron { order: 4; flex: none; }
+  /* No room for four labels on a phone, so Setup and Scorekeeper give
+     theirs up and go back to being circles. Their accessible names are on
+     the buttons themselves, so nothing is lost to a screen reader. */
+  .rowBtnLabel { display: none; }
+  .rowCollapsingBtn {
+    width: 28px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  /* Date and divisions still share a line here, just with less between
+     them than a wide card can afford. */
+  .rowMetaLine { gap: 4px 12px; }
   .divStatGrid { grid-template-columns: 1fr; }
   .filterTabs { display: none; }
   /* 70/30 across the row, halves of the 10px gap coming off each side.

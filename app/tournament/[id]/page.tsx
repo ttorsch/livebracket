@@ -106,8 +106,8 @@ function buildStandings(division: DetailDivision): StandingRow[] {
       // Only a finished match has told us anything.
       if (m.status !== 'done' || !m.teamAId || !m.teamBId || !m.winner) continue;
 
-      const a = row(m.teamAId, m.teamAName ?? m.teamA.map(p => p.name).join('/'));
-      const b = row(m.teamBId, m.teamBName ?? m.teamB.map(p => p.name).join('/'));
+      const a = row(m.teamAId, m.teamAName ?? (m.teamA.length ? m.teamA.map(p => p.name).join(' / ') : 'TBD'));
+      const b = row(m.teamBId, m.teamBName ?? (m.teamB.length ? m.teamB.map(p => p.name).join(' / ') : 'TBD'));
 
       const setsA = m.scoreA ?? [];
       const setsB = m.scoreB ?? [];
@@ -890,7 +890,7 @@ export default function TournamentPage() {
             <div className={styles.tableCard}>
               <div className={styles.tableHead}>
                 <span>#</span>
-                <span>Team</span>
+                <span>Players</span>
                 <span className={styles.center}>W–L</span>
                 <span className={styles.center}>Sets</span>
                 <span className={styles.right}>Points</span>
