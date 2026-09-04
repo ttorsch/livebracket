@@ -11,45 +11,37 @@
   background: #F5F1EA;
 }
 
-/* ── Floating back button (matches setup page) ─────────────── */
-.backLink {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 100;
+/* ── Inline header back button ────────────────────────────────────
+   Minimal icon button sitting inline to the left of the eyebrow & title. */
+.headerBackBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.6));
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px -6px rgba(20, 31, 46, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  color: var(--ink-900);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-1, #14181E);
+  cursor: pointer;
+  flex-shrink: 0;
   text-decoration: none;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s, background 0.15s;
+  transition: background 150ms ease, transform 100ms ease;
 }
-.backLink:hover {
-  background: #fff;
+.headerBackBtn:hover {
+  background: var(--sand-200, #EFEAE0);
 }
-.backLinkHidden {
-  transform: translateY(-76px);
-  opacity: 0;
-  pointer-events: none;
+.headerBackBtn:active {
+  transform: scale(0.95);
 }
 
 /* ── Responsive visibility toggles ─────────────────────────── */
 .mobileOnly { display: none; }
 .desktopOnly { display: block; }
-.mobileBackBtn { display: none; }
 
 @media (max-width: 960px) {
   .desktopOnly { display: none; }
   .mobileOnly { display: block; }
-  .backLink { display: none; }
 
   .headerContainer {
     padding: 0 16px !important;
@@ -70,18 +62,6 @@
     font-size: 22px;
     margin-bottom: 0;
     color: var(--ink-1, #14181E);
-  }
-  .mobileBackBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(20, 31, 46, 0.06);
-    color: var(--ink-900, #14181E);
-    flex-shrink: 0;
-    text-decoration: none;
   }
   .mobileDivisionTabs {
     display: flex;
@@ -165,8 +145,9 @@
 .setupHeaderRow {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 12px;
+  padding-top: 16px;
+  margin-bottom: 16px;
 }
 .setupEyebrow {
   font-family: var(--font-ui, 'Inter', sans-serif);
@@ -362,14 +343,15 @@
 .setupLinkBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-family: var(--font-heading);
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--ink-800, #2C3442);
   background: #FFFFFF;
   border: 1px solid rgba(20, 24, 30, 0.09);
-  padding: 9px 18px;
+  height: 30px;
+  padding: 0 12px;
   border-radius: 999px;
   box-shadow: 0 1px 3px rgba(20, 24, 30, 0.04);
   transition: all 0.15s ease;
@@ -506,11 +488,11 @@
   position: relative;
   background: transparent;
   border: none;
-  padding: 8px 12px 10px;
+  padding: 6px 10px 8px;
   cursor: pointer;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 12.5px;
   color: var(--ink-500, #7A8294);
   transition: color 0.15s ease;
   white-space: nowrap;
@@ -1181,15 +1163,16 @@
 .lockBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
   border-radius: 999px;
   border: 1px solid var(--sand-400);
   background: var(--surface-card);
   color: var(--ink-700);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
@@ -1200,15 +1183,16 @@
 .lockBtnActive {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
   border-radius: 999px;
   border: 1px solid rgba(238, 122, 76, 0.4);
   background: rgba(238, 122, 76, 0.12);
   color: var(--orange, #EE7A4C);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -1591,8 +1575,8 @@
      rail is all the row can carry at this width. */
   .scheduleLinkBtn,
   .setupLinkBtn {
-    width: 38px;
-    height: 38px;
+    width: 30px;
+    height: 30px;
     padding: 0;
     border-radius: 50%;
     display: inline-flex;
@@ -1775,8 +1759,9 @@
   }
   .lockBtn,
   .lockBtnActive {
-    padding: 6px 12px;
-    font-size: 11.5px;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 11px;
     white-space: nowrap;
     flex-shrink: 0;
   }

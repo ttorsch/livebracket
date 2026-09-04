@@ -841,19 +841,7 @@ export default function OrganizerSetup() {
 
 
 
-  // Floating back button: hides on scroll down, reappears on scroll up.
-  const [backHidden, setBackHidden] = useState(false);
-  useEffect(() => {
-    let lastY = window.scrollY;
-    const onScroll = () => {
-      const y = window.scrollY;
-      if (y > lastY && y > 80) setBackHidden(true);
-      else if (y < lastY) setBackHidden(false);
-      lastY = y;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+
 
   const [rules, setRules] = useState('Standard FIVB Beach Volleyball rules apply. Matches are best of 3 sets to 21 points (third set to 15 if needed). Warm-ups are strictly limited to 5 minutes.');
   const [venueInfo, setVenueInfo] = useState('Memories Beach, Khao Lak. Food and drinks are available at the beach club. Free parking is available for players.');
@@ -1970,23 +1958,18 @@ export default function OrganizerSetup() {
 
   return (
     <div className={styles.page}>
-      <Link
-        href="/dashboard"
-        className={`${styles.backLink} ${backHidden ? styles.backLinkHidden : ''}`}
-        aria-label="Back to Dashboard"
-      >
-        <ArrowLeft size={18} />
-      </Link>
-
       <main className={styles.main}>
         <div className={styles.container}>
           {/* ── Mobile View (Header & Event Card) ──────────── */}
           <div className={styles.mobileOnly}>
             <div className={styles.headerArea}>
-              <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
+              <Link href="/dashboard" className={styles.headerBackBtn} aria-label="Back to Dashboard">
                 <ArrowLeft size={18} />
               </Link>
-              <h1 className={styles.title}>Tournament Setup</h1>
+              <div>
+                <p className={styles.setupEyebrow}>Organizer</p>
+                <h1 className={styles.title}>Tournament Setup</h1>
+              </div>
             </div>
             {/* No cover here. On a phone the card's job is the title, the
                 dates and the status — the poster took a quarter of the row
@@ -2037,6 +2020,9 @@ export default function OrganizerSetup() {
           <div className={styles.desktopOnly}>
             {/* 1A header: eyebrow + title on the left */}
             <div className={styles.setupHeaderRow}>
+              <Link href="/dashboard" className={styles.headerBackBtn} aria-label="Back to Dashboard">
+                <ArrowLeft size={18} />
+              </Link>
               <div>
                 <p className={styles.setupEyebrow}>Organizer</p>
                 <h1 className={styles.desktop2aTitle}>Tournament Setup</h1>
@@ -2093,8 +2079,8 @@ export default function OrganizerSetup() {
                     <>
                       <Button
                         variant="primary"
-                        size="medium"
-                        iconLeft={<Pencil size={15} />}
+                        size="small"
+                        iconLeft={<Pencil size={14} />}
                         onClick={openBasicInfoEdit}
                         fullWidth
                       >
@@ -2102,8 +2088,8 @@ export default function OrganizerSetup() {
                       </Button>
                       <Button
                         variant="general"
-                        size="medium"
-                        iconLeft={liveLinkCopied ? <Check size={15} /> : <Link2 size={15} />}
+                        size="small"
+                        iconLeft={liveLinkCopied ? <Check size={14} /> : <Link2 size={14} />}
                         onClick={copyLiveLink}
                         fullWidth
                       >
@@ -2114,8 +2100,8 @@ export default function OrganizerSetup() {
                     <>
                       <Button
                         variant="primary"
-                        size="medium"
-                        iconLeft={<Globe size={15} />}
+                        size="small"
+                        iconLeft={<Globe size={14} />}
                         onClick={() => setShowPublishModal(true)}
                         fullWidth
                       >
@@ -2123,8 +2109,8 @@ export default function OrganizerSetup() {
                       </Button>
                       <Button
                         variant="general"
-                        size="medium"
-                        iconLeft={<Pencil size={15} />}
+                        size="small"
+                        iconLeft={<Pencil size={14} />}
                         onClick={openBasicInfoEdit}
                         fullWidth
                       >

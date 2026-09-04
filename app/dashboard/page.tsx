@@ -643,7 +643,8 @@ export default function OrganizerDashboard() {
           </div>
           <Button
             variant="primary"
-            iconLeft={<Plus size={18} />}
+            size="small"
+            iconLeft={<Plus size={15} />}
             onClick={() => setCreateOpen(true)}
             className={styles.newTournamentBtn}
           >
@@ -688,7 +689,7 @@ export default function OrganizerDashboard() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <BracketIcon size={16} /> Open Bracket
+                          <BracketIcon size={14} /> Open Bracket
                           <span className={styles.srOnly}>(opens in a new tab)</span>
                         </Link>
                         <Link
@@ -697,11 +698,11 @@ export default function OrganizerDashboard() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Calendar size={16} /> Schedule
+                          <Calendar size={14} /> Schedule
                           <span className={styles.srOnly}>(opens in a new tab)</span>
                         </Link>
                         <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
-                          <Settings size={16} /> Manage Setup
+                          <Settings size={14} /> Manage Setup
                         </Link>
                       </div>
                     </div>
@@ -1016,10 +1017,10 @@ function CourtQrCard({ slug }: { slug: string }) {
             onClick={() => setOpen(v => !v)}
             aria-expanded={open}
             aria-label={open ? 'Collapse scorekeeper QR' : 'Expand scorekeeper QR'}
-            style={{ width: 36, height: 36, padding: 0 }}
+            style={{ width: 30, height: 30, padding: 0 }}
           >
             <span className={`${styles.courtQrChevron} ${open ? styles.courtQrChevronOpen : ''}`}>
-              <ChevronDown size={18} />
+              <ChevronDown size={15} />
             </span>
           </Button>
         </div>
@@ -1131,12 +1132,12 @@ function TournamentRow({
         <span className={styles.rowActions} onClick={e => e.stopPropagation()}>
           {isArchived ? (
             <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>
-              <Settings size={15} /> Manage
+              <Settings size={13} /> Manage
             </Link>
           ) : isDraft ? (
             <>
               <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.rowSetupBtn}>
-                <Settings size={15} /> Setup
+                <Settings size={13} /> Setup
               </Link>
               {onPublish && (
                 <button
@@ -1144,7 +1145,7 @@ function TournamentRow({
                   className={styles.rowPublishBtn}
                   onClick={() => onPublish(t)}
                 >
-                  <Globe size={15} /> Publish
+                  <Globe size={13} /> Publish
                 </button>
               )}
             </>
@@ -1157,17 +1158,17 @@ function TournamentRow({
                   title="Generate scorekeeper QR"
                   onClick={() => setQrOpen(qrOpen === t.id ? null : t.id)}
                 >
-                  <QrCode size={18} />
+                  <QrCode size={14} />
                 </button>
               )}
               <Link href={`/dashboard/tournament/${t.id}`} className={styles.rowBracketBtn}>
-                <BracketIcon size={15} /> Bracket
+                <BracketIcon size={13} /> Bracket
               </Link>
               <Link href={`/dashboard/tournament/${t.id}/schedule`} className={styles.rowBracketBtn}>
-                <Calendar size={15} /> Schedule
+                <Calendar size={13} /> Schedule
               </Link>
               <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.iconBtn} title="Manage setup" aria-label="Manage setup">
-                <Settings size={18} />
+                <Settings size={14} />
               </Link>
             </>
           )}

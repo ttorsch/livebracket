@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabaseAdmin';
 import { redis } from './redis';
 import { formatTeamName } from './teamName';
+import type { ScoringRules } from './setCompletion';
 
 /* ── Live score state ─────────────────────────────────────────────
  *
@@ -52,13 +53,10 @@ export interface LiveScore {
   updatedAt: number;                 // epoch ms
 }
 
-export interface ScoringRules {
-  setsBestOf: number;
-  pointsPerSet: number;
-  winBy2: boolean;
-  hardCap: number;
-  decidingSetPoints: number;
-}
+/* The rule shape and the "is this set over?" question live in
+ * ./setCompletion, which stays free of Supabase and Redis so the referee's
+ * client screen can import the same rule this server module resolves. */
+export type { ScoringRules };
 
 const DEFAULT_RULES: ScoringRules = {
   setsBestOf: 3,

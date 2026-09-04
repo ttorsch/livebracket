@@ -257,7 +257,7 @@
   color: var(--text-muted);
 }
 
-/* ── Centre column: set history + end set/match ───────────────── */
+/* ── Centre column: set history + change of ends ──────────────── */
 .centerCol {
   width: 126px;
   flex: none;
@@ -271,7 +271,7 @@
   .centerCol { width: 176px; }
   .setsLabel { font-size: 10px; }
   .setRowScore { font-size: 18px; }
-  .endBtn { height: 38px; font-size: 13px; }
+  .swapBtn { height: 38px; font-size: 13px; }
 }
 .setsCard {
   flex: 1;
@@ -320,12 +320,16 @@
 .setScoreDone { color: var(--text-muted); }
 .setScoreWon { color: var(--color-primary); }
 
-.endBtn {
+/* Change of ends. Sets and matches close themselves on the division's rules,
+   so this is the only thing left on the board that the referee — and only the
+   referee — has to tell the screen about. */
+.swapBtn {
   flex: none;
   height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   border: none;
   border-radius: var(--radius-pill);
   background: var(--color-primary-soft);
@@ -338,19 +342,7 @@
   padding: 0 8px;
   text-align: center;
 }
-.endBtn:active { transform: scale(0.96); }
-.endBtn:disabled {
-  background: var(--sand-200);
-  color: var(--text-muted);
-  cursor: default;
-  transform: none;
-}
-/* The match-winning action earns the solid fill — it's the one button on
-   this screen that writes to the bracket. */
-.endMatchBtn {
-  background: var(--color-primary);
-  color: #fff;
-}
+.swapBtn:active { transform: scale(0.96); }
 
 /* ── Bottom bar: timeouts ─────────────────────────────────────── */
 .bottomBar {
@@ -493,6 +485,14 @@
   text-align: center;
   min-width: 320px;
   max-width: 100%;
+}
+.finalizeKicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--coral-700);
+  margin: 0 0 6px;
 }
 .finalizeTitle {
   font-family: var(--font-display);

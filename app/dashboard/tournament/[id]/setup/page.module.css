@@ -13,42 +13,37 @@
   padding: 0 24px;
 }
 
-/* ── Floating back button ─────────────────────────────────────────
-   Black arrow on a glass circle, fixed to the top-left of the screen.
-   Acts like a navbar: hides on scroll down, returns on scroll up. */
-.backLink {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 100;
+/* ── Inline header back button ────────────────────────────────────
+   Minimal icon button sitting inline to the left of the eyebrow & title. */
+.headerBackBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.6));
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px -6px rgba(20, 31, 46, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
   color: var(--ink-1, #14181E);
+  cursor: pointer;
+  flex-shrink: 0;
   text-decoration: none;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s, background 0.15s;
+  transition: background 150ms ease, transform 100ms ease;
 }
-.backLink:hover {
-  background: #fff;
+.headerBackBtn:hover {
+  background: var(--sand-200, #EFEAE0);
 }
-.backLinkHidden {
-  transform: translateY(-76px);
-  opacity: 0;
-  pointer-events: none;
+.headerBackBtn:active {
+  transform: scale(0.95);
 }
 
 /* ── Header ───────────────────────────────────────────────────── */
 .headerArea {
-  padding-top: 76px;
-  margin-bottom: 18px;
+  padding-top: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .title {
   font-family: var(--font-heading);
@@ -260,15 +255,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 11px;
-  border-radius: 10px;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
   background: transparent;
   color: var(--orange, #EE7A4C);
   border: 1.5px dashed var(--orange, #EE7A4C);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -540,15 +536,16 @@
 .btnActionPrimary {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
   background: var(--orange, #EE7A4C);
   color: #fff;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -816,17 +813,18 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 14px;
+  height: 32px;
+  padding: 0 14px;
   background: var(--ink-1, #14181E);
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-weight: 800;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 12px;
   cursor: pointer;
-  margin-top: 16px;
-  box-shadow: 0 10px 24px -10px rgba(20, 31, 46, 0.4);
+  margin-top: 14px;
+  box-shadow: 0 4px 12px -4px rgba(20, 31, 46, 0.3);
   transition: opacity 0.15s;
 }
 .btnGenerateSchedule:hover {
@@ -1189,15 +1187,16 @@
 .btnGhost {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
   background: transparent;
   color: var(--ink-2, #3A414D);
-  border: 1.5px solid rgba(20, 31, 46, 0.14);
-  border-radius: 10px;
+  border: 1px solid rgba(20, 31, 46, 0.14);
+  border-radius: 6px;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 11.5px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -2487,12 +2486,13 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 12px;
+  height: 26px;
+  padding: 0 10px;
   border-radius: var(--radius-pill, 999px);
   background: var(--coral-500, #EB6F43);
   color: #fff;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   border: none;
   cursor: pointer;
@@ -2507,13 +2507,10 @@
    that's swapped for a dense, single-column mobile-native view. */
 .desktopOnly { display: block; }
 .mobileOnly { display: none; }
-.mobileBackBtn { display: none; }
 
 @media (max-width: 680px) {
   .desktopOnly { display: none; }
   .mobileOnly { display: block; }
-
-  .backLink { display: none; }
 
   .headerArea {
     padding-top: 20px;
@@ -2525,17 +2522,6 @@
   .title {
     font-size: 22px;
     margin-bottom: 0;
-  }
-  .mobileBackBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(20, 31, 46, 0.06);
-    color: var(--ink-1, #14181E);
-    flex-shrink: 0;
   }
   .container {
     padding: 0 16px;
@@ -2959,17 +2945,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
   background: #FFFFFF;
   color: var(--ink-900, #14181E);
   box-shadow: 0 1px 3px rgba(20, 31, 46, 0.04);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 1;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -3234,11 +3221,10 @@
 
 .setupHeaderRow {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
+  align-items: center;
+  gap: 12px;
   padding-top: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 .setupEyebrow {
   margin: 0 0 4px;
@@ -3636,11 +3622,12 @@
   border: none;
   background: var(--ink-1, #14181E);
   color: #fff;
-  padding: 7px 14px;
+  height: 26px;
+  padding: 0 10px;
   border-radius: 999px;
   cursor: pointer;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -3658,10 +3645,11 @@
   border: 1px solid var(--sand-300, #E7E2D9);
   background: #fff;
   cursor: pointer;
-  padding: 6px 12px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--ink-1, #14181E);
   margin-right: 6px;

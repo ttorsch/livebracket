@@ -353,8 +353,6 @@ export default function OrganizerBracketPage() {
     setDropdownOpen(false);
   }, [activeDiv]);
 
-  const [backHidden, setBackHidden] = useState(false);
-  const lastScrollY = useRef(0);
   const drawResultRef = useRef<HTMLDivElement | null>(null);
 
   const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
@@ -371,16 +369,6 @@ export default function OrganizerBracketPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [slug]);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      setBackHidden(y > 80 && y > lastScrollY.current);
-      lastScrollY.current = y;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
 
   const load = useCallback(async (preferDiv?: string) => {
     const data = await getTournamentDetail(slug);
@@ -1039,23 +1027,18 @@ export default function OrganizerBracketPage() {
 
   return (
     <div className={styles.page}>
-      <Link
-        href="/dashboard"
-        className={`${styles.backLink} ${backHidden ? styles.backLinkHidden : ''}`}
-        aria-label="Back to Dashboard"
-      >
-        <ArrowLeft size={18} />
-      </Link>
-
       {/* ── Top Header & Tournament Header Card ──────────────────── */}
       <div className={styles.headerContainer}>
         {/* Mobile View (Header & Event Card) */}
         <div className={styles.mobileOnly}>
           <div className={styles.headerArea}>
-            <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
+            <Link href="/dashboard" className={styles.headerBackBtn} aria-label="Back to Dashboard">
               <ArrowLeft size={18} />
             </Link>
-            <h1 className={styles.title}>Bracket Generator</h1>
+            <div>
+              <p className={styles.setupEyebrow}>Organizer</p>
+              <h1 className={styles.title}>Bracket Generator</h1>
+            </div>
           </div>
           <div className={styles.mobileEventCard}>
             <div className={styles.mobileEventBody}>
@@ -1080,8 +1063,11 @@ export default function OrganizerBracketPage() {
         {/* Desktop View (Header, Card, Division Cards) */}
         <div className={styles.desktopOnly}>
           <div className={styles.setupHeaderRow}>
+            <Link href="/dashboard" className={styles.headerBackBtn} aria-label="Back to Dashboard">
+              <ArrowLeft size={18} />
+            </Link>
             <div>
-              <p className={styles.setupEyebrow}>ORGANIZER</p>
+              <p className={styles.setupEyebrow}>Organizer</p>
               <h1 className={styles.desktop2aTitle}>Bracket Generator</h1>
             </div>
           </div>
@@ -1410,7 +1396,8 @@ export default function OrganizerBracketPage() {
                   </div>
                   <Button
                     variant="primary"
-                    size="medium"
+                    size="small"
+                    style={{ height: 32, fontSize: 12 }}
                     onClick={() => {
                       if (pendingSeed) {
                         addSeed(pendingSeed);
@@ -1490,12 +1477,12 @@ export default function OrganizerBracketPage() {
                 <div className={styles.drawBtnWrap}>
                   <Button
                     variant="primary"
-                    size="medium"
+                    size="small"
                     fullWidth
                     loading={saving}
                     disabled={confirmedTeams.length < 2}
                     onClick={() => saveDraw()}
-                    style={{ height: 60, fontSize: 16 }}
+                    style={{ height: 32, fontSize: 12.5 }}
                   >
                     Draw Pool
                   </Button>
@@ -1787,11 +1774,11 @@ export default function OrganizerBracketPage() {
                         <div className={styles.drawBtnWrap} style={{ marginTop: 12 }}>
                           <Button
                             variant="secondary"
-                            size="medium"
+                            size="small"
                             fullWidth
                             loading={applyingThird}
                             onClick={() => applyThirdPlace()}
-                            style={{ height: 44, borderRadius: 999 }}
+                            style={{ height: 30, fontSize: 12, borderRadius: 999 }}
                           >
                             {config.thirdPlace ? 'Add 3rd-place play-off' : 'Remove 3rd-place play-off'}
                           </Button>
@@ -1805,12 +1792,12 @@ export default function OrganizerBracketPage() {
                       <div className={styles.drawBtnWrap}>
                         <Button
                           variant="primary"
-                          size="medium"
+                          size="small"
                           fullWidth
                           loading={saving}
                           disabled={confirmedTeams.length < 2}
                           onClick={() => saveDraw()}
-                          style={{ height: 60, fontSize: 16 }}
+                          style={{ height: 32, fontSize: 12.5 }}
                         >
                           {saving ? 'Drawing Bracket…' : bracket?.fromDb ? 'Re-Draw Bracket' : 'Draw Bracket'}
                         </Button>
@@ -1882,7 +1869,8 @@ export default function OrganizerBracketPage() {
                         </div>
                         <Button
                           variant="primary"
-                          size="medium"
+                          size="small"
+                          style={{ height: 32, fontSize: 12 }}
                           onClick={() => {
                             if (pendingSeed) {
                               addSeed(pendingSeed);
@@ -1987,11 +1975,11 @@ export default function OrganizerBracketPage() {
                         <div className={styles.drawBtnWrap} style={{ marginTop: 4 }}>
                           <Button
                             variant="primary"
-                            size="medium"
+                            size="small"
                             fullWidth
                             loading={applying}
                             onClick={() => applyCrossing()}
-                            style={{ height: 48, borderRadius: 999 }}
+                            style={{ height: 32, fontSize: 12.5, borderRadius: 999 }}
                           >
                             Apply Crossing Config
                           </Button>

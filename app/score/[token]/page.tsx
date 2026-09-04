@@ -3,19 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ArrowLeftRight } from 'lucide-react';
 import styles from './page.module.css';
 import { elapsedSeconds, formatClock } from '../../../lib/matchClock';
+import { isSetComplete, setTarget, type ScoringRules } from '../../../lib/setCompletion';
 
 interface SetScore { a: number; b: number }
-
-interface ScoringRules {
-  setsBestOf: number;
-  pointsPerSet: number;
-  winBy2: boolean;
-  hardCap: number;
-  decidingSetPoints: number;
-}
 
 interface ScorekeeperMatch {
   matchId: string;
@@ -42,6 +35,18 @@ interface ScorekeeperMatch {
 const TIMEOUTS_PER_SET = 2;
 const TIMEOUT_SECONDS = 30;
 const TECH_TIMEOUT_SECONDS = 60;
+/* FIVB Official Beach Volleyball Rules 18.1: the interval between sets is
+ * one minute, and the change of ends happens inside it. (Indoor allows
+ * three — this app is beach, so 60s.) */
+const SET_INTERVAL_SECONDS = 60;
+
+/* How many sets win the match at this format: two for a best-of-three,
+ * three for a best-of-five. */
+const setsToWinAt = (bestOf: number) => Math.floor(bestOf / 2) + 1;
+const winsIn = (list: SetScore[]) => ({
+  a: list.filter(s => s.a > s.b).length,
+  b: list.filter(s => s.b > s.a).length,
+});
 
 interface Overlay { kind: string; seconds: number }
 
@@ -72,6 +77,17 @@ export default function ScorekeeperPage() {
   const [timeouts, setTimeouts] = useState<[number, number]>([0, 0]);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
+
+  /* Which team is on the near side of the court. Display only — it never
+   * touches scoreA/scoreB or anything pushed to Redis, so swapping ends can
+   * never send the wrong team to the bracket. */
+  const [swapped, setSwapped] = useState(false);
+
+  /* The set-won prompt. The organizer's rules decide when a set is over, but
+   * banking it still takes a tap: at 20-19 a mis-tapped point would otherwise
+   * close the set on its own, and there'd be no way back. */
+  const [setPrompt, setSetPrompt] = useState<{ index: number; a: number; b: number } | null>(null);
+  const [promptDismissed, setPromptDismissed] = useState(false);
 
   // Load the match this token unlocks, and resume any score already in flight
   // so a referee who closed the tab picks up exactly where they left off.
@@ -179,17 +195,79 @@ export default function ScorekeeperPage() {
     pushLive(sets, scoreA, scoreB);
   }, [sets, scoreA, scoreB, match, confirmed, pushLive]);
 
-  const completeSet = () => {
-    if (scoreA === scoreB) return; // a drawn set can't be banked
-    setSets(prev => [...prev, { a: scoreA, b: scoreB }]);
-    setScoreA(0);
-    setScoreB(0);
-    setTimeouts([0, 0]); // timeouts replenish each set
-  };
-
   const openOverlay = (kind: string, seconds: number) => {
     setSecondsLeft(seconds);
     setOverlay({ kind, seconds });
+  };
+
+  /* Watch the live score against the division's rules and raise the prompt the
+   * moment the set is won. This is the whole point of the screen knowing the
+   * format: the referee scores, and the board is what remembers whether this
+   * division plays to 21, to 25, or short in the third. */
+  useEffect(() => {
+    if (!match || confirmed) return;
+    const index = sets.length;
+    if (!isSetComplete(scoreA, scoreB, index, match.rules)) {
+      /* Score moved back off a winning number — usually an undo. Re-arm, so
+       * reaching it again asks rather than staying silently dismissed. */
+      setPromptDismissed(false);
+      setSetPrompt(null);
+      return;
+    }
+    if (promptDismissed) return;
+    setSetPrompt({ index, a: scoreA, b: scoreB });
+  }, [match, confirmed, sets.length, scoreA, scoreB, promptDismissed]);
+
+  /* Once someone has the sets, ask for the result. No ref guards this against
+   * reopening, because the only two ways out both change `sets`: confirming
+   * ends the match, and backing out un-banks the deciding set. */
+  useEffect(() => {
+    if (!match || confirmed) return;
+    const needed = setsToWinAt(match.rules.setsBestOf);
+    const w = winsIn(sets);
+    if (w.a >= needed || w.b >= needed) setShowFinalize(true);
+  }, [match, confirmed, sets]);
+
+  /* Bank the won set and start the interval clock. */
+  const confirmSet = () => {
+    if (!match || !setPrompt) return;
+    const banked = [...sets, { a: setPrompt.a, b: setPrompt.b }];
+    setSets(banked);
+    setScoreA(0);
+    setScoreB(0);
+    setTimeouts([0, 0]); // timeouts replenish each set
+    setSetPrompt(null);
+    setPromptDismissed(false);
+
+    // A match-winning set hands over to the finalize dialog rather than
+    // sending the referee off for a rest that isn't coming.
+    const needed = setsToWinAt(match.rules.setsBestOf);
+    const w = winsIn(banked);
+    if (w.a < needed && w.b < needed) {
+      openOverlay(`Set ${banked.length} over — interval`, SET_INTERVAL_SECONDS);
+    }
+  };
+
+  /* "Back to score" on the set prompt: the set stays open and the board keeps
+   * the score it had, so a mis-tapped point can just be taken off. */
+  const dismissSetPrompt = () => {
+    setPromptDismissed(true);
+    setSetPrompt(null);
+  };
+
+  /* "Back to score" on the finalize dialog. The only reason to back out of the
+   * final confirmation is that the deciding set was wrong, so this puts that
+   * set back on the board rather than dropping the referee on a finished
+   * screen with nothing to press. */
+  const reopenLastSet = () => {
+    const last = sets[sets.length - 1];
+    if (!last) { setShowFinalize(false); return; }
+    setSets(sets.slice(0, -1));
+    setScoreA(last.a);
+    setScoreB(last.b);
+    setPromptDismissed(true); // don't re-ask at the score they just backed out of
+    setShowFinalize(false);
+    setFinalizeError('');
   };
 
   const takeTimeout = (side: 0 | 1, teamName: string) => {
@@ -250,15 +328,21 @@ export default function ScorekeeperPage() {
     );
   }
 
-  const wins = {
-    a: sets.filter(s => s.a > s.b).length,
-    b: sets.filter(s => s.b > s.a).length,
-  };
+  const wins = winsIn(sets);
   // "Two sets wins it" for a best-of-three; derived so a best-of-five
   // division needs three without a second code path.
-  const setsToWin = Math.floor(match.rules.setsBestOf / 2) + 1;
-  const currentSet = sets.length + 1;
+  const setsToWin = setsToWinAt(match.rules.setsBestOf);
   const matchOver = wins.a >= setsToWin || wins.b >= setsToWin;
+
+  /* Which team the referee sees on the left. Everything on the live board —
+   * panels, the sets column, the confirm dialogs — reads off these, so the
+   * screen matches the court after a change of ends. */
+  const leftTeam: 'A' | 'B' = swapped ? 'B' : 'A';
+  const rightTeam: 'A' | 'B' = swapped ? 'A' : 'B';
+  const teamOf = (t: 'A' | 'B') => (t === 'A' ? match.teamA : match.teamB);
+  const scoreOf = (t: 'A' | 'B') => (t === 'A' ? scoreA : scoreB);
+  const setsWonBy = (t: 'A' | 'B') => (t === 'A' ? wins.a : wins.b);
+  const inSet = (set: SetScore, t: 'A' | 'B') => (t === 'A' ? set.a : set.b);
 
   if (confirmed) {
     return (
@@ -306,15 +390,66 @@ export default function ScorekeeperPage() {
       if (done) return mine > theirs ? styles.setScoreWon : styles.setScoreDone;
       return isLive ? styles.setScoreLive : '';
     };
+    const cell = (t: 'A' | 'B') =>
+      done ? String(inSet(done, t)) : isLive ? String(scoreOf(t)) : '–';
     return {
       n: i + 1,
-      a: done ? String(done.a) : isLive ? String(scoreA) : '–',
-      b: done ? String(done.b) : isLive ? String(scoreB) : '–',
+      a: cell(leftTeam),
+      b: cell(rightTeam),
       isLive,
-      classA: scoreClass(done?.a ?? 0, done?.b ?? 0),
-      classB: scoreClass(done?.b ?? 0, done?.a ?? 0),
+      classA: scoreClass(done ? inSet(done, leftTeam) : 0, done ? inSet(done, rightTeam) : 0),
+      classB: scoreClass(done ? inSet(done, rightTeam) : 0, done ? inSet(done, leftTeam) : 0),
     };
   });
+
+  /* One team panel. Layout follows the side of the court it is drawn on, and
+   * the team follows the swap — so the minus strip and the name always sit on
+   * the outside edge whichever team is standing there. */
+  const teamPanel = (team: 'A' | 'B', side: 'left' | 'right') => {
+    const info = teamOf(team);
+    const score = scoreOf(team);
+    const toIndex = team === 'A' ? 0 : 1;
+    const right = side === 'right';
+    const dots = (
+      <div className={styles.toDots}>
+        {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
+          <span key={i} className={`${styles.toDot} ${i < timeouts[toIndex] ? styles.toDotUsed : ''}`} />
+        ))}
+      </div>
+    );
+    const name = (
+      <div className={`${styles.teamName} ${right ? styles.teamNameB : ''}`}>{info.name}</div>
+    );
+    const setsWon = <div className={styles.setsWon}>Sets {setsWonBy(team)}</div>;
+    const tap = (
+      <button
+        className={styles.scoreTap}
+        onClick={() => addPoint(team)}
+        aria-label={`Add a point to ${info.name}`}
+      >
+        <span className={styles.scoreNum}>{score}</span>
+      </button>
+    );
+    const minus = (
+      <button
+        className={`${styles.minusStrip} ${right ? styles.minusStripB : ''}`}
+        onClick={() => removePoint(team)}
+        disabled={score === 0}
+        aria-label={`Remove a point from ${info.name}`}
+      >
+        <span className={styles.minusGlyph} aria-hidden="true" />
+      </button>
+    );
+    return (
+      <div className={styles.teamPanel} key={team}>
+        <div className={`${styles.teamHead} ${right ? styles.teamHeadB : ''}`}>
+          {right ? <>{dots}{setsWon}{name}</> : <>{name}{setsWon}{dots}</>}
+        </div>
+        <div className={styles.scoreRow}>{right ? <>{minus}{tap}</> : <>{tap}{minus}</>}</div>
+        <div className={styles.tapHint}>Tap score to add a point</div>
+      </div>
+    );
+  };
 
   return (
     <div className={styles.page}>
@@ -349,38 +484,9 @@ export default function ScorekeeperPage() {
 
         {/* ── Board ────────────────────────────────────────────── */}
         <div className={styles.board}>
-          {/* Team A */}
-          <div className={styles.teamPanel}>
-            <div className={styles.teamHead}>
-              <div className={styles.teamName}>{match.teamA.name}</div>
-              <div className={styles.setsWon}>Sets {wins.a}</div>
-              <div className={styles.toDots}>
-                {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
-                  <span key={i} className={`${styles.toDot} ${i < timeouts[0] ? styles.toDotUsed : ''}`} />
-                ))}
-              </div>
-            </div>
-            <div className={styles.scoreRow}>
-              <button
-                className={styles.scoreTap}
-                onClick={() => addPoint('A')}
-                aria-label={`Add a point to ${match.teamA.name}`}
-              >
-                <span className={styles.scoreNum}>{scoreA}</span>
-              </button>
-              <button
-                className={styles.minusStrip}
-                onClick={() => removePoint('A')}
-                disabled={scoreA === 0}
-                aria-label={`Remove a point from ${match.teamA.name}`}
-              >
-                <span className={styles.minusGlyph} aria-hidden="true" />
-              </button>
-            </div>
-            <div className={styles.tapHint}>Tap score to add a point</div>
-          </div>
+          {teamPanel(leftTeam, 'left')}
 
-          {/* Sets + end set/match */}
+          {/* Sets + change of ends */}
           <div className={styles.centerCol}>
             <div className={styles.setsCard}>
               <div className={styles.setsLabel}>Sets</div>
@@ -393,50 +499,20 @@ export default function ScorekeeperPage() {
                 </div>
               ))}
             </div>
-            {matchOver ? (
-              <button
-                className={`${styles.endBtn} ${styles.endMatchBtn}`}
-                onClick={() => setShowFinalize(true)}
-              >
-                End match
-              </button>
-            ) : (
-              <button className={styles.endBtn} onClick={completeSet} disabled={scoreA === scoreB}>
-                {scoreA === scoreB ? 'Set is tied' : `End set ${currentSet}`}
-              </button>
-            )}
+            {/* Sets and matches end on the organizer's rules now, so the one
+                button here is the change of ends — the thing only the referee
+                on the court can know about. */}
+            <button
+              className={styles.swapBtn}
+              onClick={() => setSwapped(v => !v)}
+              aria-label="Swap which team is shown on each side of the court"
+            >
+              <ArrowLeftRight size={13} aria-hidden="true" />
+              Swap
+            </button>
           </div>
 
-          {/* Team B */}
-          <div className={styles.teamPanel}>
-            <div className={`${styles.teamHead} ${styles.teamHeadB}`}>
-              <div className={styles.toDots}>
-                {Array.from({ length: TIMEOUTS_PER_SET }, (_, i) => (
-                  <span key={i} className={`${styles.toDot} ${i < timeouts[1] ? styles.toDotUsed : ''}`} />
-                ))}
-              </div>
-              <div className={styles.setsWon}>Sets {wins.b}</div>
-              <div className={`${styles.teamName} ${styles.teamNameB}`}>{match.teamB.name}</div>
-            </div>
-            <div className={styles.scoreRow}>
-              <button
-                className={`${styles.minusStrip} ${styles.minusStripB}`}
-                onClick={() => removePoint('B')}
-                disabled={scoreB === 0}
-                aria-label={`Remove a point from ${match.teamB.name}`}
-              >
-                <span className={styles.minusGlyph} aria-hidden="true" />
-              </button>
-              <button
-                className={styles.scoreTap}
-                onClick={() => addPoint('B')}
-                aria-label={`Add a point to ${match.teamB.name}`}
-              >
-                <span className={styles.scoreNum}>{scoreB}</span>
-              </button>
-            </div>
-            <div className={styles.tapHint}>Tap score to add a point</div>
-          </div>
+          {teamPanel(rightTeam, 'right')}
         </div>
 
         {/* ── Timeouts ─────────────────────────────────────────── */}
@@ -477,19 +553,59 @@ export default function ScorekeeperPage() {
           </button>
         )}
 
+        {/* Set won. A plain div, not the dismiss-on-tap overlay above — a
+            stray tap during a rally must not decide a set either way. */}
+        {setPrompt && !showFinalize && (
+          <div className={styles.confirmScrim}>
+            <div className={styles.finalizeCard}>
+              <p className={styles.finalizeKicker}>
+                Set {setPrompt.index + 1} · to {setTarget(setPrompt.index, match.rules)}
+                {match.rules.winBy2 ? ', win by 2' : ''}
+              </p>
+              <p className={styles.finalizeTitle}>
+                {(setPrompt.a > setPrompt.b ? match.teamA : match.teamB).name} wins the set
+              </p>
+              <div className={styles.finalizeResult}>
+                <span>{teamOf(leftTeam).name}</span>
+                <span className={styles.finalizeScore}>
+                  {leftTeam === 'A' ? setPrompt.a : setPrompt.b} – {rightTeam === 'A' ? setPrompt.a : setPrompt.b}
+                </span>
+                <span>{teamOf(rightTeam).name}</span>
+              </div>
+              <div className={styles.finalizeActions}>
+                <button className={styles.btnGhost} onClick={dismissSetPrompt}>
+                  Back to score
+                </button>
+                <button className={styles.btnPrimary} onClick={confirmSet}>
+                  Confirm set
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showFinalize && (
           <div className={styles.confirmScrim}>
             <div className={styles.finalizeCard}>
               <p className={styles.finalizeTitle}>Confirm final result?</p>
               <div className={styles.finalizeResult}>
-                <span>{match.teamA.name}</span>
-                <span className={styles.finalizeScore}>{wins.a} – {wins.b}</span>
-                <span>{match.teamB.name}</span>
+                <span>{teamOf(leftTeam).name}</span>
+                <span className={styles.finalizeScore}>
+                  {setsWonBy(leftTeam)} – {setsWonBy(rightTeam)}
+                </span>
+                <span>{teamOf(rightTeam).name}</span>
+              </div>
+              <div className={styles.setChipRow}>
+                {sets.map((set, i) => (
+                  <span key={i} className={styles.setChip}>
+                    Set {i + 1}: <strong>{inSet(set, leftTeam)}</strong> – <strong>{inSet(set, rightTeam)}</strong>
+                  </span>
+                ))}
               </div>
               {finalizeError && <p className={styles.finalizeError}>{finalizeError}</p>}
               <div className={styles.finalizeActions}>
-                <button className={styles.btnGhost} onClick={() => setShowFinalize(false)} disabled={finalizing}>
-                  Cancel
+                <button className={styles.btnGhost} onClick={reopenLastSet} disabled={finalizing}>
+                  Back to score
                 </button>
                 <button className={styles.btnPrimary} onClick={submitFinal} disabled={finalizing}>
                   {finalizing ? 'Submitting…' : 'Confirm & submit'}

@@ -1950,26 +1950,17 @@ export default function TournamentSchedulePage() {
       className={styles.page}
       style={chromeHeight ? ({ '--chrome-h': `${chromeHeight}px` } as CSSProperties) : undefined}
     >
-      {/* ── Fixed Back Link ───────────────────────────────────── */}
-      <Link href="/dashboard" className={styles.backLink} aria-label="Back to Dashboard">
-        <ArrowLeft size={18} />
-      </Link>
-
       {/* ── Header ────────────────────────────────────────────────
            Eyebrow and page title on left, Bracket action on right,
            then the event card with Generate Schedule and Print Schedule buttons. */}
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <div className={styles.headerTitleRow}>
-            {/* Phone-only twin of the fixed back link. The Bracket Generator
-                seats it inline beside the title instead of floating it over
-                the hero, which lets the header start at the top of the page
-                rather than reserving a band of padding to clear it. */}
-            <Link href="/dashboard" className={styles.mobileBackBtn} aria-label="Back to Dashboard">
+            <Link href="/dashboard" className={styles.headerBackBtn} aria-label="Back to Dashboard">
               <ArrowLeft size={18} />
             </Link>
             <div className={styles.headerTitleBlock}>
-              <p className={styles.headerEyebrow}>ORGANIZER</p>
+              <p className={styles.headerEyebrow}>Organizer</p>
               <h1 className={styles.heroTitle}>Schedule Generator</h1>
             </div>
           </div>
@@ -2005,26 +1996,26 @@ export default function TournamentSchedulePage() {
                   className={styles.heroPrimaryBtn}
                   onClick={() => setPanelOpen(true)}
                 >
-                  <Wand2 size={16} /> Generate Schedule
+                  <Wand2 size={14} /> Generate Schedule
                 </button>
                 <button
                   type="button"
                   className={`${styles.heroGhostBtn} ${styles.printBtn}`}
                   onClick={() => window.print()}
                 >
-                  <Printer size={16} /> Print Schedule
+                  <Printer size={14} /> Print Schedule
                 </button>
                 <Link
                   href={`/dashboard/tournament/${slug}`}
                   className={styles.heroGhostBtn}
                 >
-                  <BracketIcon size={16} /> Bracket
+                  <BracketIcon size={14} /> Bracket
                 </Link>
                 <Link
                   href={`/dashboard/tournament/${slug}/setup`}
                   className={styles.heroGhostBtn}
                 >
-                  <Settings size={16} /> Setup
+                  <Settings size={14} /> Setup
                 </Link>
               </div>
             </div>

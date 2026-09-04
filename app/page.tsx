@@ -666,10 +666,56 @@ function HeroAvatars({ players }: { players: HeroPlayer[] }) {
   );
 }
 
+/* ── The beats of a card swap ─────────────────────────────────────
+ *
+ * A court being replaced plays out in four, in this order: the outgoing
+ * card slides away, the incoming one appears as a miniature of itself at
+ * the top right of the slot and extends to full size, it holds a moment
+ * as a finished card, and only then does its score roll in. Slow enough
+ * to read as a sequence rather than a flicker.
+ *
+ * They live together because each beat starts where the last one ends —
+ * written out separately they would drift apart on the first edit, and
+ * the score's cue is the whole entrance having finished. */
+const CARD_EXIT_S = 0.3;
+const CARD_MORPH_S = 1.4;
+const SCORE_HOLD_S = 0.1;
+const SCORE_ROLL_DELAY_MS = (CARD_EXIT_S + CARD_MORPH_S + SCORE_HOLD_S) * 1000;
+/* Small enough to read as a card that hasn't grown yet rather than as a
+ * card sliding in — about 35px across, with its corners still rounded. */
+const CARD_SEED_SCALE = 0.12;
+
 /* One court, as the hero card draws it: what and when on the first line,
- * which division and round on the second, then the two teams. */
-function HeroScoreboard({ match }: { match: HeroLiveMatch }) {
+ * which division and round on the second, then the two teams.
+ *
+ * `rollDelayMs` is 0 for the cards already on screen when the page loads —
+ * they have no entrance to wait for, and a scoreboard that withheld its
+ * scores for the length of an entrance it never played would just
+ * look broken. */
+function HeroScoreboard({ match, rollDelayMs }: { match: HeroLiveMatch; rollDelayMs: number }) {
   const isLive = match.status === 'live';
+
+  /* The entrance replays the last point rather than just revealing the
+   * score. The card arrives reading what the board read a moment ago —
+   * 1–2 — holds there while it settles, and then the point lands: 2 rolls
+   * to 3, on its own. The other number doesn't move, because the digits
+   * animate on a *change* and that side's hasn't changed.
+   *
+   * lastScorer names the side that won the most recent point, so backing
+   * that side off by one is the score before it. Right after a set closes
+   * the running score is 0–0 while lastScorer still points at whoever won
+   * the set, and the clamp below leaves both sides alone — there is no
+   * point in this set to replay. */
+  const [rolled, setRolled] = useState(rollDelayMs === 0);
+  useEffect(() => {
+    if (rolled) return;
+    const t = setTimeout(() => setRolled(true), rollDelayMs);
+    return () => clearTimeout(t);
+  }, [rolled, rollDelayMs]);
+
+  const replaying = !rolled && isLive && match.lastScorer !== null;
+  const shownA = replaying && match.lastScorer === 'a' ? Math.max(0, match.pointsA - 1) : match.pointsA;
+  const shownB = replaying && match.lastScorer === 'b' ? Math.max(0, match.pointsB - 1) : match.pointsB;
   /* Same clock either way — the word in front of it is what says whether
    * the match has started. */
   const when = match.startTime
@@ -700,16 +746,18 @@ function HeroScoreboard({ match }: { match: HeroLiveMatch }) {
       <HeroScoreRow
         team={match.teamA}
         setPoints={match.sets.map((v) => v.a)}
-        points={match.pointsA}
+        points={shownA}
         live={isLive}
-        scored={isLive && match.lastScorer === 'a'}
+        /* The accent lands with the point, not before it — during the
+           replay neither side has won it yet. */
+        scored={rolled && isLive && match.lastScorer === 'a'}
       />
       <HeroScoreRow
         team={match.teamB}
         setPoints={match.sets.map((v) => v.b)}
-        points={match.pointsB}
+        points={shownB}
         live={isLive}
-        scored={isLive && match.lastScorer === 'b'}
+        scored={rolled && isLive && match.lastScorer === 'b'}
       />
     </div>
   );
@@ -921,6 +969,12 @@ export default function LiveBracketHome() {
    * render. */
   const heroSlotsRef = useRef<SlotState>(EMPTY_SLOTS);
   const [heroSlots, setHeroSlots] = useState<SlotState>(EMPTY_SLOTS);
+  /* How long a card mounting from here on should hold its score back. The
+   * first cards to fill an empty card don't morph in, so they don't wait —
+   * a scoreboard withholding its scores for the length of an entrance it
+   * never played would just look broken. Decided where the swap is
+   * decided, in the poll. */
+  const [heroRollDelayMs, setHeroRollDelayMs] = useState(0);
 
   // User Geolocation & Upcoming Banner
   const [userLoc, setUserLoc] = useState<string>('Khao Lak, Phang Nga, Thailand');
@@ -1067,10 +1121,12 @@ export default function LiveBracketHome() {
     const load = () => {
       fetchHeroLiveMatches().then((matches) => {
         if (cancelled) return;
-        setHeroMatches(matches);
+        const wasShowing = heroSlotsRef.current.ids.some(Boolean);
         const slots = nextSlots(heroSlotsRef.current, matches, Date.now());
         heroSlotsRef.current = slots;
+        setHeroMatches(matches);
         setHeroSlots(slots);
+        setHeroRollDelayMs(wasShowing ? SCORE_ROLL_DELAY_MS : 0);
         setHeroLoaded(true);
       });
     };
@@ -1541,7 +1597,7 @@ export default function LiveBracketHome() {
                     instant it starts leaving, so the card underneath
                     doesn't wait for the slide to finish before settling —
                     and the incoming card holds the slot's height from the
-                    first frame, while it is still only a dot. */}
+                    first frame, while it is still a miniature. */}
                 <div className={styles.scoreboardStack}>
                   {heroSlotMatches.map((m, slot) => (
                     /* The slot's AnimatePresence is mounted whether or not
@@ -1553,24 +1609,43 @@ export default function LiveBracketHome() {
                       {m && (
                         <motion.div
                           key={m.matchId}
+                          /* The anchor the miniature grows out of. Pinning
+                             the top-right corner is what makes it read as
+                             a card extending down and to the left, rather
+                             than one swelling from its middle. */
+                          style={{ transformOrigin: '100% 0%' }}
                           /* Out to the left, quickly — this is the card
-                             being replaced, not something to dwell on. */
-                          exit={{ x: '-115%', opacity: 0 }}
-                          /* In from a dot at the card's right edge, which
-                             then opens out into the whole scoreboard. Both
-                             radii are percentages so the browser can
-                             interpolate between them. */
-                          initial={{ clipPath: 'circle(2% at 94% 50%)' }}
-                          animate={{ clipPath: 'circle(150% at 94% 50%)' }}
+                             being replaced, not something to dwell on. Its
+                             own transition, so the entrance's delays below
+                             don't hold the exit up. */
+                          exit={{
+                            x: '-115%',
+                            opacity: 0,
+                            transition: { duration: CARD_EXIT_S, ease: [0.4, 0, 1, 1] },
+                          }}
+                          /* In as a miniature of the card at the top right
+                             of the slot, which then extends to full size.
+                             It holds the slot's height throughout: a
+                             transform costs the layout nothing, so nothing
+                             below it moves. */
+                          initial={{ scale: CARD_SEED_SCALE, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
                           transition={{
-                            x: { duration: 0.18, ease: [0.4, 0, 1, 1] },
-                            opacity: { duration: 0.18 },
-                            // Waits for the outgoing card to clear before
-                            // the dot opens.
-                            clipPath: { duration: 0.5, delay: 0.18, ease: [0.22, 1, 0.36, 1] },
+                            // Both wait for the outgoing card to clear.
+                            scale: {
+                              duration: CARD_MORPH_S,
+                              delay: CARD_EXIT_S,
+                              ease: [0.22, 1, 0.36, 1],
+                            },
+                            // Quick, so the miniature is a card arriving
+                            // rather than a shape fading up.
+                            opacity: { duration: 0.2, delay: CARD_EXIT_S },
                           }}
                         >
-                          <HeroScoreboard match={m} />
+                          <HeroScoreboard
+                            match={m}
+                            rollDelayMs={heroRollDelayMs}
+                          />
                         </motion.div>
                       )}
                     </AnimatePresence>

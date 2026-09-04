@@ -7,32 +7,28 @@
   font-family: var(--font-body, 'DM Sans', sans-serif);
 }
 
-/* ── Fixed Back Link ─────────────────────────────────────────── */
-.backLink {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 120;
-  display: flex;
+/* ── Inline header back button ────────────────────────────────────
+   Minimal icon button sitting inline to the left of the eyebrow & title. */
+.headerBackBtn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  /* Was white-on-ink for the dark hero; the header is sand now, so this
-     matches the Bracket Generator's light glass button. */
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.6));
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px) saturate(180%);
-  box-shadow: 0 8px 24px -6px rgba(20, 31, 46, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  color: var(--ink-900, #14181E);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-1, #14181E);
+  cursor: pointer;
+  flex-shrink: 0;
   text-decoration: none;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
+  transition: background 150ms ease, transform 100ms ease;
 }
-
-.backLink:hover {
-  transform: translateY(-2px);
-  background: #FFFFFF;
+.headerBackBtn:hover {
+  background: var(--sand-200, #EFEAE0);
+}
+.headerBackBtn:active {
+  transform: scale(0.95);
 }
 
 /* ── Header ──────────────────────────────────────────────────────
@@ -61,15 +57,9 @@
 
 .headerTitleRow {
   display: flex;
-  /* Centred, like the Bracket Generator's title row — the Bracket link on the
-     right is a pill, and baseline-aligning it to a 44px heading sat it low. */
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
 }
-
-/* The phone's back button. Hidden until the fixed one steps aside at 860px. */
-.mobileBackBtn { display: none; }
 
 /* Route links inside the event card — phone only, where the header's own
    Bracket action is hidden and Print Schedule stands aside for them. */
@@ -193,15 +183,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 999px;
   border: none;
   background: var(--coral-500, #EB6F43);
   color: #FFFFFF;
   font-family: inherit;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   text-decoration: none;
   transition: background 0.15s, transform 0.1s;
@@ -218,15 +209,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
   background: #FFFFFF;
   color: var(--ink-900, #14181E);
   font-family: inherit;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   text-decoration: none;
   box-shadow: 0 1px 3px rgba(20, 31, 46, 0.04);
@@ -308,15 +300,16 @@
 .viewToggleBtn {
   display: none;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex: 0 0 auto;
-  padding: 7px 14px;
+  height: 28px;
+  padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--sand-400, #DCD7CE);
   background: var(--surface-card, #FFFFFF);
   color: var(--ink-800, #2C323D);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -350,13 +343,13 @@
   vertical-align: -1px;
 }
 .segBtn {
-  padding: 7px 16px;
+  padding: 5px 12px;
   border-radius: 999px;
   border: none;
   background: transparent;
   color: var(--ink-600, #3A414D);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -2885,35 +2878,12 @@
 
 /* ── Tablet & below ──────────────────────────────────────────── */
 @media (max-width: 860px) {
-  /* The floating back button parks itself permanently on top of the first
-     filter tab once the sticky bar pins. The Bracket Generator's answer is to
-     drop it on a phone and seat an inline one beside the title instead, so
-     nothing overlaps and the hero needs no padding to clear it. */
   .page { position: relative; }
-  .backLink { display: none; }
-  .mobileBackBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(20, 31, 46, 0.06);
-    color: var(--ink-900, #14181E);
-    flex-shrink: 0;
-    text-decoration: none;
-  }
 
   .hero { padding: 20px 16px 24px; }
   .heroInner { gap: 16px; }
-  /* Back button, then title — one line, so it must not wrap. The row's
-     desktop space-between has nothing left to push apart once .headerActions
-     is hidden, and it stranded the title against the right edge. */
   .headerTitleRow { flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 12px; }
   .headerTitleBlock { min-width: 0; }
-  /* The eyebrow is a desktop label on the Bracket Generator too: on a phone
-     the title alone carries the page and the row stays one line tall. */
-  .headerEyebrow { display: none; }
   .heroTitle { font-size: 22px; margin-bottom: 0; }
 
   /* The compact event card: tighter radius and padding, and lifted off the
@@ -3313,8 +3283,7 @@
 
 /* ── Print Styles ────────────────────────────────────────────── */
 @media print {
-  .backLink,
-  .mobileBackBtn,
+  .headerBackBtn,
   .stickyBar,
   .genOverlay,
   .previewBar,
