@@ -1598,16 +1598,12 @@
     justify-content: center;
     border-radius: 50%;
   }
-  .rowMain { gap: 12px; padding: 8px 12px 8px 8px; flex-wrap: wrap; }
-  /* The poster is back on a phone and is the biggest thing in the row.
-     It used to be hidden here as decoration, but at this size it is what
-     makes one tournament recognisable from another in a scrolled list —
-     the title alone all reads the same. */
-  .rowThumb {
-    display: inline-flex;
-    width: 88px;
-    height: 110px;
-  }
+  .rowMain { gap: 12px; padding: 10px 12px; flex-wrap: wrap; }
+  /* No poster on a phone. It is decorative — the span is aria-hidden and
+     carries either the cover image or an initials disc — and at this
+     width the title, date, place and division count are what the row is
+     for. It was tried at 88x110 here and taken out again. */
+  .rowThumb { display: none; }
   .rowTitle {
     font-size: 18px;
     font-weight: 700;
@@ -1615,25 +1611,48 @@
     letter-spacing: -0.01em;
     white-space: normal;
   }
-  /* 88px of poster, the 12px gap beside it, and the row's own 20px of
-     padding all come off, so the text fills exactly the rest of the
-     first line and the actions wrap underneath. */
-  .rowInfo { flex-basis: calc(100% - 88px - 12px - 20px); }
-  /* Actions and the chevron share the line under the poster. The chevron
-     used to come first and the actions took the full width, which left it
-     stranded on a line of its own — a whole empty row per tournament. */
+  /* Only the row's own 24px of padding comes off now that there is no
+     poster beside it, or the text would stop short of the card edge. */
+  .rowInfo { flex-basis: calc(100% - 24px); }
+  .rowMain { align-items: flex-start; position: relative; }
+  /* Real air above the title and a little below it. */
+  .rowTitleLine { margin-top: 0; padding-top: 8px; padding-bottom: 6px; }
+  .rowInfo { gap: 7px; }
+  /* Actions and the chevron share the line under the poster, running the
+     full width of the card. Indenting them to the title's left edge was
+     tried and reverted: at that indent the four no longer fit one line,
+     and two rows of buttons cost more than the alignment was worth. */
   .rowActions { order: 3; flex: 1 1 auto; justify-content: flex-start; }
-  .rowChevron { order: 4; flex: none; }
-  /* No room for four labels on a phone, so Setup and Scorekeeper give
-     theirs up and go back to being circles. Their accessible names are on
-     the buttons themselves, so nothing is lost to a screen reader. */
-  .rowBtnLabel { display: none; }
+  /* Taken out of the wrapped line and pinned to the middle of the card's
+     right edge. In the flow it rode along with the actions, which are the
+     last line, so it sat level with the buttons at the bottom rather than
+     against the card it opens. */
+  .rowChevron {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  /* The centring translate has to be restated here or the open state's
+     rotate would replace it and drop the chevron half its height. */
+  .rowExpanded .rowChevron { transform: translateY(-50%) rotate(180deg); }
+  /* No room for four labels on a phone, so Scorekeeper alone gives its
+     up and goes back to being a circle. Its accessible name is on the
+     button itself, so nothing is lost to a screen reader. Scoped to that
+     button rather than applied to every label, which is what lets Setup
+     keep its own. */
+  .rowCollapsingBtn .rowBtnLabel { display: none; }
   .rowCollapsingBtn {
     width: 28px;
     padding: 0;
     justify-content: center;
     border-radius: 50%;
   }
+  /* The four are a tight fit once Setup is named, so the row trades a
+     couple of pixels of gap and padding for the label. */
+  .rowActions { gap: 6px; }
+  .rowSetupBtn,
+  .rowBracketBtn { padding: 0 9px; }
   /* Date and divisions still share a line here, just with less between
      them than a wide card can afford. */
   .rowMetaLine { gap: 4px 12px; }
@@ -1648,6 +1667,31 @@
   .searchRow { display: flex; align-items: center; gap: 10px; }
   .searchWrap { flex: 0 0 calc(70% - 5px); }
   .filterSelect { display: block; flex: 0 0 calc(30% - 5px); }
+
+  /* ── Search and filter, phone size ──────────────────────────────
+     Both were 48px tall with 17px text — the design system's touch
+     default, drawn for a control that is the point of the screen. Here
+     they sit above a list that is the point, so they come down to 40px
+     and 15px. The two are set together, and to the same numbers, so the
+     filter keeps reading as the search bar's other half.
+
+     !important on the search field because SearchField builds its box as
+     an inline style object, which a class cannot otherwise reach — the
+     same reason .newTournamentBtn needs it. */
+  .searchWrap > div {
+    height: 40px !important;
+    padding: 0 14px !important;
+    gap: 8px !important;
+  }
+  .searchWrap input { font-size: 15px !important; }
+  .searchWrap svg { width: 18px !important; height: 18px !important; }
+  .filterSelect {
+    height: 40px;
+    padding: 0 26px 0 12px;
+    font-size: 15px;
+    background-position: right 9px center;
+    background-size: 14px;
+  }
   .newTournamentBtn {
     border-radius: 16px !important;
     height: 56px !important;

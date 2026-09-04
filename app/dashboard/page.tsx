@@ -1116,13 +1116,13 @@ function TournamentRow({
           ) : (
             <>
               {/* Setup, Bracket, Schedule, Scorekeeper — a column on a wide
-                  screen, one line on a phone. The two secondary actions
-                  carry their label only where there is room for it; on a
-                  phone they collapse back to the round icon buttons they
-                  were, which is what keeps all four on a single line. */}
+                  screen, one line on a phone. Only Scorekeeper gives up its
+                  label there: it is the longest of the four and the one an
+                  organizer reaches for least, so dropping it alone buys
+                  the width the other three need to stay named. */}
               <Link
                 href={`/dashboard/tournament/${t.id}/setup`}
-                className={`${styles.rowSetupBtn} ${styles.rowCollapsingBtn}`}
+                className={styles.rowSetupBtn}
                 title="Manage setup"
                 aria-label="Setup"
               >
