@@ -31,7 +31,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 /* Push the current score. Every tap lands here, so it writes only to Redis. */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const body = (await request.json()) as { sets?: { a: number; b: number }[]; a?: number; b?: number };
+  const body = (await request.json()) as {
+    sets?: { a: number; b: number }[];
+    a?: number;
+    b?: number;
+    deviceId?: string;
+    claim?: boolean;
+  };
 
   let match;
   try {
@@ -44,6 +50,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
   if (match.status === 'done') {
     return NextResponse.json({ error: 'This match is already finalized.' }, { status: 409 });
+  }
+
+  /* One device scores a match at a time.
+   *
+   * Both screens push whole state rather than deltas — they have to, since a
+   * referee corrects a score as well as adds to it — so a second device
+   * pushing would not merge with the first, it would erase it. Rejecting the
+   * write is the only way that ends with every point still on the board.
+   *
+   * The rejection carries the live state back, so the caller can show the
+   * real score instead of whatever its own stale copy said. A device becomes
+   * the owner by claiming deliberately (`claim`), or simply by being first
+   * to score a match nobody has claimed yet. */
+  const deviceId = typeof body.deviceId === 'string' && body.deviceId.length <= 64
+    ? body.deviceId
+    : null;
+  const owner = match.live?.owner ?? null;
+  if (deviceId && owner && owner !== deviceId && !body.claim) {
+    return NextResponse.json(
+      { error: 'Another device is scoring this match.', live: match.live },
+      { status: 409 }
+    );
   }
 
   const sets = Array.isArray(body.sets) ? body.sets : [];
@@ -68,6 +96,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
      * one from here — its clock starts at zero rather than being wrong. */
     startedAt: match.live?.startedAt ?? Date.now(),
     updatedAt: Date.now(),
+    // A push that got this far is either from the owner or a claim.
+    owner: deviceId ?? owner,
   };
 
   try {

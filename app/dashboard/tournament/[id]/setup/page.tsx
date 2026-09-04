@@ -287,13 +287,14 @@ type TeamFilter = (typeof TEAM_FILTERS)[number];
  * from reaching the row behind it. */
 function TeamRow({
   team, index, waitlisted = false, busy,
-  onOpen, onTogglePayment, onPromote, onRemove,
+  onOpen, onEdit, onTogglePayment, onPromote, onRemove,
 }: {
   team: RegisteredTeamRow;
   index: number;
   waitlisted?: boolean;
   busy: boolean;
   onOpen: () => void;
+  onEdit: () => void;
   onTogglePayment?: () => void;
   onPromote?: () => void;
   onRemove: () => void;
@@ -337,6 +338,16 @@ function TeamRow({
         )}
       </td>
       <td className={styles.teamRowActions}>
+        <button
+          type="button"
+          className={styles.rowEditBtn}
+          onClick={stop(onEdit)}
+          disabled={busy}
+          aria-label={`Edit ${team.name}`}
+          title="Edit team details"
+        >
+          <Pencil size={14} />
+        </button>
         {onPromote && (
           <button
             type="button"
@@ -768,6 +779,21 @@ export default function OrganizerSetup() {
   // Full registration detail — index into registeredTeams so the modal can be
   // paged up/down through the whole list without closing.
   const [teamDetailIdx, setTeamDetailIdx] = useState<number | null>(null);
+
+  // Team editing inside the detail modal
+  const [isEditingTeam, setIsEditingTeam] = useState(false);
+  const [editTeamSeed, setEditTeamSeed] = useState<string>('');
+  const [editTeamPayment, setEditTeamPayment] = useState<boolean>(false);
+  const [editTeamStatus, setEditTeamStatus] = useState<'confirmed' | 'unpaid' | 'waitlist'>('confirmed');
+  const [editTeamPlayers, setEditTeamPlayers] = useState<Array<{
+    id: string;
+    name: string;
+    phone: string;
+    email: string;
+    shirtSize: string;
+  }>>([]);
+  const [teamEditSaving, setTeamEditSaving] = useState(false);
+  const [teamEditError, setTeamEditError] = useState('');
 
   // CSV import (template download + upload)
   const [showImportMenu, setShowImportMenu] = useState(false);
@@ -1798,16 +1824,87 @@ export default function OrganizerSetup() {
     };
   }, [swipedTeamId]);
 
+  const startEditTeam = (team: RegisteredTeamRow) => {
+    setEditTeamSeed(team.seed != null ? String(team.seed) : '');
+    setEditTeamPayment(team.paymentCleared);
+    setEditTeamStatus(team.status);
+    setEditTeamPlayers(
+      team.players.map(p => ({
+        id: p.id,
+        name: p.name || '',
+        phone: p.phone || '',
+        email: p.email || '',
+        shirtSize: p.shirtSize || '',
+      }))
+    );
+    setTeamEditError('');
+    setIsEditingTeam(true);
+  };
+
   const openTeamDetail = (team: RegisteredTeamRow) => {
     const idx = registeredTeams.findIndex(t => t.id === team.id);
-    if (idx >= 0) setTeamDetailIdx(idx);
+    if (idx >= 0) {
+      setIsEditingTeam(false);
+      setTeamEditError('');
+      setTeamDetailIdx(idx);
+    }
   };
+
+  const openTeamEdit = (team: RegisteredTeamRow) => {
+    const idx = registeredTeams.findIndex(t => t.id === team.id);
+    if (idx >= 0) {
+      setTeamDetailIdx(idx);
+      startEditTeam(team);
+    }
+  };
+
   const stepTeamDetail = (delta: number) => {
+    if (isEditingTeam) return;
     setTeamDetailIdx(prev => {
       if (prev == null) return prev;
       const next = prev + delta;
       return next >= 0 && next < registeredTeams.length ? next : prev;
     });
+  };
+
+  const handleSaveTeamEdit = async () => {
+    if (!teamDetail || !activeDivision) return;
+    if (!editTeamPlayers.some(p => p.name.trim())) {
+      setTeamEditError('At least one player name is required.');
+      return;
+    }
+
+    setTeamEditSaving(true);
+    setTeamEditError('');
+    try {
+      const res = await fetch(teamUrl(teamDetail.id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentCleared: editTeamPayment,
+          status: editTeamStatus,
+          seed: editTeamSeed.trim() ? Number(editTeamSeed) : null,
+          players: editTeamPlayers.map(p => ({
+            id: p.id,
+            name: p.name.trim(),
+            phone: p.phone.trim() || null,
+            email: p.email.trim() || null,
+            shirtSize: p.shirtSize.trim() || null,
+          })),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to update team details');
+
+      applyTeam(json.team);
+      refreshOverview();
+      setIsEditingTeam(false);
+    } catch (err) {
+      setTeamEditError(err instanceof Error ? err.message : 'Failed to update team details');
+    } finally {
+      setTeamEditSaving(false);
+    }
   };
 
   // Escape closes the cover lightbox, like every other overlay here.
@@ -2343,6 +2440,7 @@ export default function OrganizerSetup() {
                                     index={idx + 1}
                                     busy={rowBusy === t.id}
                                     onOpen={() => openTeamDetail(t)}
+                                    onEdit={() => openTeamEdit(t)}
                                     onTogglePayment={() => toggleTeamPayment(t)}
                                     onRemove={() => setConfirmRemove(t)}
                                   />
@@ -2370,6 +2468,7 @@ export default function OrganizerSetup() {
                                     waitlisted
                                     busy={rowBusy === t.id}
                                     onOpen={() => openTeamDetail(t)}
+                                    onEdit={() => openTeamEdit(t)}
                                     onPromote={() => promoteTeam(t)}
                                     onRemove={() => setConfirmRemove(t)}
                                   />
@@ -2734,6 +2833,16 @@ export default function OrganizerSetup() {
                                     <span className={styles.mobileTeamPhone}>{t.players[0].phone}</span>
                                   )}
                                 </span>
+                                <button
+                                  type="button"
+                                  className={styles.mobileRowEditBtn}
+                                  disabled={rowBusy === t.id}
+                                  onClick={e => { e.stopPropagation(); openTeamEdit(t); }}
+                                  aria-label={`Edit ${t.name}`}
+                                  title="Edit team details"
+                                >
+                                  <Pencil size={13} />
+                                </button>
                                 {/* 44px tap target, per the design's mobile frame. */}
                                 <button
                                   type="button"
@@ -2780,6 +2889,16 @@ export default function OrganizerSetup() {
                                         <span className={styles.mobileTeamPhone}>{t.players[0].phone}</span>
                                       )}
                                     </span>
+                                    <button
+                                      type="button"
+                                      className={styles.mobileRowEditBtn}
+                                      disabled={rowBusy === t.id}
+                                      onClick={e => { e.stopPropagation(); openTeamEdit(t); }}
+                                      aria-label={`Edit ${t.name}`}
+                                      title="Edit team details"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
                                     <button
                                       type="button"
                                       className={styles.mobileMoveUpBtn}
@@ -3864,82 +3983,271 @@ export default function OrganizerSetup() {
 
       {/* ── TEAM REGISTRATION DETAIL MODAL ────────────────────────── */}
       {teamDetail && (
-        <div className={styles.modalOverlay} onClick={() => setTeamDetailIdx(null)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => {
+            if (!teamEditSaving) {
+              setTeamDetailIdx(null);
+              setIsEditingTeam(false);
+            }
+          }}
+        >
           <div className={styles.detailDeck} onClick={e => e.stopPropagation()}>
             {/* Cards still ahead in the list, peeking out behind the current one. */}
-            {hasNextTeam && <div className={`${styles.detailStackCard} ${styles.detailStackCard2}`} aria-hidden="true" />}
-            {hasNextTeam && <div className={`${styles.detailStackCard} ${styles.detailStackCard1}`} aria-hidden="true" />}
+            {!isEditingTeam && hasNextTeam && (
+              <div className={`${styles.detailStackCard} ${styles.detailStackCard2}`} aria-hidden="true" />
+            )}
+            {!isEditingTeam && hasNextTeam && (
+              <div className={`${styles.detailStackCard} ${styles.detailStackCard1}`} aria-hidden="true" />
+            )}
 
-            <div className={styles.modalContent} style={{ maxWidth: 520, position: 'relative', zIndex: 2 }}>
-            <div className={styles.modalHeader}>
-              <div>
-                <h3>Registration Details</h3>
-                <span className={styles.detailCounter}>
-                  {(teamDetailIdx ?? 0) + 1} of {registeredTeams.length}
-                </span>
-              </div>
-              <button className={styles.modalCloseBtn} onClick={() => setTeamDetailIdx(null)}><X size={18} /></button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.detailTeamName}>
-                {teamDetail.players.length > 0
-                  ? joinTeamName(teamDetail.players.map(p => p.name))
-                  : teamDetail.name}
-              </div>
-              <div className={styles.detailBadgeRow}>
-                <span className={`${styles.statusBadge} ${teamDetail.status === 'confirmed' ? styles.statusConfirmed : teamDetail.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
-                  {teamDetail.status}
-                </span>
-                <span className={teamDetail.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
-                  {teamDetail.paymentCleared ? 'Paid' : 'Unpaid'}
-                </span>
-                {teamDetail.seed != null && (
-                  <span className={styles.detailSeed}>Seed {teamDetail.seed}</span>
-                )}
+            <div className={styles.modalContent} style={{ maxWidth: 540, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 2 }}>
+              <div className={styles.modalHeader}>
+                <div>
+                  <h3>{isEditingTeam ? 'Edit Team Details' : 'Registration Details'}</h3>
+                  <span className={styles.detailCounter}>
+                    {(teamDetailIdx ?? 0) + 1} of {registeredTeams.length}
+                  </span>
+                </div>
+                <div className={styles.modalHeaderActions}>
+                  {!isEditingTeam && (
+                    <button
+                      type="button"
+                      className={styles.headerEditBtn}
+                      onClick={() => startEditTeam(teamDetail)}
+                      title="Edit team details"
+                    >
+                      <Pencil size={12} />
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    className={styles.modalCloseBtn}
+                    onClick={() => {
+                      if (!teamEditSaving) {
+                        setTeamDetailIdx(null);
+                        setIsEditingTeam(false);
+                      }
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
-              {teamDetail.players.length === 0 ? (
-                <p className={styles.summaryText} style={{ marginTop: 16 }}>No player details recorded for this team.</p>
-              ) : (
-                teamDetail.players.map((p, idx) => (
-                  <div key={p.id} className={styles.detailPlayerCard}>
-                    <div className={styles.detailPlayerHeading}>Player {idx + 1}</div>
-                    <div className={styles.detailRow}><span>Name</span><strong>{p.name || '—'}</strong></div>
-                    <div className={styles.detailRow}><span>Contact number</span><strong>{p.phone || '—'}</strong></div>
-                    <div className={styles.detailRow}><span>Email</span><strong>{p.email || '—'}</strong></div>
-                    <div className={styles.detailRow}><span>Shirt size</span><strong>{p.shirtSize || '—'}</strong></div>
+              {!isEditingTeam ? (
+                <>
+                  <div className={styles.modalBody}>
+                    <div className={styles.detailTeamName}>
+                      {teamDetail.players.length > 0
+                        ? joinTeamName(teamDetail.players.map(p => p.name))
+                        : teamDetail.name}
+                    </div>
+                    <div className={styles.detailBadgeRow}>
+                      <span className={`${styles.statusBadge} ${teamDetail.status === 'confirmed' ? styles.statusConfirmed : teamDetail.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
+                        {teamDetail.status}
+                      </span>
+                      <span className={teamDetail.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
+                        {teamDetail.paymentCleared ? 'Paid' : 'Unpaid'}
+                      </span>
+                      {teamDetail.seed != null && (
+                        <span className={styles.detailSeed}>Seed {teamDetail.seed}</span>
+                      )}
+                    </div>
+
+                    {teamDetail.players.length === 0 ? (
+                      <p className={styles.summaryText} style={{ marginTop: 16 }}>No player details recorded for this team.</p>
+                    ) : (
+                      teamDetail.players.map((p, idx) => (
+                        <div key={p.id} className={styles.detailPlayerCard}>
+                          <div className={styles.detailPlayerHeading}>Player {idx + 1}</div>
+                          <div className={styles.detailRow}><span>Name</span><strong>{p.name || '—'}</strong></div>
+                          <div className={styles.detailRow}><span>Contact number</span><strong>{p.phone || '—'}</strong></div>
+                          <div className={styles.detailRow}><span>Email</span><strong>{p.email || '—'}</strong></div>
+                          <div className={styles.detailRow}><span>Shirt size</span><strong>{p.shirtSize || '—'}</strong></div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))
+                  <div className={styles.modalFooter}>
+                    <button className={styles.btnGhost} onClick={() => setTeamDetailIdx(null)}>Close</button>
+                    <button className={styles.btnActionPrimary} onClick={() => startEditTeam(teamDetail)}>
+                      <Pencil size={14} /> Edit Team
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={styles.modalBody} style={{ overflowY: 'auto' }}>
+                    {teamEditError && (
+                      <div className={styles.editErrorBanner}>{teamEditError}</div>
+                    )}
+
+                    <div className={styles.twoCol} style={{ marginTop: 6 }}>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>Payment Status</label>
+                        <div className={styles.editToggleRow}>
+                          <button
+                            type="button"
+                            className={`${styles.editToggleBtn} ${editTeamPayment ? styles.editToggleBtnActive : ''}`}
+                            onClick={() => setEditTeamPayment(true)}
+                          >
+                            Paid
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.editToggleBtn} ${!editTeamPayment ? styles.editToggleBtnActive : ''}`}
+                            onClick={() => setEditTeamPayment(false)}
+                          >
+                            Unpaid
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>Seed Number</label>
+                        <input
+                          type="number"
+                          min="1"
+                          className={styles.input}
+                          placeholder="Optional (e.g. 1)"
+                          value={editTeamSeed}
+                          onChange={e => setEditTeamSeed(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.fieldGroup} style={{ marginTop: 12 }}>
+                      <label className={styles.fieldLabel}>Registration Status</label>
+                      <div className={styles.editToggleRow}>
+                        {(['confirmed', 'unpaid', 'waitlist'] as const).map(st => (
+                          <button
+                            key={st}
+                            type="button"
+                            className={`${styles.editToggleBtn} ${editTeamStatus === st ? styles.editToggleBtnActive : ''}`}
+                            onClick={() => setEditTeamStatus(st)}
+                          >
+                            {st.charAt(0).toUpperCase() + st.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={styles.modalSectionTitle} style={{ marginTop: 18, marginBottom: 2 }}>
+                      Player Roster ({editTeamPlayers.length})
+                    </div>
+
+                    {editTeamPlayers.map((p, idx) => (
+                      <div key={p.id || idx} className={styles.editPlayerCard}>
+                        <div className={styles.editPlayerHeading}>Player {idx + 1}</div>
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel}>Player Name *</label>
+                          <input
+                            type="text"
+                            className={styles.input}
+                            placeholder="Full name"
+                            value={p.name}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, name: val } : pl)));
+                            }}
+                          />
+                        </div>
+                        <div className={styles.twoCol}>
+                          <div className={styles.fieldGroup}>
+                            <label className={styles.fieldLabel}>Phone</label>
+                            <input
+                              type="tel"
+                              className={styles.input}
+                              placeholder="+66..."
+                              value={p.phone}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, phone: val } : pl)));
+                              }}
+                            />
+                          </div>
+                          <div className={styles.fieldGroup}>
+                            <label className={styles.fieldLabel}>Email</label>
+                            <input
+                              type="email"
+                              className={styles.input}
+                              placeholder="player@email.com"
+                              value={p.email}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, email: val } : pl)));
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.fieldGroup}>
+                          <label className={styles.fieldLabel}>Shirt Size</label>
+                          <select
+                            className={styles.select}
+                            value={p.shirtSize}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, shirtSize: val } : pl)));
+                            }}
+                          >
+                            <option value="">Select size (optional)</option>
+                            {divisionApparelSizes(activeDivision?.regFields).map(sz => (
+                              <option key={sz} value={sz}>{sz}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={styles.modalFooter}>
+                    <button
+                      type="button"
+                      className={styles.btnGhost}
+                      disabled={teamEditSaving}
+                      onClick={() => setIsEditingTeam(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.btnActionPrimary}
+                      disabled={teamEditSaving}
+                      onClick={handleSaveTeamEdit}
+                    >
+                      {teamEditSaving ? 'Saving…' : 'Save Changes'}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.btnGhost} onClick={() => setTeamDetailIdx(null)}>Close</button>
-            </div>
-            </div>
 
-            {/* Up/down pager, sitting outside the card on the right. */}
-            <div className={styles.detailNav}>
-              <button
-                type="button"
-                className={styles.detailNavBtn}
-                onClick={() => stepTeamDetail(-1)}
-                disabled={!hasPrevTeam}
-                aria-label="Previous team"
-                title="Previous team (↑)"
-              >
-                <ChevronUp size={20} />
-              </button>
-              <button
-                type="button"
-                className={styles.detailNavBtn}
-                onClick={() => stepTeamDetail(1)}
-                disabled={!hasNextTeam}
-                aria-label="Next team"
-                title="Next team (↓)"
-              >
-                <ChevronDown size={20} />
-              </button>
-            </div>
+            {/* Up/down pager, sitting outside the card on the right (hidden in edit mode). */}
+            {!isEditingTeam && (
+              <div className={styles.detailNav}>
+                <button
+                  type="button"
+                  className={styles.detailNavBtn}
+                  onClick={() => stepTeamDetail(-1)}
+                  disabled={!hasPrevTeam}
+                  aria-label="Previous team"
+                  title="Previous team (↑)"
+                >
+                  <ChevronUp size={20} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.detailNavBtn}
+                  onClick={() => stepTeamDetail(1)}
+                  disabled={!hasNextTeam}
+                  aria-label="Next team"
+                  title="Next team (↓)"
+                >
+                  <ChevronDown size={20} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

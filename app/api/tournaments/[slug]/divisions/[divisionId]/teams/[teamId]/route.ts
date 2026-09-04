@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../../lib/supabaseAdmin';
-import { formatTeamName } from '../../../../../../../../lib/teamName';
+import { formatTeamName, joinTeamName } from '../../../../../../../../lib/teamName';
 import { requireTournamentOwner } from '../../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../../lib/authResponse';
 
@@ -73,6 +73,23 @@ async function firstWaitlisted(divisionId: string) {
   return (data as TeamRow | null) ?? null;
 }
 
+interface PlayerPatchItem {
+  id?: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  shirtSize?: string | null;
+}
+
+interface TeamPatchBody {
+  paymentCleared?: boolean;
+  promote?: boolean;
+  name?: string;
+  seed?: number | null;
+  status?: 'confirmed' | 'unpaid' | 'waitlist';
+  players?: PlayerPatchItem[];
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string; divisionId: string; teamId: string }> },
@@ -84,7 +101,7 @@ export async function PATCH(
   } catch (err) {
     return authErrorResponse(err);
   }
-  const body = (await request.json()) as { paymentCleared?: boolean; promote?: boolean };
+  const body = (await request.json()) as TeamPatchBody;
 
   let existing;
   try {
@@ -96,6 +113,13 @@ export async function PATCH(
 
   const patch: Record<string, unknown> = {};
   if (typeof body.paymentCleared === 'boolean') patch.payment_cleared = body.paymentCleared;
+  if (body.seed !== undefined) {
+    patch.seed = body.seed === null || isNaN(Number(body.seed)) ? null : Number(body.seed);
+  }
+  if (body.status && ['confirmed', 'unpaid', 'waitlist'].includes(body.status)) {
+    patch.status = body.status;
+  }
+
   // Promotion only ever moves a team off the waiting list. It does not mark
   // them paid — nobody has handed over any money by being moved up.
   if (body.promote) {
@@ -104,19 +128,71 @@ export async function PATCH(
     }
     patch.status = 'confirmed';
   }
-  if (Object.keys(patch).length === 0) {
-    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+
+  // Handle player updates if provided
+  if (Array.isArray(body.players)) {
+    const cleanedPlayers = body.players.map((p) => ({
+      id: p.id,
+      name: (p.name ?? '').trim(),
+      phone: p.phone?.trim() || null,
+      email: p.email?.trim() || null,
+      shirt_size: p.shirtSize?.trim() || null,
+    }));
+
+    // If custom name not provided, derive team name from player names
+    if (body.name?.trim()) {
+      patch.name = body.name.trim();
+    } else {
+      const computedName = joinTeamName(cleanedPlayers.map((p) => p.name));
+      if (computedName) patch.name = computedName;
+    }
+
+    for (const p of cleanedPlayers) {
+      if (p.id) {
+        const { error: pErr } = await supabaseAdmin
+          .from('players')
+          .update({
+            name: p.name,
+            phone: p.phone,
+            email: p.email,
+            shirt_size: p.shirt_size,
+          })
+          .eq('id', p.id)
+          .eq('team_id', teamId);
+        if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 });
+      } else if (p.name) {
+        const { error: insErr } = await supabaseAdmin
+          .from('players')
+          .insert({
+            team_id: teamId,
+            name: p.name,
+            phone: p.phone,
+            email: p.email,
+            shirt_size: p.shirt_size,
+          });
+        if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+      }
+    }
+  } else if (body.name?.trim()) {
+    patch.name = body.name.trim();
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('teams')
-    .update(patch)
-    .eq('id', teamId)
-    .select(TEAM_COLS)
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (Object.keys(patch).length > 0) {
+    const { error: updateErr } = await supabaseAdmin
+      .from('teams')
+      .update(patch)
+      .eq('id', teamId);
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  }
 
-  return NextResponse.json({ team: toTeam(data as TeamRow) });
+  const { data: updated, error: fetchErr } = await supabaseAdmin
+    .from('teams')
+    .select(TEAM_COLS)
+    .eq('id', teamId)
+    .single();
+  if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+
+  return NextResponse.json({ team: toTeam(updated as TeamRow) });
 }
 
 export async function DELETE(

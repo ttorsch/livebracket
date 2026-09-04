@@ -10,19 +10,18 @@ import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
 import OrganizerProfileModal from './OrganizerProfileModal';
 import ScorekeeperQrPanel from './ScorekeeperQrPanel';
+import ScorekeeperQrModal from './ScorekeeperQrModal';
 import PublishTournamentModal from '@/components/PublishTournamentModal';
-import ScorekeeperQrCards, { useScorekeeperLinks, useQrPdfExport } from '../../components/ScorekeeperQrCards';
 import { Button, SearchField, Icon, Badge, BracketIcon } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
-  type DashboardTournament, type TournamentDetail, type DetailMatch, type DetailMatchPlayer,
+  type DashboardTournament, type TournamentDetail,
 } from '../../lib/data';
 import { supabase } from '../../lib/supabase';
 import { useSession } from '../../components/auth/AuthProvider';
 import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
-import { joinTeamName } from '../../lib/teamName';
+import { buildCourtRows } from '../../lib/courtRows';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
-import { nextPerCourt } from '../../lib/scorekeeperLinks';
 import { isPublic, type Phase, registrationState } from '../../lib/tournamentLifecycle';
 
 interface Organizer {
@@ -159,116 +158,7 @@ function matchesQuery(t: CardTournament, q: string): boolean {
   );
 }
 
-/* ── Live courts model ──────────────────────────────────────────── */
-
-const SET_COLUMNS = 3;
-
-interface SetScore {
-  a: number;
-  b: number;
-}
-
-interface CourtRow {
-  court: string;
-  division: string;
-  teamA: string;
-  teamB: string;
-  scoreA: number | null;         // points in the set currently on court
-  scoreB: number | null;
-  lastScorer: 'a' | 'b' | null;  // side that won the most recent point
-  startedAt: number | null;      // epoch ms the match clock runs from
-  sets: (SetScore | null)[];     // finished sets, padded to SET_COLUMNS
-  hasLive: boolean;
-  upNext: string | null;
-  upNextTime: string | null;
-}
-
-function playerNames(players: DetailMatchPlayer[]): string {
-  return joinTeamName(players.map(p => p.name)) || 'TBD';
-}
-
-
-function buildCourtRows(detail: TournamentDetail): CourtRow[] {
-  type TaggedMatch = DetailMatch & { division: string };
-  const all: TaggedMatch[] = [];
-  detail.divisions.forEach(d =>
-    d.bracket.forEach(r =>
-      r.matches.forEach(m => all.push({ ...m, division: d.label }))
-    )
-  );
-
-  const courts = new Map<string, { live?: TaggedMatch; upcoming: TaggedMatch[] }>();
-  for (const m of all) {
-    if (m.status === 'done') continue;
-    const key = m.court || 'Unassigned';
-    if (!courts.has(key)) courts.set(key, { upcoming: [] });
-    const entry = courts.get(key)!;
-    if (m.status === 'live') {
-      if (!entry.live) entry.live = m;
-    } else {
-      entry.upcoming.push(m);
-    }
-  }
-
-  const rows: CourtRow[] = [];
-  for (const [court, entry] of courts) {
-    entry.upcoming.sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
-    // Skip the match currently shown as live from the queue
-    const next = entry.upcoming[0];
-    const upNext = next
-      ? `${playerNames(next.teamA)} vs ${playerNames(next.teamB)}`
-      : null;
-    const upNextTime = next?.time || null;
-
-    if (entry.live) {
-      const m = entry.live;
-      const a = m.scoreA ?? [];
-      const b = m.scoreB ?? [];
-      /* applyLiveScores appends the set on court to the finished ones, so
-       * the last entry is the running score and everything before it is a
-       * result. The card shows those separately — big numbers for the set
-       * being played, chips for the ones already won. */
-      const setCount = Math.max(a.length, b.length);
-      const finished = Math.max(setCount - 1, 0);
-      const sets: (SetScore | null)[] = [];
-      for (let i = 0; i < SET_COLUMNS; i++) {
-        sets.push(i < finished ? { a: a[i] ?? 0, b: b[i] ?? 0 } : null);
-      }
-      rows.push({
-        court,
-        division: m.division,
-        teamA: playerNames(m.teamA),
-        teamB: playerNames(m.teamB),
-        scoreA: setCount ? a[setCount - 1] ?? 0 : 0,
-        scoreB: setCount ? b[setCount - 1] ?? 0 : 0,
-        lastScorer: m.lastScorer ?? null,
-        startedAt: m.startedAt ?? null,
-        sets,
-        hasLive: true,
-        upNext,
-        upNextTime,
-      });
-    } else if (next) {
-      rows.push({
-        court,
-        division: next.division,
-        teamA: '',
-        teamB: '',
-        scoreA: null,
-        scoreB: null,
-        lastScorer: null,
-        startedAt: null,
-        sets: Array(SET_COLUMNS).fill(null),
-        hasLive: false,
-        upNext,
-        upNextTime,
-      });
-    }
-  }
-
-  rows.sort((x, y) => Number(y.hasLive) - Number(x.hasLive) || x.court.localeCompare(y.court, undefined, { numeric: true }));
-  return rows;
-}
+/* ── Live courts model is in lib/courtRows ───────────────────────── */
 
 export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState<'tournament' | 'history' | 'notifications'>('tournament');
@@ -347,6 +237,7 @@ export default function OrganizerDashboard() {
 
 
   const [publishingTournament, setPublishingTournament] = useState<CardTournament | null>(null);
+  const [scorekeeperModalTournament, setScorekeeperModalTournament] = useState<{ id: string; title: string } | null>(null);
 
   const refreshTournaments = async () => {
     if (!organizerId) return;
@@ -704,12 +595,18 @@ export default function OrganizerDashboard() {
                         <Link href={`/dashboard/tournament/${t.id}/setup`} className={styles.heroGhostBtn}>
                           <Settings size={14} /> Manage Setup
                         </Link>
+                        <button
+                          type="button"
+                          className={styles.heroGhostBtn}
+                          onClick={() => setScorekeeperModalTournament({ id: t.id, title: t.title })}
+                        >
+                          <QrCode size={14} /> Scorekeeper QR
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   <CourtCards detail={detail} />
-                  <CourtQrCard slug={t.id} />
                 </section>
               );
             })}
@@ -844,6 +741,14 @@ export default function OrganizerDashboard() {
            the rail avatar update without waiting for a refetch. */
         onSaved={saved => setOrganizer(o => (o ? { ...o, name: saved.name ?? o.name, avatar_url: saved.avatarUrl } : o))}
       />
+
+      {scorekeeperModalTournament && (
+        <ScorekeeperQrModal
+          slug={scorekeeperModalTournament.id}
+          tournamentTitle={scorekeeperModalTournament.title}
+          onClose={() => setScorekeeperModalTournament(null)}
+        />
+      )}
     </div>
   );
 }
@@ -973,87 +878,6 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
   );
 }
 
-/* ── Scorekeeper codes for the live tournament ──────────────────── */
-
-/* Sits under the court board, keyed by the same thing the board is keyed
- * by: the court. The board says what's happening on each court; this says
- * how to score it. Kept as its own card rather than a column on the board
- * so the board stays a scannable text table.
- *
- * Renders nothing at all when there's no code to show — an empty card
- * under a live board would just read as something broken. */
-function CourtQrCard({ slug }: { slug: string }) {
-  const { matches, loading, error } = useScorekeeperLinks(slug);
-  const { exportAll, exporting, error: exportError } = useQrPdfExport(slug);
-  // Starts collapsed: the court board above is what an organizer came to
-  // read, and the codes are a thing you go and get when you need one.
-  const [open, setOpen] = useState(false);
-
-  if (loading) return <div className={styles.courtsEmpty}>Loading scorekeeper QR…</div>;
-  if (error || matches.length === 0) return null;
-
-  // Rows are one per court, not one per match — count what's actually shown.
-  const courtCount = nextPerCourt(matches).length;
-
-  return (
-    <section className={styles.courtQrCard}>
-      <div className={styles.courtQrHead}>
-        <div className={styles.courtQrHeadText}>
-          <h3 className={styles.courtQrTitle}>Scorekeeper QR</h3>
-          <p className={styles.courtQrNote}>
-            Next match on each court. Anyone with the link can enter scores — share it only
-            with your scorekeeper.
-          </p>
-        </div>
-        <div className={styles.courtQrActions}>
-          {/* The live tournament is filtered out of the list below, so this is
-              the only place its printable sheet can be reached. */}
-          <Button variant="primary" size="small" onClick={exportAll} disabled={exporting}>
-            {exporting ? 'Building PDF…' : 'Export all (PDF)'}
-          </Button>
-          <Button
-            variant="primary"
-            size="small"
-            onClick={() => setOpen(v => !v)}
-            aria-expanded={open}
-            aria-label={open ? 'Collapse scorekeeper QR' : 'Expand scorekeeper QR'}
-            style={{ width: 30, height: 30, padding: 0 }}
-          >
-            <span className={`${styles.courtQrChevron} ${open ? styles.courtQrChevronOpen : ''}`}>
-              <ChevronDown size={15} />
-            </span>
-          </Button>
-        </div>
-      </div>
-
-      {!open && (
-        <div className={styles.courtQrSummary}>
-          <span className={styles.courtQrCount}>
-            {courtCount} {courtCount === 1 ? 'court' : 'courts'}
-          </span>
-          <span className={styles.courtQrDot} aria-hidden="true" />
-          <span>One code per match — regenerated for each new pairing.</span>
-        </div>
-      )}
-
-      {open && (
-        <>
-          {exportError && <p className={styles.qrExportError}>{exportError}</p>}
-          <div className={styles.courtQrRows}>
-            <ScorekeeperQrCards matches={matches} />
-          </div>
-          <div className={styles.courtQrFoot}>
-            <Bell size={16} aria-hidden="true" />
-            <span>
-              Each code is unique to one match. Codes rotate when a match ends — reprint
-              after the round.
-            </span>
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
 
 /* ── Compact tournament row (expandable) ────────────────────────── */
 

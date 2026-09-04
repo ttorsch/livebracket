@@ -1,41 +1,104 @@
 /* ── Team display names ───────────────────────────────────────────
  *
- * A team reads as its players joined on a slash, with no spaces around
- * it: "Intharat/Somboon".
+ * Teams are strictly represented by their players' first names joined on
+ * a slash with spaces: "Ananda / Mali".
  *
- * The join lives here rather than at each call site because the same
- * string is also persisted on teams.name at registration, and rows
- * written before the format settled still carry the spaced form. Reads
- * normalize rather than trusting whatever Postgres hands back, so old
- * and new rows render identically without a data migration.
+ * Custom team names, clubs, and hometowns are never displayed to represent
+ * a team anywhere on the website. If only a legacy custom name exists without
+ * player details, it falls back to "Seed X" or "Player TBD".
  */
 
-const SEPARATOR = '/';
+export const SEPARATOR = ' / ';
 
-/** Build a team name from its players. */
-export function joinTeamName(names: (string | null | undefined)[]): string {
-  return names.map(n => (n ?? '').trim()).filter(Boolean).join(SEPARATOR);
+/** Extract the first name from a player's full name (e.g. "Ananda Suwan" -> "Ananda"). */
+export function extractFirstName(fullName: string | null | undefined): string {
+  if (!fullName) return '';
+  const trimmed = fullName.trim();
+  if (!trimmed) return '';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  return parts[0] || trimmed;
 }
 
-/** Normalize a stored team name to the display format. Idempotent, and a
- *  no-op for names that aren't player pairs ("TBD", "BYE", a club name). */
-export function formatTeamName<T extends string | null | undefined>(name: T): T {
-  if (!name) return name;
-  return joinTeamName(name.split(SEPARATOR)) as T;
+/** Join player first names with slash: "Ananda / Mali". */
+export function joinPlayerFirstNames(names: (string | null | undefined)[]): string {
+  return names
+    .map(n => extractFirstName(n))
+    .filter(Boolean)
+    .join(SEPARATOR);
+}
+
+/** Build a stored team name from its players. */
+export function joinTeamName(names: (string | null | undefined)[]): string {
+  return names.map(n => (n ?? '').trim()).filter(Boolean).join('/');
 }
 
 /**
- * Format a team name for compact views (like pool draw results and standings):
- * - If there is a team name (no '/'), show the full team name (e.g. "Sun Chasers").
- * - If there is no team name (player names joined by '/'), show player first name / player first name (e.g. "Ananda/Mali").
+ * Format player names to represent a team across the website.
+ * Always shows player's first names only, joined by " / " (e.g. "Ananda / Mali").
+ * Never shows custom team names, club, or hometown.
+ * If only old custom team name exists without players, falls back to "Seed X" or "Player TBD".
  */
-export function formatTeamFirstName(name: string | null | undefined): string {
+export function formatPlayerNames(
+  players?: Array<{ name?: string | null }> | null,
+  rawName?: string | null,
+  seed?: number | null,
+): string {
+  // 1. If player objects are provided with non-empty names
+  if (players && players.length > 0) {
+    const valid = players.map(p => p?.name).filter(Boolean) as string[];
+    if (valid.length > 0) {
+      return joinPlayerFirstNames(valid);
+    }
+  }
+
+  // 2. If rawName is provided
+  if (rawName) {
+    const trimmed = rawName.trim();
+    if (!trimmed) return seed != null ? `Seed ${seed}` : 'Player TBD';
+
+    const upper = trimmed.toUpperCase();
+    if (upper === 'BYE') return 'BYE';
+    if (upper === 'TBD') return 'TBD';
+    if (
+      trimmed.startsWith('#') ||
+      trimmed.startsWith('Winner of') ||
+      trimmed.startsWith('Loser of') ||
+      trimmed.startsWith('Pool ')
+    ) {
+      return trimmed;
+    }
+
+    // Check if rawName is slash-separated player names (e.g. "Ananda Suwan/Mali Sunthorn" or "Ananda / Mali")
+    if (trimmed.includes('/')) {
+      const parts = trimmed.split('/').map(p => p.trim()).filter(Boolean);
+      if (parts.length > 0) {
+        return joinPlayerFirstNames(parts);
+      }
+    }
+
+    // If it was a single name that looks like an old custom team or club name (e.g. "Sun Chasers"):
+    // Per requirement: strictly never show old team/club names!
+    return seed != null ? `Seed ${seed}` : 'Player TBD';
+  }
+
+  return seed != null ? `Seed ${seed}` : 'Player TBD';
+}
+
+/**
+ * Normalize a stored team name to the display format (player first names).
+ * Never displays custom team names or club names.
+ */
+export function formatTeamName<T extends string | null | undefined>(name: T, seed?: number | null): T {
+  if (!name) return name;
+  return formatPlayerNames(null, name, seed) as T;
+}
+
+/**
+ * Format a team name for views (like pool draw results and standings):
+ * Returns player first name / player first name (e.g. "Ananda / Mali").
+ * Never displays custom team names or club names.
+ */
+export function formatTeamFirstName(name: string | null | undefined, seed?: number | null): string {
   if (!name) return '';
-  const players = name.split(SEPARATOR).map(p => p.trim()).filter(Boolean);
-  if (players.length <= 1) return name;
-  const firstNames = players.map(p => {
-    const parts = p.split(/\s+/).filter(Boolean);
-    return parts[0] || p;
-  });
-  return firstNames.join(SEPARATOR);
+  return formatPlayerNames(null, name, seed);
 }

@@ -1,0 +1,202 @@
+/* ── Scorekeeper QR Modal ────────────────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 15, 25, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 950;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.modalContent {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 660px;
+  box-shadow: 0 30px 60px -15px rgba(20, 31, 46, 0.35);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  animation: modalEnter 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalEnter {
+  from {
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modalHeader {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-hairline, #E7E2D9);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.modalHeaderTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.modalTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-primary, #EB6F43);
+}
+
+.modalTitleRow h3 {
+  font-family: var(--font-heading, inherit);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink-1, #14181E);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.modalSubtitle {
+  font-size: 12px;
+  color: var(--text-muted, #7A8294);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modalHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.modalCloseBtn {
+  background: none;
+  border: none;
+  color: rgba(20, 24, 30, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.modalCloseBtn:hover {
+  color: var(--ink-1, #14181E);
+  background: rgba(20, 31, 46, 0.06);
+}
+
+.modalBody {
+  padding: 12px 16px 14px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  background: var(--sand-100, #F5F1EA);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overscroll-behavior: contain;
+}
+
+.qrNotice {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-2, #3E4553);
+  background: #fff;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-radius: 10px;
+  padding: 7px 12px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.qrCardsContainer {
+  background: #fff;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.modalFootNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-muted, #7A8294);
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+
+.modalFootNote svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-muted, #7A8294);
+}
+
+.qrStatusMessage {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted, #7A8294);
+  background: #fff;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 14px;
+}
+
+.qrError {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #FEE2E2;
+  border: 1px solid #FCA5A5;
+  color: #B91C1C;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .modalOverlay {
+    padding: 8px;
+    align-items: flex-end;
+  }
+
+  .modalContent {
+    max-height: calc(100dvh - 16px);
+    border-radius: 18px 18px 0 0;
+    margin: 0;
+  }
+
+  .modalHeader {
+    padding: 11px 14px;
+  }
+
+  .modalBody {
+    padding: 10px 10px 14px;
+    gap: 8px;
+  }
+}

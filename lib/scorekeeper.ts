@@ -51,6 +51,14 @@ export interface LiveScore {
   lastScorer: 'a' | 'b' | null;      // side that won the most recent point
   startedAt: number;                 // epoch ms of the first point — match clock origin
   updatedAt: number;                 // epoch ms
+  /* The device currently scoring. Any other device holding the link follows
+   * along read-only until it deliberately takes over, so two phones can't
+   * overwrite each other's points. Null until the first push claims it.
+   *
+   * An opaque per-device id, never shown and never published: the public
+   * live routes build their own response objects rather than passing this
+   * one through, which is what keeps it out of them. */
+  owner?: string | null;
 }
 
 /* The rule shape and the "is this set over?" question live in

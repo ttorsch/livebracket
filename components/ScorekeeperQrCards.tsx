@@ -139,7 +139,7 @@ export default function ScorekeeperQrCards({ matches }: { matches: ScorekeeperLi
               >
                 <QrCodeImage
                   value={url}
-                  size={108}
+                  size={64}
                   className={styles.code}
                   alt={`Scorekeeper QR for ${m.teamA} vs ${m.teamB}`}
                 />

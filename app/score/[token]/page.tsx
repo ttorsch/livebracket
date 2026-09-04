@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle, ArrowLeftRight } from 'lucide-react';
 import styles from './page.module.css';
 import { elapsedSeconds, formatClock } from '../../../lib/matchClock';
 import { isSetComplete, setTarget, type ScoringRules } from '../../../lib/setCompletion';
+import { canScore, retryDelay, scoringRole, shouldRestoreLocal, totalPoints } from '../../../lib/scoreSync';
 
 interface SetScore { a: number; b: number }
 
@@ -22,7 +23,7 @@ interface ScorekeeperMatch {
   teamA: { id: string | null; name: string };
   teamB: { id: string | null; name: string };
   rules: ScoringRules;
-  live: { sets: SetScore[]; a: number; b: number } | null;
+  live: { sets: SetScore[]; a: number; b: number; startedAt?: number; updatedAt?: number; owner?: string | null } | null;
   finalScoreA: number[] | null;
   finalScoreB: number[] | null;
 }
@@ -48,7 +49,66 @@ const winsIn = (list: SetScore[]) => ({
   b: list.filter(s => s.b > s.a).length,
 });
 
+/* How often a device asks the server what the score is. A follower needs to
+ * look like a live board, and the owner only needs to notice it has been
+ * taken over, so one interval serves both at four seconds. */
+const POLL_MS = 4000;
+
 interface Overlay { kind: string; seconds: number }
+
+/* ── This device's identity and its unsynced points ───────────────
+ *
+ * Every read and write is wrapped: localStorage throws outright in some
+ * private-browsing modes, and a referee must never lose a scoreboard to a
+ * storage setting. Without it the screen still scores and still syncs — it
+ * just can't recover points across a crash, which is the thing it was
+ * degrading from anyway. */
+const DEVICE_KEY = 'lb:scorekeeper:device';
+const pendingKey = (matchId: string) => `lb:scorekeeper:pending:${matchId}`;
+
+interface PendingScore {
+  sets: SetScore[];
+  a: number;
+  b: number;
+  updatedAt: number;
+  /* Set only on a deliberate take-over, so the claim travels with the write
+   * it belongs to rather than living in state of its own. */
+  claim?: boolean;
+}
+
+function readDeviceId(): string {
+  try {
+    const existing = localStorage.getItem(DEVICE_KEY);
+    if (existing) return existing;
+  } catch { /* storage unavailable — fall through to a session-only id */ }
+  const fresh =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  try { localStorage.setItem(DEVICE_KEY, fresh); } catch { /* session-only */ }
+  return fresh;
+}
+
+function readPending(matchId: string): PendingScore | null {
+  try {
+    const raw = localStorage.getItem(pendingKey(matchId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingScore;
+    // Anything malformed is discarded rather than half-restored: a partial
+    // scoreboard is worse than starting from what the server has.
+    if (!Array.isArray(parsed?.sets) || typeof parsed?.updatedAt !== 'number') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writePending(matchId: string, value: PendingScore | null) {
+  try {
+    if (value) localStorage.setItem(pendingKey(matchId), JSON.stringify(value));
+    else localStorage.removeItem(pendingKey(matchId));
+  } catch { /* storage unavailable — the in-memory retry queue still runs */ }
+}
 
 export default function ScorekeeperPage() {
   const params = useParams();
@@ -62,7 +122,6 @@ export default function ScorekeeperPage() {
   const [scoreB, setScoreB] = useState(0);
   const [sets, setSets] = useState<SetScore[]>([]);
   const [confirmed, setConfirmed] = useState(false);
-  const [showFinalize, setShowFinalize] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [finalizeError, setFinalizeError] = useState('');
   const [syncFailed, setSyncFailed] = useState(false);
@@ -83,16 +142,46 @@ export default function ScorekeeperPage() {
    * never send the wrong team to the bracket. */
   const [swapped, setSwapped] = useState(false);
 
-  /* The set-won prompt. The organizer's rules decide when a set is over, but
-   * banking it still takes a tap: at 20-19 a mis-tapped point would otherwise
-   * close the set on its own, and there'd be no way back. */
-  const [setPrompt, setSetPrompt] = useState<{ index: number; a: number; b: number } | null>(null);
-  const [promptDismissed, setPromptDismissed] = useState(false);
+  /* The set-won prompt is derived from the score, so the only thing worth
+   * storing is that the referee waved it away. Keyed to a tap counter rather
+   * than to the score: after "back to score" at 21-19, taking a point off and
+   * legitimately winning it back must ask again, and a counter that only ever
+   * goes up is what tells those two 21-19s apart. */
+  const [pointSeq, setPointSeq] = useState(0);
+  const [dismissedSeq, setDismissedSeq] = useState<number | null>(null);
+
+  /* Cross-device state. `owner` is whichever device is scoring; this one
+   * follows read-only when that isn't us. */
+  /* Read lazily rather than in an effect so it exists on the first client
+   * render and the load below doesn't wait a tick for it. Safe against
+   * hydration because nothing rendered depends on it: `owner` is null until
+   * the server says otherwise, which makes every device 'unclaimed' — and
+   * so identically interactive — on that first paint. */
+  const [deviceId] = useState(() => (typeof window === 'undefined' ? '' : readDeviceId()));
+  const [owner, setOwner] = useState<string | null>(null);
+  const [takenOver, setTakenOver] = useState(false);
+  const [restoredPoints, setRestoredPoints] = useState<number | null>(null);
+  const [matchId, setMatchId] = useState('');
+
+  /* Every change to the board bumps `revision`; the sync effect below is
+   * what watches it. Zero means "nothing has happened since load", which is
+   * how the screen avoids echoing the server's own state straight back and
+   * flipping a match to live before anyone has scored.
+   *
+   * `attempt` is the retry counter: raising it re-runs the sync effect on a
+   * longer timer, so backing off needs no timer bookkeeping of its own. */
+  const [revision, setRevision] = useState(0);
+  const [attempt, setAttempt] = useState(0);
+  const [claimPending, setClaimPending] = useState(false);
+  const bumpRevision = useCallback(() => { setRevision(n => n + 1); setAttempt(0); }, []);
+
+  const role = scoringRole(owner, deviceId);
+  const scoring = canScore(role);
 
   // Load the match this token unlocks, and resume any score already in flight
   // so a referee who closed the tab picks up exactly where they left off.
   useEffect(() => {
-    if (!token) return;
+    if (!token || !deviceId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -101,7 +190,32 @@ export default function ScorekeeperPage() {
         if (cancelled) return;
         if (!res.ok) { setLoadError(body.error || 'This scorekeeper link is not valid.'); return; }
         setMatch(body);
-        if (body.live) {
+        setMatchId(body.matchId);
+
+        const liveOwner = (body.live?.owner ?? null) as string | null;
+        setOwner(liveOwner);
+
+        /* Points this device couldn't push last time it was open. They only
+         * win if they are genuinely newer than what the server holds, and
+         * only if this device is still entitled to score — restoring over
+         * another device's live match would be the very overwrite the
+         * ownership rule exists to prevent. */
+        const pending = readPending(body.matchId);
+        const mayScore = canScore(scoringRole(liveOwner, deviceId));
+        if (mayScore && shouldRestoreLocal(pending, body.live)) {
+          setSets(pending!.sets);
+          setScoreA(pending!.a);
+          setScoreB(pending!.b);
+          setStartedAt(body.live?.startedAt ?? null);
+          /* How many points were actually rescued — the difference against
+           * what the server had, not the size of the board. Saying "restored
+           * 53 points" when three were at risk reads as though the whole
+           * match nearly vanished. A correction can make this zero or
+           * negative, which the banner words differently rather than
+           * claiming a recovery of "-1 points". */
+          setRestoredPoints(totalPoints(pending!) - (body.live ? totalPoints(body.live) : 0));
+          bumpRevision(); // the sync effect sends it back up
+        } else if (body.live) {
           setSets(body.live.sets ?? []);
           setScoreA(body.live.a ?? 0);
           setScoreB(body.live.b ?? 0);
@@ -117,7 +231,7 @@ export default function ScorekeeperPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [token]);
+  }, [token, deviceId, bumpRevision]);
 
   useEffect(() => {
     if (confirmed || !match) return;
@@ -142,30 +256,93 @@ export default function ScorekeeperPage() {
    * bracket and the organizer dashboard follow along. Debounced so a fast
    * rally of taps sends one write rather than six — the last tap still
    * lands, which is what "every point is saved" needs. */
-  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pushLive = useCallback((nextSets: SetScore[], a: number, b: number) => {
-    if (!token) return;
-    if (pushTimer.current) clearTimeout(pushTimer.current);
-    pushTimer.current = setTimeout(async () => {
+  /* Get the board to the server, and keep trying until it lands.
+   *
+   * Driven by `revision`, so it fires on real changes rather than on every
+   * render, and it sends whole state — which is what makes a retry after an
+   * outage push where the match actually is rather than replaying where it
+   * was when the connection dropped. A tap during the wait replaces the
+   * timer, which is also what debounces a fast rally into one write.
+   *
+   * The score goes to localStorage before any request leaves, because the
+   * point has to survive the phone dying mid-flight. That is the case this
+   * whole path exists for. */
+  useEffect(() => {
+    if (!match || confirmed || !token || !matchId || !deviceId) return;
+    if (revision === 0) return;   // nothing has changed since load
+    /* A follower is read-only — except for the one write that stops it being
+     * a follower. Claiming has to go out from exactly the state that isn't
+     * allowed to write, so it is the deliberate exception rather than a hole
+     * in the rule. */
+    if (!scoring && !claimPending) return;
+
+    const payload: PendingScore = { sets, a: scoreA, b: scoreB, updatedAt: Date.now() };
+    writePending(matchId, payload);
+
+    let cancelled = false;
+    const id = setTimeout(async () => {
       try {
         const res = await fetch(`/api/score/${token}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sets: nextSets, a, b }),
+          body: JSON.stringify({
+            sets: payload.sets, a: payload.a, b: payload.b, deviceId, claim: claimPending,
+          }),
         });
-        setSyncFailed(!res.ok);
-        // The first point is what starts the clock, and the server owns that
-        // instant — so pick it up from the reply rather than reloading.
-        if (res.ok) {
+        if (cancelled) return;
+
+        /* Another device took the match while this one was scoring. Its
+         * state is the truth now, so adopt it rather than retrying into a
+         * fight this device has already lost. Anything this device had
+         * queued goes with it — which is why taking over is a deliberate
+         * tap on the other screen and not something that just happens. */
+        if (res.status === 409) {
           const body = await res.json().catch(() => null);
-          const stamp = body?.live?.startedAt;
-          if (typeof stamp === 'number') setStartedAt(prev => prev ?? stamp);
+          if (cancelled) return;
+          writePending(matchId, null);
+          setAttempt(0);
+          setClaimPending(false);
+          setSyncFailed(false);
+          setTakenOver(true);
+          if (body?.live) {
+            setOwner(body.live.owner ?? null);
+            setSets(body.live.sets ?? []);
+            setScoreA(body.live.a ?? 0);
+            setScoreB(body.live.b ?? 0);
+            setStartedAt(body.live.startedAt ?? null);
+          }
+          return;
         }
+
+        if (!res.ok) throw new Error(String(res.status));
+        const body = await res.json().catch(() => null);
+        if (cancelled) return;
+
+        writePending(matchId, null);
+        setAttempt(0);
+        setClaimPending(false);
+        setSyncFailed(false);
+        setTakenOver(false);
+        if (body?.live?.owner) setOwner(body.live.owner);
+        // The first point starts the clock and the server owns that instant,
+        // so take it from the reply rather than reloading.
+        const stamp = body?.live?.startedAt;
+        if (typeof stamp === 'number') setStartedAt(prev => prev ?? stamp);
       } catch {
+        /* The score is already on this device, so this is about reaching the
+         * server, not about keeping it. Back off and try again for as long
+         * as the tab lives. */
+        if (cancelled) return;
         setSyncFailed(true);
+        setAttempt(n => n + 1);
       }
-    }, 400);
-  }, [token]);
+    }, attempt === 0 ? 400 : retryDelay(attempt - 1));
+
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [
+    revision, attempt, sets, scoreA, scoreB, claimPending,
+    match, confirmed, token, matchId, deviceId, scoring,
+  ]);
 
   /* Points move through functional updates, never through the value the
    * closure captured. The whole panel is the tap target now, so two taps
@@ -175,69 +352,84 @@ export default function ScorekeeperPage() {
   const addPoint = useCallback((team: 'A' | 'B') => {
     if (team === 'A') setScoreA(s => s + 1);
     else setScoreB(s => s + 1);
-  }, []);
+    setPointSeq(n => n + 1);
+    bumpRevision();
+  }, [bumpRevision]);
 
   const removePoint = useCallback((team: 'A' | 'B') => {
     if (team === 'A') setScoreA(s => Math.max(0, s - 1));
     else setScoreB(s => Math.max(0, s - 1));
-  }, []);
+    setPointSeq(n => n + 1);
+    bumpRevision();
+  }, [bumpRevision]);
 
-  /* One push per settled score, rather than one per handler. This is what
-   * makes "every point is saved" true even when several land in a batch:
-   * the effect sees the final numbers and sends those. */
-  const hydrated = useRef(false);
+  /* Ask the server what the score is.
+   *
+   * A follower is a live board and adopts everything it hears. The owner
+   * ignores the score — its own board is the truth — and listens only for
+   * having been taken over, which is the one thing it cannot know locally.
+   * Either way a failed poll is silence, not an error: the retry queue is
+   * what guarantees points, and a red banner every four seconds on a weak
+   * signal would just teach the referee to ignore it. */
   useEffect(() => {
-    if (!match || confirmed) return;
-    // The first run is the state that just came back from the server —
-    // echoing it straight back would flip the match to live before anyone
-    // has scored.
-    if (!hydrated.current) { hydrated.current = true; return; }
-    pushLive(sets, scoreA, scoreB);
-  }, [sets, scoreA, scoreB, match, confirmed, pushLive]);
+    if (!match || confirmed || !token || !deviceId) return;
+    let cancelled = false;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/score/${token}`);
+        if (!res.ok || cancelled) return;
+        const body = await res.json();
+
+        // Finalized somewhere else — follow it rather than keep scoring a
+        // match that is already in the bracket.
+        if (body.status === 'done') {
+          if (body.finalScoreA) {
+            setSets((body.finalScoreA as number[]).map((a: number, i: number) => ({
+              a, b: body.finalScoreB?.[i] ?? 0,
+            })));
+          }
+          setConfirmed(true);
+          return;
+        }
+
+        const liveOwner = (body.live?.owner ?? null) as string | null;
+        setOwner(prev => (prev === liveOwner ? prev : liveOwner));
+
+        if (scoringRole(liveOwner, deviceId) !== 'follower') return;
+        setSets(body.live?.sets ?? []);
+        setScoreA(body.live?.a ?? 0);
+        setScoreB(body.live?.b ?? 0);
+        setStartedAt(body.live?.startedAt ?? null);
+      } catch {
+        /* Offline. The next tick tries again. */
+      }
+    }, POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [match, confirmed, token, deviceId]);
+
+  /* Take the match from whichever device holds it. Deliberate, because the
+   * device losing it is someone else's phone at the same net. */
+  const takeOver = useCallback(() => {
+    setTakenOver(false);
+    setClaimPending(true);
+    bumpRevision();
+  }, [bumpRevision]);
 
   const openOverlay = (kind: string, seconds: number) => {
     setSecondsLeft(seconds);
     setOverlay({ kind, seconds });
   };
 
-  /* Watch the live score against the division's rules and raise the prompt the
-   * moment the set is won. This is the whole point of the screen knowing the
-   * format: the referee scores, and the board is what remembers whether this
-   * division plays to 21, to 25, or short in the third. */
-  useEffect(() => {
-    if (!match || confirmed) return;
-    const index = sets.length;
-    if (!isSetComplete(scoreA, scoreB, index, match.rules)) {
-      /* Score moved back off a winning number — usually an undo. Re-arm, so
-       * reaching it again asks rather than staying silently dismissed. */
-      setPromptDismissed(false);
-      setSetPrompt(null);
-      return;
-    }
-    if (promptDismissed) return;
-    setSetPrompt({ index, a: scoreA, b: scoreB });
-  }, [match, confirmed, sets.length, scoreA, scoreB, promptDismissed]);
-
-  /* Once someone has the sets, ask for the result. No ref guards this against
-   * reopening, because the only two ways out both change `sets`: confirming
-   * ends the match, and backing out un-banks the deciding set. */
-  useEffect(() => {
-    if (!match || confirmed) return;
-    const needed = setsToWinAt(match.rules.setsBestOf);
-    const w = winsIn(sets);
-    if (w.a >= needed || w.b >= needed) setShowFinalize(true);
-  }, [match, confirmed, sets]);
-
   /* Bank the won set and start the interval clock. */
-  const confirmSet = () => {
-    if (!match || !setPrompt) return;
-    const banked = [...sets, { a: setPrompt.a, b: setPrompt.b }];
+  const confirmSet = (a: number, b: number) => {
+    if (!match) return;
+    const banked = [...sets, { a, b }];
     setSets(banked);
     setScoreA(0);
     setScoreB(0);
     setTimeouts([0, 0]); // timeouts replenish each set
-    setSetPrompt(null);
-    setPromptDismissed(false);
+    setDismissedSeq(null);
+    bumpRevision();
 
     // A match-winning set hands over to the finalize dialog rather than
     // sending the referee off for a rest that isn't coming.
@@ -250,24 +442,22 @@ export default function ScorekeeperPage() {
 
   /* "Back to score" on the set prompt: the set stays open and the board keeps
    * the score it had, so a mis-tapped point can just be taken off. */
-  const dismissSetPrompt = () => {
-    setPromptDismissed(true);
-    setSetPrompt(null);
-  };
+  const dismissSetPrompt = () => setDismissedSeq(pointSeq);
 
   /* "Back to score" on the finalize dialog. The only reason to back out of the
    * final confirmation is that the deciding set was wrong, so this puts that
    * set back on the board rather than dropping the referee on a finished
-   * screen with nothing to press. */
+   * screen with nothing to press. Un-banking it is also what closes the
+   * dialog: the match stops being decided. */
   const reopenLastSet = () => {
     const last = sets[sets.length - 1];
-    if (!last) { setShowFinalize(false); return; }
+    if (!last) return;
     setSets(sets.slice(0, -1));
     setScoreA(last.a);
     setScoreB(last.b);
-    setPromptDismissed(true); // don't re-ask at the score they just backed out of
-    setShowFinalize(false);
+    setDismissedSeq(pointSeq); // don't re-ask at the score they just backed out of
     setFinalizeError('');
+    bumpRevision();
   };
 
   const takeTimeout = (side: 0 | 1, teamName: string) => {
@@ -292,8 +482,9 @@ export default function ScorekeeperPage() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Could not submit the result.');
+      // The bracket has it now, so nothing is left to retry.
+      writePending(matchId, null);
       setConfirmed(true);
-      setShowFinalize(false);
     } catch (err) {
       setFinalizeError(err instanceof Error ? err.message : 'Could not submit the result.');
     } finally {
@@ -343,6 +534,16 @@ export default function ScorekeeperPage() {
   const scoreOf = (t: 'A' | 'B') => (t === 'A' ? scoreA : scoreB);
   const setsWonBy = (t: 'A' | 'B') => (t === 'A' ? wins.a : wins.b);
   const inSet = (set: SetScore, t: 'A' | 'B') => (t === 'A' ? set.a : set.b);
+
+  /* The set on the board, measured against the organizer's rules. This is the
+   * bit that used to be missing: the referee no longer has to notice 21. */
+  const liveSetIndex = sets.length;
+  const setWon = !matchOver && isSetComplete(scoreA, scoreB, liveSetIndex, match.rules);
+  const setPrompt = setWon && dismissedSeq !== pointSeq;
+
+  /* Decided means done — the only way out of this dialog other than
+   * submitting is to un-bank the deciding set, which makes it false again. */
+  const showFinalize = matchOver;
 
   if (confirmed) {
     return (
@@ -425,6 +626,7 @@ export default function ScorekeeperPage() {
       <button
         className={styles.scoreTap}
         onClick={() => addPoint(team)}
+        disabled={!scoring}
         aria-label={`Add a point to ${info.name}`}
       >
         <span className={styles.scoreNum}>{score}</span>
@@ -434,7 +636,7 @@ export default function ScorekeeperPage() {
       <button
         className={`${styles.minusStrip} ${right ? styles.minusStripB : ''}`}
         onClick={() => removePoint(team)}
-        disabled={score === 0}
+        disabled={!scoring || score === 0}
         aria-label={`Remove a point from ${info.name}`}
       >
         <span className={styles.minusGlyph} aria-hidden="true" />
@@ -446,7 +648,9 @@ export default function ScorekeeperPage() {
           {right ? <>{dots}{setsWon}{name}</> : <>{name}{setsWon}{dots}</>}
         </div>
         <div className={styles.scoreRow}>{right ? <>{minus}{tap}</> : <>{tap}{minus}</>}</div>
-        <div className={styles.tapHint}>Tap score to add a point</div>
+        <div className={styles.tapHint}>
+          {scoring ? 'Tap score to add a point' : 'Following — take over to score'}
+        </div>
       </div>
     );
   };
@@ -476,9 +680,40 @@ export default function ScorekeeperPage() {
           </span>
         </header>
 
+        {/* Another device holds the match. This one is a live board until
+            the referee deliberately takes it. */}
+        {role === 'follower' && (
+          <div className={styles.followBanner}>
+            <span className={styles.followDot} aria-hidden="true" />
+            <span>
+              {takenOver
+                ? 'Another device took over scoring — you are following live.'
+                : 'Another device is scoring — you are following live.'}
+            </span>
+            <button className={styles.takeOverBtn} onClick={takeOver}>
+              Take over scoring
+            </button>
+          </div>
+        )}
+
+        {restoredPoints !== null && (
+          <div className={styles.restoreBanner}>
+            {restoredPoints > 0
+              ? `Restored ${restoredPoints} point${restoredPoints === 1 ? '' : 's'} that had not reached the server.`
+              : 'Restored the score saved on this device — it had not reached the server.'}
+            <button
+              className={styles.bannerDismiss}
+              onClick={() => setRestoredPoints(null)}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {syncFailed && (
           <div className={styles.syncBanner}>
-            Not syncing — scores are safe on this device. Keep scoring; you can still submit the result.
+            Not syncing — retrying. Every point is saved on this device and will go up when the connection returns.
           </div>
         )}
 
@@ -516,15 +751,20 @@ export default function ScorekeeperPage() {
         </div>
 
         {/* ── Timeouts ─────────────────────────────────────────── */}
+        {/* Follows the change of ends too, so the button under a team is the
+            one that calls their timeout. The index passed to takeTimeout is
+            still the team's own, never the side's. */}
         <div className={styles.bottomBar}>
           <button
             className={styles.timeoutBtn}
-            onClick={() => takeTimeout(0, match.teamA.name)}
-            disabled={timeouts[0] >= TIMEOUTS_PER_SET}
+            onClick={() => takeTimeout(leftTeam === 'A' ? 0 : 1, teamOf(leftTeam).name)}
+            disabled={timeouts[leftTeam === 'A' ? 0 : 1] >= TIMEOUTS_PER_SET}
           >
             Timeout
-            <span className={styles.timeoutTeam}>{match.teamA.name}</span>
-            <span className={styles.timeoutCount}>{timeouts[0]}/{TIMEOUTS_PER_SET}</span>
+            <span className={styles.timeoutTeam}>{teamOf(leftTeam).name}</span>
+            <span className={styles.timeoutCount}>
+              {timeouts[leftTeam === 'A' ? 0 : 1]}/{TIMEOUTS_PER_SET}
+            </span>
           </button>
           <button
             className={styles.techBtn}
@@ -534,12 +774,14 @@ export default function ScorekeeperPage() {
           </button>
           <button
             className={styles.timeoutBtn}
-            onClick={() => takeTimeout(1, match.teamB.name)}
-            disabled={timeouts[1] >= TIMEOUTS_PER_SET}
+            onClick={() => takeTimeout(rightTeam === 'A' ? 0 : 1, teamOf(rightTeam).name)}
+            disabled={timeouts[rightTeam === 'A' ? 0 : 1] >= TIMEOUTS_PER_SET}
           >
             Timeout
-            <span className={styles.timeoutTeam}>{match.teamB.name}</span>
-            <span className={styles.timeoutCount}>{timeouts[1]}/{TIMEOUTS_PER_SET}</span>
+            <span className={styles.timeoutTeam}>{teamOf(rightTeam).name}</span>
+            <span className={styles.timeoutCount}>
+              {timeouts[rightTeam === 'A' ? 0 : 1]}/{TIMEOUTS_PER_SET}
+            </span>
           </button>
         </div>
 
@@ -555,20 +797,20 @@ export default function ScorekeeperPage() {
 
         {/* Set won. A plain div, not the dismiss-on-tap overlay above — a
             stray tap during a rally must not decide a set either way. */}
-        {setPrompt && !showFinalize && (
+        {setPrompt && scoring && (
           <div className={styles.confirmScrim}>
             <div className={styles.finalizeCard}>
               <p className={styles.finalizeKicker}>
-                Set {setPrompt.index + 1} · to {setTarget(setPrompt.index, match.rules)}
+                Set {liveSetIndex + 1} · to {setTarget(liveSetIndex, match.rules)}
                 {match.rules.winBy2 ? ', win by 2' : ''}
               </p>
               <p className={styles.finalizeTitle}>
-                {(setPrompt.a > setPrompt.b ? match.teamA : match.teamB).name} wins the set
+                {(scoreA > scoreB ? match.teamA : match.teamB).name} wins the set
               </p>
               <div className={styles.finalizeResult}>
                 <span>{teamOf(leftTeam).name}</span>
                 <span className={styles.finalizeScore}>
-                  {leftTeam === 'A' ? setPrompt.a : setPrompt.b} – {rightTeam === 'A' ? setPrompt.a : setPrompt.b}
+                  {scoreOf(leftTeam)} – {scoreOf(rightTeam)}
                 </span>
                 <span>{teamOf(rightTeam).name}</span>
               </div>
@@ -576,7 +818,7 @@ export default function ScorekeeperPage() {
                 <button className={styles.btnGhost} onClick={dismissSetPrompt}>
                   Back to score
                 </button>
-                <button className={styles.btnPrimary} onClick={confirmSet}>
+                <button className={styles.btnPrimary} onClick={() => confirmSet(scoreA, scoreB)}>
                   Confirm set
                 </button>
               </div>
@@ -584,7 +826,7 @@ export default function ScorekeeperPage() {
           </div>
         )}
 
-        {showFinalize && (
+        {showFinalize && scoring && (
           <div className={styles.confirmScrim}>
             <div className={styles.finalizeCard}>
               <p className={styles.finalizeTitle}>Confirm final result?</p>

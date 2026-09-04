@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { formatTeamName } from './teamName';
+import { formatTeamName, formatPlayerNames, extractFirstName } from './teamName';
 import { type ScheduleConfig, normaliseConfig } from './schedule/generate';
 import {
   normalizeGender, normalizeAgeLimit, type DivisionGender, type AgeLimit,
@@ -810,8 +810,17 @@ export interface TournamentDetail {
   vouchers: DetailVoucher[];
 }
 
-function teamNameToPlayers(name: string): DetailMatchPlayer[] {
-  return name.split('/').map((part) => ({ name: part.trim(), flag: '' }));
+function teamNameToPlayers(name: string, players?: { name: string }[]): DetailMatchPlayer[] {
+  if (players && players.length > 0) {
+    return players.map((p) => ({ name: extractFirstName(p.name), flag: '' }));
+  }
+  if (name && name.includes('/')) {
+    return name.split('/').map((part) => ({ name: extractFirstName(part.trim()), flag: '' }));
+  }
+  if (name && (name === 'BYE' || name === 'TBD' || name.startsWith('#') || name.startsWith('Winner of') || name.startsWith('Loser of') || name.startsWith('Pool '))) {
+    return [{ name, flag: '' }];
+  }
+  return [{ name: name ? extractFirstName(name) : 'TBD', flag: '' }];
 }
 
 // Order a round's matches by the generated slot list; matches not in the
@@ -1045,6 +1054,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         maxRosterSize?: unknown; waitlistCap?: unknown; rules?: unknown;
         confirmationMessage?: unknown; advancePerPool?: number; crossing?: string;
       };
+      const divTeamMap = new Map(d.teams.map((t) => [t.id, t]));
       return {
         id: d.id,
         label: d.name,
@@ -1054,7 +1064,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           .sort((a, b) => a.seed - b.seed)
           .map((team) => ({
             id: team.id,
-            name: formatTeamName(team.name),
+            name: formatPlayerNames(team.players, team.name, team.seed),
             seed: team.seed,
             status: team.status,
             registeredBy: (team as any).registered_by ?? null,
@@ -1070,22 +1080,28 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
             round: r.name,
             format: r.format,
             durationMinutes: readRoundMinutes(r.scoring_rules),
-            matches: sortBySlots(r.matches, draw?.slots?.[String(r.sequence)]).map((m) => ({
-              id: m.id,
-              court: m.court ?? '',
-              time: formatMatchTime(m.scheduled_time),
-              scheduledDate: formatMatchDate(m.scheduled_time),
-              teamA: teamNameToPlayers(m.team_a?.name ?? 'TBD'),
-              teamB: teamNameToPlayers(m.team_b?.name ?? 'TBD'),
-              teamAId: m.team_a_id ?? null,
-              teamBId: m.team_b_id ?? null,
-              teamAName: formatTeamName(m.team_a?.name ?? null),
-              teamBName: formatTeamName(m.team_b?.name ?? null),
-              scoreA: m.score_a ?? undefined,
-              scoreB: m.score_b ?? undefined,
-              winner: m.winner_team_id && m.winner_team_id === m.team_a_id ? 'A' : m.winner_team_id && m.winner_team_id === m.team_b_id ? 'B' : undefined,
-              status: m.status,
-            })),
+            matches: sortBySlots(r.matches, draw?.slots?.[String(r.sequence)]).map((m) => {
+              const tA = m.team_a_id ? divTeamMap.get(m.team_a_id) : null;
+              const tB = m.team_b_id ? divTeamMap.get(m.team_b_id) : null;
+              const nameA = formatPlayerNames(tA?.players, m.team_a?.name ?? null, tA?.seed);
+              const nameB = formatPlayerNames(tB?.players, m.team_b?.name ?? null, tB?.seed);
+              return {
+                id: m.id,
+                court: m.court ?? '',
+                time: formatMatchTime(m.scheduled_time),
+                scheduledDate: formatMatchDate(m.scheduled_time),
+                teamA: teamNameToPlayers(nameA, tA?.players),
+                teamB: teamNameToPlayers(nameB, tB?.players),
+                teamAId: m.team_a_id ?? null,
+                teamBId: m.team_b_id ?? null,
+                teamAName: nameA,
+                teamBName: nameB,
+                scoreA: m.score_a ?? undefined,
+                scoreB: m.score_b ?? undefined,
+                winner: m.winner_team_id && m.winner_team_id === m.team_a_id ? 'A' : m.winner_team_id && m.winner_team_id === m.team_b_id ? 'B' : undefined,
+                status: m.status,
+              };
+            }),
           })),
         drawConfig: draw
           ? {

@@ -430,6 +430,7 @@
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
 }
 /* Visible to screen readers only — used to say "opens in a new tab" on the
