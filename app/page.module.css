@@ -3155,6 +3155,8 @@
     padding: 0;
     border-top: none;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }

@@ -535,7 +535,11 @@ function TournamentCard({
             const totalDivisions = Math.max(t.registrations.length, t.divisions?.length || 0);
             const extraCount = totalDivisions - 2;
             return (
-              <div className={styles.cardDivisionsSection}>
+              <div
+                className={styles.cardDivisionsSection}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              >
                 {t.registrations.map((reg, idx) => (
                   <div
                     key={idx}
@@ -1011,12 +1015,23 @@ export default function LiveBracketHome() {
   const touchStartYRef = useRef<number | null>(null);
 
   const handleMobileTouchStart = (e: React.TouchEvent) => {
+    // If the touch originated within horizontally scrollable division chips, don't paginate
+    if ((e.target as HTMLElement).closest(`.${styles.cardDivisionsSection}`)) {
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      return;
+    }
     touchStartXRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
   };
 
   const handleMobileTouchEnd = (e: React.TouchEvent) => {
     if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    if ((e.target as HTMLElement).closest(`.${styles.cardDivisionsSection}`)) {
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      return;
+    }
     const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
     const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
     touchStartXRef.current = null;
