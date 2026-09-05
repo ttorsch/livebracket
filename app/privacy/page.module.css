@@ -1,0 +1,165 @@
+/* A reading page, not a product surface: one column, capped at a
+   comfortable measure rather than the 1024px the marketing sections use.
+   Long-form prose past ~70 characters a line gets hard to track. */
+.page {
+  min-height: 100vh;
+  background: var(--surface-app, #F5F1EA);
+  padding: var(--space-12) var(--space-5) var(--space-16);
+}
+
+.doc {
+  max-width: 720px;
+  margin-inline: auto;
+  color: var(--text-primary);
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: var(--space-8);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--coral-600);
+}
+
+.title {
+  margin: 0 0 var(--space-2);
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.updated {
+  margin: 0 0 var(--space-8);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.lede {
+  margin: 0 0 var(--space-10);
+  font-size: 18px;
+  line-height: 29px;
+  color: var(--text-secondary);
+}
+
+.section {
+  margin-bottom: var(--space-10);
+}
+
+.h2 {
+  margin: 0 0 var(--space-4);
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.section p {
+  margin: 0 0 var(--space-4);
+  font-size: 16px;
+  line-height: 26px;
+  color: var(--text-secondary);
+}
+
+.section p:last-child {
+  margin-bottom: 0;
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: 16px;
+  line-height: 26px;
+  color: var(--text-secondary);
+}
+
+.list li {
+  margin-bottom: var(--space-2);
+}
+
+.list strong,
+.section p strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* The cookie table is the one piece of real reference material here, so it
+   gets a card rather than bare rows. It scrolls inside itself on a phone
+   instead of widening the page. */
+.table {
+  width: 100%;
+  margin: 0 0 var(--space-5);
+  border-collapse: collapse;
+  background: var(--sand-50);
+  border: var(--border-width) solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+}
+
+.table th {
+  padding: var(--space-3) var(--space-4);
+  background: var(--sand-200);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom: var(--border-width) solid var(--border-hairline);
+}
+
+.table td {
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-secondary);
+  border-bottom: var(--border-width) solid var(--border-hairline);
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* The unfinished bit, marked so nobody ships it by accident. */
+.todo {
+  padding: var(--space-4);
+  background: var(--amber-100);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 24px;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+  }
+
+  .title {
+    font-size: 32px;
+    line-height: 40px;
+  }
+
+  .lede {
+    font-size: 16px;
+    line-height: 26px;
+  }
+
+  /* Two columns of prose in a 3-column table is unreadable at 375px; let
+     it scroll sideways inside its own box rather than squeezing. */
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: normal;
+  }
+}

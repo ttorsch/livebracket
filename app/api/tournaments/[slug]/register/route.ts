@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
+import { notifyMany } from '../../../../../lib/notifications';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { publicProfilesByIds } from '../../../../../lib/profiles';
 import { joinTeamName } from '../../../../../lib/teamName';
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data: division, error: dError } = await supabaseAdmin
     .from('divisions')
-    .select('id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings, tournaments!inner(slug, phase, cancelled_at, deleted_at)')
+    .select('id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings, tournaments!inner(slug, title, phase, cancelled_at, deleted_at)')
     .eq('id', body.divisionId)
     .eq('tournaments.slug', slug)
     .maybeSingle();
@@ -64,7 +65,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!division) return bad('Division not found', 404);
 
   const tournament = division.tournaments as unknown as {
-    phase: number; cancelled_at: string | null; deleted_at: string | null;
+    // title rides along for the invitation notification, which has to read
+    // correctly long after the person opens it.
+    title: string; phase: number; cancelled_at: string | null; deleted_at: string | null;
   };
   if (tournament.deleted_at) return bad('Division not found', 404);
   if (tournament.phase < PHASE.announced) return bad('This tournament is not open to the public yet', 403);
@@ -196,13 +199,45 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       responded_at: isRegistrant ? now : null,
     };
   });
-  const { error: playersError } = await supabaseAdmin.from('players').insert(playerRows);
+  const { data: insertedPlayers, error: playersError } = await supabaseAdmin
+    .from('players')
+    .insert(playerRows)
+    .select('id, name, user_id, invite_status');
   if (playersError) {
     // A team with no players is invisible on every surface but still eats a
     // slot, so don't leave one behind.
     await supabaseAdmin.from('teams').delete().eq('id', team.id);
     return bad(playersError.message, 500);
   }
+
+  /* Tell the teammates they have been named.
+   *
+   * Until now an invitation was a row nobody was ever shown — the status
+   * was written here and read by nothing. This is the announcement, and
+   * it carries the invitation's own id so Accept and Decline can be
+   * answered straight from the notification.
+   *
+   * Deliberately after the players insert and never awaited into the
+   * failure path: the registration has happened, and an unreachable
+   * notifications table is not a reason to tell someone their team did
+   * not register. */
+  await notifyMany(
+    (insertedPlayers ?? [])
+      .filter(p => p.user_id && p.invite_status === 'pending')
+      .map(p => ({
+        recipientId: p.user_id as string,
+        actorId: user?.id ?? null,
+        kind: 'team_invite' as const,
+        playerRowId: p.id as string,
+        payload: {
+          teamName: joinTeamName(names),
+          tournamentTitle: tournament.title,
+          tournamentSlug: slug,
+          divisionName: division.name,
+          playerName: (p.name as string) ?? '',
+        },
+      })),
+  );
 
   const fee = Number(division.registration_fee ?? 0) || 0;
   // The money side of the same event. Nothing has been paid yet — this row is

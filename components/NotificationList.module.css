@@ -1,0 +1,183 @@
+/* The notification list. Rows on a card, not cards in a list: what makes
+   one row distinct from the next is the actor's face and whether it has
+   been read, and drawing a box around each would bury both. */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 4px;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+}
+.row + .row { border-top: 1px solid var(--sand-200, #EFEAE0); }
+
+/* Unread is a tint and a dot, not a heavier weight — a list that is
+   mostly unread should not read as mostly shouting. */
+.rowUnread {
+  background: rgba(238, 122, 76, 0.05);
+  border-radius: 14px;
+  padding-left: 10px;
+  padding-right: 34px;
+}
+
+.avatarWrap {
+  position: relative;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+/* Which kind of thing happened, on the actor's shoulder. */
+.mark {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border: 2px solid var(--sand-50, #FFFFFF);
+}
+.markThumb { background: var(--coral-500, #EB6F43); }
+.markInvite { background: #3A7BD5; }
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-primary, #14181E);
+}
+.text strong { font-weight: 700; }
+
+.actorLink {
+  color: inherit;
+  text-decoration: none;
+}
+.actorLink:hover strong { color: var(--coral-500, #EB6F43); }
+
+.meta {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #7A8294);
+}
+.metaLink {
+  color: var(--text-muted, #7A8294);
+  text-decoration: underline;
+}
+.metaLink:hover { color: var(--coral-500, #EB6F43); }
+
+/* ── Answering an invitation ───────────────────────────────────── */
+.actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.accept,
+.decline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+
+.accept {
+  border: none;
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+}
+.accept:hover:not(:disabled) { filter: brightness(1.05); }
+
+.decline {
+  border: 1px solid var(--sand-300, #E7E2D9);
+  background: transparent;
+  color: var(--text-secondary, #3A414D);
+  font-weight: 600;
+}
+.decline:hover:not(:disabled) { background: var(--sand-200, #EFEAE0); }
+
+.accept:disabled,
+.decline:disabled { opacity: 0.6; cursor: progress; }
+
+.answered {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted, #7A8294);
+}
+.answeredYes { color: var(--coral-500, #EB6F43); }
+
+.error {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: #D64545;
+}
+
+.unreadDot {
+  position: absolute;
+  top: 18px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral-500, #EB6F43);
+  flex-shrink: 0;
+}
+
+/* ── Nothing to show ───────────────────────────────────────────── */
+.note {
+  margin: 0;
+  padding: 8px 0;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13.5px;
+  color: var(--text-muted, #7A8294);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  color: var(--text-muted, #7A8294);
+}
+.empty > span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary, #3A414D);
+}
+.emptyBody {
+  margin: 0;
+  font-size: 13px;
+  max-width: 34ch;
+  line-height: 1.5;
+}
+
+@media (max-width: 520px) {
+  .rowUnread { padding-right: 28px; }
+  .text { font-size: 13.5px; }
+}

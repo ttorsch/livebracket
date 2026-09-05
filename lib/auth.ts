@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from './supabaseServer';
 import { supabaseAdmin } from './supabaseAdmin';
 import { type Role, type SessionInfo, SIGNED_OUT } from './session';
 import { getProfile } from './profiles';
+import { getSandboxInfoForUser } from './sandbox';
 
 export interface Organizer {
   id: string;
@@ -90,9 +91,10 @@ export async function getSessionInfo(): Promise<SessionInfo> {
      * the capability; an account can have one, both, or (briefly, before
      * /auth/callback runs) neither. Read together so the session is one
      * answer rather than two half-answers. */
-    const [organizer, profile] = await Promise.all([
+    const [organizer, profile, sandbox] = await Promise.all([
       getOrganizerForUser(user.id),
       getProfile(user.id),
+      getSandboxInfoForUser(user.id),
     ]);
 
     return {
@@ -102,6 +104,7 @@ export async function getSessionInfo(): Promise<SessionInfo> {
       playerId: profile?.player_id ?? null,
       organizerId: organizer?.id ?? null,
       email: user.email ?? null,
+      sandbox: sandbox ?? null,
       /* These four are the PLAYER identity, and the organizers row is
        * deliberately not in the chain: the two profiles are separate, so
        * an organizer's public name must never stand in for the player's

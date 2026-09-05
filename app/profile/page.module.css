@@ -55,6 +55,8 @@
 }
 
 .topbarIconButton {
+  /* The unread badge hangs off this. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1034,4 +1036,57 @@
   .metaRow { gap: 12px; font-size: 13.5px; }
   .partnerRecord, .partnerBar { display: none; }
   .payAmount { font-size: 22px; }
+}
+
+/* ── Notifications tab ───────────────────────────────────────────
+   A heading and the one action the list needs, above rows that carry
+   their own actions. */
+.notificationsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.notificationsTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.markReadBtn {
+  border: none;
+  background: transparent;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #3A414D);
+  cursor: pointer;
+}
+.markReadBtn:hover { background: var(--sand-200, #EFEAE0); color: var(--text-primary); }
+
+/* The count on the bell. Ringed in the page colour so it reads as a badge
+   sitting on the icon rather than as part of it. */
+.bellBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--coral-500, #EB6F43);
+  border: 2px solid var(--sand-100, #F5F1EA);
+  color: #fff;
+  font-family: var(--font-ui, Inter, sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
 }

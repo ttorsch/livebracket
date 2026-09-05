@@ -162,39 +162,42 @@
 .desktop2aTitle {
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: 22px;
+  font-size: 19px;
   letter-spacing: -0.02em;
   color: var(--ink-1, #14181E);
   margin: 0;
-  line-height: 28px;
+  line-height: 24px;
 }
 
 .desktop2aHeaderCard {
   position: relative;
-  overflow: hidden;
-  margin-bottom: 16px;
-  background: #fff;
-  border: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(20, 31, 46, 0.04);
+  overflow: visible;
+  /* 24px here + 0 top padding on .stickyDivisionInner = a 24px gap to the
+     division switcher, matching the setup page's .desktop2aHeaderCard /
+     .divisionNavRow pair exactly. Keep the two in step if either moves.
+     Trade-off: .stickyDivisionBar is opaque and stacked (z-index 50), and
+     the Card's shadow (--shadow-card, 0 8px 40px) fades out ~28px below
+     the card, so the bar clips the last of that fade. Matching the setup
+     page's spacing was chosen over the softer shadow. */
+  margin-bottom: 24px;
 }
 .desktop2aHeaderCardBody {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 18px;
+  gap: 24px;
+  padding: 20px;
 }
 .desktop2aPoster {
-  width: 96px;
+  width: 140px;
   aspect-ratio: 3 / 4;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 16px;
   flex-shrink: 0;
 }
 .desktop2aPosterPlaceholder {
-  width: 96px;
+  width: 140px;
   aspect-ratio: 3 / 4;
-  border-radius: 12px;
+  border-radius: 16px;
   flex-shrink: 0;
   background: var(--surface-raised, #F3F3F3);
   border: 1.5px dashed var(--border-hairline, #E7E2D9);
@@ -207,7 +210,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
@@ -217,46 +220,31 @@
   gap: 8px;
 }
 .desktop2aEventTitle {
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 18px;
-  line-height: 24px;
-  font-weight: 700;
+  font-family: var(--font-display, var(--font-heading));
+  font-size: 34px;
+  line-height: 40px;
+  font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--ink-900, #14181E);
+  color: var(--ink-1, #14181E);
   margin: 0;
 }
 .desktop2aMetaCol {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .desktop2aMetaItem {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--ink-700, #3A414D);
-  font-size: 14px;
+  color: var(--ink-2, #3A414D);
+  font-size: 14.5px;
   line-height: 20px;
 }
-.headerSeats {
+.headerBadgeCol {
   margin-left: auto;
-  text-align: right;
+  align-self: flex-start;
   flex-shrink: 0;
-  padding-right: 20px;
-}
-.headerSeatsValue {
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--ink-900, #14181E);
-  margin: 0;
-  line-height: 1;
-}
-.headerSeatsLabel {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 12px;
-  color: var(--ink-600, #7A8294);
-  margin: 4px 0 0;
 }
 
 /* ── Sticky division floating bar ─────────────────────────── */
@@ -275,7 +263,9 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 14px clamp(20px, 3.5vw, 48px);
+  /* No top padding: the 24px margin under .desktop2aHeaderCard is the
+     whole gap, so it matches the setup page's plain .divisionNavRow. */
+  padding: 0 clamp(20px, 3.5vw, 48px) 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1046,9 +1036,26 @@
 }
 .poolsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
+}
+
+@media (max-width: 1023px) {
+  .poolsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .poolsGrid:has(> :only-child) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 639px) {
+  .poolsGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
 }
 .poolCard {
   background: var(--surface-card);
@@ -1757,11 +1764,7 @@
     white-space: nowrap;
     flex-shrink: 0;
   }
-  .poolsGrid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-top: 12px;
-  }
+
   .poolCard {
     padding: 16px;
     border-radius: 16px;
@@ -1938,4 +1941,26 @@
   .modalOverlay { padding: 12px; align-items: flex-end; }
   .confirmActions { flex-direction: column-reverse; }
   .confirmActions button { width: 100%; justify-content: center; }
+}
+
+/* The player row is a control now: clicking the photo or the name opens
+   that player's card. Styled to stay a row rather than become a button —
+   the affordance is the hover, not a box drawn around every teammate. */
+.teamPlayerRowBtn {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.14s ease;
+}
+.teamPlayerRowBtn:hover { background: transparent; }
+.teamPlayerRowBtn:hover .teamPlayerName { color: var(--orange, #EE7A4C); }
+.teamPlayerRowBtn:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 1px;
 }

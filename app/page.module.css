@@ -297,7 +297,7 @@
   display: flex;
   align-items: center;
 }
-/* The section is full-bleed, its content is not: past 1440px the copy and
+/* The section is full-bleed, its content is not: past 1024px the copy and
    the live card would sit against opposite edges of the screen with the
    width of a third column of nothing between them. */
 .heroNewGrid {
@@ -306,7 +306,7 @@
   gap: 56px;
   align-items: stretch;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1024px;
   margin-inline: auto;
 }
 
@@ -2028,7 +2028,7 @@
    screen, each with a poster half a screen tall. Past the cap the row
    takes another card instead of growing the ones it has, and the row sits
    in the middle of whatever it does not fill. No cap on the row itself:
-   the hero's 1440 would hold it to three columns for ever, and four need
+   the hero's cap would hold it to three columns for ever, and four need
    1512.
 
    360 is chosen for where the fourth card lands: four across from about

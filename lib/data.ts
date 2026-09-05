@@ -413,11 +413,20 @@ export async function getPublicTournaments(): Promise<DashboardTournament[]> {
     .select(TOURNAMENT_CARD_SELECT)
     .is('archived_at', null)
     .is('deleted_at', null)
+    .neq('slug', 'andaman-beach-masters-template')
     .order('start_date', { ascending: true });
 
   if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
 
-  return ((data ?? []) as unknown as TournamentRow[]).map(toDashboardTournament);
+  const filtered = ((data ?? []) as unknown as (TournamentRow & { is_template?: boolean; sandbox_id?: string | null })[])
+    .filter((t) => {
+      if (t.is_template) return false;
+      if (t.sandbox_id) return false;
+      if (t.slug?.startsWith('andaman-masters-')) return false;
+      return true;
+    });
+
+  return filtered.map(toDashboardTournament);
 }
 
 export interface CompletedDivisionSlide {
@@ -1094,7 +1103,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
               attempts: draw.attempts ?? 0, topSeedIds: draw.topSeedIds ?? [],
               isLocked: !!draw.isLocked,
               crossSlots: draw.crossSlots ?? {},
-              thirdPlace: !!draw.thirdPlace,
+              thirdPlace: draw.thirdPlace !== undefined ? !!draw.thirdPlace : true,
               loserFeeders: draw.loserFeeders ?? {},
             }
           : null,
@@ -1129,10 +1138,12 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
 
 export interface RegisteredPlayerRow {
   id: string;
+  userId?: string | null;
   name: string;
   phone: string | null;
   email: string | null;
   shirtSize: string | null;
+  customFields?: Record<string, any>;
 }
 
 export interface RegisteredTeamRow {
@@ -1141,6 +1152,7 @@ export interface RegisteredTeamRow {
   seed: number | null;
   paymentCleared: boolean;
   status: 'confirmed' | 'unpaid' | 'waitlist';
+  registeredBy?: string | null;
   players: RegisteredPlayerRow[];
 }
 
@@ -1153,7 +1165,7 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
 
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, seed, payment_cleared, status, players(id, name, phone, email, shirt_size)')
+    .select('id, name, seed, payment_cleared, status, registered_by, players(id, name, phone, email, shirt_size, custom_fields, user_id)')
     .eq('division_id', divisionId)
     .order('seed', { ascending: true, nullsFirst: false });
 
@@ -1166,12 +1178,15 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,
+    registeredBy: t.registered_by ?? null,
     players: (t.players ?? []).map((p: any) => ({
       id: p.id,
+      userId: p.user_id ?? null,
       name: p.name,
       phone: p.phone,
       email: p.email,
       shirtSize: p.shirt_size,
+      customFields: p.custom_fields ?? {},
     })),
   }));
 }

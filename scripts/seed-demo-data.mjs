@@ -3,6 +3,7 @@
 // Uses the service-role key (bypasses RLS) — never run this against a
 // database you don't own, and never import this pattern into app code.
 import { createClient } from '@supabase/supabase-js';
+import { buildGoldenTemplate } from './seed-golden-template.mjs';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -292,10 +293,31 @@ function addMatch(roundId, divisionId, { court, time, teamA, teamB, scoreA, scor
   addTeams(masters, 9, { startIndex: 90, waitlistFrom: 6 });
 }
 
+// Include golden template tournament for demo sandbox
+const golden = await buildGoldenTemplate();
+organizers.push(...golden.organizers);
+tournaments.push(...golden.tournaments);
+divisions.push(...golden.divisions);
+rounds.push(...golden.rounds);
+teams.push(...golden.teams);
+players.push(...golden.players);
+registrations.push(...golden.registrations);
+matches.push(...golden.matches);
+vouchers.push(...golden.vouchers);
+
 async function insertAll(table, rows) {
   if (rows.length === 0) return;
   const { error } = await supabase.from(table).insert(rows);
-  if (error) throw new Error(`Insert into ${table} failed: ${error.message}`);
+  if (error) {
+    if (table === 'tournaments' && error.message.includes('is_template')) {
+      const stripped = rows.map(({ is_template, ...rest }) => rest);
+      const { error: err2 } = await supabase.from(table).insert(stripped);
+      if (err2) throw new Error(`Insert into ${table} failed: ${err2.message}`);
+      console.log(`Inserted ${rows.length} rows into ${table} (without is_template)`);
+      return;
+    }
+    throw new Error(`Insert into ${table} failed: ${error.message}`);
+  }
   console.log(`Inserted ${rows.length} rows into ${table}`);
 }
 

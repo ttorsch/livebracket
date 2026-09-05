@@ -39,6 +39,7 @@ import { tournamentStatus } from '../../../../lib/tournamentStatus';
 import { describeDiscardCost, type DiscardCost } from '../../../../lib/schedule/discardCost';
 import { formatTeamFirstName } from '../../../../lib/teamName';
 import { useTabSwipe } from '../../../../hooks/useTabSwipe';
+import PlayerCardModal, { type PlayerCardTarget } from '../../../../components/PlayerCardModal';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
 
@@ -359,6 +360,8 @@ export default function OrganizerBracketPage() {
   const drawResultRef = useRef<HTMLDivElement | null>(null);
 
   const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
+  /* The player whose card is open. Null closes it. */
+  const [playerCard, setPlayerCard] = useState<PlayerCardTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1104,17 +1107,28 @@ export default function OrganizerBracketPage() {
                       <span>{detail.location}</span>
                     </div>
                   )}
+                  {detail.divisions.length > 0 && (
+                    <div className={styles.desktop2aMetaItem}>
+                      <Icon name="users" size={16} />
+                      <span>{detail.divisions.length} {detail.divisions.length === 1 ? 'Division' : 'Divisions'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {totalCap > 0 && (
-                <div className={styles.headerSeats}>
-                  <p className={styles.headerSeatsValue}>{totalTeams}/{totalCap}</p>
-                  <p className={styles.headerSeatsLabel}>
-                    seats filled across {detail.divisions.length} division{detail.divisions.length === 1 ? '' : 's'}
-                  </p>
-                </div>
-              )}
+              <div className={styles.headerBadgeCol}>
+                {isDrawLocked ? (
+                  <Badge variant="highlight" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '11px', padding: '6px 12px' }}>
+                    <Lock size={12} />
+                    <span>{isRoundRobin ? 'Pool Result Locked' : 'Bracket Locked'}</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '11px', padding: '6px 12px' }}>
+                    <Unlock size={12} />
+                    <span>Draw In Progress</span>
+                  </Badge>
+                )}
+              </div>
             </div>
           </Card>
         </div>
@@ -1235,10 +1249,37 @@ export default function OrganizerBracketPage() {
                       <div className={styles.teamCardHeader}>
                         <div className={styles.teamPlayersList}>
                           {playerItems.map((player: { id: string; name: string; userId?: string | null }, idx: number) => {
+                            /* The same key the avatar is resolved by: the
+                               player's own account, or — for the first name
+                               on the team — whoever registered it. */
                             const avatarKey = player.userId || (idx === 0 && team.registeredBy ? team.registeredBy : undefined);
                             const avatarUrl = avatarKey ? playerAvatars[avatarKey] : undefined;
+                            const hasAccount = Boolean(avatarKey);
+
+                            if (hasAccount) {
+                              return (
+                                <button
+                                  type="button"
+                                  key={player.id || idx}
+                                  className={`${styles.teamPlayerRow} ${styles.teamPlayerRowBtn}`}
+                                  onClick={() => setPlayerCard({
+                                    userId: avatarKey ?? null,
+                                    name: player.name,
+                                    avatarUrl,
+                                  })}
+                                  title={`About ${player.name}`}
+                                >
+                                  <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
+                                  <span className={styles.teamPlayerName}>{player.name}</span>
+                                </button>
+                              );
+                            }
+
                             return (
-                              <div key={player.id || idx} className={styles.teamPlayerRow}>
+                              <div
+                                key={player.id || idx}
+                                className={styles.teamPlayerRow}
+                              >
                                 <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
                                 <span className={styles.teamPlayerName}>{player.name}</span>
                               </div>
@@ -2287,6 +2328,8 @@ export default function OrganizerBracketPage() {
           </div>
         </div>
       )}
+
+      <PlayerCardModal target={playerCard} onClose={() => setPlayerCard(null)} />
     </div>
   );
 }

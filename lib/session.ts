@@ -29,6 +29,11 @@ export interface OrganizerIdentity {
   avatarUrl: string | null;
 }
 
+export interface SandboxSession {
+  id: string;
+  expiresAt: string;
+}
+
 export interface SessionInfo {
   signedIn: boolean;
   roles: Role[];
@@ -46,6 +51,8 @@ export interface SessionInfo {
    * roster. Null only before the profile row exists — every signed-in
    * account has one from its first authenticated moment. */
   playerId: string | null;
+  /* Active try-it-yourself sandbox session details, if in demo mode. */
+  sandbox?: SandboxSession | null;
 }
 
 export const SIGNED_OUT: SessionInfo = {
@@ -60,6 +67,7 @@ export const SIGNED_OUT: SessionInfo = {
   hometown: null,
   avatarUrl: null,
   playerId: null,
+  sandbox: null,
 };
 
 export function isOrganizer(session: SessionInfo): boolean {

@@ -1709,3 +1709,25 @@
   .liveScore,
   .liveScoreLead { font-size: 30px; }
 }
+
+/* The player row is a control now: clicking the photo or the name opens
+   that player's card. Styled to stay a row rather than become a button —
+   the affordance is the hover, not a box drawn around every teammate. */
+.teamPlayerRowBtn {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.14s ease;
+}
+.teamPlayerRowBtn:hover { background: transparent; }
+.teamPlayerRowBtn:hover .teamPlayerName { color: var(--orange, #EE7A4C); }
+.teamPlayerRowBtn:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 1px;
+}

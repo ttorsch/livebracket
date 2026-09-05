@@ -1,0 +1,325 @@
+/* The player card. Shares the app's modal language — dim, blur, a sand
+   dialog on a soft shadow — so it reads as one family with the publish
+   and scorekeeper dialogs. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(14, 18, 24, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: cardFadeIn 0.15s ease-out;
+}
+
+@keyframes cardFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: var(--sand-50, #FFFFFF);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-radius: var(--radius-xl, 24px);
+  padding: 28px 24px 20px;
+  box-shadow: 0 20px 48px rgba(18, 22, 31, 0.18);
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  color: var(--ink-900, #14181E);
+  animation: cardSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .dialog { animation: none; }
+}
+
+.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--sand-200, #EFEAE0);
+  background: var(--sand-100, #F7F5F0);
+  color: var(--text-secondary, #3A414D);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.close:hover { background: var(--sand-200, #EFEAE0); }
+
+/* ── Identity ──────────────────────────────────────────────────
+   The profile page's own header, restacked for a narrow dialog: same
+   display face for the name, same coral marks against club and hometown,
+   same "Player ID:" row with a copy beside it. Only the arrangement and
+   the sizes differ — a 400px dialog has height to spend and no width, so
+   what sits beside the photo there sits under it here. */
+.identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.name {
+  margin: 4px 0 0;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 27px;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  color: var(--text-primary, #14181E);
+  overflow-wrap: anywhere;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 14px;
+  color: var(--text-secondary, #3A414D);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.playerIdRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--text-secondary, #7a8294);
+  margin-top: 2px;
+}
+
+.playerIdLabel { font-weight: 500; }
+
+.playerIdValue {
+  font-family: var(--font-mono, 'SFMono-Regular', Consolas, monospace);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-primary, #14181e);
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #7a8294);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.copyBtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary, #14181e);
+}
+
+/* Why part of the card is missing, in place of the gap it would leave. */
+.gated {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted, #7A8294);
+}
+.gatedLink {
+  color: var(--coral-500, #EB6F43);
+  font-weight: 600;
+  text-decoration: none;
+}
+.gatedLink:hover { text-decoration: underline; }
+
+/* ── Performance ───────────────────────────────────────────────── */
+.performance {
+  margin-top: 20px;
+  padding: 16px 16px 14px;
+  border-radius: 18px;
+  background: var(--sand-100, #F7F5F0);
+  border: 1px solid var(--sand-200, #EFEAE0);
+}
+.paneTitle {
+  margin: 0 0 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #7A8294);
+}
+.paneNote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted, #7A8294);
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.statValue {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.statLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #7A8294);
+  white-space: nowrap;
+}
+
+.statRows {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sand-200, #EFEAE0);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.statRow {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-secondary, #3A414D);
+}
+.statRow strong {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--ink-900, #14181E);
+  text-align: right;
+}
+
+/* ── Actions ───────────────────────────────────────────────────── */
+.actions {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sand-200, #EFEAE0);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionBtn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 1px solid var(--sand-200, #EFEAE0);
+  background: transparent;
+  color: var(--text-secondary, #3A414D);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.actionBtn:hover:not(:disabled) { background: var(--sand-100, #F7F5F0); }
+/* Chat is not built yet, and a signed-out viewer has no identity to
+   thumb with: both are drawn half-lit and unclickable, which is the whole
+   statement — a label saying "soon" only repeats it. */
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* Your own thumb, still on. Coral rather than filled: the button says
+   what you did, it does not become a different control. */
+.actionBtnOn {
+  border-color: var(--coral-500, #EB6F43);
+  color: var(--coral-500, #EB6F43);
+}
+.actionBtnOn:disabled { opacity: 0.75; }
+.actionLabel { white-space: nowrap; }
+
+/* How many people, not how many clicks. */
+.actionCount {
+  font-family: var(--font-ui, Inter, sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.actionPrimary {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 10px;
+  border-radius: 14px;
+  border: none;
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.actionPrimary:hover { filter: brightness(1.05); }
+
+/* Claiming a name is still to come, so it is drawn the way the other
+   two unbuilt controls are: present, plainly inert. */
+.actionClaim {
+  flex: 1 1 100%;
+  padding: 11px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--sand-200, #EFEAE0);
+  background: transparent;
+  color: var(--text-secondary, #3A414D);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 420px) {
+  .dialog { padding: 24px 16px 16px; }
+  .actionLabel { display: none; }
+  .actionBtn { flex: 0 0 46px; }
+}

@@ -68,12 +68,12 @@ import DateRangePicker from '../../../../../components/DateRangePicker';
 import PublishTournamentModal from '@/components/PublishTournamentModal';
 import {
   getTournamentBasicInfo, type TournamentBasicInfo, getSetupDivisions, type SetupDivisionRow,
-  getDivisionTeams, type RegisteredTeamRow, getSetupOverview, type SetupOverview,
+  getDivisionTeams, type RegisteredTeamRow, type RegisteredPlayerRow, getSetupOverview, type SetupOverview,
 } from '../../../../../lib/data';
 import { computeReadiness, type ReadinessItem } from '../../../../../lib/setupReadiness';
 import {
   PHASE, PHASE_LABEL, registrationCloseDefault, canDelete, DELETE_COPY, isPublic, type Phase,
-  divisionRegistrationState, getOrganizerDivisionBadge,
+  divisionRegistrationState,
 } from '../../../../../lib/tournamentLifecycle';
 import { joinTeamName, formatPlayerNames } from '../../../../../lib/teamName';
 import {
@@ -81,6 +81,7 @@ import {
   type DivisionGender, type AgeLimit,
 } from '../../../../../lib/divisionEligibility';
 import { Button, Card, Badge, Icon, BracketIcon } from '@/components/livebracket-ds';
+import PlayerCardModal, { type PlayerCardTarget } from '@/components/PlayerCardModal';
 import RosterFields, { type RosterPlayer } from '@/components/registration/RosterFields';
 import { SKILL_LEVELS } from '@/lib/registrationFields';
 import {
@@ -281,19 +282,80 @@ const normalizeCurrency = (v: unknown): string =>
 const TEAM_FILTERS = ['All', 'Paid', 'Unpaid', 'Waitlist'] as const;
 type TeamFilter = (typeof TEAM_FILTERS)[number];
 
+function getPlayerClubOrHometown(player?: RegisteredPlayerRow, regFields?: RegField[]): string | null {
+  if (!player?.customFields) return null;
+  if (regFields) {
+    const clubField = regFields.find(f => f.preset === 'hometown' || /club|hometown|team/i.test(f.label));
+    if (clubField && player.customFields[clubField.id]) {
+      return String(player.customFields[clubField.id]);
+    }
+  }
+  for (const [k, v] of Object.entries(player.customFields)) {
+    if (/club|hometown|team/i.test(k) && v) return String(v);
+  }
+  return null;
+}
+
+function renderPlayerSub(player?: RegisteredPlayerRow, regFields?: RegField[]) {
+  if (!player) return null;
+  const club = getPlayerClubOrHometown(player, regFields);
+  const size = player.shirtSize ? `Size ${player.shirtSize}` : null;
+  const details = [size, club].filter(Boolean);
+  if (details.length === 0) return null;
+  return (
+    <div className={styles.teamPlayerMeta}>
+      {details.join(' · ')}
+    </div>
+  );
+}
+
+function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
+
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const initial = words.length > 1
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : (name.trim()[0]?.toUpperCase() || '?');
+
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className={styles.playerAvatarImg}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={styles.playerAvatar} aria-hidden="true">
+      <span>{initial}</span>
+    </div>
+  );
+}
+
 /* One row of the registered-teams table.
  *
  * The row itself opens the full registration; the payment chip, Move Up and
  * the remove button are actions in their own right, so each stops the click
  * from reaching the row behind it. */
 function TeamRow({
-  team, index, waitlisted = false, busy,
+  team, index, regFields, waitlisted = false, busy,
+  playerAvatars, onOpenPlayer,
   onOpen, onEdit, onTogglePayment, onPromote, onRemove,
 }: {
   team: RegisteredTeamRow;
   index: number;
+  regFields?: RegField[];
   waitlisted?: boolean;
   busy: boolean;
+  playerAvatars?: Record<string, string>;
+  onOpenPlayer?: (target: PlayerCardTarget) => void;
   onOpen: () => void;
   onEdit: () => void;
   onTogglePayment?: () => void;
@@ -304,6 +366,21 @@ function TeamRow({
     e.stopPropagation();
     fn?.();
   };
+
+  const p1 = team.players[0];
+  const p2 = team.players[1];
+  const extraPlayers = team.players.slice(2);
+  const rawParts = team.name ? team.name.split('/').map(s => s.trim()).filter(Boolean) : [];
+  const p1Name = p1?.name || rawParts[0] || 'Player 1';
+  const p2Name = p2?.name || rawParts[1] || (rawParts.length > 0 ? '—' : 'Player 2');
+
+  const p1AvatarKey = p1?.userId || team.registeredBy;
+  const p1HasAccount = Boolean(p1AvatarKey);
+  const p1AvatarUrl = p1AvatarKey && playerAvatars ? playerAvatars[p1AvatarKey] : undefined;
+
+  const p2AvatarKey = p2?.userId;
+  const p2HasAccount = Boolean(p2AvatarKey);
+  const p2AvatarUrl = p2AvatarKey && playerAvatars ? playerAvatars[p2AvatarKey] : undefined;
 
   return (
     <tr
@@ -318,8 +395,101 @@ function TeamRow({
     >
       <td className={waitlisted ? styles.teamRowNoWait : styles.teamRowNo}>{index}</td>
       <td>
-        <div className={styles.teamRowName}>
-          {formatPlayerNames(team.players, team.name, team.seed)}
+        <div className={styles.teamPlayerCell}>
+          {p1HasAccount ? (
+            <button
+              type="button"
+              className={styles.playerProfileBtn}
+              onClick={stop(() => {
+                if (onOpenPlayer && p1Name !== '—') {
+                  onOpenPlayer({
+                    userId: p1AvatarKey ?? null,
+                    name: p1Name,
+                    avatarUrl: p1AvatarUrl,
+                  });
+                }
+              })}
+              title={`About ${p1Name}`}
+            >
+              <PlayerAvatar name={p1Name} avatarUrl={p1AvatarUrl} />
+              <span className={styles.teamPlayerName}>{p1Name}</span>
+            </button>
+          ) : (
+            <div className={styles.playerStatic}>
+              <PlayerAvatar name={p1Name} avatarUrl={p1AvatarUrl} />
+              <span className={styles.teamPlayerName}>{p1Name}</span>
+            </div>
+          )}
+          {renderPlayerSub(p1, regFields)}
+        </div>
+      </td>
+      <td>
+        <div className={styles.teamPlayerCell}>
+          {p2Name === '—' ? (
+            <span className={styles.teamPlayerName} style={{ paddingLeft: 4 }}>{p2Name}</span>
+          ) : p2HasAccount ? (
+            <button
+              type="button"
+              className={styles.playerProfileBtn}
+              onClick={stop(() => {
+                if (onOpenPlayer) {
+                  onOpenPlayer({
+                    userId: p2AvatarKey ?? null,
+                    name: p2Name,
+                    avatarUrl: p2AvatarUrl,
+                  });
+                }
+              })}
+              title={`About ${p2Name}`}
+            >
+              <PlayerAvatar name={p2Name} avatarUrl={p2AvatarUrl} />
+              <span className={styles.teamPlayerName}>{p2Name}</span>
+            </button>
+          ) : (
+            <div className={styles.playerStatic}>
+              <PlayerAvatar name={p2Name} avatarUrl={p2AvatarUrl} />
+              <span className={styles.teamPlayerName}>{p2Name}</span>
+            </div>
+          )}
+          {renderPlayerSub(p2, regFields)}
+          {extraPlayers.length > 0 && (
+            <div className={styles.extraPlayersWrap}>
+              {extraPlayers.map((ep, i) => {
+                const epAvatarKey = ep.userId;
+                const epHasAccount = Boolean(epAvatarKey);
+                const epAvatarUrl = epAvatarKey && playerAvatars ? playerAvatars[epAvatarKey] : undefined;
+                return (
+                  <div key={ep.id || i} className={styles.teamPlayerCell}>
+                    {epHasAccount ? (
+                      <button
+                        type="button"
+                        className={styles.playerProfileBtn}
+                        onClick={stop(() => {
+                          if (onOpenPlayer) {
+                            onOpenPlayer({
+                              userId: epAvatarKey ?? null,
+                              name: ep.name,
+                              avatarUrl: epAvatarUrl,
+                            });
+                          }
+                        })}
+                        title={`About ${ep.name}`}
+                      >
+                        <PlayerAvatar name={ep.name} avatarUrl={epAvatarUrl} />
+                        <span className={styles.teamPlayerName}>{ep.name}</span>
+                      </button>
+                    ) : (
+                      <div className={styles.playerStatic}>
+                        <PlayerAvatar name={ep.name} avatarUrl={epAvatarUrl} />
+                        <span className={styles.teamPlayerName}>{ep.name}</span>
+                      </div>
+                    )}
+                    {renderPlayerSub(ep, regFields)}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </td>
       <td style={{ fontWeight: 500 }}>{team.players[0]?.phone || '—'}</td>
@@ -763,6 +933,8 @@ export default function OrganizerSetup() {
   const [detailsCollapsed, setDetailsCollapsed] = useState(true);
   const [registeredTeams, setRegisteredTeams] = useState<RegisteredTeamRow[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
+  const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
+  const [playerCard, setPlayerCard] = useState<PlayerCardTarget | null>(null);
   const [editingDivisionId, setEditingDivisionId] = useState<string | null>(null);
 
   // Manual "Add Team" modal
@@ -1049,6 +1221,21 @@ export default function OrganizerSetup() {
     getSetupOverview(tournamentId)
       .then(o => { if (!cancelled) setOverview(o); })
       .catch(console.error);
+    return () => { cancelled = true; };
+  }, [params.id, overviewTick]);
+
+  useEffect(() => {
+    const slug = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!slug) return;
+    let cancelled = false;
+    fetch(`/api/tournaments/${slug}/player-avatars`)
+      .then(res => res.json())
+      .then(data => {
+        if (!cancelled && data?.avatars) {
+          setPlayerAvatars(data.avatars);
+        }
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [params.id, overviewTick]);
 
@@ -1861,7 +2048,7 @@ export default function OrganizerSetup() {
         body: JSON.stringify({
           paymentCleared: editTeamPayment,
           status: editTeamStatus,
-          seed: editTeamSeed.trim() ? Number(editTeamSeed) : null,
+          seed: teamDetail.seed ?? null,
           players: editTeamPlayers.map(p => ({
             id: p.id,
             name: p.name.trim(),
@@ -2089,6 +2276,12 @@ export default function OrganizerSetup() {
                     <span>{displayLocation}</span>
                   </div>
                 )}
+                {divisions.length > 0 && (
+                  <div className={styles.mobileEventMeta}>
+                    <Users size={13} />
+                    <span>{divisions.length} {divisions.length === 1 ? 'Division' : 'Divisions'}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2148,6 +2341,12 @@ export default function OrganizerSetup() {
                         <span>{displayLocation}</span>
                       </div>
                     )}
+                    {divisions.length > 0 && (
+                      <div className={styles.desktop2aMetaItem}>
+                        <Icon name="users" size={16} />
+                        <span>{divisions.length} {divisions.length === 1 ? 'Division' : 'Divisions'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -2195,18 +2394,6 @@ export default function OrganizerSetup() {
                       </Button>
                     </>
                   )}
-                  <Link
-                    href={`/dashboard/tournament/${slug}`}
-                    className={styles.cardGhostBtn}
-                  >
-                    <BracketIcon size={15} /> Bracket
-                  </Link>
-                  <Link
-                    href={`/dashboard/tournament/${slug}/schedule`}
-                    className={styles.cardGhostBtn}
-                  >
-                    <Calendar size={15} /> Schedule
-                  </Link>
                 </div>
               </div>
             </Card>
@@ -2229,39 +2416,56 @@ export default function OrganizerSetup() {
             ) : (
               <>
                 <div className={styles.divisionNavRow}>
-                  <div className={styles.divisionSegmented} role="tablist" aria-label="Select division">
-                    {divisions.map(d => {
-                      const active = d.id === activeDivisionId;
-                      const sum = overview?.divisions.find(o => o.id === d.id);
-                      const confirmed = sum?.confirmed ?? 0;
-                      return (
-                        <button
-                          key={d.id}
-                          type="button"
-                          role="tab"
-                          aria-selected={active}
-                          className={`${styles.divisionSegment} ${active ? styles.divisionSegmentActive : ''}`}
-                          onClick={() => handleSelectDivision(d.id)}
-                        >
-                          {active && (
-                            <motion.span
-                              layoutId="setup-division-desktop-pill"
-                              className={styles.divisionSegmentActivePill}
-                              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                            />
-                          )}
-                          <span className={styles.divisionSegmentLabel}>
-                            <span>{d.name}</span>
-                            <span style={{ fontSize: 11, opacity: 0.85 }}>({confirmed}/{d.divisionTeamCap})</span>
-                          </span>
-                        </button>
-                      );
-                    })}
+                  <div className={styles.divisionNavLeft}>
+                    <div className={styles.divisionSegmented} role="tablist" aria-label="Select division">
+                      {divisions.map(d => {
+                        const active = d.id === activeDivisionId;
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            className={`${styles.divisionSegment} ${active ? styles.divisionSegmentActive : ''}`}
+                            onClick={() => handleSelectDivision(d.id)}
+                          >
+                            {active && (
+                              <motion.span
+                                layoutId="setup-division-desktop-pill"
+                                className={styles.divisionSegmentActivePill}
+                                transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                              />
+                            )}
+                            <span className={styles.divisionSegmentLabel}>{d.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button type="button" className={styles.addDivisionBtn} onClick={handleOpenCreateModal}>
+                      <Plus size={16} />
+                      <span>Add Division</span>
+                    </button>
                   </div>
-                  <button type="button" className={styles.addDivisionBtn} onClick={handleOpenCreateModal}>
-                    <Plus size={16} />
-                    <span>Add Division</span>
-                  </button>
+                  <div className={styles.divisionNavActions}>
+                    <Link
+                      href={`/dashboard/tournament/${slug}`}
+                      className={styles.divisionLinkBtn}
+                      style={{ textDecoration: 'none' }}
+                      aria-label="Bracket"
+                    >
+                      <BracketIcon size={16} />
+                      <span>Bracket</span>
+                    </Link>
+                    <Link
+                      href={`/dashboard/tournament/${slug}/schedule`}
+                      className={styles.divisionLinkBtn}
+                      style={{ textDecoration: 'none' }}
+                      aria-label="Schedule"
+                    >
+                      <Calendar size={16} />
+                      <span>Schedule</span>
+                    </Link>
+                  </div>
                 </div>
 
                 {activeDivision && (
@@ -2285,27 +2489,19 @@ export default function OrganizerSetup() {
                             <Users size={20} />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                              <h3 className={styles.cardTitle}>Registered Teams</h3>
-                              {(() => {
-                                const sum = overview?.divisions.find(o => o.id === activeDivision.id);
-                                const confirmed = sum?.confirmed ?? confirmedTeams.length;
-                                const badge = getOrganizerDivisionBadge({
-                                  name: activeDivision.name,
-                                  cap: activeDivision.divisionTeamCap,
-                                  filled: confirmed,
-                                  registrationOpens: activeDivision.registrationOpenDate || '',
-                                  registrationCloses: activeDivision.registrationCloseDate || '',
-                                  isDrawLocked: sum?.drawLocked,
-                                });
-                                return <Badge variant={badge.variant}>{badge.label}</Badge>;
-                              })()}
-                            </div>
-                            <p className={styles.subtitle}>
-                              {confirmedTeams.length} of {activeDivision.divisionTeamCap} seats filled
-                              {' · '}
-                              {unpaidCount > 0 ? `${unpaidCount} unpaid` : 'all paid'}
-                            </p>
+                            <h3 className={styles.cardTitle}>Registered Teams</h3>
+                            {(() => {
+                              const spotsRemaining = Math.max(0, activeDivision.divisionTeamCap - confirmedTeams.length);
+                              return (
+                                <p className={styles.subtitle}>
+                                  {confirmedTeams.length}/{activeDivision.divisionTeamCap} teams registered
+                                  {' · '}
+                                  <span className={styles.spotsAvailableText}>
+                                    {spotsRemaining} {spotsRemaining === 1 ? 'spot' : 'spots'} available
+                                  </span>
+                                </p>
+                              );
+                            })()}
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                             <button type="button" className={styles.btnGhost} onClick={openAddTeamModal}>
@@ -2345,6 +2541,24 @@ export default function OrganizerSetup() {
                             <input ref={importFileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleImportFile} />
                           </div>
                         </div>
+
+                        {/* Registration fill progress bar */}
+                        <div
+                          className={styles.teamsProgressBar}
+                          role="progressbar"
+                          aria-valuenow={confirmedTeams.length}
+                          aria-valuemin={0}
+                          aria-valuemax={activeDivision.divisionTeamCap}
+                          aria-label={`${confirmedTeams.length} of ${activeDivision.divisionTeamCap} seats filled`}
+                        >
+                          <div
+                            className={styles.teamsProgressBarFill}
+                            style={{
+                              width: `${Math.min(100, Math.round((confirmedTeams.length / Math.max(1, activeDivision.divisionTeamCap)) * 100))}%`,
+                            }}
+                          />
+                        </div>
+
                         <div className={styles.sectionBody}>
                           {/* Search + status filter, both scoped to this division */}
                           <div className={styles.teamsControls}>
@@ -2405,10 +2619,11 @@ export default function OrganizerSetup() {
                             <table className={styles.teamsTable}>
                               <thead>
                                 <tr>
-                                  <th style={{ width: '60px' }}>No.</th>
-                                  <th>Players</th>
-                                  <th style={{ width: '150px' }}>Contact</th>
-                                  <th style={{ width: '110px' }}>Payment</th>
+                                  <th style={{ width: '48px' }}>No.</th>
+                                  <th style={{ width: '190px' }}>Player 1</th>
+                                  <th style={{ width: '190px' }}>Player 2</th>
+                                  <th>Contact</th>
+                                  <th style={{ width: '100px' }}>Payment</th>
                                   <th style={{ width: '84px', textAlign: 'right' }}>Actions</th>
                                 </tr>
                               </thead>
@@ -2418,7 +2633,10 @@ export default function OrganizerSetup() {
                                     key={t.id}
                                     team={t}
                                     index={idx + 1}
+                                    regFields={activeDivision.regFields}
                                     busy={rowBusy === t.id}
+                                    playerAvatars={playerAvatars}
+                                    onOpenPlayer={setPlayerCard}
                                     onOpen={() => openTeamDetail(t)}
                                     onEdit={() => openTeamEdit(t)}
                                     onTogglePayment={() => toggleTeamPayment(t)}
@@ -2428,7 +2646,7 @@ export default function OrganizerSetup() {
 
                                 {visibleWaitlist.length > 0 && (
                                   <tr>
-                                    <td colSpan={5} className={styles.waitlistSeparatorCell}>
+                                    <td colSpan={6} className={styles.waitlistSeparatorCell}>
                                       <div className={styles.waitlistSeparator}>
                                         <span className={styles.waitlistTag}>Waiting list</span>
                                         <span className={styles.waitlistNote}>
@@ -2446,7 +2664,10 @@ export default function OrganizerSetup() {
                                     team={t}
                                     index={idx + 1}
                                     waitlisted
+                                    regFields={activeDivision.regFields}
                                     busy={rowBusy === t.id}
+                                    playerAvatars={playerAvatars}
+                                    onOpenPlayer={setPlayerCard}
                                     onOpen={() => openTeamDetail(t)}
                                     onEdit={() => openTeamEdit(t)}
                                     onPromote={() => promoteTeam(t)}
@@ -4028,9 +4249,6 @@ export default function OrganizerSetup() {
                       <span className={teamDetail.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
                         {teamDetail.paymentCleared ? 'Paid' : 'Unpaid'}
                       </span>
-                      {teamDetail.seed != null && (
-                        <span className={styles.detailSeed}>Seed {teamDetail.seed}</span>
-                      )}
                     </div>
 
                     {teamDetail.players.length === 0 ? (
@@ -4061,37 +4279,23 @@ export default function OrganizerSetup() {
                       <div className={styles.editErrorBanner}>{teamEditError}</div>
                     )}
 
-                    <div className={styles.twoCol} style={{ marginTop: 6 }}>
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Payment Status</label>
-                        <div className={styles.editToggleRow}>
-                          <button
-                            type="button"
-                            className={`${styles.editToggleBtn} ${editTeamPayment ? styles.editToggleBtnActive : ''}`}
-                            onClick={() => setEditTeamPayment(true)}
-                          >
-                            Paid
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.editToggleBtn} ${!editTeamPayment ? styles.editToggleBtnActive : ''}`}
-                            onClick={() => setEditTeamPayment(false)}
-                          >
-                            Unpaid
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className={styles.fieldGroup}>
-                        <label className={styles.fieldLabel}>Seed Number</label>
-                        <input
-                          type="number"
-                          min="1"
-                          className={styles.input}
-                          placeholder="Optional (e.g. 1)"
-                          value={editTeamSeed}
-                          onChange={e => setEditTeamSeed(e.target.value)}
-                        />
+                    <div className={styles.fieldGroup} style={{ marginTop: 6 }}>
+                      <label className={styles.fieldLabel}>Payment Status</label>
+                      <div className={styles.editToggleRow}>
+                        <button
+                          type="button"
+                          className={`${styles.editToggleBtn} ${editTeamPayment ? styles.editToggleBtnActive : ''}`}
+                          onClick={() => setEditTeamPayment(true)}
+                        >
+                          Paid
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.editToggleBtn} ${!editTeamPayment ? styles.editToggleBtnActive : ''}`}
+                          onClick={() => setEditTeamPayment(false)}
+                        >
+                          Unpaid
+                        </button>
                       </div>
                     </div>
 
@@ -4287,6 +4491,11 @@ export default function OrganizerSetup() {
           setBasicInfo(prev => prev ? { ...prev, phase: PHASE.announced } : null);
           setOverviewTick(t => t + 1);
         }}
+      />
+
+      <PlayerCardModal
+        target={playerCard}
+        onClose={() => setPlayerCard(null)}
       />
     </div>
   );

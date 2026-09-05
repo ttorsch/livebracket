@@ -45,6 +45,7 @@ import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../
 import { useSession } from '../../../components/auth/AuthProvider';
 import AccountButton from '../../../components/auth/AccountButton';
 import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
+import PlayerCardModal, { type PlayerCardTarget } from '../../../components/PlayerCardModal';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
 
 type NavMode = 'top' | 'shown' | 'hidden';
@@ -312,6 +313,8 @@ export default function TournamentPage() {
   }, [slug]);
 
   const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
+  /* The player whose card is open. Null closes it. */
+  const [playerCard, setPlayerCard] = useState<PlayerCardTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1124,10 +1127,37 @@ export default function TournamentPage() {
                     <div className={styles.teamCardHeader}>
                       <div className={styles.teamPlayersList}>
                         {playerItems.map((player, idx) => {
+                          /* The same key the avatar is resolved by: the
+                             player's own account, or — for the first name on
+                             the team — the account that registered it. */
                           const avatarKey = player.userId || (idx === 0 && team.registeredBy ? team.registeredBy : undefined);
                           const avatarUrl = avatarKey ? playerAvatars[avatarKey] : undefined;
+                          const hasAccount = Boolean(avatarKey);
+
+                          if (hasAccount) {
+                            return (
+                              <button
+                                type="button"
+                                key={player.id || idx}
+                                className={`${styles.teamPlayerRow} ${styles.teamPlayerRowBtn}`}
+                                onClick={() => setPlayerCard({
+                                  userId: avatarKey ?? null,
+                                  name: player.name,
+                                  avatarUrl,
+                                })}
+                                title={`About ${player.name}`}
+                              >
+                                <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
+                                <span className={styles.teamPlayerName}>{player.name}</span>
+                              </button>
+                            );
+                          }
+
                           return (
-                            <div key={player.id || idx} className={styles.teamPlayerRow}>
+                            <div
+                              key={player.id || idx}
+                              className={styles.teamPlayerRow}
+                            >
                               <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
                               <span className={styles.teamPlayerName}>{player.name}</span>
                             </div>
@@ -1278,6 +1308,8 @@ export default function TournamentPage() {
           </AnimatePresence>
         </div>
       </main>
+
+      <PlayerCardModal target={playerCard} onClose={() => setPlayerCard(null)} />
     </div>
   );
 }

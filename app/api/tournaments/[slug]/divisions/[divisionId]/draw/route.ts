@@ -545,7 +545,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const pools = Math.max(1, Math.min(8, Math.trunc(body.pools) || 1));
   const advance = Math.max(1, Math.min(4, Math.trunc(body.advance) || 1));
   const crossing = typeof body.crossing === 'string' ? body.crossing : 'fivb';
-  const wantsThirdPlace = body.thirdPlace === true;
+  const wantsThirdPlace = body.thirdPlace !== undefined ? body.thirdPlace === true : true;
 
   let division;
   try {
@@ -587,7 +587,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       crossing,
       scoringRules: elimRounds[0].scoring_rules ?? {},
       startSequence: poolRound.sequence + 1,
-      thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : prevDraw.thirdPlace === true,
+      thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : (prevDraw.thirdPlace !== undefined ? prevDraw.thirdPlace === true : true),
     });
 
     const elimRoundIds = elimRounds.map(r => r.id);
@@ -625,7 +625,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       pools: poolCount,
       advance,
       crossing,
-      thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : prevDraw.thirdPlace === true,
+      thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : (prevDraw.thirdPlace !== undefined ? prevDraw.thirdPlace === true : true),
       slots: nextSlots,
       crossSlots: knockout.crossSlots,
       loserFeeders: knockout.loserFeeders,
@@ -970,7 +970,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const topSeedIds = Array.isArray(body.topSeedIds) ? body.topSeedIds.filter(id => teamIdSet.has(id)) : (prevDraw.topSeedIds ?? []);
   const draw = {
     pools, advance, crossing,
-    thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : prevDraw.thirdPlace === true,
+    thirdPlace: typeof body.thirdPlace === 'boolean' ? body.thirdPlace : (prevDraw.thirdPlace !== undefined ? prevDraw.thirdPlace === true : true),
     attempts: body.generate ? prevAttempts + 1 : prevAttempts,
     topSeedIds,
     slots: body.generate ? slots : (prevDraw.slots ?? {}),

@@ -270,7 +270,7 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from('teams')
-    .select('id, name, seed, payment_cleared, status, players(id, name, phone, email, shirt_size)')
+    .select('id, name, seed, payment_cleared, status, registered_by, players(id, name, phone, email, shirt_size, custom_fields, user_id)')
     .eq('division_id', divisionId)
     .order('seed', { ascending: true, nullsFirst: false });
 
@@ -284,12 +284,15 @@ export async function GET(
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,
+    registeredBy: t.registered_by ?? null,
     players: (t.players ?? []).map((p: any) => ({
       id: p.id,
+      userId: p.user_id ?? null,
       name: p.name,
       phone: p.phone,
       email: p.email,
       shirtSize: p.shirt_size,
+      customFields: p.custom_fields ?? {},
     })),
   }));
 

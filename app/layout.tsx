@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { getSessionInfo } from '../lib/auth';
 import { AuthProvider } from '../components/auth/AuthProvider';
+import DemoBanner from '../components/DemoBanner';
+import CookieConsent from '../components/CookieConsent';
 import '../components/livebracket-ds/styles.css';
 import './globals.css';
 
@@ -57,7 +59,14 @@ export default async function RootLayout({
         />
       </head>
       <body suppressHydrationWarning className="livebracket-app">
-        <AuthProvider initialSession={session}>{children}</AuthProvider>
+        <AuthProvider initialSession={session}>
+          <DemoBanner />
+          {children}
+        </AuthProvider>
+        {/* Last in the body so it overlays the page without being
+            inside any route's stacking or scroll container. It renders
+            nothing for anyone who has already answered. */}
+        <CookieConsent />
       </body>
     </html>
   );

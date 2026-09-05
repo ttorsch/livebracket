@@ -134,6 +134,7 @@ Errors are learning opportunities. When something breaks:
 - `app/` — Next.js routing and page views (the main product)
 - `components/` — custom components (like `livebracket-ds`)
 - `directives/` — SOPs in Markdown (the instruction set)
+- `docs/` — reference documents that are not instructions (see below)
 - `execution/` — Python scripts (the deterministic tools)
 - `graphify-out/` — codebase knowledge graph (auto-generated, gitignored)
 - `.tmp/` — All intermediate files. Never commit, always regenerated.
@@ -141,6 +142,19 @@ Errors are learning opportunities. When something breaks:
 - `credentials.json`, `token.json` — Google OAuth credentials (required files, in `.gitignore`)
 
 **Key principle:** Local files are only for processing. Deliverables live in cloud services (Stripe, Vercel) where the user can access them. Everything in `.tmp/` and `graphify-out/` can be deleted and regenerated.
+
+### Reference documents (`docs/`)
+
+Read these when the work touches what they cover. They are reference, not
+instructions — `directives/` remains the instruction set.
+
+- `docs/launch-kit.md` — go-to-market material: the 75-second video script, the
+  outreach message, and the build plan for the per-visitor demo sandbox
+  (schema constraints, clone rules, sign-in approach, open decisions). Read it
+  before doing marketing/demo work or starting the sandbox. Its **Accuracy
+  notes** section lists claims the product does *not* support — most
+  importantly, there is no payment integration, so never describe Live Bracket
+  as taking payments.
 
 ---
 
