@@ -172,14 +172,17 @@
 .desktop2aHeaderCard {
   position: relative;
   overflow: visible;
-  /* 24px here + 0 top padding on .stickyDivisionInner = a 24px gap to the
-     division switcher, matching the setup page's .desktop2aHeaderCard /
-     .divisionNavRow pair exactly. Keep the two in step if either moves.
-     Trade-off: .stickyDivisionBar is opaque and stacked (z-index 50), and
-     the Card's shadow (--shadow-card, 0 8px 40px) fades out ~28px below
-     the card, so the bar clips the last of that fade. Matching the setup
-     page's spacing was chosen over the softer shadow. */
-  margin-bottom: 24px;
+  /* 10px here + 14px top padding on .stickyDivisionInner = the same 24px
+     gap to the division switcher that the setup page gets from its
+     .desktop2aHeaderCard / .divisionNavRow pair. The split matters: the
+     14px lives inside .stickyDivisionBar, so it also becomes the breathing
+     room above the chips once the bar pins to top: 0. Keep the pair in
+     step — the two numbers must still total 24px if either moves.
+     Trade-off: the bar is opaque and stacked (z-index 50), and the Card's
+     shadow (--shadow-card, 0 8px 40px) fades out ~28px below the card, so
+     at 10px of clearance the bar clips most of that fade. Matched spacing
+     and a breathable pinned state were chosen over the softer shadow. */
+  margin-bottom: 10px;
 }
 .desktop2aHeaderCardBody {
   display: flex;
@@ -263,9 +266,10 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  /* No top padding: the 24px margin under .desktop2aHeaderCard is the
-     whole gap, so it matches the setup page's plain .divisionNavRow. */
-  padding: 0 clamp(20px, 3.5vw, 48px) 14px;
+  /* The 14px top is half of the 24px gap under .desktop2aHeaderCard (which
+     supplies the other 10px), and it is the only spacing above the chips
+     when the bar is pinned. See the note on .desktop2aHeaderCard. */
+  padding: 14px clamp(20px, 3.5vw, 48px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -527,25 +531,31 @@
   -webkit-overflow-scrolling: touch;
   gap: 16px;
   padding: 16px 2px 24px 2px;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(20, 24, 30, 0.15) transparent;
+  /* No scroll-snap on desktop. The rail is dragged with the mouse (see
+     useDragScroll) and snap would take the release point and slide it
+     somewhere else, so the rail would not stop where the pointer stopped.
+     Touch keeps snap — it is re-declared in the mobile block below. */
+  scrollbar-width: auto;
+  scrollbar-color: var(--sand-400) transparent;
+  cursor: grab;
+}
+.teamsGrid:active {
+  cursor: grabbing;
 }
 .teamsGrid::-webkit-scrollbar {
-  height: 6px;
+  height: 10px;
 }
 .teamsGrid::-webkit-scrollbar-track {
   background: transparent;
 }
 .teamsGrid::-webkit-scrollbar-thumb {
-  background: rgba(20, 24, 30, 0.15);
+  background: var(--sand-400);
   border-radius: 999px;
 }
 .teamCard {
   flex: 0 0 calc((100% - (3 * 16px)) / 4);
   min-width: calc((100% - (3 * 16px)) / 4);
   max-width: calc((100% - (3 * 16px)) / 4);
-  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1653,6 +1663,11 @@
   .teamsGrid {
     gap: 12px;
     padding: 12px 2px 20px 2px;
+    /* Snap is a touch behaviour and stays on phones: a thumb-flick wants to
+       land on a card, where a mouse drag wants to stop where it stopped.
+       Declared here rather than in the base rule so only touch gets it. */
+    scroll-snap-type: x mandatory;
+    cursor: auto;
   }
   .teamCard {
     flex: 0 0 calc((100% - 12px) / 1.2);
@@ -1660,6 +1675,7 @@
     max-width: calc((100% - 12px) / 1.2);
     padding: 16px 18px;
     border-radius: 16px;
+    scroll-snap-align: start;
   }
   .poolRow {
     flex-direction: column;

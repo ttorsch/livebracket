@@ -239,11 +239,16 @@ describe('validating a net change in a hand-edited schedule', () => {
 // ── The round trip ────────────────────────────────────────────────────────
 
 describe('the solver and the validator agree', () => {
-  it('generates a schedule that trips no net-change fault', () => {
-    // The test that catches the two rules drifting apart. `assign.ts` already
-    // leaves room for every net change it makes, so a validator that flags one
-    // of its placements is asking a different question than the solver
-    // answered — and one of them is wrong.
+  it('reports its own net changes rather than quietly paying for them', () => {
+    /* The solver used to leave room for every net change it made, so its
+       output tripped no netChange fault at all. It no longer buys those
+       minutes: spending court time automatically made the day longer than the
+       organizer asked for and hid which gaps were whose, so a net change is
+       now surfaced and the organizer decides whether to spend on it.
+       So the agreement being checked has changed shape. The two rules must
+       still be asking the same question — every fault the validator raises
+       has to correspond to a real height change the solver actually made —
+       but faults are now the expected output, not a contradiction. */
     const divisions = [
       heightDivision('low', '2.24m', 8),
       heightDivision('high', '2.43m', 8),
@@ -266,10 +271,33 @@ describe('the solver and the validator agree', () => {
       netBufferMinutes: cfg.netBufferMinutes,
     });
     const netFaults = problems.filter(p => p.kind === 'netChange');
-    assert.deepEqual(
-      netFaults,
-      [],
-      `the solver's own output tripped the validator: ${JSON.stringify(netFaults)}`,
-    );
+
+    /* Every fault must name a real back-to-back pair at two different
+       declared heights. A fault that does not is the two rules disagreeing,
+       which is what this test exists to catch. */
+    const byId = new Map(placements.map(pl => [pl.matchId, pl] as const));
+    const heightOf = (id: string) => result.graph.nodes.get(id)?.netHeight ?? null;
+    for (const fault of netFaults) {
+      const mine = byId.get(fault.matchId);
+      const other = fault.otherMatchId ? byId.get(fault.otherMatchId) : undefined;
+      assert.ok(mine && other, `fault names a match that was not placed: ${JSON.stringify(fault)}`);
+      assert.equal(mine!.court, other!.court, 'a net change is a fact about one court');
+      assert.equal(mine!.day, other!.day, 'and about one day');
+      const a = heightOf(fault.matchId);
+      const b = heightOf(fault.otherMatchId!);
+      assert.ok(a != null && b != null && a !== b, 'both sides declared a height, and they differ');
+    }
+
+    /* And the arrangement has to be one the solver could only have produced
+       by not paying: the two sit closer together than the buffer. */
+    for (const fault of netFaults) {
+      const mine = byId.get(fault.matchId)!;
+      const other = byId.get(fault.otherMatchId!)!;
+      const otherEnd = other.startMin + other.durationMinutes;
+      assert.ok(
+        mine.startMin - otherEnd < cfg.netBufferMinutes,
+        'a flagged pair should be one the buffer was not spent on',
+      );
+    }
   });
 });

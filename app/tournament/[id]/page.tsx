@@ -35,7 +35,7 @@ import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
   type DetailDivision,
 } from '../../../lib/data';
-import { isThirdPlaceRound, assignPools } from '../../../lib/divisionMatches';
+import { isThirdPlaceRound, assignPools, labelDivisionMatches, type MatchLabel } from '../../../lib/divisionMatches';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
 import { registrationState, nextOpening, isPublic, isTournamentLiveDate, hasTournamentStarted, type Phase } from '../../../lib/tournamentLifecycle';
 import { tournamentStatus } from '../../../lib/tournamentStatus';
@@ -485,6 +485,14 @@ export default function TournamentPage() {
     [activeDivision],
   );
 
+  /* The same labelling the organizer's bracket uses, so an undecided slot
+     reads "#1 Pool A" or "Winner of M12" here too rather than the
+     "Player TBD" that lib/data fills an empty seat with. */
+  const matchLabels = useMemo<Map<string, MatchLabel>>(
+    () => (activeDivision ? labelDivisionMatches(activeDivision) : new Map()),
+    [activeDivision],
+  );
+
   /* One slot per match in the widest round, tall enough for a card and the
      gap under it. The tree is sized from that so every column divides into
      the same slots and the rounds line up with each other. */
@@ -575,20 +583,32 @@ export default function TournamentPage() {
      it. From the first day on the order flips: what is happening now comes
      first, and the reference material moves behind it. */
   const tabs = useMemo(() => {
-    const play = [
-      ...(hasSchedule ? ['Schedule'] : []),
-      ...divisionRounds.map(r => r.label),
-    ];
+    const rounds = divisionRounds.map(r => r.label);
     const t = hasStarted
-      ? [...play, 'Teams', 'Format & Rules', 'Prize']
-      : ['Format & Rules', 'Teams', 'Prize', ...play];
+      ? [...rounds, 'Teams', 'Format & Rules', 'Prize']
+      : ['Format & Rules', 'Teams', 'Prize', ...rounds];
+    /* Schedule leads whenever one exists, on both sides of the start date,
+       because it is also the default tab — before, it trailed the
+       supporting tabs on an un-started event, so the page opened with its
+       selected tab sitting fourth in the rail and the rail already
+       scrolled. Leading keeps default and first in agreement. */
+    if (hasSchedule) t.unshift('Schedule');
     if ((tournament?.vouchers.length ?? 0) > 0) t.push('Vouchers');
     return t;
   }, [hasStarted, hasSchedule, divisionRounds, tournament]);
 
-  const defaultTab = hasStarted
-    ? (hasSchedule ? 'Schedule' : (divisionRounds[0]?.label ?? 'Format & Rules'))
-    : 'Format & Rules';
+  /* A published schedule is the thing a visitor came for — when they play
+     and on which court — so it leads whether or not the first day has come.
+     It used to be gated behind `hasStarted`, which meant the days when the
+     schedule matters most (the ones before the event, when people are still
+     planning) opened on Format & Rules instead. Without a schedule the
+     pre-event page still leads with what the event is, and the in-progress
+     page with the round being played. */
+  const defaultTab = hasSchedule
+    ? 'Schedule'
+    : hasStarted
+      ? (divisionRounds[0]?.label ?? 'Format & Rules')
+      : 'Format & Rules';
 
   const normalizedActiveTab = useMemo(() => {
     if (activeTab === 'Standings') {
@@ -1199,7 +1219,7 @@ export default function TournamentPage() {
                         <div className={styles.bracketMatches} style={{ minHeight: bracketTreeHeight }}>
                           {round.matches.map((m, mi) => (
                             <div key={m.id} className={styles.bracketSlot}>
-                              <BracketCard match={m} />
+                              <BracketCard match={m} label={matchLabels.get(m.id)} />
                               {feedsAnother && <span className={styles.connRight} aria-hidden="true" />}
                               {/* One spine per pair, drawn from the upper match
                                   down to the lower one's middle. */}
@@ -1216,7 +1236,7 @@ export default function TournamentPage() {
                         {ri === knockoutRounds.length - 1 && thirdPlaceRound?.matches[0] && (
                           <div className={styles.thirdPlaceBlock}>
                             <div className={styles.thirdPlaceLabel}>3rd Place</div>
-                            <BracketCard match={thirdPlaceRound.matches[0]} />
+                            <BracketCard match={thirdPlaceRound.matches[0]} label={matchLabels.get(thirdPlaceRound.matches[0].id)} />
                           </div>
                         )}
                       </div>
@@ -1649,7 +1669,7 @@ function FillCard({ division }: { division: DetailDivision }) {
   );
 }
 
-function BracketCard({ match }: { match: DetailMatch }) {
+function BracketCard({ match, label }: { match: DetailMatch; label?: MatchLabel }) {
   const live = match.status === 'live';
   const scoreA = match.scoreA ?? [];
   const scoreB = match.scoreB ?? [];
@@ -1662,7 +1682,7 @@ function BracketCard({ match }: { match: DetailMatch }) {
         {match.status === 'done' && <span className={styles.matchDone}>Final</span>}
       </div>
 
-      {([['A', match.teamAName, scoreA], ['B', match.teamBName, scoreB]] as const).map(([side, name, sets], i) => (
+      {([['A', label?.teamA ?? match.teamAName, scoreA], ['B', label?.teamB ?? match.teamBName, scoreB]] as const).map(([side, name, sets], i) => (
         <div key={side}>
           {i === 1 && <div className={styles.matchDivider} />}
           <div className={styles.matchRow}>

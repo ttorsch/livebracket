@@ -126,6 +126,20 @@ export function collapseToConfiguredRounds(rounds: SetupRoundRow[]): SetupRoundR
   return out;
 }
 
+/* PostgREST returns embedded rows in whatever order the query planner
+ * produced, and that order is not stable between requests — which is why the
+ * division switcher reshuffled itself on reload. Creation order is the
+ * organizer's own order, so sort on it everywhere divisions are read.
+ * created_at alone is not a total order: divisions inserted in one
+ * transaction share a now() timestamp, so id breaks the tie and keeps the
+ * result deterministic. */
+function byCreation<T extends { created_at?: string | null; id?: string; name?: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) =>
+    (a.created_at ?? '').localeCompare(b.created_at ?? '')
+    || (a.id ?? '').localeCompare(b.id ?? '')
+    || (a.name ?? '').localeCompare(b.name ?? ''));
+}
+
 interface SetupDivisionQueryRow {
   id: string;
   name: string;
@@ -134,20 +148,21 @@ interface SetupDivisionQueryRow {
   division_team_cap: number;
   reg_fields: unknown[];
   settings: Record<string, unknown>;
+  created_at: string;
   rounds: { id: string; sequence: number; format: string; name: string; scoring_rules: Record<string, unknown> }[];
 }
 
 export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[]> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('divisions(id, name, format_type_on_sand, registration_fee, division_team_cap, reg_fields, settings, rounds(id, sequence, format, name, scoring_rules))')
+    .select('divisions(id, name, format_type_on_sand, registration_fee, division_team_cap, reg_fields, settings, created_at, rounds(id, sequence, format, name, scoring_rules))')
     .eq('slug', slug)
     .maybeSingle();
 
   if (error) throw new Error(`Failed to load divisions: ${error.message}`);
   if (!data) return [];
 
-  const divisions = (data as unknown as { divisions: SetupDivisionQueryRow[] }).divisions ?? [];
+  const divisions = byCreation((data as unknown as { divisions: SetupDivisionQueryRow[] }).divisions ?? []);
   return divisions.map((d) => {
     const settings = d.settings ?? {};
     const stored = [...(d.rounds ?? [])]
@@ -241,13 +256,14 @@ interface OverviewDivisionRow {
   name: string;
   division_team_cap: number;
   settings: Record<string, unknown> | null;
+  created_at: string;
   teams: { id: string; status: string; payment_cleared: boolean }[];
   rounds: { matches: { id: string; court: string | null; scheduled_time: string | null }[] }[];
 }
 
 export async function getSetupOverview(slug: string): Promise<SetupOverview> {
   const rest =
-    'divisions(id, name, division_team_cap, settings, teams(id, status, payment_cleared), rounds(matches(id, court, scheduled_time)))';
+    'divisions(id, name, division_team_cap, settings, created_at, teams(id, status, payment_cleared), rounds(matches(id, court, scheduled_time)))';
 
   // schedule_config arrived in migration 0007; fall back without it exactly
   // as getTournamentDetail does, so an un-migrated database still loads.
@@ -279,7 +295,7 @@ export async function getSetupOverview(slug: string): Promise<SetupOverview> {
   let placedMatches = 0;
   let earliest: string | null = null;
 
-  const divisions = (row.divisions ?? []).map((d): SetupDivisionSummary => {
+  const divisions = byCreation(row.divisions ?? []).map((d): SetupDivisionSummary => {
     const teams = d.teams ?? [];
     const seated = teams.filter(t => t.status !== 'waitlist');
     for (const r of d.rounds ?? []) {
@@ -335,6 +351,7 @@ interface DivisionRow {
   name: string;
   division_team_cap: number;
   settings?: Record<string, unknown> | null;
+  created_at: string;
   teams: { status: string }[];
 }
 
@@ -355,7 +372,7 @@ interface TournamentRow {
 
 const TOURNAMENT_CARD_SELECT =
   'slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, archived_at, ' +
-  'organizers(name, avatar_url), divisions(name, division_team_cap, settings, teams(status))';
+  'organizers(name, avatar_url), divisions(name, division_team_cap, settings, created_at, teams(status))';
 
 function toDashboardTournament(t: TournamentRow): DashboardTournament {
   return {
@@ -371,7 +388,7 @@ function toDashboardTournament(t: TournamentRow): DashboardTournament {
     archived: !!t.archived_at,
     organizerName: t.organizers?.name ?? null,
     organizerAvatarUrl: t.organizers?.avatar_url ?? null,
-    divisions: (t.divisions ?? []).map((d) => {
+    divisions: byCreation(t.divisions ?? []).map((d) => {
       const settings = (d.settings ?? {}) as Record<string, unknown>;
       return {
         name: d.name,
@@ -698,6 +715,10 @@ export interface DetailRound {
   round: string;
   format: string;
   durationMinutes?: number; // match slot length for this round (minutes)
+  /* The round's own scoring format — points per set, deciding-set points,
+     best-of, win-by-two. Read through lib/setScoreRules; a typed-in result
+     is only legal against the round it belongs to. */
+  scoringRules?: Record<string, unknown> | null;
   matches: DetailMatch[];
 }
 
@@ -954,6 +975,7 @@ interface DetailDivisionRow {
   id: string;
   name: string;
   division_team_cap: number;
+  created_at: string;
   registration_fee: number | string; // numeric column — supabase-js hands it back as a string
   format_type_on_sand: string;
   reg_fields: unknown;
@@ -994,7 +1016,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
   // simply fall back to default schedule settings.
   const rest = `
       divisions (
-        id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings,
+        id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings, created_at,
         teams ( id, name, seed, status, registered_by, players ( id, name, user_id ) ),
         rounds (
           id, sequence, format, name, scoring_rules,
@@ -1041,7 +1063,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     cancelled: !!row.cancelled_at,
     description: row.description,
     scheduleConfig: readScheduleConfig(row.schedule_config),
-    divisions: row.divisions.map((d) => {
+    divisions: byCreation(row.divisions).map((d) => {
       const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;
       const settings = (d.settings ?? {}) as {
         netHeight?: unknown; genderEligibility?: unknown; ageLimit?: unknown;
@@ -1075,6 +1097,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
             round: r.name,
             format: r.format,
             durationMinutes: readRoundMinutes(r.scoring_rules),
+            scoringRules: r.scoring_rules ?? null,
             matches: sortBySlots(r.matches, draw?.slots?.[String(r.sequence)]).map((m) => {
               const tA = m.team_a_id ? divTeamMap.get(m.team_a_id) : null;
               const tB = m.team_b_id ? divTeamMap.get(m.team_b_id) : null;

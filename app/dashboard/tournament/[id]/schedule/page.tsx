@@ -18,6 +18,7 @@ import {
   GripVertical,
   ImagePlus,
   MapPin,
+  Pin,
   Minus,
   Plus,
   Printer,
@@ -29,12 +30,15 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
-import { planDrop, type DropTarget, type Placement } from '@/lib/schedule/dropPlan';
+import { planDrop, fitDropTime, respectPins, isBufferBlock, BUFFER_LABEL, NET_ADJUST_LABEL, type DropTarget, type Placement, type Span } from '@/lib/schedule/dropPlan';
 import { axisLabels, buildCalendarAxis, placeOnAxis, rowKind, rowStartMin, type CalendarAxis } from '@/lib/schedule/calendarAxis';
 import { courtRoster } from '@/lib/schedule/types';
 import { hasPlacement, isOffEventDay } from '@/lib/schedule/placedMatch';
 import { scheduleSaveGate } from '@/lib/scheduleGate';
-import { MAX_SETS, scoreProblem, type SetScore } from '@/lib/matchScore';
+import { type SetScore } from '@/lib/matchScore';
+import {
+  readScoringRules, matchScoreProblem, visibleSetCount, type ScoringRules,
+} from '@/lib/setScoreRules';
 import {
   DndContext,
   DragOverlay,
@@ -49,6 +53,7 @@ import {
   type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
@@ -69,6 +74,12 @@ import {
 } from '../../../../../lib/schedule/generate';
 import { type MatchLabel } from '../../../../../lib/divisionMatches';
 import { labelDivisions, toSchedulableDivisions } from '../../../../../lib/schedule/schedulableDivisions';
+
+/* How long the pointer has to rest between two cards before the column opens
+   a gap for the card being carried. Short enough to feel like a response,
+   long enough that sweeping across a run of cards does not ripple every one
+   of them on the way past. */
+const INSERT_PREVIEW_DELAY_MS = 1000;
 
 interface ScheduleMatch {
   id: string;
@@ -92,6 +103,9 @@ interface ScheduleMatch {
   unscheduled?: boolean; // no court/time assigned
   overScheduled?: boolean; // couldn't fit in the tournament's days (preview overflow)
   durationMinutes: number; // match slot length, for sizing calendar blocks
+  /* The round's scoring format, so a typed-in result is checked
+     against the format it was actually played under. */
+  scoringRules: ScoringRules;
 }
 
 /** Determines winner of a completed match, returning 'A', 'B', or null. */
@@ -326,13 +340,6 @@ function BufferPrompt({
   );
 }
 
-/** Marks a block as one that pushed the court down when it was inserted, so
- *  removing it knows to pull the court back up. Plain blocked time carries a
- *  different label and is left where it is. */
-const BUFFER_LABEL = 'Buffer';
-const NET_ADJUST_LABEL = 'Net Adjust';
-const isBufferBlock = (label?: string) =>
-  label === BUFFER_LABEL || label === NET_ADJUST_LABEL || (label ? /buffer|net\s*adjust/i.test(label) : false);
 
 /** Droppable empty time slot cell in Grid View. */
 function GridDroppableSlot({
@@ -341,12 +348,21 @@ function GridDroppableSlot({
   slot,
   startMin,
   ci,
+  ghostSlots,
+  ghostMinutes,
 }: {
   court: string;
   day: number;
   slot: number;
   startMin: number;
   ci: number;
+  /* How many slot rows the card being dragged will actually occupy, so the
+     ghost is the size of the thing being dropped rather than of the one row
+     the pointer happens to be over. A 90-minute match dropped into an empty
+     column used to preview as a single 45-minute cell, which is how a
+     schedule ends up with an overlap the organizer did not expect. */
+  ghostSlots: number;
+  ghostMinutes: number;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `drop-slot-${court}-${day}-${slot}`,
@@ -368,9 +384,16 @@ function GridDroppableSlot({
       } as CSSProperties}
     >
       {isOver && (
-        <div className={styles.calDropGhostSlot}>
+        <div
+          className={styles.calDropGhostSlot}
+          /* Grown downward from this cell rather than spanning grid rows: the
+             cell is one row by construction, and the ghost has to be free to
+             reach past it. */
+          style={{ height: `calc(var(--cal-slot-h, 57px) * ${ghostSlots} - 4px)` } as CSSProperties}
+        >
           <Clock size={12} />
           <span>{toHHMM(startMin)}</span>
+          <span className={styles.calDropGhostMins}>{ghostMinutes} m</span>
         </div>
       )}
     </div>
@@ -385,6 +408,9 @@ function GridMatchCardItem({
   faults,
   movable,
   editMode,
+  isPinned,
+  onTogglePin,
+  shiftSlots,
   editingTime,
   insertAt,
   activeDragMatch,
@@ -413,6 +439,13 @@ function GridMatchCardItem({
   faults: ScheduleProblem[];
   movable: boolean;
   editMode: boolean;
+  /** Fixed to its time: drops elsewhere on the court flow around it. */
+  isPinned: boolean;
+  onTogglePin: (matchId: string) => void;
+  /** Slot rows to slide down by, to make room for a card being inserted
+   *  above. Expressed in rows rather than pixels because the row height is a
+   *  CSS variable the page computes — see --cal-slot-h. */
+  shiftSlots: number;
   editingTime: string | null;
   insertAt: { matchId: string; suggested: number } | null;
   activeDragMatch: ScheduleMatch | null;
@@ -488,12 +521,41 @@ function GridMatchCardItem({
         gridColumn: ci + 2,
         gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
         ...offsetStyle(b.offsetMinutes, b.minutes),
+        /* Transform rather than a re-layout: the grid rows stay exactly where
+           they are, so nothing else on the board reflows and the slide can be
+           animated and undone for free. */
+        ...(shiftSlots ? { transform: `translateY(calc(var(--cal-slot-h, 57px) * ${shiftSlots}))` } : null),
+        transition: 'transform 180ms cubic-bezier(0.2, 0, 0, 1)',
       } as CSSProperties}
     >
       {showInsertionLine && (
         <div className={styles.calDropLineIndicator}>
           <span className={styles.calDropLineText}>Insert before {b.m.matchNo}</span>
         </div>
+      )}
+
+      {/* Pinning is an edit-mode affordance like the buffer handle: it only
+          matters while the day is being rearranged, and a permanent pin
+          button on every card would be noise the rest of the time. Shown for
+          any placed match, including ones that cannot be dragged — pinning a
+          match you are not allowed to move is still meaningful, because it
+          stops *other* drops from moving it. */}
+      {editMode && !b.m.unscheduled && !isDragging && (
+        <button
+          type="button"
+          className={`${styles.cardPinBtn} ${isPinned ? styles.cardPinBtnOn : ''}`}
+          aria-pressed={isPinned}
+          title={isPinned
+            ? `${b.m.matchNo} is pinned to ${b.m.time} — click to release it`
+            : `Pin ${b.m.matchNo} to ${b.m.time} so other moves leave it alone`}
+          aria-label={isPinned ? `Unpin match ${b.m.matchNo}` : `Pin match ${b.m.matchNo} to ${b.m.time}`}
+          onPointerDown={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          onTouchStart={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onTogglePin(b.m.id); }}
+        >
+          <Pin size={13} strokeWidth={2.5} />
+        </button>
       )}
 
       {/* Buffer goes in *before* this match */}
@@ -886,6 +948,20 @@ export default function TournamentSchedulePage() {
     }
     return false;
   });
+  /** Typing results in is its own mode, separate from Hand Edit.
+   *
+   *  The two used to be one switch, which meant an organizer who only wanted
+   *  to key in a result off a scoresheet had to unlock the whole day's
+   *  layout to do it — every card a drag away from moving, for a job that
+   *  moves nothing. They are independent: either can be on without the
+   *  other, and both can be on at once, because the score cells stop
+   *  pointer events from reaching the card's drag handle. */
+  const [scoreMode, setScoreMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('score') === '1';
+    }
+    return false;
+  });
   /** The match a buffer is being inserted in front of, while its length is
    *  typed. Keyed by match rather than by court and time, because the handle
    *  belongs to a card. */
@@ -895,7 +971,7 @@ export default function TournamentSchedulePage() {
 
   /* ── Scores by hand ───────────────────────────────────────────────
    *
-   * Hand Edit opens the score cells as well as the layout. The scorekeeper
+   * Enter Scores opens the score cells; Hand Edit moves cards. The scorekeeper
    * screen is still the way a match *should* be scored, but a link that was
    * never opened, a phone that died, or a result that came in on paper all
    * end with a bracket the organizer has to fill in themselves — and a
@@ -929,7 +1005,7 @@ export default function TournamentSchedulePage() {
       if (!cancel) setLiveNow(new Set(Object.keys(map)));
     });
     return () => { cancel = true; };
-  }, [slug, editMode]);
+  }, [slug, editMode, scoreMode]);
 
   // "Score saved" has said what it has to say after a couple of seconds; an
   // error stays until the organizer does something about it.
@@ -945,6 +1021,14 @@ export default function TournamentSchedulePage() {
   };
 
   const [activeDragMatch, setActiveDragMatch] = useState<ScheduleMatch | null>(null);
+  /** The card the pointer is currently over, and the one it has rested on
+   *  long enough to be worth opening a gap for. */
+  const [hoverMatchId, setHoverMatchId] = useState<string | null>(null);
+  const [insertPreviewId, setInsertPreviewId] = useState<string | null>(null);
+  /* The dragged card's real footprint on the timeline, in slot rows and in
+     minutes — the same arithmetic the placed blocks use, so the drop preview
+     and the card that lands agree. */
+  const dragGhostMinutes = activeDragMatch?.durationMinutes || 45;
 
   /** Something on screen differs from what is stored — a hand move, a block,
    *  or a config change — so there is something worth saving. */
@@ -993,6 +1077,7 @@ export default function TournamentSchedulePage() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragMatch(null);
+    setHoverMatchId(null);
     if (!over) return;
 
     const activeMatchId = String(active.id);
@@ -1013,7 +1098,34 @@ export default function TournamentSchedulePage() {
 
   const handleDragCancel = () => {
     setActiveDragMatch(null);
+    setHoverMatchId(null);
   };
+
+  /* Pointing between two cards shows the insertion line straight away, and
+     then — if the organizer holds there — the schedule actually opens up:
+     the card below and everything under it slide down by the length of the
+     match being carried, and a ghost of it sits in the gap.
+     The delay is the point. The line answers "where would this go" during a
+     sweep across the board, and only a deliberate hover is worth reflowing
+     the column for; without it, dragging past a run of cards would ripple
+     each one in turn. */
+  const handleDragOver = (event: DragOverEvent) => {
+    const overData = event.over?.data.current as { type?: string; match?: ScheduleMatch } | undefined;
+    const id = overData?.type === 'match' && overData.match && overData.match.id !== String(event.active.id)
+      ? overData.match.id
+      : null;
+    setHoverMatchId(prev => (prev === id ? prev : id));
+  };
+
+  useEffect(() => {
+    if (!hoverMatchId || !activeDragMatch) {
+      setInsertPreviewId(null);
+      return;
+    }
+    setInsertPreviewId(null);
+    const t = setTimeout(() => setInsertPreviewId(hoverMatchId), INSERT_PREVIEW_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [hoverMatchId, activeDragMatch]);
 
   // Height of the pinned control bar, published as --chrome-h. On mobile the
   // calendar sizes itself against this so it comes to rest exactly below the
@@ -1065,6 +1177,30 @@ export default function TournamentSchedulePage() {
 
   const setConfigField = <K extends keyof ScheduleConfig>(key: K, value: ScheduleConfig[K]) => {
     setConfig(prev => (prev ? { ...prev, [key]: value } : prev));
+  };
+
+  /* ── Pinned matches ───────────────────────────────────────────────
+   *
+   * A pin fixes one match to its time: drops elsewhere on the court flow
+   * around it instead of pushing it along. Kept on the schedule config
+   * rather than in local state, so a pin is saved with the schedule and is
+   * still there on the next visit — a pin that evaporated on reload would be
+   * worse than not having one.
+   *
+   * Ids rather than court+time, so a pin survives the rest of the day being
+   * rearranged underneath it. */
+  const pinnedIds = useMemo(
+    () => new Set(config?.pinnedMatchIds ?? []),
+    [config?.pinnedMatchIds],
+  );
+
+  const togglePin = (matchId: string) => {
+    const next = new Set(pinnedIds);
+    if (next.has(matchId)) next.delete(matchId);
+    else next.add(matchId);
+    setConfigField('pinnedMatchIds', [...next]);
+    setDirty(true);
+    setSaveMsg(null);
   };
 
   // Match numbers and slot names for every division, from the one place that
@@ -1262,6 +1398,7 @@ export default function TournamentSchedulePage() {
             unscheduled: !court || court === 'Unscheduled' || !time || time === '—',
             overScheduled,
             durationMinutes: round.durationMinutes ?? 45,
+            scoringRules: readScoringRules(round.scoringRules),
           });
         });
       });
@@ -1817,9 +1954,21 @@ export default function TournamentSchedulePage() {
        something is. */
     const lunchSlot = axis.rows.findIndex(r => r.kind === 'lunch');
     const lunchRow = lunchSlot < 0 ? null : axis.rows[lunchSlot];
+    /* The break is one row while collapsed and a run of pitch rows once open,
+       so the banner spans however many it turns out to be. */
+    let lunchRowCount = 0;
+    for (let i = lunchSlot; i >= 0 && i < axis.rows.length && axis.rows[i].kind === 'lunch'; i++) lunchRowCount++;
+    const lunchMinutes = lunchSlot < 0
+      ? 0
+      : axis.rows.slice(lunchSlot, lunchSlot + lunchRowCount).reduce((sum, r) => sum + r.minutes, 0);
     const lunchBlock = lunchRow == null ? null : {
       startSlot: lunchSlot,
-      text: `Lunch Break (${toHHMM(lunchRow.startMin)} – ${toHHMM(lunchRow.startMin + lunchRow.minutes)})`,
+      text: `Lunch Break (${toHHMM(lunchRow.startMin)} – ${toHHMM(lunchRow.startMin + lunchMinutes)})`,
+      /* Drawn at its real height rather than as a seam. */
+      open: !lunchRow.collapsed,
+      rowCount: lunchRowCount,
+      from: lunchRow.startMin,
+      to: lunchRow.startMin + lunchMinutes,
     };
 
     type Item = { m: ScheduleMatch; startMin: number; dur: number };
@@ -1948,7 +2097,19 @@ export default function TournamentSchedulePage() {
       const isEmpty = blocks.length === 0 && blocked.length === 0;
 
       return {
-        day: d.day, dateLabel: d.dateLabel, slots, blocks, lunchBlock, blocked, isEmpty,
+        day: d.day, dateLabel: d.dateLabel, slots, blocks,
+        lunchBlock: lunchBlock && {
+          ...lunchBlock,
+          /* Whether any match on this day actually runs into the break. The
+             band says so rather than leaving the organizer to eyeball which
+             cards cross the line. */
+          encroached: blocks.some(b => {
+            const s0 = fromHHMM(b.m.time);
+            if (s0 == null) return false;
+            return s0 < lunchBlock.to && lunchBlock.from < s0 + (b.m.durationMinutes || 45);
+          }),
+        },
+        blocked, isEmpty,
         courtCounts,
         // The tray is drawn in one section only, so its header is a count of
         // that section's stack like every other column's — not of the event's.
@@ -1957,7 +2118,17 @@ export default function TournamentSchedulePage() {
     });
 
     return { roster, offRoster, columns, hasUnscheduled, days, axis, labels, shortestMinutes, divOrder, unscheduledCount: unscheduled.length };
-  }, [filteredMatches, allMatches, config, dayCount, activeDay, detail, preview]);
+    /* editMode belongs here: the axis reads it (see `editing` above) to decide
+       whether the lunch row is drawn at true scale. It was missing, so
+       toggling Hand Edit rebuilt nothing and the break stayed a seam until
+       some other dependency happened to change. */
+  }, [filteredMatches, allMatches, config, dayCount, activeDay, detail, preview, editMode]);
+
+  /* Slot rows the dragged card will take, by the same rule the placed blocks
+     use (see unscheduledBlocks above): duration over the axis pitch, never
+     less than one row. Needs the axis, so it is derived here rather than
+     beside activeDragMatch. */
+  const dragGhostSlots = Math.max(1, Math.round(dragGhostMinutes / calendar.axis.pitch));
 
   /* Applying a move: turn what is on screen into placements, ask the planner
      what has to shift, and write the answer back as hand edits. The rules live
@@ -1977,14 +2148,93 @@ export default function TournamentSchedulePage() {
        a drop onto an empty court land differently depending on the filters. */
     const dayStart = fromHHMM(config?.startTime ?? '') ?? calendar.axis.startMin;
 
-    const plan = planDrop(placements, matchId, court, day, target, dayStart);
-    if (plan.length === 0) return;
+    const currentBlocks = preview?.blocks ?? config?.blocks ?? [];
+
+    /* A drop onto open calendar space names a *time*, not a position in the
+       court's queue, so it is fitted rather than inserted: only the dropped
+       card moves, and it moves to the nearest start that clears whatever is
+       already there. Aiming at a specific card (`beforeId`) still inserts and
+       pushes — that one really is about ordering. See lib/schedule/dropPlan. */
+    let effectiveTarget = target;
+    /* Where the card ends up, when the drop was aimed at a time — used to
+       clear away any buffer it lands on. */
+    let droppedSpan: { start: number; end: number } | null = null;
+    if ('time' in target) {
+      const dropped = placements.find(p => p.id === matchId);
+      const dur = dropped?.durationMinutes || 45;
+      /* Buffers are deliberately not obstacles. A buffer is padding the
+         organizer put there, and dropping a match onto it means they want the
+         match there instead — so it gives way (and is removed below) rather
+         than shoving the card somewhere else. Lunch and blocked time are the
+         venue's, not theirs, so those still block. */
+      const occupied: Span[] = [
+        ...placements
+          .filter(p => p.id !== matchId && p.court === court && p.day === day && p.start != null)
+          .map(p => ({ start: p.start as number, end: (p.start as number) + (p.durationMinutes || 45) })),
+        ...currentBlocks
+          .filter(b => !isBufferBlock(b.label))
+          .filter(b => (b.court == null || b.court === court) && (b.day == null || b.day === day))
+          .map(b => ({ start: fromHHMM(b.start ?? '') ?? 0, end: fromHHMM(b.end ?? '') ?? 0 })),
+      ];
+      const fit = fitDropTime({
+        occupied,
+        dayStart: calendar.axis.startMin,
+        dayEnd: calendar.axis.endMin,
+        duration: dur,
+        desiredStart: target.time,
+        pitch: calendar.axis.pitch,
+      });
+      if (!fit) {
+        /* Nowhere on this court is long enough. Refusing leaves the card
+           exactly where it was, which is what "snap back" means here — no
+           edit is recorded, so nothing has to be undone. */
+        setSaveMsg(`No gap on ${court} is long enough for ${dur} minutes — the match stayed where it was.`);
+        return;
+      }
+      effectiveTarget = { time: fit.start };
+      /* Any buffer the card now sits on has been overtaken by it. Removing it
+         here rather than leaving a buffer underneath a match keeps the board
+         honest about what is actually reserved. */
+      droppedSpan = { start: fit.start, end: fit.start + dur };
+    }
+
+    /* The break splits the court into two queues: closing a gap in the
+       morning must not drag the afternoon forward. */
+    const lunchFrom = fromHHMM(config?.lunchStart ?? '');
+    const lunchTo = fromHHMM(config?.lunchEnd ?? '');
+    const lunchWindowMin =
+      lunchFrom != null && lunchTo != null && lunchTo > lunchFrom
+        ? { start: lunchFrom, end: lunchTo }
+        : null;
+
+    const plan = planDrop(
+      placements, matchId, court, day, effectiveTarget, dayStart, currentBlocks, lunchWindowMin,
+    );
+    if (plan.moves.length === 0) return;
+
+    /* Pinned matches are put back where they were and the rest re-seated
+       around them. See lib/schedule/dropPlan. */
+    const pinnedPlan = respectPins(placements, plan, pinnedIds);
+    if (pinnedPlan.moves.length === 0) return;
 
     setEdits(prev => {
       const next = new Map(prev);
-      for (const move of plan) next.set(move.id, { court: move.court, day: move.day, time: toHHMM(move.start) });
+      for (const move of pinnedPlan.moves) next.set(move.id, { court: move.court, day: move.day, time: toHHMM(move.start) });
       return next;
     });
+    if (pinnedPlan.blocks) {
+      const surviving = droppedSpan
+        ? pinnedPlan.blocks.filter(b => {
+            if (!isBufferBlock(b.label)) return true;
+            if ((b.court != null && b.court !== court) || (b.day != null && b.day !== day)) return true;
+            const bs = fromHHMM(b.start ?? '') ?? 0;
+            const be = fromHHMM(b.end ?? '') ?? 0;
+            // Overlaps the card that just landed, so it is no longer free time.
+            return !(bs < droppedSpan!.end && droppedSpan!.start < be);
+          })
+        : pinnedPlan.blocks;
+      updateBlocks(surviving);
+    }
     setDirty(true);
     setSaveMsg(null);
   };
@@ -2081,6 +2331,31 @@ export default function TournamentSchedulePage() {
     </button>
   );
 
+  /* The other half of what used to be one switch. Typing a result changes no
+     placement, so it is not gated behind unlocking the layout. */
+  const scoreToggle = (
+    <button
+      type="button"
+      className={`${styles.gridEditBtn} ${scoreMode ? styles.gridEditBtnOn : ''}`}
+      aria-pressed={scoreMode}
+      onClick={() => {
+        setScoreMode(v => !v);
+        setScoreDraft(null);
+        setScoreNote(null);
+      }}
+      title={
+        scoreMode
+          ? 'Close the score cells'
+          : 'Type in results for matches that were not scored on the scorekeeper screen'
+      }
+    >
+      <span className={styles.gridEditSwitch} aria-hidden="true">
+        <span className={styles.gridEditThumb} />
+      </span>
+      Enter Scores
+    </button>
+  );
+
   /* Why the schedule cannot be saved, and where to go about it. Shown
      beside the Save button rather than hidden in a disabled button's
      tooltip: a dead control with no reason is worse than no gate, and the
@@ -2147,7 +2422,7 @@ export default function TournamentSchedulePage() {
    *  round has nobody to award the match to, and one on court belongs to the
    *  referee scoring it. */
   const scoreEditable = (m: ScheduleMatch) =>
-    editMode && !m.overScheduled && m.teamA !== 'TBD' && m.teamB !== 'TBD' && !liveNow.has(m.id);
+    scoreMode && !m.overScheduled && m.teamA !== 'TBD' && m.teamB !== 'TBD' && !liveNow.has(m.id);
 
   const savedCells = (m: ScheduleMatch) => ({
     a: (m.scoreA ?? []).map(String),
@@ -2157,18 +2432,36 @@ export default function TournamentSchedulePage() {
   const draftOf = (m: ScheduleMatch) =>
     scoreDraft?.id === m.id ? scoreDraft : { id: m.id, ...savedCells(m) };
 
-  /** Sets with something in them, on either side. */
-  const usedSets = (d: { a: string[]; b: string[] }) => {
+  /** Sets with something in them, on either side. Bounded by the round's
+   *  own best-of rather than by a global maximum: a best-of-3 round has no
+   *  fourth set to read. */
+  const usedSets = (rules: ScoringRules, d: { a: string[]; b: string[] }) => {
     let n = 0;
-    for (let i = 0; i < MAX_SETS; i++) {
+    for (let i = 0; i < rules.setsBestOf; i++) {
       if ((d.a[i] ?? '') !== '' || (d.b[i] ?? '') !== '') n = i + 1;
     }
     return n;
   };
 
-  /** Cells to draw: the sets that exist, plus one empty one to type the next
-   *  into — which is what a "+" button would otherwise be for. */
-  const setColumns = (d: { a: string[]; b: string[] }) => Math.min(MAX_SETS, usedSets(d) + 1);
+  /** Whatever is typed so far, as far as it parses — enough for
+   *  visibleSetCount to tell whether the match is already won. */
+  const draftAsSets = (rules: ScoringRules, d: { a: string[]; b: string[] }): SetScore[] => {
+    const out: SetScore[] = [];
+    for (let i = 0; i < usedSets(rules, d); i++) {
+      const a = (d.a[i] ?? '').trim();
+      const b = (d.b[i] ?? '').trim();
+      if (a === '' || b === '') break;
+      out.push({ a: Number(a), b: Number(b) });
+    }
+    return out;
+  };
+
+  /* Cells to draw: the sets that exist, plus one empty one to type the next
+   * into — but never past the round's best-of, and never a set the match
+   * cannot reach. At 2-0 in a best-of-3 there is no third column, because
+   * there is no third set. */
+  const setColumns = (m: ScheduleMatch, d: { a: string[]; b: string[] }) =>
+    visibleSetCount(m.scoringRules, draftAsSets(m.scoringRules, d), usedSets(m.scoringRules, d));
 
   const setScoreCell = (m: ScheduleMatch, side: 'a' | 'b', idx: number, raw: string) => {
     const base = scoreDraftRef.current?.id === m.id
@@ -2183,17 +2476,23 @@ export default function TournamentSchedulePage() {
     if (scoreNote?.id === m.id) setScoreNote(null);
   };
 
-  /** The draft as sets to store, or the reason it is not one yet. The rules
-   *  a set has to satisfy live in lib/matchScore, which the route reads too. */
-  const draftSets = (d: { a: string[]; b: string[] }): { sets: SetScore[] } | { error: string } => {
+  /* The draft as sets to store, or the reason it is not one yet. The rules a
+   * set has to satisfy live in lib/setScoreRules, read against this match's
+   * own round — 12-10 is a won set at 11 points and not a set at all at 15 —
+   * and the route reads the same module, because a client is not a
+   * validator. */
+  const draftSets = (
+    rules: ScoringRules,
+    d: { a: string[]; b: string[] },
+  ): { sets: SetScore[] } | { error: string } => {
     const sets: SetScore[] = [];
-    for (let i = 0; i < usedSets(d); i++) {
+    for (let i = 0; i < usedSets(rules, d); i++) {
       const a = (d.a[i] ?? '').trim();
       const b = (d.b[i] ?? '').trim();
       if (a === '' || b === '') return { error: 'Each set needs a score for both teams.' };
       sets.push({ a: Number(a), b: Number(b) });
     }
-    const problem = scoreProblem(sets);
+    const problem = matchScoreProblem(rules, sets);
     return problem ? { error: problem } : { sets };
   };
 
@@ -2232,7 +2531,7 @@ export default function TournamentSchedulePage() {
     const d = scoreDraftRef.current;
     if (!d || d.id !== m.id || scoreSavingId === m.id) return;
 
-    const built = draftSets(d);
+    const built = draftSets(m.scoringRules, d);
     if ('error' in built) {
       setScoreNote({ id: m.id, text: built.error, kind: 'error' });
       return;
@@ -2290,7 +2589,7 @@ export default function TournamentSchedulePage() {
       return (
         <div
           className={listClass}
-          title={editMode && liveNow.has(m.id) ? 'Being scored live — use the scorekeeper screen' : undefined}
+          title={scoreMode && liveNow.has(m.id) ? 'Being scored live — use the scorekeeper screen' : undefined}
         >
           {values.map((sv, idx) => (
             <span key={idx} className={cellClass}>{sv}</span>
@@ -2313,7 +2612,7 @@ export default function TournamentSchedulePage() {
         onMouseDown={e => e.stopPropagation()}
         onTouchStart={e => e.stopPropagation()}
       >
-        {Array.from({ length: setColumns(d) }, (_, i) => (
+        {Array.from({ length: setColumns(m, d) }, (_, i) => (
           <input
             key={i}
             className={`${cellClass} ${styles.scoreInput} ${faulted ? styles.scoreInputFault : ''}`}
@@ -2348,7 +2647,7 @@ export default function TournamentSchedulePage() {
   /** What the cells could not say themselves: saving, a rejected result, or
    *  a match the referee still holds. */
   const scoreCellNote = (m: ScheduleMatch) => {
-    if (!editMode) return null;
+    if (!scoreMode) return null;
     if (liveNow.has(m.id)) {
       return <div className={styles.scoreNote}>Being scored live — use the scorekeeper screen.</div>;
     }
@@ -2379,6 +2678,7 @@ export default function TournamentSchedulePage() {
       </div>
       <div className={styles.gridHeaderRight}>
         {editToggle}
+        {scoreToggle}
         {calendar.divOrder.map(label => (
           <span key={label} className={styles.calLegendItem}>
             <span className={styles.calSwatch} data-div={divColorIndex.get(label) ?? 0} />
@@ -3103,6 +3403,7 @@ export default function TournamentSchedulePage() {
               sensors={sensors}
               collisionDetection={collisionDetectionStrategy}
               onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
             >
@@ -3255,6 +3556,8 @@ export default function TournamentSchedulePage() {
                                   slot={slot}
                                   startMin={startMin}
                                   ci={ci}
+                                  ghostSlots={dragGhostSlots}
+                                  ghostMinutes={dragGhostMinutes}
                                 />
                               );
                             }),
@@ -3292,18 +3595,98 @@ export default function TournamentSchedulePage() {
                             last match. */}
                         {day.lunchBlock && day.lunchBlock.startSlot < day.slots && (
                           <div
-                            className={styles.lunchBreakSlot}
+                            className={[
+                              styles.lunchBreakSlot,
+                              day.lunchBlock.open ? styles.lunchBreakSlotOpen : '',
+                              day.lunchBlock.encroached ? styles.lunchBreakSlotEncroached : '',
+                            ].filter(Boolean).join(' ')}
                             style={{
                               gridColumn: `2 / ${calendar.roster.length + 2}`,
-                              gridRow: day.lunchBlock.startSlot + 2,
+                              gridRow: `${day.lunchBlock.startSlot + 2} / span ${day.lunchBlock.rowCount}`,
                             } as CSSProperties}
                           >
-                            <div className={styles.lunchBreakContent}>
-                              <Utensils size={15} />
-                              <span>{day.lunchBlock.text}</span>
-                            </div>
+                            {/* At full height the band has room to say what it
+                                is without a pill, and the watermark reads
+                                through the cards sitting on top of it. */}
+                            {day.lunchBlock.open && (
+                              <span className={styles.lunchWatermark} aria-hidden="true">
+                                {day.lunchBlock.encroached ? 'LUNCH · IN USE' : 'LUNCH'}
+                              </span>
+                            )}
+                            {/* While editing, the badge is the control: the
+                                break's times are typed where the break is,
+                                rather than hunted for in the settings panel
+                                above. Pointer events are held here so the
+                                calendar's drag system never sees them. */}
+                            {editMode && config ? (
+                              <div
+                                className={`${styles.lunchBreakContent} ${styles.lunchBreakEdit}`}
+                                onPointerDown={e => e.stopPropagation()}
+                                onMouseDown={e => e.stopPropagation()}
+                                onTouchStart={e => e.stopPropagation()}
+                              >
+                                <Utensils size={15} />
+                                <span>Lunch</span>
+                                <input
+                                  type="time"
+                                  className={styles.lunchTimeInput}
+                                  value={config.lunchStart}
+                                  aria-label="Lunch break start time"
+                                  onChange={e => {
+                                    setConfigField('lunchStart', e.target.value);
+                                    setDirty(true);
+                                    setSaveMsg(null);
+                                  }}
+                                />
+                                <span className={styles.lunchTimeDash}>–</span>
+                                <input
+                                  type="time"
+                                  className={styles.lunchTimeInput}
+                                  value={config.lunchEnd}
+                                  aria-label="Lunch break end time"
+                                  onChange={e => {
+                                    setConfigField('lunchEnd', e.target.value);
+                                    setDirty(true);
+                                    setSaveMsg(null);
+                                  }}
+                                />
+                                {config.lunchEnd <= config.lunchStart && (
+                                  <span className={styles.lunchTimeFault}>ends before it starts</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className={styles.lunchBreakContent}>
+                                <Utensils size={15} />
+                                <span>{day.lunchBlock.text}</span>
+                              </div>
+                            )}
                           </div>
                         )}
+
+                        {/* The gap held open while the pointer rests between two
+                            cards: everything from the hovered card down slides
+                            by the carried card's own height, and a ghost of it
+                            fills what opens up. */}
+                        {(() => {
+                          const target = insertPreviewId
+                            ? day.blocks.find(x => x.m.id === insertPreviewId)
+                            : undefined;
+                          if (!target || !activeDragMatch) return null;
+                          const gi = calendar.columns.indexOf(target.court);
+                          if (gi < 0) return null;
+                          return (
+                            <div
+                              className={styles.calInsertGhost}
+                              style={{
+                                gridColumn: gi + 2,
+                                gridRow: `${target.startSlot + 2} / span ${dragGhostSlots}`,
+                              } as CSSProperties}
+                            >
+                              <span className={styles.calInsertGhostNo}>{activeDragMatch.matchNo}</span>
+                              <span className={styles.calInsertGhostMins}>{dragGhostMinutes} m</span>
+                            </div>
+                          );
+                        })()}
 
                         {/* Match Block Cards placed at their exact Y-axis time row */}
                         {day.blocks.map(b => {
@@ -3312,6 +3695,19 @@ export default function TournamentSchedulePage() {
                           const divIdx = divColorIndex.get(b.m.divisionLabel) ?? 0;
                           const faults = problemsByMatch.get(b.m.id) ?? [];
                           const movable = canMove(b.m) && b.court !== 'Unscheduled';
+                          /* Only the hovered card's own court moves, and only
+                             from the hovered card downward — the rest of the
+                             board is not affected by where this one lands. */
+                          const preview = insertPreviewId
+                            ? day.blocks.find(x => x.m.id === insertPreviewId)
+                            : undefined;
+                          const shiftSlots =
+                            preview &&
+                            b.court === preview.court &&
+                            b.startSlot >= preview.startSlot &&
+                            b.m.id !== activeDragMatch?.id
+                              ? dragGhostSlots
+                              : 0;
                           return (
                             <GridMatchCardItem
                               key={b.m.id}
@@ -3321,6 +3717,9 @@ export default function TournamentSchedulePage() {
                               faults={faults}
                               movable={movable}
                               editMode={editMode}
+                              isPinned={pinnedIds.has(b.m.id)}
+                              onTogglePin={togglePin}
+                              shiftSlots={shiftSlots}
                               editingTime={editingTime}
                               insertAt={insertAt}
                               activeDragMatch={activeDragMatch}

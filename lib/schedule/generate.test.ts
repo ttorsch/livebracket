@@ -969,10 +969,12 @@ describe('net changes', () => {
     }
   });
 
-  it('still charges a net change that a match is actually waiting for', () => {
-    // One court and two heights: they have to interleave, so the net really
-    // does move mid-play and the buffer is real court time. Guards against
-    // fixing the first-match case by never charging the buffer at all.
+  it('reports an interleaved net change instead of charging court time for it', () => {
+    /* One court and two heights: they have to interleave, so the net really
+       does move mid-play. The generator used to hold the next match back by
+       netBufferMinutes; it no longer does — the minutes are the organizer's
+       to spend, and the arrangement is flagged for them instead. What must
+       still hold is that the schedule is sound and the changes are real. */
     const divisions = [
       makeDivision('men', 4, { netHeight: '2.43m', gender: 'Men' }),
       makeDivision('women', 4, { netHeight: '2.24m', gender: 'Women' }),
@@ -988,7 +990,7 @@ describe('net changes', () => {
       byCourtDay.set(key, [...(byCourtDay.get(key) ?? []), p]);
     }
 
-    let charged = 0;
+    let changes = 0;
     for (const run of byCourtDay.values()) {
       const order = [...run].sort((a, b) => a.startAbs - b.startAbs);
       for (let i = 1; i < order.length; i++) {
@@ -997,17 +999,18 @@ describe('net changes', () => {
         const ha = heightOf(before.matchId);
         const hb = heightOf(after.matchId);
         if (ha == null || hb == null || ha === hb) continue;
+        changes++;
+        // The court is still a queue: no overlap, whatever the net is doing.
         assert.ok(
-          after.startAbs >= before.endAbs + cfg.netBufferMinutes,
-          `${after.matchId} follows ${before.matchId} at a different height and must leave ${cfg.netBufferMinutes}min to move the net`,
+          after.startAbs >= before.endAbs,
+          `${after.matchId} must not start before ${before.matchId} ends`,
         );
-        if (after.startAbs > before.endAbs) charged++;
       }
     }
-    assert.ok(charged > 0, 'at least one net change delayed play, or this asserts nothing');
+    assert.ok(changes > 0, 'the heights never interleaved, so this asserts nothing');
   });
 
-  it('charges a net change exactly what the buffer says, not the next gridline', () => {
+  it('keeps a grid fine enough to say the buffer, so a hand-added one can land', () => {
     // The bug this guards: `place.ts` worked the wait out correctly — a court
     // free at 16:00 owing ten minutes is next free at 16:10 — and then every
     // start was snapped onto the grid, which the lengths alone ruled in 15s.
@@ -1032,26 +1035,21 @@ describe('net changes', () => {
       byCourtDay.set(key, [...(byCourtDay.get(key) ?? []), p]);
     }
 
-    const gaps: number[] = [];
+    let changes = 0;
     for (const run of byCourtDay.values()) {
       const order = [...run].sort((a, b) => a.startAbs - b.startAbs);
       for (let i = 1; i < order.length; i++) {
         const ha = heightOf(order[i - 1].matchId);
         const hb = heightOf(order[i].matchId);
         if (ha == null || hb == null || ha === hb) continue;
-        gaps.push(order[i].startAbs - order[i - 1].endAbs);
+        changes++;
       }
     }
-
-    assert.ok(gaps.length > 0, 'no net change happened, so this asserts nothing');
-    // A gap may exceed the buffer for reasons of its own — a team owed rest, a
-    // blocked period — but nothing should ever be *unable* to sit at 10, which
-    // is what a 15-minute lattice guaranteed.
-    assert.equal(
-      Math.min(...gaps),
-      cfg.netBufferMinutes,
-      `the tightest net change should cost exactly ${cfg.netBufferMinutes}min, got ${Math.min(...gaps)}`,
-    );
+    assert.ok(changes > 0, 'no net change happened, so this asserts nothing');
+    /* The generator no longer spends the buffer itself, but the organizer
+       can, and a 15-minute lattice would round their 10 up to 15 — the
+       original bug. The grid still has to be able to say the number. */
+    assert.equal(cfg.netBufferMinutes % result.grid.slotMinutes, 0);
   });
 
   it('keeps divisions on their own courts once the buffer stops being charged at the start of a day', () => {

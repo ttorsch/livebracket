@@ -233,16 +233,25 @@ describe('a day with lunch in it', () => {
  * while the organizer is editing by hand. Reading a published schedule, the
  * break is a seam; dragging a card, it is the difference between a target and
  * a line. */
-describe('the lunch row is a seam unless the organizer is editing', () => {
+describe('the lunch row is a seam only while reading an empty break', () => {
   const editing = { ...LUNCH_DAY, editing: true };
 
-  it('collapses when the break is empty', () => {
+  it('opens to true scale whenever the organizer is editing', () => {
+    /* Editing places things against real time, so the hour has to be the
+       size of an hour — even with nothing in it. Left as a seam, the cards
+       either side of the break sat at a different vertical scale from the
+       rest of the column. */
     const axis = buildCalendarAxis(editing, [at('09:00'), at('13:00')]);
-    assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, true);
+    assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, false);
   });
 
-  it('stays a seam while reading, whatever is in the break', () => {
+  it('opens while reading too, once something is inside the break', () => {
     const axis = buildCalendarAxis(LUNCH_DAY, [at('09:00'), at('12:30')]);
+    assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, false);
+  });
+
+  it('stays a seam while reading an empty break', () => {
+    const axis = buildCalendarAxis(LUNCH_DAY, [at('09:00'), at('13:00')]);
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, true);
   });
 
@@ -256,8 +265,8 @@ describe('the lunch row is a seam unless the organizer is editing', () => {
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, false);
   });
 
-  it('is unmoved by a match that only touches the break', () => {
-    const axis = buildCalendarAxis(editing, [at('11:15', 45)]); // ends exactly at 12:00
+  it('is unmoved, while reading, by a match that only touches the break', () => {
+    const axis = buildCalendarAxis(LUNCH_DAY, [at('11:15', 45)]); // ends exactly at 12:00
     assert.equal(axis.rows.find(r => r.kind === 'lunch')?.collapsed, true);
   });
 

@@ -8,6 +8,7 @@
 
 import type { CrossSlot, DetailDivision, DetailMatch, DetailRound } from './data';
 import { isKnockoutFormat } from './roundFormat.ts';
+import { isUnnamedTeam } from './teamName.ts';
 
 const POOL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -138,7 +139,13 @@ export function labelDivisionMatches(div: DetailDivision): Map<string, MatchLabe
       const losers = loserFeeders[m.id];
 
       const label = (name: string | null, slot: CrossSlot | null, side: 0 | 1): string => {
-        if (name && name !== 'TBD' && name.trim() !== '') return name;
+        /* An empty slot arrives here as one of several "nothing yet"
+           strings, not as null — lib/data builds the name through
+           formatPlayerNames, which renders an unfilled seat as the literal
+           "Player TBD". Testing only for 'TBD' let that one through as a
+           real team name, so every crossing label below was unreachable and
+           the bracket read "Player TBD" where it knew "#1 Pool A". */
+        if (!isUnnamedTeam(name)) return name as string;
         if (slot) return crossLabel(slot);
         if (bye) return 'BYE';
         if (losers) {

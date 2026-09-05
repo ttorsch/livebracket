@@ -175,12 +175,41 @@ export function buildCalendarAxis(config: AxisConfig, items: AxisItem[]): Calend
   const runs = dayRuns(dayStart, dayEnd, lunch);
   runs.forEach(([from, to], runIndex) => {
     if (runIndex > 0 && lunch) {
-      rows.push({
-        startMin: lunch.start,
-        minutes: lunch.end - lunch.start,
-        kind: 'lunch',
-        collapsed: !(config.editing && occupies(lunch, items, config.blocks ?? [])),
-      });
+      /* Open at true scale whenever the organizer is editing, and whenever
+         anything is inside the break — editing or not. It used to need both,
+         so turning Hand Edit on left lunch as a seam and the cards either
+         side of it sat at a different vertical scale from the rest of the
+         column. An editor is placing things against real time, so the hour
+         has to be the size of an hour. */
+      const open = config.editing || occupies(lunch, items, config.blocks ?? []);
+      if (!open) {
+        /* Reading an empty break: one row, drawn as a seam. Its `minutes`
+           stay the true window so anything measuring the day still gets the
+           right answer; only its drawn height is collapsed. */
+        rows.push({
+          startMin: lunch.start,
+          minutes: lunch.end - lunch.start,
+          kind: 'lunch',
+          collapsed: true,
+        });
+      } else {
+        /* Open: the break is laid out in pitch rows exactly like playing
+           time, rather than as one tall row covering the whole window.
+           One row was already the right *scale* — heights are minutes ×
+           px-per-min either way — but a grid row is indivisible, so a match
+           crossing into the break had to span the entire window and was drawn
+           the full window tall. Cutting it into ordinary rows lets such a card
+           span only the minutes it really covers: nothing is stretched, and
+           the break still shows its whole area. */
+        for (let t = lunch.start; t < lunch.end; t += pitch) {
+          rows.push({
+            startMin: t,
+            minutes: Math.min(pitch, lunch.end - t),
+            kind: 'lunch',
+            collapsed: false,
+          });
+        }
+      }
     }
     /* Each run lays its rows from its own start — that is the whole point, and
        it is why the afternoon's first row reads 13:00 rather than 12:45. */

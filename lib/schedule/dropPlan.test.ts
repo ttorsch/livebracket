@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { planDrop, type Placement } from './dropPlan.ts';
+import { planDrop, type Placement, type PlanDropResult } from './dropPlan.ts';
+import type { BlockedPeriod } from './types.ts';
 
 const H = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -11,8 +12,8 @@ function court(name: string, ids: string[], from = H('09:00'), dur = 60, day = 0
 }
 
 /** The schedule after a plan is applied, as court -> "id@HH:MM" in time order. */
-function apply(placements: Placement[], plan: ReturnType<typeof planDrop>): Record<string, string[]> {
-  const moves = new Map(plan.map(m => [m.id, m]));
+function apply(placements: Placement[], plan: PlanDropResult): Record<string, string[]> {
+  const moves = new Map(plan.moves.map(m => [m.id, m]));
   const out = new Map<string, { id: string; start: number }[]>();
   for (const p of placements) {
     const move = moves.get(p.id);
@@ -31,9 +32,9 @@ function apply(placements: Placement[], plan: ReturnType<typeof planDrop>): Reco
   );
 }
 
-/** No two matches on a court may share a minute. */
-function assertNoOverlap(placements: Placement[], plan: ReturnType<typeof planDrop>) {
-  const moves = new Map(plan.map(m => [m.id, m]));
+/** No two matches or buffer blocks on a court may share a minute. */
+function assertNoOverlap(placements: Placement[], plan: PlanDropResult, blocks: BlockedPeriod[] = []) {
+  const moves = new Map(plan.moves.map(m => [m.id, m]));
   const byCourt = new Map<string, { start: number; end: number; id: string }[]>();
   for (const p of placements) {
     const move = moves.get(p.id);
@@ -43,6 +44,12 @@ function assertNoOverlap(placements: Placement[], plan: ReturnType<typeof planDr
     const list = byCourt.get(on) ?? [];
     list.push({ id: p.id, start: at, end: at + p.durationMinutes });
     byCourt.set(on, list);
+  }
+  for (const b of plan.blocks) {
+    if (!b.court) continue;
+    const list = byCourt.get(b.court) ?? [];
+    list.push({ id: `block-${b.label}`, start: H(b.start), end: H(b.end) });
+    byCourt.set(b.court, list);
   }
   for (const [name, list] of byCourt) {
     list.sort((a, b) => a.start - b.start);
@@ -151,7 +158,7 @@ test('days are separate queues: a drop on day 1 leaves day 0 alone', () => {
   const p = [...court('C1', ['a', 'b'], H('09:00'), 60, 0), ...court('C1', ['m', 'n'], H('09:00'), 60, 1)];
   const plan = planDrop(p, 'a', 'C1', 1, { beforeId: 'n' }, H('09:00'));
 
-  const moves = new Map(plan.map(x => [x.id, x]));
+  const moves = new Map(plan.moves.map(x => [x.id, x]));
   assert.equal(moves.get('a')?.start, H('10:00'));
   assert.equal(moves.get('a')?.day, 1);
   assert.equal(moves.get('n')?.start, H('11:00'));
@@ -162,6 +169,218 @@ test('days are separate queues: a drop on day 1 leaves day 0 alone', () => {
 
 test('a drop that cannot be resolved moves nothing', () => {
   const p = court('C1', ['a', 'b']);
-  assert.deepEqual(planDrop(p, 'a', 'C1', 0, { beforeId: 'nope' }, H('09:00')), []);
-  assert.deepEqual(planDrop(p, 'ghost', 'C1', 0, { append: true }, H('09:00')), []);
+  assert.deepEqual(planDrop(p, 'a', 'C1', 0, { beforeId: 'nope' }, H('09:00')).moves, []);
+  assert.deepEqual(planDrop(p, 'ghost', 'C1', 0, { append: true }, H('09:00')).moves, []);
+});
+
+test('dropping in front pushes buffer time cards down along with match cards', () => {
+  const p = [
+    { id: 'a', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'b', court: 'C1', day: 0, start: H('10:00'), durationMinutes: 60 },
+    { id: 'c', court: 'C1', day: 0, start: H('11:15'), durationMinutes: 60 },
+    { id: 'x', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const blocks: BlockedPeriod[] = [
+    { court: 'C1', day: 0, start: '11:00', end: '11:15', label: 'Buffer' },
+  ];
+
+  const plan = planDrop(p, 'x', 'C1', 0, { beforeId: 'b' }, H('09:00'), blocks);
+
+  assert.deepEqual(apply(p, plan), {
+    C1: ['a@09:00', 'x@10:00', 'b@11:00', 'c@12:15'],
+  });
+  // Buffer was pushed down from 11:00-11:15 to 12:00-12:15
+  assert.deepEqual(plan.blocks, [
+    { court: 'C1', day: 0, start: '12:00', end: '12:15', label: 'Buffer' },
+  ]);
+  assertNoOverlap(p, plan);
+});
+
+test('dropping a match between two cards with a buffer deletes the buffer and inserts the match', () => {
+  const p = [
+    { id: 'a', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'b', court: 'C1', day: 0, start: H('10:15'), durationMinutes: 60 },
+    { id: 'x', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const blocks: BlockedPeriod[] = [
+    { court: 'C1', day: 0, start: '10:00', end: '10:15', label: 'Buffer' },
+  ];
+
+  // Drop 'x' before 'b' (where buffer sits directly between 'a' and 'b')
+  const plan = planDrop(p, 'x', 'C1', 0, { beforeId: 'b' }, H('09:00'), blocks);
+
+  // Buffer is deleted; x starts at 10:00; b shifts to 11:00
+  assert.deepEqual(apply(p, plan), {
+    C1: ['a@09:00', 'x@10:00', 'b@11:00'],
+  });
+  assert.deepEqual(plan.blocks, []);
+  assertNoOverlap(p, plan);
+});
+
+test('dragging away a match that had a buffer immediately before it deletes that buffer and closes gap', () => {
+  const p = [
+    { id: 'a', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'b', court: 'C1', day: 0, start: H('10:15'), durationMinutes: 60 },
+    { id: 'c', court: 'C1', day: 0, start: H('11:15'), durationMinutes: 60 },
+    { id: 'y', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const blocks: BlockedPeriod[] = [
+    { court: 'C1', day: 0, start: '10:00', end: '10:15', label: 'Buffer' },
+  ];
+
+  // Drag 'b' to C2
+  const plan = planDrop(p, 'b', 'C2', 0, { beforeId: 'y' }, H('09:00'), blocks);
+
+  // On C1: 'b' is gone, buffer before 'b' is deleted, 'c' pulls up by (60 + 15 = 75m) to 10:00
+  assert.deepEqual(apply(p, plan), {
+    C1: ['a@09:00', 'c@10:00'],
+    C2: ['b@09:00', 'y@10:00'],
+  });
+  assert.deepEqual(plan.blocks, []);
+  assertNoOverlap(p, plan);
+});
+
+test('non-buffer blocks like lunch or general blocked time stay stationary', () => {
+  const p = [
+    { id: 'a', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'b', court: 'C1', day: 0, start: H('10:30'), durationMinutes: 60 },
+    { id: 'x', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const blocks: BlockedPeriod[] = [
+    { court: 'C1', day: 0, start: '10:00', end: '10:30', label: 'Ceremony' },
+  ];
+
+  const plan = planDrop(p, 'x', 'C1', 0, { beforeId: 'b' }, H('09:00'), blocks);
+
+  // Non-buffer block is not touched
+  assert.deepEqual(plan.blocks, [
+    { court: 'C1', day: 0, start: '10:00', end: '10:30', label: 'Ceremony' },
+  ]);
+});
+
+
+
+// ── The break divides the queue ───────────────────────────────────────────
+
+const LUNCH = { start: H('12:00'), end: H('13:00') };
+
+test('lifting a morning match pulls the morning up and leaves the afternoon alone', () => {
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'm2', court: 'C1', day: 0, start: H('10:00'), durationMinutes: 60 },
+    { id: 'm3', court: 'C1', day: 0, start: H('11:00'), durationMinutes: 60 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'a2', court: 'C1', day: 0, start: H('14:00'), durationMinutes: 60 },
+    { id: 'z', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'm1', 'C2', 0, { append: true }, H('09:00'), [], LUNCH);
+  const at = (id: string) => plan.moves.find(m => m.id === id)?.start;
+
+  // The morning closes up behind m1 …
+  assert.equal(at('m2'), H('09:00'));
+  assert.equal(at('m3'), H('10:00'));
+  // … and the afternoon does not budge.
+  assert.equal(at('a1'), undefined);
+  assert.equal(at('a2'), undefined);
+});
+
+test('lifting an afternoon match pulls only the afternoon up', () => {
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'a2', court: 'C1', day: 0, start: H('14:00'), durationMinutes: 60 },
+    { id: 'a3', court: 'C1', day: 0, start: H('15:00'), durationMinutes: 60 },
+    { id: 'z', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'a1', 'C2', 0, { append: true }, H('09:00'), [], LUNCH);
+  const at = (id: string) => plan.moves.find(m => m.id === id)?.start;
+
+  assert.equal(at('m1'), undefined, 'the morning is not touched');
+  assert.equal(at('a2'), H('13:00'));
+  assert.equal(at('a3'), H('14:00'));
+});
+
+test('no break configured leaves the day one queue', () => {
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'z', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'm1', 'C2', 0, { append: true }, H('09:00'), [], null);
+  assert.equal(plan.moves.find(m => m.id === 'a1')?.start, H('12:00'));
+});
+
+test('a match that has run into the break closes up with the morning', () => {
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('10:00'), durationMinutes: 60 },
+    { id: 'm2', court: 'C1', day: 0, start: H('11:00'), durationMinutes: 60 },
+    { id: 'inLunch', court: 'C1', day: 0, start: H('12:15'), durationMinutes: 30 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'z', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'm1', 'C2', 0, { append: true }, H('09:00'), [], LUNCH);
+  const at = (id: string) => plan.moves.find(m => m.id === id)?.start;
+
+  assert.equal(at('m2'), H('10:00'));
+  assert.equal(at('inLunch'), H('11:15'), 'it followed the morning, so it moves with it');
+  assert.equal(at('a1'), undefined, 'the afternoon still does not move');
+});
+
+test('inserting in the morning pushes the morning down and leaves the afternoon alone', () => {
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'm2', court: 'C1', day: 0, start: H('10:00'), durationMinutes: 60 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'a2', court: 'C1', day: 0, start: H('14:00'), durationMinutes: 60 },
+    { id: 'x', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'x', 'C1', 0, { beforeId: 'm2' }, H('09:00'), [], LUNCH);
+  const at = (id: string) => plan.moves.find(m => m.id === id)?.start;
+
+  assert.equal(at('x'), H('10:00'), 'the arrival takes m2 slot');
+  assert.equal(at('m2'), H('11:00'), 'and pushes the morning down');
+  assert.equal(at('a1'), undefined, 'the afternoon is untouched');
+  assert.equal(at('a2'), undefined);
+});
+
+test('inserting in the afternoon pushes only the afternoon down', () => {
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'a2', court: 'C1', day: 0, start: H('14:00'), durationMinutes: 60 },
+    { id: 'x', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'x', 'C1', 0, { beforeId: 'a2' }, H('09:00'), [], LUNCH);
+  const at = (id: string) => plan.moves.find(m => m.id === id)?.start;
+
+  assert.equal(at('x'), H('14:00'));
+  assert.equal(at('a2'), H('15:00'));
+  assert.equal(at('m1'), undefined, 'the morning is untouched');
+});
+
+test('a morning push may run into the break, but never past it onto the afternoon', () => {
+  // The morning is full to 12:00; an hour arriving at 11:00 has to go
+  // somewhere, and the break is where it spills.
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('10:00'), durationMinutes: 60 },
+    { id: 'm2', court: 'C1', day: 0, start: H('11:00'), durationMinutes: 60 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'x', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'x', 'C1', 0, { beforeId: 'm2' }, H('09:00'), [], LUNCH);
+  const at = (id: string) => plan.moves.find(m => m.id === id)?.start;
+
+  assert.equal(at('x'), H('11:00'));
+  assert.equal(at('m2'), H('12:00'), 'pushed into the break, which the calendar shows');
+  assert.equal(at('a1'), undefined, 'but the afternoon did not move');
+});
+
+test('with no break configured a push still runs the whole day', () => {
+  const p = [
+    { id: 'm1', court: 'C1', day: 0, start: H('09:00'), durationMinutes: 60 },
+    { id: 'a1', court: 'C1', day: 0, start: H('13:00'), durationMinutes: 60 },
+    { id: 'x', court: 'C2', day: 0, start: H('09:00'), durationMinutes: 60 },
+  ];
+  const plan = planDrop(p, 'x', 'C1', 0, { beforeId: 'a1' }, H('09:00'), [], null);
+  assert.equal(plan.moves.find(m => m.id === 'a1')?.start, H('14:00'));
 });

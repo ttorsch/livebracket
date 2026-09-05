@@ -4,7 +4,8 @@ import { redis } from '../../../../../../../lib/redis';
 import { liveKey } from '../../../../../../../lib/scorekeeper';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
-import { cleanSets, scoreProblem, scoreWinner } from '../../../../../../../lib/matchScore';
+import { cleanSets, scoreWinner } from '../../../../../../../lib/matchScore';
+import { readScoringRules, matchScoreProblem } from '../../../../../../../lib/setScoreRules';
 
 /* ── The organizer's own way in to a result ───────────────────────
  *
@@ -39,6 +40,8 @@ interface MatchRow {
   status: 'upcoming' | 'live' | 'done';
   team_a_id: string | null;
   team_b_id: string | null;
+  /* The round this match belongs to, for its scoring format. */
+  rounds: { scoring_rules: Record<string, unknown> | null } | null;
 }
 
 export async function PUT(
@@ -57,15 +60,17 @@ export async function PUT(
   const body = (await request.json().catch(() => ({}))) as { sets?: unknown };
   const sets = cleanSets(body.sets);
 
-  const problem = scoreProblem(sets);
-  if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+  /* What makes these sets legal depends on the round they were played in —
+   * a set to 11 and a set to 21 are not judged alike — so the check waits
+   * until the row below has been read. cleanSets has already bounded the
+   * array, so nothing unbounded reaches the query. */
 
   /* The match id comes from the URL, so ownership of the tournament says
    * nothing about it until the join proves the match hangs off this
    * tournament's divisions. */
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .select('id, status, team_a_id, team_b_id, rounds!inner ( divisions!inner ( tournament_id ) )')
+    .select('id, status, team_a_id, team_b_id, rounds!inner ( scoring_rules, divisions!inner ( tournament_id ) )')
     .eq('id', matchId)
     .eq('rounds.divisions.tournament_id', tournamentId)
     .maybeSingle();
@@ -73,6 +78,11 @@ export async function PUT(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Match not found in this tournament.' }, { status: 404 });
   const match = data as unknown as MatchRow;
+
+  /* The same reader the schedule page's cells use, so the organizer is not
+   * told one thing on the card and another by the server. */
+  const problem = matchScoreProblem(readScoringRules(match.rounds?.scoring_rules), sets);
+  if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
   /* A referee mid-match owns the score. Redis being unreachable is not a
    * reason to refuse: the scorekeeper's own writes fail in that state too,

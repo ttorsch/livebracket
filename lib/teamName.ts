@@ -10,6 +10,22 @@
 
 export const SEPARATOR = ' / ';
 
+/* What formatPlayerNames yields when there is nothing to name at all: an
+ * empty knockout slot has no players, no stored name and no seed, so it
+ * falls through to this. It is a display string, not a team — callers that
+ * can say something better about an empty slot (a crossing slot reading
+ * "#1 Pool A", a feeder reading "Winner of M12") have to recognise it as
+ * "not filled yet" rather than as a team named "Player TBD".
+ * See lib/divisionMatches.labelDivisionMatches, which is where mistaking
+ * the two hid every crossing label behind this string. */
+export const UNNAMED_TEAM = 'Player TBD';
+
+export function isUnnamedTeam(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const trimmed = name.trim();
+  return trimmed === '' || trimmed.toUpperCase() === 'TBD' || trimmed === UNNAMED_TEAM;
+}
+
 /** Extract the first name from a player's full name (e.g. "Ananda Suwan" -> "Ananda"). */
 export function extractFirstName(fullName: string | null | undefined): string {
   if (!fullName) return '';

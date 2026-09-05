@@ -666,19 +666,26 @@ export function placeMatches(
         }
       }
 
-      // A net change is a wait, not a flat charge: the crew starts the moment
-      // the previous match ends, so a match already sitting far enough after
-      // one pays nothing — and a court's first match of a *day* pays nothing
-      // at all, because nets are rigged before play starts.
+      /* A net change is reported, not paid for.
+       *
+       * The generator used to hold the match back by netBufferMinutes so the
+       * crew had time to move the net. That is real work, but spending court
+       * time on it automatically made the schedule quietly longer than the
+       * organizer asked for, and hid the decision: they could not see which
+       * gaps were theirs and which the solver had bought. `validate.ts`
+       * already raises a `netChange` problem for exactly this arrangement and
+       * the card offers a one-click buffer, so the organizer is told and can
+       * spend the minutes themselves — or not, if the crew is quick.
+       *
+       * A court's first match of a *day* is not a change at all: nets are
+       * rigged before play starts.
+       */
       const sameDay =
         court.lastEndAbs > -Infinity &&
         Math.floor(court.lastEndAbs / DAY_SPAN) === Math.floor(t / DAY_SPAN);
       netChange =
         sameDay && node.netHeight != null && court.height != null && court.height !== node.netHeight;
-      if (!netChange) break;
-      const ready = court.lastEndAbs + buffer;
-      if (t >= ready) break;
-      t = ready;
+      break;
     }
 
     let backToBack = false;

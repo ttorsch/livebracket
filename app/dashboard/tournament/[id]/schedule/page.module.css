@@ -986,6 +986,8 @@
   color: #D64545;
   font-size: 13px;
   font-weight: 700;
+  overflow: hidden;
+  pointer-events: none;
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
@@ -1133,7 +1135,12 @@
 
 .calDropGhostSlot {
   position: absolute;
-  inset: 2px 4px;
+  /* Top-anchored, not inset: the height is set per-drag to the dragged
+     card's real footprint, so the ghost has to be able to grow past the one
+     slot cell it is drawn inside. */
+  top: 2px;
+  left: 4px;
+  right: 4px;
   border-radius: 14px;
   border: 2px dashed var(--coral-500, #EB6F43);
   background: rgba(235, 111, 67, 0.08);
@@ -1669,6 +1676,7 @@
 .calTimeMinor .calTimeRule { background: var(--sand-300, #EAE5DD); }
 
 .lunchBreakSlot {
+  position: relative;
   margin: 4px 6px;
   border-radius: 12px;
   background: rgba(234, 229, 216, 0.45);
@@ -1676,8 +1684,59 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
+  /* Behind the cards, so a match that runs into the break reads over the
+     band rather than being hidden by it. */
+  z-index: 1;
   min-height: 30px;
+  overflow: hidden;
+}
+
+/* Hand Edit opens the break to its true height (see calendarAxis: collapsed).
+   The pill label gives way to the watermark once there is room for it. */
+.lunchBreakSlotOpen {
+  min-height: 0;
+  align-items: flex-start;
+  padding-top: 6px;
+}
+.lunchBreakSlotOpen .lunchBreakContent {
+  font-size: 11px;
+  padding: 4px 12px;
+  opacity: 0.9;
+}
+
+/* Play has been put inside the break. Same scale, different colour — the
+   band is no longer just unused time, it is time being spent. */
+.lunchBreakSlotEncroached {
+  background: rgba(235, 111, 67, 0.10);
+  border-color: var(--coral-500, #EB6F43);
+  border-style: solid;
+}
+.lunchBreakSlotEncroached .lunchBreakContent {
+  color: var(--coral-600, #D95F35);
+  border-color: rgba(235, 111, 67, 0.35);
+}
+
+/* Big enough to read past whatever is sitting on it, quiet enough not to
+   compete with the cards. Scales with the band so a 30-minute lunch does not
+   get the same lettering as a two-hour one. */
+.lunchWatermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: clamp(22px, 7cqh, 64px);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: rgba(20, 31, 46, 0.10);
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.lunchBreakSlotEncroached .lunchWatermark {
+  color: rgba(235, 111, 67, 0.22);
 }
 
 .lunchBreakContent {
@@ -3542,4 +3601,131 @@
 @media (max-width: 560px) {
   .scoreInput { width: 26px; min-width: 26px; }
   .scoreEditList { gap: 4px; }
+}
+
+/* The dragged card's length, beside the time it would start at. */
+.calDropGhostMins {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+/* ── Pin control on a calendar card ───────────────────────────────
+   Sits in the card's top-right while Hand Edit is on, opposite the buffer
+   handle on the leading edge, so the two edit affordances never collide. */
+.cardPinBtn {
+  position: absolute;
+  /* Below the card's top row, not in it. The grip icon and the match number
+     live up there (see .gridMatchTags), and a pin at top: 4px landed right
+     on the grip. */
+  top: 26px;
+  right: 4px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 31, 46, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink-2, #7A8294);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.cardPinBtn:hover {
+  opacity: 1;
+  color: var(--coral-500, #EB6F43);
+  border-color: var(--coral-500, #EB6F43);
+}
+/* A pinned card says so without being hovered — the whole point is that it
+   is visibly exempt from the next rearrangement. */
+.cardPinBtnOn {
+  opacity: 1;
+  background: var(--coral-500, #EB6F43);
+  border-color: var(--coral-500, #EB6F43);
+  color: #FFFFFF;
+}
+.cardPinBtnOn:hover {
+  background: var(--coral-600, #D95F35);
+  color: #FFFFFF;
+}
+.cardPinBtn:focus-visible {
+  outline: 2px solid var(--coral-500, #EB6F43);
+  outline-offset: 2px;
+}
+
+/* ── The gap held open between two cards ──────────────────────────
+   Shown once the pointer has rested on a card long enough (see
+   INSERT_PREVIEW_DELAY_MS): the cards below slide down and this stands in
+   the space, at the exact height the carried card will take. */
+.calInsertGhost {
+  position: relative;
+  z-index: 6;
+  margin: 2px 4px;
+  border-radius: 14px;
+  border: 2px dashed var(--coral-500, #EB6F43);
+  background: rgba(235, 111, 67, 0.10);
+  box-shadow: inset 0 0 14px rgba(235, 111, 67, 0.14);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--coral-500, #EB6F43);
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  pointer-events: none;
+  overflow: hidden;
+  animation: calInsertGhostIn 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+.calInsertGhostNo {
+  font-size: 13px;
+  font-weight: 800;
+}
+.calInsertGhostMins {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+@keyframes calInsertGhostIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* The lunch badge as a control, while Hand Edit is on. Sits above the
+   watermark and takes its own pointer events — the band behind it is only
+   decoration. */
+.lunchBreakEdit {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lunchTimeInput {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-800, #2C3442);
+  background: #FFFFFF;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: 8px;
+  padding: 2px 6px;
+  line-height: 1.4;
+}
+.lunchTimeInput:focus-visible {
+  outline: 2px solid var(--coral-500, #EB6F43);
+  outline-offset: 1px;
+}
+.lunchTimeDash {
+  opacity: 0.6;
+}
+.lunchTimeFault {
+  color: #D64545;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
 }

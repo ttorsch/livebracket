@@ -39,6 +39,7 @@ import { tournamentStatus } from '../../../../lib/tournamentStatus';
 import { describeDiscardCost, type DiscardCost } from '../../../../lib/schedule/discardCost';
 import { formatTeamFirstName } from '../../../../lib/teamName';
 import { useTabSwipe } from '../../../../hooks/useTabSwipe';
+import { useDragScroll } from '../../../../hooks/useDragScroll';
 import PlayerCardModal, { type PlayerCardTarget } from '../../../../components/PlayerCardModal';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
@@ -359,6 +360,8 @@ export default function OrganizerBracketPage() {
   }, [activeDiv]);
 
   const drawResultRef = useRef<HTMLDivElement | null>(null);
+  /* Registered Teams pans with the mouse; see hooks/useDragScroll. */
+  const { ref: teamsGridRef, dragHandlers: teamsDragHandlers } = useDragScroll<HTMLDivElement>();
 
   const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
   /* The player whose card is open. Null closes it. */
@@ -1031,7 +1034,17 @@ export default function OrganizerBracketPage() {
 
   const perPool = Math.max(1, Math.round(confirmedTeams.length / config.pools) || 1);
   const firstRoundMatches = bracket?.rounds[0]?.matches.length ?? 0;
-  const colHeight = Math.max(firstRoundMatches * 95, bracket?.thirdPlaceMatch ? 240 : 190);
+  /* Height of the 3rd-place block at the foot of the final column: its
+     label plus one match card. It is reserved as padding rather than folded
+     into colHeight because the block is positioned absolute at bottom: 0,
+     and with border-box only a padding reservation shrinks the flex content
+     area that .matchSlot centres the final inside.
+     The old floor (`thirdPlaceMatch ? 240 : 190`) tried to buy the room by
+     growing the column instead, which does not work at four teams: the
+     final centres at 120px in a 240px column and the block starts at 130px,
+     so the block — which paints at z-index 1 — sat on top of the final. */
+  const THIRD_PLACE_STRIP = 120;
+  const colHeight = Math.max(firstRoundMatches * 95, 190);
 
   // Pure single-elimination summary (bracket padded to the next power of two).
   const seTeams = confirmedTeams.length;
@@ -1257,7 +1270,7 @@ export default function OrganizerBracketPage() {
           </div>
           <div className={styles.teamsWrap}>
             {confirmedTeams.length > 0 ? (
-              <div className={styles.teamsGrid}>
+              <div className={styles.teamsGrid} ref={teamsGridRef} {...teamsDragHandlers}>
                 {confirmedTeams.map(team => {
                   const parsedNames = parseTeamPlayers(team.name);
                   const playerItems = (team as any).players && (team as any).players.length > 0
@@ -2149,11 +2162,15 @@ export default function OrganizerBracketPage() {
                     populated from pool standings via crossing rules, so locking the bracket
                     is unnecessary. Instead, an inline toggle for the 3rd place play-off is shown.
                     When !hasRoundRobin (pure single elimination), the lock button is shown. */}
+                {/* No "Draw Result" heading on this branch. With pool play in
+                    round 1 the bracket is derived from the pool standings, so
+                    round 2 has no draw of its own to title — and round 1's own
+                    Draw Result tab already carries that name, so showing it
+                    again here read as a second, separate draw. The 3rd-place
+                    toggle is the only control, and it keeps its place on the
+                    right. */}
                 {hasRoundRobin && (
-                  <div className={styles.poolsHead} style={{ marginBottom: 16 }}>
-                    <div className={styles.poolsHeadLeft}>
-                      <h3 className={styles.cardTitle}>Draw Result</h3>
-                    </div>
+                  <div className={styles.poolsHead} style={{ marginBottom: 16, justifyContent: 'flex-end' }}>
                     <button
                       type="button"
                       className={hasThirdPlace ? styles.lockBtnActive : styles.lockBtn}
@@ -2213,7 +2230,17 @@ export default function OrganizerBracketPage() {
                       {bracket.rounds.map((round, ri) => (
                         <div key={round.name} className={styles.roundCol}>
                           <div className={styles.roundName}>{round.name}</div>
-                          <div className={styles.roundMatches} style={{ height: colHeight }}>
+                          {/* The final's column grows by the reserved strip rather
+                              than sharing colHeight with it, so the final stays
+                              level with the round before it. */}
+                          <div
+                            className={styles.roundMatches}
+                            style={
+                              ri === bracket.rounds.length - 1 && bracket.thirdPlaceMatch
+                                ? { height: colHeight + THIRD_PLACE_STRIP, paddingBottom: THIRD_PLACE_STRIP }
+                                : { height: colHeight }
+                            }
+                          >
                             {round.matches.map((m, mi) => {
                               // Round-1 names reveal one at a time on a re-draw.
                               const revealA = bracketAnim?.nameDelay.get(`${ri}-${mi}-A`);

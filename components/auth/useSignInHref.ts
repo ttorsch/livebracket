@@ -40,6 +40,21 @@ export function useRestoreScrollPosition(
   const pathname = usePathname();
   const restoredRef = useRef(false);
 
+  /* Opting out of the app's own restore is not enough on its own: the
+     browser has a restore of its own, and history.scrollRestoration defaults
+     to 'auto'. On a revisit — the back button, or simply opening a
+     tournament you had scrolled through earlier — that put the reader
+     halfway down the page before any of this ran, which looked exactly like
+     the page scrolling itself on open. Turned off for as long as a page that
+     wants its own top is mounted, and handed back afterwards so pages that
+     do want the browser's behaviour keep it. */
+  useEffect(() => {
+    if (restoreScroll || typeof window === 'undefined' || !('scrollRestoration' in history)) return;
+    const previous = history.scrollRestoration;
+    history.scrollRestoration = 'manual';
+    return () => { history.scrollRestoration = previous; };
+  }, [restoreScroll]);
+
   useEffect(() => {
     if (!isReady || typeof window === 'undefined' || restoredRef.current) return;
     try {

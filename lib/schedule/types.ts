@@ -74,6 +74,11 @@ export interface ScheduleConfig {
    *  rounds — side by side across courts, one division's round at a time —
    *  instead of placing each of those matches independently. */
   stageFinals: boolean;
+  /** Matches the organizer has fixed to a time by hand. A pinned match is
+   *  never moved by a drop elsewhere on its court: the rest of the court's
+   *  run flows around it. Ids, so a pin survives a re-generate that reshuffles
+   *  everything else. See lib/schedule/dropPlan. */
+  pinnedMatchIds?: string[];
 }
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
