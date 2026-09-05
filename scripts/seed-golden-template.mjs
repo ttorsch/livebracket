@@ -1,6 +1,7 @@
 // Golden template tournament seed script. Run with:
 //   node --env-file=.env.local scripts/seed-golden-template.mjs
-// Seeds the 2-day, 3-division (~24 teams) mid-play event specified in docs/launch-kit.md.
+// Seeds the 2-day, 3-division (~24 teams) mid-play event specified in docs/launch-kit.md,
+// updated with organizer customizations (caps, scoring rules, FIVB settings, and durations).
 // Marks the tournament with is_template: true (and slug: andaman-beach-masters-template)
 // so the demo clone engine can deep-copy it for incoming visitors.
 
@@ -40,10 +41,6 @@ const SECOND = [
   'Pereira', 'Gomes', 'Martins', 'Araujo', 'Cardoso', 'Barbosa', 'Ribeiro', 'Carvalho'
 ];
 
-function teamName(i) {
-  return `${FIRST[i % FIRST.length]} / ${SECOND[(i * 5 + 3) % SECOND.length]}`;
-}
-
 export async function buildGoldenTemplate() {
   counters = { organizer: 0, tournament: 0, division: 0, round: 0, team: 0, match: 0, player: 0, voucher: 0, registration: 0 };
 
@@ -63,6 +60,7 @@ export async function buildGoldenTemplate() {
   const day1 = now.toISOString().slice(0, 10);
   const day2Date = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const day2 = day2Date.toISOString().slice(0, 10);
+  const regCloseDate = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
 
   const tournamentId = nextId('tournament');
   const tournament = {
@@ -102,7 +100,7 @@ export async function buildGoldenTemplate() {
   const matches = [];
   const vouchers = [];
 
-  function addDivision({ name, format, fee, cap }) {
+  function addDivision({ name, format, fee, cap, settings = {}, scoring_rules }) {
     const divId = nextId('division');
     divisions.push({
       id: divId,
@@ -111,13 +109,30 @@ export async function buildGoldenTemplate() {
       format_type_on_sand: format,
       registration_fee: fee,
       division_team_cap: cap,
-      scoring_rules: { sets: 3, pointsPerSet: 21, winBy2: true, hardCap: 25 },
+      scoring_rules: scoring_rules ?? { sets: 3, pointsPerSet: 21, winBy2: true, hardCap: 25 },
       reg_fields: [
         { key: 'playerName', label: 'Player name', type: 'text', required: true },
         { key: 'phone', label: 'Phone', type: 'text', required: true },
         { key: 'shirt', label: 'Shirt size', type: 'select', options: ['S', 'M', 'L', 'XL'], required: false },
       ],
-      settings: { schedule: { courtCount: 4 } },
+      settings: {
+        rules: 'Standard FIVB Beach Volleyball rules apply.',
+        ageLimit: '',
+        crossing: 'fivb',
+        currency: 'THB',
+        minTeams: 4,
+        netHeight: '2.24m',
+        prizePool: '',
+        allowMulti: true,
+        waitlistCap: 5,
+        confirmationImage: '',
+        genderEligibility: 'Anyone',
+        confirmationMessage: '',
+        registrationOpenDate: day1,
+        registrationCloseDate: regCloseDate,
+        ...settings,
+        schedule: { courtCount: 4 },
+      },
     });
     return divId;
   }
@@ -170,9 +185,9 @@ export async function buildGoldenTemplate() {
     return `${FIRST[idx % FIRST.length]} / ${SECOND[(idx * 5 + 3) % SECOND.length]}`;
   }
 
-  function addRound(divisionId, sequence, format, name) {
+  function addRound(divisionId, sequence, format, name, scoring_rules = null) {
     const roundId = nextId('round');
-    rounds.push({ id: roundId, division_id: divisionId, sequence, format, name });
+    rounds.push({ id: roundId, division_id: divisionId, sequence, format, name, scoring_rules });
     return roundId;
   }
 
@@ -200,30 +215,47 @@ export async function buildGoldenTemplate() {
     return matchId;
   }
 
-  // ── DIVISION 1: Men's Open (2v2) ── 8 Teams
-  const menDiv = addDivision({ name: "Men's Open", format: '2v2', fee: 800, cap: 8 });
+  // ── DIVISION 1: Men's Open (2v2) ── Cap 16
+  const menScoringR1 = { winBy2: true, hardCap: 0, setsBestOf: 3, pointsPerSet: 15, durationMinutes: 30, decidingSetPoints: 11 };
+  const menScoringR2 = { winBy2: true, hardCap: 0, setsBestOf: 3, pointsPerSet: 21, durationMinutes: 45, decidingSetPoints: 15 };
+
+  const menDiv = addDivision({
+    name: "Men's Open",
+    format: '2v2',
+    fee: 800,
+    cap: 16,
+    scoring_rules: { sets: 3, pointsPerSet: 21, winBy2: true, hardCap: 25 },
+    settings: {
+      advancePerPool: 2,
+      maxRosterSize: 2,
+      formatRounds: [
+        { format: 'round-robin', scoring: menScoringR1, durationMinutes: 30 },
+        { format: 'single', scoring: menScoringR2, durationMinutes: 45 }
+      ],
+    }
+  });
   const menTeams = addTeams(menDiv, 8, 0, 2);
 
   // Pool Play (Round 1)
-  const menPoolRound = addRound(menDiv, 1, 'round-robin', 'Pool Play');
+  const menPoolRound = addRound(menDiv, 1, 'round-robin', 'Round 1', menScoringR1);
   // Pool A (0, 1, 2, 3)
-  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T09:00:00+07:00`, teamA: menTeams[0], teamB: menTeams[1], scoreA: [21, 21], scoreB: [18, 19], winner: menTeams[0], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T09:45:00+07:00`, teamA: menTeams[2], teamB: menTeams[3], scoreA: [21, 19, 15], scoreB: [17, 21, 11], winner: menTeams[2], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T10:30:00+07:00`, teamA: menTeams[0], teamB: menTeams[2], scoreA: [21, 21], scoreB: [15, 16], winner: menTeams[0], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T11:15:00+07:00`, teamA: menTeams[1], teamB: menTeams[3], scoreA: [21, 21], scoreB: [12, 14], winner: menTeams[1], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T13:30:00+07:00`, teamA: menTeams[0], teamB: menTeams[3], scoreA: [21, 21], scoreB: [14, 15], winner: menTeams[0], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T14:15:00+07:00`, teamA: menTeams[1], teamB: menTeams[2], scoreA: [21, 21], scoreB: [17, 19], winner: menTeams[1], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T09:00:00+07:00`, teamA: menTeams[0], teamB: menTeams[1], scoreA: [15, 15], scoreB: [12, 13], winner: menTeams[0], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T09:45:00+07:00`, teamA: menTeams[2], teamB: menTeams[3], scoreA: [15, 13, 11], scoreB: [12, 15, 8], winner: menTeams[2], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T10:30:00+07:00`, teamA: menTeams[0], teamB: menTeams[2], scoreA: [15, 15], scoreB: [11, 10], winner: menTeams[0], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T11:15:00+07:00`, teamA: menTeams[1], teamB: menTeams[3], scoreA: [15, 15], scoreB: [9, 10], winner: menTeams[1], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T13:30:00+07:00`, teamA: menTeams[0], teamB: menTeams[3], scoreA: [15, 15], scoreB: [10, 11], winner: menTeams[0], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 1', time: `${day1}T14:15:00+07:00`, teamA: menTeams[1], teamB: menTeams[2], scoreA: [15, 15], scoreB: [12, 13], winner: menTeams[1], status: 'done' });
 
   // Pool B (4, 5, 6, 7)
-  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T09:00:00+07:00`, teamA: menTeams[4], teamB: menTeams[5], scoreA: [21, 21], scoreB: [16, 17], winner: menTeams[4], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T09:45:00+07:00`, teamA: menTeams[6], teamB: menTeams[7], scoreA: [21, 21], scoreB: [19, 18], winner: menTeams[6], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T10:30:00+07:00`, teamA: menTeams[4], teamB: menTeams[6], scoreA: [21, 21], scoreB: [13, 14], winner: menTeams[4], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T11:15:00+07:00`, teamA: menTeams[5], teamB: menTeams[7], scoreA: [21, 21], scoreB: [15, 12], winner: menTeams[5], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T13:30:00+07:00`, teamA: menTeams[4], teamB: menTeams[7], scoreA: [21, 21], scoreB: [11, 10], winner: menTeams[4], status: 'done' });
-  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T14:15:00+07:00`, teamA: menTeams[5], teamB: menTeams[6], scoreA: [21, 22], scoreB: [19, 20], winner: menTeams[5], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T09:00:00+07:00`, teamA: menTeams[4], teamB: menTeams[5], scoreA: [15, 15], scoreB: [11, 12], winner: menTeams[4], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T09:45:00+07:00`, teamA: menTeams[6], teamB: menTeams[7], scoreA: [15, 15], scoreB: [13, 12], winner: menTeams[6], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T10:30:00+07:00`, teamA: menTeams[4], teamB: menTeams[6], scoreA: [15, 15], scoreB: [9, 10], winner: menTeams[4], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T11:15:00+07:00`, teamA: menTeams[5], teamB: menTeams[7], scoreA: [15, 15], scoreB: [10, 8], winner: menTeams[5], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T13:30:00+07:00`, teamA: menTeams[4], teamB: menTeams[7], scoreA: [15, 15], scoreB: [7, 6], winner: menTeams[4], status: 'done' });
+  addMatch(menPoolRound, menDiv, { court: 'Court 4', time: `${day1}T14:15:00+07:00`, teamA: menTeams[5], teamB: menTeams[6], scoreA: [15, 16], scoreB: [13, 14], winner: menTeams[5], status: 'done' });
 
-  // Semifinals (Round 2)
-  const menSfRound = addRound(menDiv, 2, 'single', 'Semifinals');
+  // Knockout Semifinals & Finals (Round 2)
+  const menSfRound = addRound(menDiv, 2, 'single', 'Round 2', menScoringR2);
   // Match 1: LIVE NOW on Court 1!
   addMatch(menSfRound, menDiv, {
     court: 'Court 1',
@@ -247,10 +279,8 @@ export async function buildGoldenTemplate() {
     teamB: menTeams[1], // Pool A Runner-up
     status: 'upcoming',
   });
-
-  // Final (Round 3) - Day 2
-  const menFinalRound = addRound(menDiv, 3, 'single', 'Final');
-  addMatch(menFinalRound, menDiv, {
+  // Final - Day 2
+  addMatch(menSfRound, menDiv, {
     court: 'Court 1',
     time: `${day2}T11:00:00+07:00`,
     teamA: menTeams[0],
@@ -258,22 +288,38 @@ export async function buildGoldenTemplate() {
     status: 'upcoming',
   });
 
-  // ── DIVISION 2: Women's Open (2v2) ── 8 Teams
-  const womenDiv = addDivision({ name: "Women's Open", format: '2v2', fee: 800, cap: 8 });
+  // ── DIVISION 2: Women's Open (2v2) ── Cap 12, advancePerPool: 3
+  const womenScoringR1 = { winBy2: true, hardCap: 0, setsBestOf: 3, pointsPerSet: 15, durationMinutes: 30, decidingSetPoints: 11 };
+  const womenScoringR2 = { winBy2: true, hardCap: 0, setsBestOf: 3, pointsPerSet: 21, durationMinutes: 45, decidingSetPoints: 15 };
+
+  const womenDiv = addDivision({
+    name: "Women's Open",
+    format: '2v2',
+    fee: 800,
+    cap: 12,
+    scoring_rules: { sets: 3, pointsPerSet: 21, winBy2: true, hardCap: 25 },
+    settings: {
+      advancePerPool: 3,
+      maxRosterSize: 2,
+      formatRounds: [
+        { format: 'round-robin', scoring: womenScoringR1, durationMinutes: 30 },
+        { format: 'single', scoring: womenScoringR2, durationMinutes: 45 }
+      ],
+    }
+  });
   const womenTeams = addTeams(womenDiv, 8, 8, 2);
 
   // Pool Play (Round 1)
-  const womenPoolRound = addRound(womenDiv, 1, 'round-robin', 'Pool Play');
-  // 6 Pool A matches (8,9,10,11)
-  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T09:00:00+07:00`, teamA: womenTeams[0], teamB: womenTeams[1], scoreA: [21, 21], scoreB: [15, 17], winner: womenTeams[0], status: 'done' });
-  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T09:45:00+07:00`, teamA: womenTeams[2], teamB: womenTeams[3], scoreA: [21, 21], scoreB: [16, 14], winner: womenTeams[2], status: 'done' });
-  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T10:30:00+07:00`, teamA: womenTeams[0], teamB: womenTeams[2], scoreA: [21, 21], scoreB: [19, 18], winner: womenTeams[0], status: 'done' });
-  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T11:15:00+07:00`, teamA: womenTeams[1], teamB: womenTeams[3], scoreA: [21, 21], scoreB: [10, 12], winner: womenTeams[1], status: 'done' });
-  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T13:30:00+07:00`, teamA: womenTeams[0], teamB: womenTeams[3], scoreA: [21, 21], scoreB: [9, 11], winner: womenTeams[0], status: 'done' });
-  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T14:15:00+07:00`, teamA: womenTeams[1], teamB: womenTeams[2], scoreA: [21, 21], scoreB: [17, 18], winner: womenTeams[1], status: 'done' });
+  const womenPoolRound = addRound(womenDiv, 1, 'round-robin', 'Round 1', womenScoringR1);
+  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T09:00:00+07:00`, teamA: womenTeams[0], teamB: womenTeams[1], scoreA: [15, 15], scoreB: [10, 12], winner: womenTeams[0], status: 'done' });
+  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T09:45:00+07:00`, teamA: womenTeams[2], teamB: womenTeams[3], scoreA: [15, 15], scoreB: [11, 9], winner: womenTeams[2], status: 'done' });
+  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T10:30:00+07:00`, teamA: womenTeams[0], teamB: womenTeams[2], scoreA: [15, 15], scoreB: [13, 12], winner: womenTeams[0], status: 'done' });
+  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T11:15:00+07:00`, teamA: womenTeams[1], teamB: womenTeams[3], scoreA: [15, 15], scoreB: [7, 8], winner: womenTeams[1], status: 'done' });
+  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T13:30:00+07:00`, teamA: womenTeams[0], teamB: womenTeams[3], scoreA: [15, 15], scoreB: [6, 7], winner: womenTeams[0], status: 'done' });
+  addMatch(womenPoolRound, womenDiv, { court: 'Court 2', time: `${day1}T14:15:00+07:00`, teamA: womenTeams[1], teamB: womenTeams[2], scoreA: [15, 15], scoreB: [12, 13], winner: womenTeams[1], status: 'done' });
 
-  // Semifinals (Round 2)
-  const womenSfRound = addRound(womenDiv, 2, 'single', 'Semifinals');
+  // Knockout Semifinals & Finals (Round 2)
+  const womenSfRound = addRound(womenDiv, 2, 'single', 'Round 2', womenScoringR2);
   // Match 1: Done
   addMatch(womenSfRound, womenDiv, {
     court: 'Court 2',
@@ -300,10 +346,8 @@ export async function buildGoldenTemplate() {
       elapsedSeconds: 2180,
     },
   });
-
-  // Final (Round 3) - Day 2
-  const womenFinalRound = addRound(womenDiv, 3, 'single', 'Final');
-  addMatch(womenFinalRound, womenDiv, {
+  // Final - Day 2
+  addMatch(womenSfRound, womenDiv, {
     court: 'Court 2',
     time: `${day2}T10:00:00+07:00`,
     teamA: womenTeams[0],
@@ -311,25 +355,39 @@ export async function buildGoldenTemplate() {
     status: 'upcoming',
   });
 
-  // ── DIVISION 3: Mixed 4v4 ── 8 Teams
-  const mixedDiv = addDivision({ name: 'Mixed 4v4', format: '4v4', fee: 1200, cap: 8 });
+  // ── DIVISION 3: Mixed 4v4 ── Cap 8, maxRosterSize: 6
+  const mixedScoringR1 = { winBy2: true, hardCap: 0, setsBestOf: 3, pointsPerSet: 15, durationMinutes: 45, decidingSetPoints: 11 };
+  const mixedScoringR2 = { winBy2: true, hardCap: 0, setsBestOf: 3, pointsPerSet: 21, durationMinutes: 60, decidingSetPoints: 15 };
+
+  const mixedDiv = addDivision({
+    name: 'Mixed 4v4',
+    format: '4v4',
+    fee: 1200,
+    cap: 8,
+    scoring_rules: { sets: 3, pointsPerSet: 21, winBy2: true, hardCap: 25 },
+    settings: {
+      advancePerPool: 2,
+      maxRosterSize: 6,
+      formatRounds: [
+        { format: 'round-robin', scoring: mixedScoringR1, durationMinutes: 45 },
+        { format: 'single', scoring: mixedScoringR2, durationMinutes: 60 }
+      ],
+    }
+  });
   const mixedTeams = addTeams(mixedDiv, 8, 16, 4);
 
-  // Single Elimination Quarterfinals (Round 1)
-  const mixedQfRound = addRound(mixedDiv, 1, 'single', 'Quarterfinals');
-  addMatch(mixedQfRound, mixedDiv, { court: 'Court 3', time: `${day1}T09:30:00+07:00`, teamA: mixedTeams[0], teamB: mixedTeams[1], scoreA: [21, 21], scoreB: [14, 16], winner: mixedTeams[0], status: 'done' });
-  addMatch(mixedQfRound, mixedDiv, { court: 'Court 3', time: `${day1}T10:30:00+07:00`, teamA: mixedTeams[2], teamB: mixedTeams[3], scoreA: [21, 18, 15], scoreB: [19, 21, 12], winner: mixedTeams[2], status: 'done' });
-  addMatch(mixedQfRound, mixedDiv, { court: 'Court 3', time: `${day1}T11:30:00+07:00`, teamA: mixedTeams[4], teamB: mixedTeams[5], scoreA: [21, 21], scoreB: [17, 19], winner: mixedTeams[4], status: 'done' });
-  addMatch(mixedQfRound, mixedDiv, { court: 'Court 3', time: `${day1}T13:30:00+07:00`, teamA: mixedTeams[6], teamB: mixedTeams[7], scoreA: [21, 21], scoreB: [13, 15], winner: mixedTeams[6], status: 'done' });
+  // Round 1 (Round-robin)
+  const mixedR1 = addRound(mixedDiv, 1, 'round-robin', 'Round 1', mixedScoringR1);
+  addMatch(mixedR1, mixedDiv, { court: 'Court 3', time: `${day1}T09:30:00+07:00`, teamA: mixedTeams[0], teamB: mixedTeams[1], scoreA: [15, 15], scoreB: [10, 11], winner: mixedTeams[0], status: 'done' });
+  addMatch(mixedR1, mixedDiv, { court: 'Court 3', time: `${day1}T10:30:00+07:00`, teamA: mixedTeams[2], teamB: mixedTeams[3], scoreA: [15, 13, 11], scoreB: [13, 15, 8], winner: mixedTeams[2], status: 'done' });
+  addMatch(mixedR1, mixedDiv, { court: 'Court 3', time: `${day1}T11:30:00+07:00`, teamA: mixedTeams[4], teamB: mixedTeams[5], scoreA: [15, 15], scoreB: [12, 13], winner: mixedTeams[4], status: 'done' });
+  addMatch(mixedR1, mixedDiv, { court: 'Court 3', time: `${day1}T13:30:00+07:00`, teamA: mixedTeams[6], teamB: mixedTeams[7], scoreA: [15, 15], scoreB: [9, 11], winner: mixedTeams[6], status: 'done' });
 
-  // Semifinals (Round 2) - Day 1 Afternoon
-  const mixedSfRound = addRound(mixedDiv, 2, 'single', 'Semifinals');
-  addMatch(mixedSfRound, mixedDiv, { court: 'Court 3', time: `${day1}T16:00:00+07:00`, teamA: mixedTeams[0], teamB: mixedTeams[2], status: 'upcoming' });
-  addMatch(mixedSfRound, mixedDiv, { court: 'Court 3', time: `${day1}T17:00:00+07:00`, teamA: mixedTeams[4], teamB: mixedTeams[6], status: 'upcoming' });
-
-  // Final (Round 3) - Day 2
-  const mixedFinalRound = addRound(mixedDiv, 3, 'single', 'Final');
-  addMatch(mixedFinalRound, mixedDiv, { court: 'Court 3', time: `${day2}T14:00:00+07:00`, teamA: null, teamB: null, status: 'upcoming' });
+  // Round 2 (Single Elimination Semifinals & Finals)
+  const mixedR2 = addRound(mixedDiv, 2, 'single', 'Round 2', mixedScoringR2);
+  addMatch(mixedR2, mixedDiv, { court: 'Court 3', time: `${day1}T16:00:00+07:00`, teamA: mixedTeams[0], teamB: mixedTeams[2], status: 'upcoming' });
+  addMatch(mixedR2, mixedDiv, { court: 'Court 3', time: `${day1}T17:00:00+07:00`, teamA: mixedTeams[4], teamB: mixedTeams[6], status: 'upcoming' });
+  addMatch(mixedR2, mixedDiv, { court: 'Court 3', time: `${day2}T14:00:00+07:00`, teamA: null, teamB: null, status: 'upcoming' });
 
   // Vouchers
   vouchers.push({
@@ -368,7 +426,6 @@ export async function buildGoldenTemplate() {
 
 async function insertAll(table, rows) {
   if (!rows || rows.length === 0) return;
-  // If table is tournaments and is_template column doesn't exist yet in db, remove it gracefully on error
   const { error } = await supabase.from(table).insert(rows);
   if (error) {
     if (table === 'tournaments' && error.message.includes('is_template')) {
@@ -393,7 +450,6 @@ async function cleanupExistingTemplate() {
 
   if (existing) {
     console.log(`Cleaning up existing template tournament (${existing.id})...`);
-    // Cascade delete takes care of divisions, rounds, teams, players, matches, vouchers
     const { error } = await supabase.from('tournaments').delete().eq('id', existing.id);
     if (error) console.warn('Could not delete old template:', error.message);
   }
@@ -403,13 +459,13 @@ async function cleanupExistingTemplate() {
 }
 
 async function main() {
-  console.log('Building Golden Template dataset...');
+  console.log('Building Golden Template dataset with adjusted settings...');
   const data = await buildGoldenTemplate();
 
   console.log('Cleaning up any previous template...');
   await cleanupExistingTemplate();
 
-  console.log('Seeding golden template to Supabase...');
+  console.log('Seeding updated golden template to Supabase...');
   await insertAll('organizers', data.organizers);
   await insertAll('tournaments', data.tournaments);
   await insertAll('divisions', data.divisions);
@@ -420,16 +476,15 @@ async function main() {
   await insertAll('matches', data.matches);
   await insertAll('vouchers', data.vouchers);
 
-  console.log('\nGolden template successfully seeded:');
+  console.log('\nGolden template successfully updated:');
   console.log(`- Tournament: ${data.tournaments[0].title} (${TEMPLATE_SLUG})`);
-  console.log(`- Divisions: ${data.divisions.length} (Men's Open, Women's Open, Mixed 4v4)`);
+  console.log(`- Divisions: ${data.divisions.length} (Men's Open cap 16, Women's Open cap 12, Mixed 4v4 cap 8 with roster 6)`);
   console.log(`- Teams: ${data.teams.length}`);
   console.log(`- Players: ${data.players.length}`);
-  console.log(`- Matches: ${data.matches.length} (including 2 live matches)`);
+  console.log(`- Matches: ${data.matches.length} (with updated 15pt pool & 21pt knockout scoring)`);
   console.log(`- Vouchers: ${data.vouchers.length}`);
 }
 
-// Allow importing or running directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
     console.error('Fatal seed error:', err);

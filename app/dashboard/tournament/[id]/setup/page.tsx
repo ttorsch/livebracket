@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, Fragment } from 'react';
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { tournamentStatus } from '../../../../../lib/tournamentStatus';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -345,7 +345,7 @@ function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string })
  * the remove button are actions in their own right, so each stops the click
  * from reaching the row behind it. */
 function TeamRow({
-  team, index, regFields, waitlisted = false, busy,
+  team, index, regFields, waitlisted = false, busy, isMultiPlayer = false,
   playerAvatars, onOpenPlayer,
   onOpen, onEdit, onTogglePayment, onPromote, onRemove,
 }: {
@@ -354,6 +354,7 @@ function TeamRow({
   regFields?: RegField[];
   waitlisted?: boolean;
   busy: boolean;
+  isMultiPlayer?: boolean;
   playerAvatars?: Record<string, string>;
   onOpenPlayer?: (target: PlayerCardTarget) => void;
   onOpen: () => void;
@@ -374,13 +375,63 @@ function TeamRow({
   const p1Name = p1?.name || rawParts[0] || 'Player 1';
   const p2Name = p2?.name || rawParts[1] || (rawParts.length > 0 ? '—' : 'Player 2');
 
-  const p1AvatarKey = p1?.userId || team.registeredBy;
-  const p1HasAccount = Boolean(p1AvatarKey);
-  const p1AvatarUrl = p1AvatarKey && playerAvatars ? playerAvatars[p1AvatarKey] : undefined;
+  const allPlayers = useMemo<{ name: string; player?: RegisteredPlayerRow }[]>(() => {
+    if (team.players.length > 0) {
+      return team.players.map((p, i) => ({
+        name: p.name || (rawParts[i] ?? `Player ${i + 1}`),
+        player: p,
+      }));
+    }
+    if (rawParts.length > 0) {
+      return rawParts.map(name => ({
+        name,
+        player: undefined,
+      }));
+    }
+    return [{ name: team.name || 'Player 1', player: undefined }];
+  }, [team.players, rawParts, team.name]);
 
-  const p2AvatarKey = p2?.userId;
-  const p2HasAccount = Boolean(p2AvatarKey);
-  const p2AvatarUrl = p2AvatarKey && playerAvatars ? playerAvatars[p2AvatarKey] : undefined;
+  const renderPlayerItem = (
+    pName: string,
+    playerObj?: RegisteredPlayerRow,
+    isCaptain: boolean = false,
+  ) => {
+    const avatarKey = playerObj?.userId || (isCaptain ? team.registeredBy : undefined);
+    const hasAccount = Boolean(avatarKey);
+    const avatarUrl = avatarKey && playerAvatars ? playerAvatars[avatarKey] : undefined;
+
+    return (
+      <div className={styles.teamPlayerCell}>
+        {pName === '—' ? (
+          <span className={styles.teamPlayerName} style={{ paddingLeft: 4 }}>{pName}</span>
+        ) : hasAccount ? (
+          <button
+            type="button"
+            className={styles.playerProfileBtn}
+            onClick={stop(() => {
+              if (onOpenPlayer && pName !== '—') {
+                onOpenPlayer({
+                  userId: avatarKey ?? null,
+                  name: pName,
+                  avatarUrl,
+                });
+              }
+            })}
+            title={`About ${pName}`}
+          >
+            <PlayerAvatar name={pName} avatarUrl={avatarUrl} />
+            <span className={styles.teamPlayerName}>{pName}</span>
+          </button>
+        ) : (
+          <div className={styles.playerStatic}>
+            <PlayerAvatar name={pName} avatarUrl={avatarUrl} />
+            <span className={styles.teamPlayerName}>{pName}</span>
+          </div>
+        )}
+        {renderPlayerSub(playerObj, regFields)}
+      </div>
+    );
+  };
 
   return (
     <tr
@@ -394,104 +445,35 @@ function TeamRow({
       title="View full registration"
     >
       <td className={waitlisted ? styles.teamRowNoWait : styles.teamRowNo}>{index}</td>
-      <td>
-        <div className={styles.teamPlayerCell}>
-          {p1HasAccount ? (
-            <button
-              type="button"
-              className={styles.playerProfileBtn}
-              onClick={stop(() => {
-                if (onOpenPlayer && p1Name !== '—') {
-                  onOpenPlayer({
-                    userId: p1AvatarKey ?? null,
-                    name: p1Name,
-                    avatarUrl: p1AvatarUrl,
-                  });
-                }
-              })}
-              title={`About ${p1Name}`}
-            >
-              <PlayerAvatar name={p1Name} avatarUrl={p1AvatarUrl} />
-              <span className={styles.teamPlayerName}>{p1Name}</span>
-            </button>
-          ) : (
-            <div className={styles.playerStatic}>
-              <PlayerAvatar name={p1Name} avatarUrl={p1AvatarUrl} />
-              <span className={styles.teamPlayerName}>{p1Name}</span>
-            </div>
-          )}
-          {renderPlayerSub(p1, regFields)}
-        </div>
-      </td>
-      <td>
-        <div className={styles.teamPlayerCell}>
-          {p2Name === '—' ? (
-            <span className={styles.teamPlayerName} style={{ paddingLeft: 4 }}>{p2Name}</span>
-          ) : p2HasAccount ? (
-            <button
-              type="button"
-              className={styles.playerProfileBtn}
-              onClick={stop(() => {
-                if (onOpenPlayer) {
-                  onOpenPlayer({
-                    userId: p2AvatarKey ?? null,
-                    name: p2Name,
-                    avatarUrl: p2AvatarUrl,
-                  });
-                }
-              })}
-              title={`About ${p2Name}`}
-            >
-              <PlayerAvatar name={p2Name} avatarUrl={p2AvatarUrl} />
-              <span className={styles.teamPlayerName}>{p2Name}</span>
-            </button>
-          ) : (
-            <div className={styles.playerStatic}>
-              <PlayerAvatar name={p2Name} avatarUrl={p2AvatarUrl} />
-              <span className={styles.teamPlayerName}>{p2Name}</span>
-            </div>
-          )}
-          {renderPlayerSub(p2, regFields)}
-          {extraPlayers.length > 0 && (
-            <div className={styles.extraPlayersWrap}>
-              {extraPlayers.map((ep, i) => {
-                const epAvatarKey = ep.userId;
-                const epHasAccount = Boolean(epAvatarKey);
-                const epAvatarUrl = epAvatarKey && playerAvatars ? playerAvatars[epAvatarKey] : undefined;
-                return (
-                  <div key={ep.id || i} className={styles.teamPlayerCell}>
-                    {epHasAccount ? (
-                      <button
-                        type="button"
-                        className={styles.playerProfileBtn}
-                        onClick={stop(() => {
-                          if (onOpenPlayer) {
-                            onOpenPlayer({
-                              userId: epAvatarKey ?? null,
-                              name: ep.name,
-                              avatarUrl: epAvatarUrl,
-                            });
-                          }
-                        })}
-                        title={`About ${ep.name}`}
-                      >
-                        <PlayerAvatar name={ep.name} avatarUrl={epAvatarUrl} />
-                        <span className={styles.teamPlayerName}>{ep.name}</span>
-                      </button>
-                    ) : (
-                      <div className={styles.playerStatic}>
-                        <PlayerAvatar name={ep.name} avatarUrl={epAvatarUrl} />
-                        <span className={styles.teamPlayerName}>{ep.name}</span>
-                      </div>
-                    )}
-                    {renderPlayerSub(ep, regFields)}
+      {isMultiPlayer ? (
+        <td>
+          <div className={styles.teamPlayersStack}>
+            {allPlayers.map((p, i) => (
+              <div key={p.player?.id || i}>
+                {renderPlayerItem(p.name, p.player, i === 0)}
+              </div>
+            ))}
+          </div>
+        </td>
+      ) : (
+        <>
+          <td>
+            {renderPlayerItem(p1Name, p1, true)}
+          </td>
+          <td>
+            {renderPlayerItem(p2Name, p2, false)}
+            {extraPlayers.length > 0 && (
+              <div className={styles.extraPlayersWrap}>
+                {extraPlayers.map((ep, i) => (
+                  <div key={ep.id || i}>
+                    {renderPlayerItem(ep.name, ep, false)}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </td>
+                ))}
+              </div>
+            )}
+          </td>
+        </>
+      )}
       <td style={{ fontWeight: 500 }}>{team.players[0]?.phone || '—'}</td>
       <td>
         {onTogglePayment ? (
@@ -1944,6 +1926,13 @@ export default function OrganizerSetup() {
   // The division shown in the per-division setup panel (falls back to the first).
   const activeDivision = divisions.find(d => d.id === activeDivisionId) ?? divisions[0] ?? null;
 
+  const isMultiPlayerDivision = useMemo(() => {
+    if (!activeDivision) return false;
+    const formatPlayers = FORMAT_PLAYERS[activeDivision.formatTypeOnSand] ?? 2;
+    const maxRoster = activeDivision.maxRosterSize ?? 2;
+    return formatPlayers > 2 || maxRoster > 2 || registeredTeams.some(t => t.players.length > 2);
+  }, [activeDivision, registeredTeams]);
+
   // Derived team-list splits + fill state, shared by the mobile Compact Utility view below.
   const confirmedTeams = registeredTeams.filter(t => t.status !== 'waitlist');
   const waitlistTeamsList = registeredTeams.filter(t => t.status === 'waitlist');
@@ -2620,8 +2609,14 @@ export default function OrganizerSetup() {
                               <thead>
                                 <tr>
                                   <th style={{ width: '48px' }}>No.</th>
-                                  <th style={{ width: '190px' }}>Player 1</th>
-                                  <th style={{ width: '190px' }}>Player 2</th>
+                                  {isMultiPlayerDivision ? (
+                                    <th style={{ width: '380px' }}>Players</th>
+                                  ) : (
+                                    <>
+                                      <th style={{ width: '190px' }}>Player 1</th>
+                                      <th style={{ width: '190px' }}>Player 2</th>
+                                    </>
+                                  )}
                                   <th>Contact</th>
                                   <th style={{ width: '100px' }}>Payment</th>
                                   <th style={{ width: '84px', textAlign: 'right' }}>Actions</th>
@@ -2633,6 +2628,7 @@ export default function OrganizerSetup() {
                                     key={t.id}
                                     team={t}
                                     index={idx + 1}
+                                    isMultiPlayer={isMultiPlayerDivision}
                                     regFields={activeDivision.regFields}
                                     busy={rowBusy === t.id}
                                     playerAvatars={playerAvatars}
@@ -2646,7 +2642,7 @@ export default function OrganizerSetup() {
 
                                 {visibleWaitlist.length > 0 && (
                                   <tr>
-                                    <td colSpan={6} className={styles.waitlistSeparatorCell}>
+                                    <td colSpan={isMultiPlayerDivision ? 5 : 6} className={styles.waitlistSeparatorCell}>
                                       <div className={styles.waitlistSeparator}>
                                         <span className={styles.waitlistTag}>Waiting list</span>
                                         <span className={styles.waitlistNote}>
@@ -2664,6 +2660,7 @@ export default function OrganizerSetup() {
                                     team={t}
                                     index={idx + 1}
                                     waitlisted
+                                    isMultiPlayer={isMultiPlayerDivision}
                                     regFields={activeDivision.regFields}
                                     busy={rowBusy === t.id}
                                     playerAvatars={playerAvatars}

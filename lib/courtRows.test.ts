@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCourtRows, formatUpNext } from './courtRows';
-import type { TournamentDetail, DetailMatch } from './data';
-import { normaliseConfig } from './schedule/generate';
+import { buildCourtRows, formatUpNext } from './courtRows.ts';
+import type { TournamentDetail, DetailMatch } from './data.ts';
+import { normaliseConfig } from './schedule/types.ts';
 
 function mockMatch(partial: Partial<DetailMatch> & { id: string }): DetailMatch {
   return {
@@ -25,7 +25,6 @@ function mockTournament(
   divisionLabel = 'Open Men',
 ): TournamentDetail {
   return {
-    id: 'mock-t1',
     slug: 'mock-tournament',
     title: 'Mock Tournament',
     location: 'Beach',
@@ -38,6 +37,7 @@ function mockTournament(
     archived: false,
     cancelled: false,
     description: '',
+    vouchers: [],
     scheduleConfig: normaliseConfig({}),
     divisions: [
       {
@@ -67,8 +67,8 @@ function mockTournament(
         regFields: [],
         waitlistCap: 0,
         rules: '',
-        prizePool: null,
-        confirmationMessage: null,
+        prizePool: '',
+        confirmationMessage: '',
       },
     ],
   };

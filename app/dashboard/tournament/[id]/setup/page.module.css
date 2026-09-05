@@ -2602,6 +2602,11 @@
   flex-direction: column;
   gap: 4px;
 }
+.teamPlayersStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .teamPlayers {
   display: flex;
   flex-direction: column;
