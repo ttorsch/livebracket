@@ -1,0 +1,4372 @@
+{
+  "tourney": {
+    "id": "179651b1-79f1-43cd-8967-23ef9c9b8481",
+    "slug": "andaman-masters-696c1",
+    "organizer_id": "0153aee4-f0b0-4af3-9901-5f9c8e68b4fd",
+    "title": "Andaman Beach Masters 2026",
+    "location": "Memories Beach, Khao Lak",
+    "start_date": "2026-09-05",
+    "end_date": "2026-09-06",
+    "is_one_day": false,
+    "phase": 4,
+    "description": "Flagship 2-day invitational featuring Open Men 2v2, Open Women 2v2, and Mixed 4v4 on Khao Lak sand.",
+    "created_at": "2026-09-05T14:40:36.315+00:00",
+    "updated_at": "2026-09-05T14:40:36.315+00:00",
+    "image_url": null,
+    "schedule_config": {
+      "blocks": [],
+      "courts": [
+        {
+          "name": "Court 1",
+          "isShowCourt": true
+        },
+        {
+          "name": "Court 2"
+        },
+        {
+          "name": "Court 3"
+        },
+        {
+          "name": "Court 4"
+        }
+      ],
+      "endTime": "18:30",
+      "lunchEnd": "13:30",
+      "startTime": "09:00",
+      "courtCount": 4,
+      "lunchStart": "12:30",
+      "stageFinals": false,
+      "blockMinutes": 45,
+      "minRestSlots": 1,
+      "finalsOnLastDay": true,
+      "netBufferMinutes": 0,
+      "maxMatchesPerTeamPerDay": 0
+    },
+    "archived_at": null,
+    "cancelled_at": null,
+    "deleted_at": null
+  },
+  "divs": [
+    {
+      "id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "tournament_id": "179651b1-79f1-43cd-8967-23ef9c9b8481",
+      "name": "Women's Open",
+      "format_type_on_sand": "2v2",
+      "registration_fee": 800,
+      "division_team_cap": 12,
+      "scoring_rules": {
+        "sets": 3,
+        "winBy2": true,
+        "hardCap": 25,
+        "pointsPerSet": 21
+      },
+      "reg_fields": [
+        {
+          "key": "playerName",
+          "type": "text",
+          "label": "Player name",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "type": "text",
+          "label": "Phone",
+          "required": true
+        },
+        {
+          "key": "shirt",
+          "type": "select",
+          "label": "Shirt size",
+          "options": [
+            "S",
+            "M",
+            "L",
+            "XL"
+          ],
+          "required": false
+        }
+      ],
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "settings": {
+        "draw": {
+          "pools": 4,
+          "slots": {
+            "1": [
+              "2dfc8601-3d34-461f-b721-727f40b82add",
+              "61f2fd69-cc21-41d9-b162-334cbf2a0c46",
+              "cd9b5b21-171f-47e5-861a-7555499382c0",
+              "a84f0c75-077d-4f27-8d3a-ed1b656e09ef",
+              "f5ed505b-57f9-45f6-9405-e7d25d664309",
+              "e2d3122a-0333-492b-9d23-2693ba86461b",
+              "0cc72033-c360-4133-acad-5eba70744416",
+              "006c5819-d359-4137-8599-9acaa30b8995",
+              "98ec879c-b553-4140-8d94-ada28f1dd6ae",
+              "fb7cb7f4-ee0e-44a8-9dea-ba8c0caaa55b",
+              "b0b03f09-baff-4722-9770-b9780cc06712",
+              "49181693-77a4-48e3-85dd-d2e0d508988d"
+            ],
+            "2": [
+              "462e713a-ad74-41eb-89d5-f47ad9f3713c",
+              "45102c8d-2b25-4268-96f2-08dd14e3b785",
+              "e40c6117-0f0d-4d05-9f1b-346d9bdcbb4c",
+              "9f2d2ddc-62e6-433d-b101-494108b05d4c",
+              "c500f0f6-30c6-4297-858d-d29e26a8397d",
+              "a129f4c7-dab4-4a9d-9a66-bd61771c414b",
+              "1c8b9f1f-ce69-4424-8fa5-efbb8cbed630",
+              "b1ed35f4-7c68-4f40-b971-3f73af9982b3"
+            ],
+            "3": [
+              "40c181dc-c6e3-4a07-b8ed-9c69381a83fb",
+              "560c4617-b7fd-43bb-b915-16ff1ef0de28",
+              "60fe7391-da1b-4623-80a0-8b3eceee3e59",
+              "513d5e11-ffc2-42b0-8b18-c24377b38a34"
+            ],
+            "4": [
+              "ad1c3f30-c07e-4c2b-8512-d50b2837cb4a",
+              "a5886eaa-94ca-46d1-8724-0cba7d84229d"
+            ],
+            "5": [
+              "75ffa477-4f24-4796-96ef-875c99d08eed"
+            ],
+            "6": [
+              "4e58a910-0e6a-44e2-bafa-5629dbd5fb32"
+            ]
+          },
+          "advance": 3,
+          "attempts": 2,
+          "crossing": "fivb",
+          "isLocked": true,
+          "crossSlots": {
+            "1c8b9f1f-ce69-4424-8fa5-efbb8cbed630": {
+              "a": {
+                "pool": "D",
+                "rank": 1
+              },
+              "b": null
+            },
+            "40c181dc-c6e3-4a07-b8ed-9c69381a83fb": {
+              "a": {
+                "pool": "A",
+                "rank": 1
+              },
+              "b": null
+            },
+            "45102c8d-2b25-4268-96f2-08dd14e3b785": {
+              "a": {
+                "pool": "C",
+                "rank": 2
+              },
+              "b": {
+                "pool": "A",
+                "rank": 3
+              }
+            },
+            "462e713a-ad74-41eb-89d5-f47ad9f3713c": {
+              "a": {
+                "pool": "A",
+                "rank": 1
+              },
+              "b": null
+            },
+            "513d5e11-ffc2-42b0-8b18-c24377b38a34": {
+              "a": {
+                "pool": "D",
+                "rank": 1
+              },
+              "b": null
+            },
+            "560c4617-b7fd-43bb-b915-16ff1ef0de28": {
+              "a": {
+                "pool": "B",
+                "rank": 1
+              },
+              "b": null
+            },
+            "60fe7391-da1b-4623-80a0-8b3eceee3e59": {
+              "a": {
+                "pool": "C",
+                "rank": 1
+              },
+              "b": null
+            },
+            "9f2d2ddc-62e6-433d-b101-494108b05d4c": {
+              "a": {
+                "pool": "D",
+                "rank": 2
+              },
+              "b": {
+                "pool": "B",
+                "rank": 3
+              }
+            },
+            "a129f4c7-dab4-4a9d-9a66-bd61771c414b": {
+              "a": {
+                "pool": "A",
+                "rank": 2
+              },
+              "b": {
+                "pool": "C",
+                "rank": 3
+              }
+            },
+            "b1ed35f4-7c68-4f40-b971-3f73af9982b3": {
+              "a": {
+                "pool": "B",
+                "rank": 2
+              },
+              "b": {
+                "pool": "D",
+                "rank": 3
+              }
+            },
+            "c500f0f6-30c6-4297-858d-d29e26a8397d": {
+              "a": {
+                "pool": "C",
+                "rank": 1
+              },
+              "b": null
+            },
+            "e40c6117-0f0d-4d05-9f1b-346d9bdcbb4c": {
+              "a": {
+                "pool": "B",
+                "rank": 1
+              },
+              "b": null
+            }
+          },
+          "thirdPlace": true,
+          "topSeedIds": [],
+          "loserFeeders": {
+            "4e58a910-0e6a-44e2-bafa-5629dbd5fb32": [
+              "ad1c3f30-c07e-4c2b-8512-d50b2837cb4a",
+              "a5886eaa-94ca-46d1-8724-0cba7d84229d"
+            ]
+          }
+        },
+        "rules": "Standard FIVB Beach Volleyball rules apply.",
+        "ageLimit": "",
+        "crossing": "fivb",
+        "currency": "THB",
+        "minTeams": 4,
+        "netHeight": "2.24m",
+        "prizePool": "",
+        "allowMulti": true,
+        "waitlistCap": 5,
+        "formatRounds": [
+          {
+            "format": "round-robin",
+            "scoring": {
+              "winBy2": true,
+              "hardCap": 0,
+              "setsBestOf": 3,
+              "pointsPerSet": 15,
+              "durationMinutes": 30,
+              "decidingSetPoints": 11
+            },
+            "durationMinutes": 30
+          },
+          {
+            "format": "single",
+            "scoring": {
+              "winBy2": true,
+              "hardCap": 0,
+              "setsBestOf": 3,
+              "pointsPerSet": 21,
+              "durationMinutes": 45,
+              "decidingSetPoints": 15
+            },
+            "durationMinutes": 45
+          }
+        ],
+        "maxRosterSize": 2,
+        "advancePerPool": 3,
+        "confirmationImage": "",
+        "genderEligibility": "Anyone",
+        "confirmationMessage": "",
+        "registrationOpenDate": "2026-09-05",
+        "registrationCloseDate": "2026-08-29"
+      }
+    },
+    {
+      "id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "tournament_id": "179651b1-79f1-43cd-8967-23ef9c9b8481",
+      "name": "Men's Open",
+      "format_type_on_sand": "2v2",
+      "registration_fee": 800,
+      "division_team_cap": 16,
+      "scoring_rules": {
+        "sets": 3,
+        "winBy2": true,
+        "hardCap": 25,
+        "pointsPerSet": 21
+      },
+      "reg_fields": [
+        {
+          "key": "playerName",
+          "type": "text",
+          "label": "Player name",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "type": "text",
+          "label": "Phone",
+          "required": true
+        },
+        {
+          "key": "shirt",
+          "type": "select",
+          "label": "Shirt size",
+          "options": [
+            "S",
+            "M",
+            "L",
+            "XL"
+          ],
+          "required": false
+        }
+      ],
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "settings": {
+        "draw": {
+          "pools": 4,
+          "slots": {
+            "1": [
+              "7289db55-713c-4dd9-96fa-bdcc1f41ee64",
+              "48c7d8dc-027c-403d-87b1-d5516b012039",
+              "1f5c4506-7868-484c-af63-f1bc96c54a75",
+              "531cde2b-ca5f-4fd6-bf60-f3a95973d019",
+              "9ca1d082-8165-4c78-9059-e1ae9783ae81",
+              "9dd661b2-9e32-4f15-b3b8-4cc93fb04d08",
+              "db390e31-6cb9-4c34-9d69-9224726d0398",
+              "71ffbf21-4757-40d7-8a85-bc3742a058f6",
+              "adf58d50-756d-4bb8-84b5-2cc8258f1416",
+              "e4efed58-9799-403f-8565-c8acaedb1639",
+              "8077801d-a530-4c03-9f02-b4838937a826",
+              "8be24480-8723-4b86-9d9a-3e24575082a5",
+              "3c20c98f-3368-4a68-8d23-f2ea7720ec79",
+              "412527f1-919e-45f5-a762-507a091eb0da",
+              "c710d0cf-8eee-4054-9a62-9ed89bfd63cb",
+              "1c76553b-336b-414d-98d9-6f79b5cca06c",
+              "b2ef2c91-8375-4bde-bca5-814575508142",
+              "0ae8ce2a-beb8-4a9f-861e-88902cc80e5d",
+              "54052593-d047-45e6-9b2d-f4f113a38da5",
+              "c65849ee-be57-4b07-a344-30b66b357e69",
+              "abd7e360-6792-4cf9-b0b9-56ff876bfabb",
+              "43927cfe-59f0-475a-80d8-f3ce999f589f",
+              "36a42cfc-1e6b-466f-8c78-3552b9a2cfa2",
+              "d904f00d-776a-4db6-806f-7e0f85d8fa63"
+            ],
+            "2": [
+              "3f6ff895-5386-4875-ba56-28d892e3a0ab",
+              "58d3aebb-5302-412a-8852-b8ae673cc5eb",
+              "2d578cb5-78c6-4c19-9b21-e08d29b39d6d",
+              "e994e08c-f0dc-41a1-99e5-71cc24af3962",
+              "731c1ef9-be15-458b-b4d9-8c1feb656eb3",
+              "04afc94f-ccd3-4ab1-9e21-96af4c6e9ce9",
+              "816d0ee2-982e-4fa4-ad44-acc824184334",
+              "3c34811b-263a-494d-95e4-b1af5b07b2f7"
+            ],
+            "3": [
+              "a97545ab-1e55-4afc-8e61-6cc1aada2bb8",
+              "815d309f-b263-4717-8c7e-f10d1261c026",
+              "794a9f3f-0ecd-4300-b631-dd80f6e2c845",
+              "c61b0edb-201f-485a-9b85-85b10d05175e"
+            ],
+            "4": [
+              "219c0818-6254-41d0-b51d-37c60bda60f3",
+              "bbf82483-115e-4492-a057-8a7214bb2787"
+            ],
+            "5": [
+              "59eb7ab2-8986-4da3-ba00-fa410665bca1"
+            ],
+            "6": [
+              "ee448e07-ac93-4fd4-94f1-396dbaf1a533"
+            ]
+          },
+          "advance": 3,
+          "attempts": 2,
+          "crossing": "fivb",
+          "isLocked": true,
+          "crossSlots": {
+            "04afc94f-ccd3-4ab1-9e21-96af4c6e9ce9": {
+              "a": {
+                "pool": "A",
+                "rank": 2
+              },
+              "b": {
+                "pool": "C",
+                "rank": 3
+              }
+            },
+            "2d578cb5-78c6-4c19-9b21-e08d29b39d6d": {
+              "a": {
+                "pool": "B",
+                "rank": 1
+              },
+              "b": null
+            },
+            "3c34811b-263a-494d-95e4-b1af5b07b2f7": {
+              "a": {
+                "pool": "B",
+                "rank": 2
+              },
+              "b": {
+                "pool": "D",
+                "rank": 3
+              }
+            },
+            "3f6ff895-5386-4875-ba56-28d892e3a0ab": {
+              "a": {
+                "pool": "A",
+                "rank": 1
+              },
+              "b": null
+            },
+            "58d3aebb-5302-412a-8852-b8ae673cc5eb": {
+              "a": {
+                "pool": "C",
+                "rank": 2
+              },
+              "b": {
+                "pool": "A",
+                "rank": 3
+              }
+            },
+            "731c1ef9-be15-458b-b4d9-8c1feb656eb3": {
+              "a": {
+                "pool": "C",
+                "rank": 1
+              },
+              "b": null
+            },
+            "794a9f3f-0ecd-4300-b631-dd80f6e2c845": {
+              "a": {
+                "pool": "C",
+                "rank": 1
+              },
+              "b": null
+            },
+            "815d309f-b263-4717-8c7e-f10d1261c026": {
+              "a": {
+                "pool": "B",
+                "rank": 1
+              },
+              "b": null
+            },
+            "816d0ee2-982e-4fa4-ad44-acc824184334": {
+              "a": {
+                "pool": "D",
+                "rank": 1
+              },
+              "b": null
+            },
+            "a97545ab-1e55-4afc-8e61-6cc1aada2bb8": {
+              "a": {
+                "pool": "A",
+                "rank": 1
+              },
+              "b": null
+            },
+            "c61b0edb-201f-485a-9b85-85b10d05175e": {
+              "a": {
+                "pool": "D",
+                "rank": 1
+              },
+              "b": null
+            },
+            "e994e08c-f0dc-41a1-99e5-71cc24af3962": {
+              "a": {
+                "pool": "D",
+                "rank": 2
+              },
+              "b": {
+                "pool": "B",
+                "rank": 3
+              }
+            }
+          },
+          "thirdPlace": true,
+          "topSeedIds": [],
+          "loserFeeders": {
+            "ee448e07-ac93-4fd4-94f1-396dbaf1a533": [
+              "219c0818-6254-41d0-b51d-37c60bda60f3",
+              "bbf82483-115e-4492-a057-8a7214bb2787"
+            ]
+          }
+        },
+        "rules": "Standard FIVB Beach Volleyball rules apply.",
+        "ageLimit": "",
+        "crossing": "fivb",
+        "currency": "THB",
+        "minTeams": 4,
+        "netHeight": "2.24m",
+        "prizePool": "",
+        "allowMulti": true,
+        "waitlistCap": 5,
+        "formatRounds": [
+          {
+            "format": "round-robin",
+            "scoring": {
+              "winBy2": true,
+              "hardCap": 0,
+              "setsBestOf": 3,
+              "pointsPerSet": 15,
+              "durationMinutes": 30,
+              "decidingSetPoints": 11
+            },
+            "durationMinutes": 30
+          },
+          {
+            "format": "single",
+            "scoring": {
+              "winBy2": true,
+              "hardCap": 0,
+              "setsBestOf": 3,
+              "pointsPerSet": 21,
+              "durationMinutes": 45,
+              "decidingSetPoints": 15
+            },
+            "durationMinutes": 45
+          }
+        ],
+        "maxRosterSize": 2,
+        "advancePerPool": 3,
+        "confirmationImage": "",
+        "genderEligibility": "Anyone",
+        "confirmationMessage": "",
+        "registrationOpenDate": "2026-09-05",
+        "registrationCloseDate": "2026-08-29"
+      }
+    },
+    {
+      "id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "tournament_id": "179651b1-79f1-43cd-8967-23ef9c9b8481",
+      "name": "Mixed 4v4",
+      "format_type_on_sand": "4v4",
+      "registration_fee": 1200,
+      "division_team_cap": 8,
+      "scoring_rules": {
+        "sets": 3,
+        "winBy2": true,
+        "hardCap": 25,
+        "pointsPerSet": 21
+      },
+      "reg_fields": [
+        {
+          "key": "playerName",
+          "type": "text",
+          "label": "Player name",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "type": "text",
+          "label": "Phone",
+          "required": true
+        },
+        {
+          "key": "shirt",
+          "type": "select",
+          "label": "Shirt size",
+          "options": [
+            "S",
+            "M",
+            "L",
+            "XL"
+          ],
+          "required": false
+        }
+      ],
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "settings": {
+        "draw": {
+          "pools": 2,
+          "slots": {
+            "1": [
+              "eefa52da-6cf7-49df-8c4a-7ae53b2258a6",
+              "d5c45f9e-fa71-4ff0-85f3-6cec89471c44",
+              "0fdfe18b-70d0-415d-89b3-da4f0c71dbfe",
+              "fd8e90d3-4ba3-42b1-8ddc-5a832a5ffe6d",
+              "bb486603-392c-492c-b23b-63eb6aa97f52",
+              "9597cab2-c158-4c0c-a83a-50329fb59be9",
+              "462d8490-3d15-4fee-ac72-49009b302a05",
+              "14afa66e-aa1e-4a14-9a9d-4acc7c634476",
+              "fd0ae855-a75f-4db9-bf5f-8799cb3046ce",
+              "4c5e57bb-b364-4c58-a38e-f22b318d475a",
+              "e7ea3854-04e9-48d4-8138-d06cafd9aed3",
+              "b0ce461a-518a-4c74-a690-9efc95d55257"
+            ],
+            "2": [
+              "0463c65c-862d-4e8d-85ef-db06e780b125",
+              "f7995567-888a-4dd2-a3d6-075cf34687d8"
+            ],
+            "3": [
+              "30080ee0-9816-410d-91ca-0ba5b7fa0060"
+            ],
+            "4": [
+              "eb0c7481-1f4c-4c16-a215-f6fc3962ff45"
+            ]
+          },
+          "advance": 2,
+          "attempts": 2,
+          "crossing": "fivb",
+          "isLocked": true,
+          "crossSlots": {
+            "0463c65c-862d-4e8d-85ef-db06e780b125": {
+              "a": {
+                "pool": "A",
+                "rank": 1
+              },
+              "b": {
+                "pool": "B",
+                "rank": 2
+              }
+            },
+            "f7995567-888a-4dd2-a3d6-075cf34687d8": {
+              "a": {
+                "pool": "B",
+                "rank": 1
+              },
+              "b": {
+                "pool": "A",
+                "rank": 2
+              }
+            }
+          },
+          "thirdPlace": true,
+          "topSeedIds": [],
+          "loserFeeders": {
+            "eb0c7481-1f4c-4c16-a215-f6fc3962ff45": [
+              "0463c65c-862d-4e8d-85ef-db06e780b125",
+              "f7995567-888a-4dd2-a3d6-075cf34687d8"
+            ]
+          }
+        },
+        "rules": "Standard FIVB Beach Volleyball rules apply.",
+        "ageLimit": "",
+        "crossing": "fivb",
+        "currency": "THB",
+        "minTeams": 4,
+        "schedule": {
+          "courtCount": 4
+        },
+        "netHeight": "2.24m",
+        "prizePool": "",
+        "allowMulti": true,
+        "waitlistCap": 5,
+        "formatRounds": [
+          {
+            "format": "round-robin",
+            "scoring": {
+              "winBy2": true,
+              "hardCap": 0,
+              "setsBestOf": 3,
+              "pointsPerSet": 15,
+              "durationMinutes": 45,
+              "decidingSetPoints": 11
+            },
+            "durationMinutes": 45
+          },
+          {
+            "format": "single",
+            "scoring": {
+              "winBy2": true,
+              "hardCap": 0,
+              "setsBestOf": 3,
+              "pointsPerSet": 21,
+              "durationMinutes": 60,
+              "decidingSetPoints": 15
+            },
+            "durationMinutes": 60
+          }
+        ],
+        "maxRosterSize": 6,
+        "advancePerPool": 2,
+        "confirmationImage": "",
+        "genderEligibility": "Anyone",
+        "confirmationMessage": "",
+        "registrationOpenDate": "2026-09-05",
+        "registrationCloseDate": "2026-08-29"
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "sequence": 1,
+      "format": "round-robin",
+      "name": "Round Robin",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 15,
+        "durationMinutes": 45,
+        "decidingSetPoints": 11
+      }
+    },
+    {
+      "id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "sequence": 1,
+      "format": "round-robin",
+      "name": "Round Robin",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 15,
+        "durationMinutes": 30,
+        "decidingSetPoints": 11
+      }
+    },
+    {
+      "id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "sequence": 1,
+      "format": "round-robin",
+      "name": "Round Robin",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 15,
+        "durationMinutes": 30,
+        "decidingSetPoints": 11
+      }
+    },
+    {
+      "id": "c0bc8834-879c-4bea-be5b-020be8e93e74",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "sequence": 2,
+      "format": "single",
+      "name": "Semifinals",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 60,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "sequence": 2,
+      "format": "single",
+      "name": "Round of 16",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "sequence": 2,
+      "format": "single",
+      "name": "Round of 16",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "4ac96cd5-b4c0-4842-b27d-003eceb16c7c",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "sequence": 3,
+      "format": "single",
+      "name": "Final",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 60,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "7f49b930-2878-4c4a-88f2-2c9ef92f4f35",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "sequence": 3,
+      "format": "single",
+      "name": "Quarterfinals",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "89abbb81-4155-4127-9982-79d89fcbc0d7",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "sequence": 3,
+      "format": "single",
+      "name": "Quarterfinals",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "c82ada78-6136-4665-84db-ec3527b9008a",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "sequence": 4,
+      "format": "single",
+      "name": "Semifinals",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "94381882-453c-4b85-a6b8-8e22c7c8aaa9",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "sequence": 4,
+      "format": "single",
+      "name": "3rd Place",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 60,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "8f5c1d77-9112-4f3d-ab87-6ca433600910",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "sequence": 4,
+      "format": "single",
+      "name": "Semifinals",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "23883fdb-88a5-4259-acdd-0ce8d2e7075a",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "sequence": 5,
+      "format": "single",
+      "name": "Final",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "454ec455-901f-4612-a945-1ddf5af53f1b",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "sequence": 5,
+      "format": "single",
+      "name": "Final",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "16007d35-c192-45a1-bdc3-f68929360f73",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "sequence": 6,
+      "format": "single",
+      "name": "3rd Place",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    },
+    {
+      "id": "509851cd-ad81-47df-a97d-4dabfe560477",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "sequence": 6,
+      "format": "single",
+      "name": "3rd Place",
+      "scoring_rules": {
+        "winBy2": true,
+        "hardCap": 0,
+        "setsBestOf": 3,
+        "pointsPerSet": 21,
+        "durationMinutes": 45,
+        "decidingSetPoints": 15
+      }
+    }
+  ],
+  "teams": [
+    {
+      "id": "45b25e64-a122-41e7-b5ac-7202b4e19f93",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Felipe / Siriwong",
+      "seed": 1,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "0ab4ec39-7f6f-4179-a8b3-6ee56a8f1f71",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Duangkamol / Cardoso",
+      "seed": 1,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Carolina Crew 4v4",
+      "seed": 1,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "e30ee664-b558-4753-ae59-3a4a2c953acd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Larissa / Rattana",
+      "seed": 2,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Korn Crew 4v4",
+      "seed": 2,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "cb359f91-1c13-48f1-81bd-1a113a986df3",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Ananda / Rattana",
+      "seed": 2,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "9f24bee2-f010-4b5e-b024-648ed16b14de",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Beatriz / Srisai",
+      "seed": 3,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "1a3db47d-7acb-42a1-99d4-1071c95f30f2",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Somchai / Silva",
+      "seed": 3,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Amanda Crew 4v4",
+      "seed": 3,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "cbf333c3-6253-47d6-89d7-60b540c2aba9",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Preecha / Cardoso",
+      "seed": 4,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "b7a67da9-1592-4406-96b6-e6b438479139",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Camila / Rodrigues",
+      "seed": 4,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Chai Crew 4v4",
+      "seed": 4,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Tawan Crew 4v4",
+      "seed": 5,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "0bcd834a-11d9-4fc7-8ecb-cce7a96ca1a3",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Bruno / Cardoso",
+      "seed": 5,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "4e785e12-74ad-4098-804d-76dd953eb227",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Pornthip / Siriwong",
+      "seed": 5,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "98af0b28-6c29-47ea-a37f-e6ad9376b00a",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Kittipong / Petchpradab",
+      "seed": 6,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Nat Crew 4v4",
+      "seed": 6,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "6630cf62-6056-435a-9872-0aa6d0ca2c02",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Mariana / Petchpradab",
+      "seed": 6,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Arthit Crew 4v4",
+      "seed": 7,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "e9ea8a49-cb5f-49aa-8ca4-3624799b13d4",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Mateus / Srisai",
+      "seed": 7,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "e0fb9133-491e-4e4e-9f1b-47779a68f5e7",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Sunisa / Srisai",
+      "seed": 7,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Rodrigo / Kulap",
+      "seed": 8,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "37cf53da-f853-4ac1-96c7-2d3f40657917",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Rattana / Kulap",
+      "seed": 8,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "name": "Danai Crew 4v4",
+      "seed": 8,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Wichai / Kulap",
+      "seed": 9,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "21570085-3892-406e-8b57-c08e55a3cd8c",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Malai / Rodrigues",
+      "seed": 9,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "9fc4fbdc-9027-4654-9d78-b2a845a284a9",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Fernanda / Cardoso",
+      "seed": 10,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "f9bc878d-a058-43ed-976b-97d42e80a859",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Rafael / Petchpradab",
+      "seed": 10,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "ca938c9e-216d-40f6-8b88-767080fb550f",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Juliana / Silva",
+      "seed": 11,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "84d77178-d256-4d70-8f3d-0bcaeed3df9b",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Lucas / Silva",
+      "seed": 11,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "fe47713d-83f7-4a8b-8a27-bc8f9ebc4164",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Thiago / Rattana",
+      "seed": 12,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "754a24fe-275e-4e11-8c69-406ee2b82b2a",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "name": "Apinya / Petchpradab",
+      "seed": 12,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "b4a530fd-bb87-4efa-a89a-49fac16fca25",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Anucha / Siriwong",
+      "seed": 13,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "d7ee5b22-8323-485a-bc97-2e7888c7d41f",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Chalermsak / Rodrigues",
+      "seed": 14,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "c9a8bc30-840b-4b61-aec2-18c72ae7cbbc",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Gabriel / Rodrigues",
+      "seed": 15,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "3723f606-02b4-4629-8fe1-c04f58a5dfc9",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Nattapong / Srisai",
+      "seed": 16,
+      "payment_cleared": true,
+      "status": "confirmed",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "0cf0119c-798d-46c0-bfbd-6e583f6bdb74",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Kanya / Rattana",
+      "seed": 17,
+      "payment_cleared": false,
+      "status": "waitlist",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    },
+    {
+      "id": "876dc2b2-92a6-41c6-bd18-8f032e3c7168",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "name": "Siriporn / Silva",
+      "seed": 18,
+      "payment_cleared": false,
+      "status": "waitlist",
+      "created_at": "2026-09-05T14:40:36.315+00:00",
+      "registered_by": null
+    }
+  ],
+  "players": [
+    {
+      "id": "cf5378dd-d03f-417a-a706-06dc71a2b2c8",
+      "team_id": "cb359f91-1c13-48f1-81bd-1a113a986df3",
+      "name": "Ananda Suwan",
+      "phone": "0810000000",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "74e381bd-bae4-4be4-ae1a-4417bae32061",
+      "team_id": "cb359f91-1c13-48f1-81bd-1a113a986df3",
+      "name": "Somchai Boonmee",
+      "phone": "0810000001",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "91698433-59e2-4eca-a94e-da96cb76c251",
+      "team_id": "1a3db47d-7acb-42a1-99d4-1071c95f30f2",
+      "name": "Chalermsak Rattana",
+      "phone": "0810000010",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "b971df8b-89de-4bbe-b496-6f1bc8cc23c0",
+      "team_id": "1a3db47d-7acb-42a1-99d4-1071c95f30f2",
+      "name": "Nattapong Wattana",
+      "phone": "0810000011",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "f9c3285f-bdb9-47a9-86d9-88862f424a5a",
+      "team_id": "d7ee5b22-8323-485a-bc97-2e7888c7d41f",
+      "name": "Kittipong Thongchai",
+      "phone": "0810000020",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "f86ed168-8d3e-4ab9-abb4-a747457fbc81",
+      "team_id": "d7ee5b22-8323-485a-bc97-2e7888c7d41f",
+      "name": "Preecha Kaewta",
+      "phone": "0810000021",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "8403cba6-6544-464b-9b4c-ea931aa9320b",
+      "team_id": "3723f606-02b4-4629-8fe1-c04f58a5dfc9",
+      "name": "Wichai Santos",
+      "phone": "0810000030",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "c5fc778a-3b06-4326-a1c8-398d09627ee3",
+      "team_id": "3723f606-02b4-4629-8fe1-c04f58a5dfc9",
+      "name": "Anucha Ferreira",
+      "phone": "0810000031",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "267021b3-4cb1-49b3-bf50-b122a2ddd477",
+      "team_id": "98af0b28-6c29-47ea-a37f-e6ad9376b00a",
+      "name": "Thiago Souza",
+      "phone": "0810000040",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "a93380f7-3f61-4554-9d1e-bd6d22afd77e",
+      "team_id": "98af0b28-6c29-47ea-a37f-e6ad9376b00a",
+      "name": "Lucas Rodrigues",
+      "phone": "0810000041",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "666ce1f8-2096-4b4b-bc99-770b2053d2a7",
+      "team_id": "cbf333c3-6253-47d6-89d7-60b540c2aba9",
+      "name": "Gabriel Alves",
+      "phone": "0810000050",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "46b401ce-5a2e-4f10-8718-69ecd36024a1",
+      "team_id": "cbf333c3-6253-47d6-89d7-60b540c2aba9",
+      "name": "Mateus Chaiyaphum",
+      "phone": "0810000051",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "7c57f6dd-045f-4b5d-9f40-2b62e0b7f05e",
+      "team_id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "name": "Rafael Srisai",
+      "phone": "0810000060",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "97d39e6d-52c3-4b42-91df-b90f4d391ce9",
+      "team_id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "name": "Bruno Ketsarin",
+      "phone": "0810000061",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6629de64-2abe-43c9-90d6-8d9649dc0e7f",
+      "team_id": "b4a530fd-bb87-4efa-a89a-49fac16fca25",
+      "name": "Rodrigo Wongsuwan",
+      "phone": "0810000070",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "a203c89d-d82b-4c6a-b6ff-827c733a162a",
+      "team_id": "b4a530fd-bb87-4efa-a89a-49fac16fca25",
+      "name": "Felipe Suksom",
+      "phone": "0810000071",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "9a3efc9b-b548-4797-a9e5-db2a8fed5e06",
+      "team_id": "fe47713d-83f7-4a8b-8a27-bc8f9ebc4164",
+      "name": "Kanya Pereira",
+      "phone": "0810000080",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6c15fc9a-3dc2-433b-8fb9-90121bb8e961",
+      "team_id": "fe47713d-83f7-4a8b-8a27-bc8f9ebc4164",
+      "name": "Siriporn Gomes",
+      "phone": "0810000081",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "5db08bed-3d2f-4bb5-9400-c4b7a5102bbe",
+      "team_id": "84d77178-d256-4d70-8f3d-0bcaeed3df9b",
+      "name": "Malai Araujo",
+      "phone": "0810000090",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "8f0780b0-55f7-4e74-9e69-a0ecb2f348d2",
+      "team_id": "84d77178-d256-4d70-8f3d-0bcaeed3df9b",
+      "name": "Sunisa Cardoso",
+      "phone": "0810000091",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "77071d84-5054-47d2-9e00-4d28db18fe6c",
+      "team_id": "c9a8bc30-840b-4b61-aec2-18c72ae7cbbc",
+      "name": "Apinya Ribeiro",
+      "phone": "0810000100",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6e6c0f3f-23c2-4bbd-b005-dd31ee394cb2",
+      "team_id": "c9a8bc30-840b-4b61-aec2-18c72ae7cbbc",
+      "name": "Duangkamol Carvalho",
+      "phone": "0810000101",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6b3044fd-c235-46b7-95f7-1ddbfc02557c",
+      "team_id": "e9ea8a49-cb5f-49aa-8ca4-3624799b13d4",
+      "name": "Rattana Kulap",
+      "phone": "0810000110",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "004ce74a-d654-4a60-b574-3666520a83a1",
+      "team_id": "e9ea8a49-cb5f-49aa-8ca4-3624799b13d4",
+      "name": "Pornthip Phromthep",
+      "phone": "0810000111",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "1fe97075-b843-4ca4-b076-2ee424002830",
+      "team_id": "f9bc878d-a058-43ed-976b-97d42e80a859",
+      "name": "Larissa Tantrakul",
+      "phone": "0810000120",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "7f63238b-6739-44f5-87a2-2c98236a8b9f",
+      "team_id": "f9bc878d-a058-43ed-976b-97d42e80a859",
+      "name": "Juliana Vichit",
+      "phone": "0810000121",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "53898685-58e3-40f1-9c96-c0b21b6f0922",
+      "team_id": "0bcd834a-11d9-4fc7-8ecb-cce7a96ca1a3",
+      "name": "Camila Kasem",
+      "phone": "0810000130",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6e8c6e75-f19d-43d6-9297-387727e9229c",
+      "team_id": "0bcd834a-11d9-4fc7-8ecb-cce7a96ca1a3",
+      "name": "Beatriz Suwan",
+      "phone": "0810000131",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "031a81ea-bad5-4d2b-9b24-0281fda28c15",
+      "team_id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "name": "Mariana Charoen",
+      "phone": "0810000140",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "710ef0e9-e213-4ce6-94cc-482dc213469d",
+      "team_id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "name": "Fernanda Rattana",
+      "phone": "0810000141",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6af44fe9-69cd-4d0c-865b-29c4fd0a09e2",
+      "team_id": "45b25e64-a122-41e7-b5ac-7202b4e19f93",
+      "name": "Carolina Pornsak",
+      "phone": "0810000150",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "237e2794-2b1c-4e41-8813-b6cec13be9ff",
+      "team_id": "45b25e64-a122-41e7-b5ac-7202b4e19f93",
+      "name": "Amanda Thongchai",
+      "phone": "0810000151",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "53d8b16d-b324-4510-a5bb-1f26073c353c",
+      "team_id": "0cf0119c-798d-46c0-bfbd-6e583f6bdb74",
+      "name": "Tawan Silva",
+      "phone": "0810000160",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "e01d494f-3670-45b3-9e2d-07d9bb0f5e11",
+      "team_id": "0cf0119c-798d-46c0-bfbd-6e583f6bdb74",
+      "name": "Arthit Santos",
+      "phone": "0810000161",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "5060efe9-9e7f-4c01-a1af-7a3a52c54e48",
+      "team_id": "876dc2b2-92a6-41c6-bd18-8f032e3c7168",
+      "name": "Chai Oliveira",
+      "phone": "0810000170",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "973b0be5-a9bf-459f-9711-64560a4d8adb",
+      "team_id": "876dc2b2-92a6-41c6-bd18-8f032e3c7168",
+      "name": "Nat Souza",
+      "phone": "0810000171",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "aeca395e-06a9-4bf5-8bb1-9f074dd1ad11",
+      "team_id": "21570085-3892-406e-8b57-c08e55a3cd8c",
+      "name": "Korn Costa",
+      "phone": "0810000180",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "ea32c791-0d26-4a27-b4c9-14be4d0c088b",
+      "team_id": "21570085-3892-406e-8b57-c08e55a3cd8c",
+      "name": "Danai Alves",
+      "phone": "0810000181",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "dd12bd93-0412-47d8-90a7-53f8b2baa617",
+      "team_id": "e0fb9133-491e-4e4e-9f1b-47779a68f5e7",
+      "name": "Phawat Prasert",
+      "phone": "0810000190",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "8cd44ce3-c265-4897-bbe8-1e9c92734318",
+      "team_id": "e0fb9133-491e-4e4e-9f1b-47779a68f5e7",
+      "name": "Leo Srisai",
+      "phone": "0810000191",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "034d1a5c-3fdd-4252-a274-4a4b41a2931b",
+      "team_id": "754a24fe-275e-4e11-8c69-406ee2b82b2a",
+      "name": "Ananda Nakhon",
+      "phone": "0810000200",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "b25fbb98-5c44-4367-a78d-a4a10e83e13c",
+      "team_id": "754a24fe-275e-4e11-8c69-406ee2b82b2a",
+      "name": "Somchai Wongsuwan",
+      "phone": "0810000201",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "1a20ac74-26ba-4acb-a3d7-9d98087e4af2",
+      "team_id": "0ab4ec39-7f6f-4179-a8b3-6ee56a8f1f71",
+      "name": "Chalermsak Petchpradab",
+      "phone": "0810000210",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "02240f40-43ad-4c9b-80b9-4fe1304473de",
+      "team_id": "0ab4ec39-7f6f-4179-a8b3-6ee56a8f1f71",
+      "name": "Nattapong Pereira",
+      "phone": "0810000211",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "b12f7bd9-9e4b-4890-98e4-8eaef1bf9806",
+      "team_id": "37cf53da-f853-4ac1-96c7-2d3f40657917",
+      "name": "Kittipong Martins",
+      "phone": "0810000220",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "773c38c6-2036-4412-be88-a68c8c04ca69",
+      "team_id": "37cf53da-f853-4ac1-96c7-2d3f40657917",
+      "name": "Preecha Araujo",
+      "phone": "0810000221",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "a4704ba1-642a-480c-8cc7-c8c6797dd383",
+      "team_id": "4e785e12-74ad-4098-804d-76dd953eb227",
+      "name": "Wichai Barbosa",
+      "phone": "0810000230",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "814fdfbf-4c9d-4913-9382-fd8e8ab5d7c9",
+      "team_id": "4e785e12-74ad-4098-804d-76dd953eb227",
+      "name": "Anucha Ribeiro",
+      "phone": "0810000231",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "ebeeef07-08d4-4cd8-b4be-c02b5c8a1f82",
+      "team_id": "e30ee664-b558-4753-ae59-3a4a2c953acd",
+      "name": "Thiago Jaroensuk",
+      "phone": "0810000240",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "46c26f76-eceb-4322-8424-8975773eb73c",
+      "team_id": "e30ee664-b558-4753-ae59-3a4a2c953acd",
+      "name": "Lucas Kulap",
+      "phone": "0810000241",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "1e6df678-bccb-4a10-bdf6-3a5065b54d36",
+      "team_id": "ca938c9e-216d-40f6-8b88-767080fb550f",
+      "name": "Gabriel Suphaphon",
+      "phone": "0810000250",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "0c0310e2-af2f-4d55-aee6-2b564a14491d",
+      "team_id": "ca938c9e-216d-40f6-8b88-767080fb550f",
+      "name": "Mateus Tantrakul",
+      "phone": "0810000251",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "975a3837-4b06-4e94-b4e8-0173f6cc5782",
+      "team_id": "b7a67da9-1592-4406-96b6-e6b438479139",
+      "name": "Rafael Siriwong",
+      "phone": "0810000260",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "390f607b-7cda-4e58-be82-eab15920a6f3",
+      "team_id": "b7a67da9-1592-4406-96b6-e6b438479139",
+      "name": "Bruno Kasem",
+      "phone": "0810000261",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "cfc5e75e-fae9-46a0-bf08-318c4c8d502f",
+      "team_id": "9f24bee2-f010-4b5e-b024-648ed16b14de",
+      "name": "Rodrigo Boonmee",
+      "phone": "0810000270",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "ab63aa90-7665-44e4-a1a3-725fc9acd574",
+      "team_id": "9f24bee2-f010-4b5e-b024-648ed16b14de",
+      "name": "Felipe Charoen",
+      "phone": "0810000271",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "5fe36209-3978-4515-9f2d-61eaf816100f",
+      "team_id": "6630cf62-6056-435a-9872-0aa6d0ca2c02",
+      "name": "Kanya Wattana",
+      "phone": "0810000280",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "2bbcc9ef-1818-412f-a866-7f33aa89bfcd",
+      "team_id": "6630cf62-6056-435a-9872-0aa6d0ca2c02",
+      "name": "Siriporn Pornsak",
+      "phone": "0810000281",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "de6495f0-5463-4de9-8c97-e5b259147f7b",
+      "team_id": "9fc4fbdc-9027-4654-9d78-b2a845a284a9",
+      "name": "Malai Kaewta",
+      "phone": "0810000290",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "c29ca38f-282f-4bc9-928a-868184dc5297",
+      "team_id": "9fc4fbdc-9027-4654-9d78-b2a845a284a9",
+      "name": "Sunisa Silva",
+      "phone": "0810000291",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "e0d7b46a-1e12-40a7-8447-ff7f13262f96",
+      "team_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "name": "Apinya Ferreira",
+      "phone": "0810000300",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "094f2156-1d0a-463c-8e5a-4d41a4a9e731",
+      "team_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "name": "Duangkamol Oliveira",
+      "phone": "0810000301",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "a703f75a-a192-4711-ae69-4cb7ad9da305",
+      "team_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "name": "Rattana Souza",
+      "phone": "0810000302",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "2e13cdf7-a2f7-43fe-ab0d-10080eb2f4d3",
+      "team_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "name": "Pornthip Rodrigues",
+      "phone": "0810000303",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "ffb8e010-07b7-4ead-afb6-5a37f08b1588",
+      "team_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "name": "Rattana Rodrigues",
+      "phone": "0810000310",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "8e1db374-7642-48a1-afc0-ba2c781641eb",
+      "team_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "name": "Pornthip Costa",
+      "phone": "0810000311",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "7662d4f5-a1b1-435f-be1c-ab6c8c58bc50",
+      "team_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "name": "Larissa Alves",
+      "phone": "0810000312",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "958ac752-5bde-40b1-89c1-c8d4607f9f94",
+      "team_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "name": "Juliana Chaiyaphum",
+      "phone": "0810000313",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "b82a8e67-fe3c-4f6c-97a1-fcbe768eb141",
+      "team_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "name": "Larissa Chaiyaphum",
+      "phone": "0810000320",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "38d41514-597f-4a4f-8da2-79cf8570bb8b",
+      "team_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "name": "Juliana Prasert",
+      "phone": "0810000321",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "e800ebfe-262b-4b6b-8cb5-52cf1350b4eb",
+      "team_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "name": "Camila Srisai",
+      "phone": "0810000322",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "541a9b94-c5ae-4522-bc27-6301db879982",
+      "team_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "name": "Beatriz Ketsarin",
+      "phone": "0810000323",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "1f3872cb-b43d-4b81-aaa9-d5e7571555ac",
+      "team_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "name": "Camila Ketsarin",
+      "phone": "0810000330",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "5d9d9ef4-afc4-49f0-9bea-bfa86724f742",
+      "team_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "name": "Beatriz Nakhon",
+      "phone": "0810000331",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "c2475500-afc5-42e5-8a4c-50535a785ca1",
+      "team_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "name": "Mariana Wongsuwan",
+      "phone": "0810000332",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "52047139-9a2f-4496-bb41-ff28f5c4d1d5",
+      "team_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "name": "Fernanda Suksom",
+      "phone": "0810000333",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6ec8081e-3f20-4726-88bc-e9e59adcbfaa",
+      "team_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "name": "Mariana Suksom",
+      "phone": "0810000340",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "5018fb39-5459-494f-afc7-f00424902667",
+      "team_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "name": "Fernanda Petchpradab",
+      "phone": "0810000341",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "c24a26c0-562e-4ccb-8dca-6910c18a2c75",
+      "team_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "name": "Carolina Pereira",
+      "phone": "0810000342",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "b65312e9-3b13-43aa-a650-11cf21a577e2",
+      "team_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "name": "Amanda Gomes",
+      "phone": "0810000343",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "e8d1b21a-a15e-4c6c-9f67-31b821fa043e",
+      "team_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "name": "Carolina Gomes",
+      "phone": "0810000350",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "d2852482-b6fd-4664-89de-5f18e74d5138",
+      "team_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "name": "Amanda Martins",
+      "phone": "0810000351",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "754b7ac3-0642-4d89-861e-d01811d7da1d",
+      "team_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "name": "Tawan Araujo",
+      "phone": "0810000352",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "41f61d68-0c2f-46ae-8bcf-31862dac1459",
+      "team_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "name": "Arthit Cardoso",
+      "phone": "0810000353",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "b3f11dc5-e59e-4ad5-986b-a570cc3f7ec7",
+      "team_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "name": "Tawan Cardoso",
+      "phone": "0810000360",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "f3271a58-0c9c-4b9a-85a3-e81e862647ec",
+      "team_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "name": "Arthit Barbosa",
+      "phone": "0810000361",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "6cfdae6c-9696-4b77-8608-568f66133128",
+      "team_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "name": "Chai Ribeiro",
+      "phone": "0810000362",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "756ef4f9-f1cf-4dee-a291-3e7a983d9817",
+      "team_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "name": "Nat Carvalho",
+      "phone": "0810000363",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "e725997f-64d7-480a-b269-c6993be89b5e",
+      "team_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "name": "Chai Carvalho",
+      "phone": "0810000370",
+      "email": null,
+      "shirt_size": "L",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "8ae51463-68be-4118-b8fb-5f1b51fda56b",
+      "team_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "name": "Nat Jaroensuk",
+      "phone": "0810000371",
+      "email": null,
+      "shirt_size": "XL",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "553ca3d5-e3b2-4449-8fc4-fafc6b2d2036",
+      "team_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "name": "Korn Kulap",
+      "phone": "0810000372",
+      "email": null,
+      "shirt_size": "S",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    },
+    {
+      "id": "09fb53ae-1883-4999-9405-901c7c89299a",
+      "team_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "name": "Danai Phromthep",
+      "phone": "0810000373",
+      "email": null,
+      "shirt_size": "M",
+      "custom_fields": {},
+      "user_id": null,
+      "invite_status": "none",
+      "invited_at": null,
+      "responded_at": null
+    }
+  ],
+  "regs": [
+    {
+      "id": "3df6b6b8-c85c-4b9d-8d05-31f12c41f5ac",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "cb359f91-1c13-48f1-81bd-1a113a986df3",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "b720be84-ef59-448b-8111-1d094db7e034",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "1a3db47d-7acb-42a1-99d4-1071c95f30f2",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "6c92b67b-d5e2-4a27-a714-557c314268e1",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "d7ee5b22-8323-485a-bc97-2e7888c7d41f",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "462aef7b-f283-4227-b05d-bbb15c042edc",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "3723f606-02b4-4629-8fe1-c04f58a5dfc9",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "80b84454-697f-409a-97aa-158566f27ac1",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "98af0b28-6c29-47ea-a37f-e6ad9376b00a",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "5723db96-cd6e-4d4d-8f76-6af810e55367",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "cbf333c3-6253-47d6-89d7-60b540c2aba9",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "77c4df6f-67a4-4afe-baf4-e6d11956c564",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "8c650582-8c6a-41b0-b7d1-a4ecb3d51672",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "b4a530fd-bb87-4efa-a89a-49fac16fca25",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "ae4f6f79-0a2a-4f2f-9bbc-2146ef7dcac0",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "fe47713d-83f7-4a8b-8a27-bc8f9ebc4164",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "3d54e82e-279c-4795-8033-095154892dc9",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "84d77178-d256-4d70-8f3d-0bcaeed3df9b",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "9c51b15a-09c1-4dcb-bfd4-441ec271f44d",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "c9a8bc30-840b-4b61-aec2-18c72ae7cbbc",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "4f5c776d-ff8e-4c76-a6bc-36eac6a2d200",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "e9ea8a49-cb5f-49aa-8ca4-3624799b13d4",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "c0ce41c8-4082-458b-8234-63b8234f06cf",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "f9bc878d-a058-43ed-976b-97d42e80a859",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "349d7660-2e57-4341-91ed-6261466c8b3f",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "0bcd834a-11d9-4fc7-8ecb-cce7a96ca1a3",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "c2afc349-41e5-4c34-9c10-f109009f4074",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "92a6cfa1-dc3c-462c-808d-4dbe0d05b4c7",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "45b25e64-a122-41e7-b5ac-7202b4e19f93",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "775f2a2b-86fe-462e-ab16-75676e0e0584",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "0cf0119c-798d-46c0-bfbd-6e583f6bdb74",
+      "payment_status": "pending",
+      "amount_paid": 0,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "3950a8c3-d86f-4c3d-ac71-1c360a495d27",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "team_id": "876dc2b2-92a6-41c6-bd18-8f032e3c7168",
+      "payment_status": "pending",
+      "amount_paid": 0,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "06efccc6-e994-45c4-a081-12b506e928ed",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "21570085-3892-406e-8b57-c08e55a3cd8c",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "980cf07b-9538-4e3a-bd17-280c3341f3a2",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "e0fb9133-491e-4e4e-9f1b-47779a68f5e7",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "658d33a1-51e2-4dce-a0e9-d36e11a3e1c8",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "754a24fe-275e-4e11-8c69-406ee2b82b2a",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "a8274c88-3860-49e1-b664-ddbec6567023",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "0ab4ec39-7f6f-4179-a8b3-6ee56a8f1f71",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "9212c09f-c791-45b7-b1f7-17c6d9ddbc96",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "37cf53da-f853-4ac1-96c7-2d3f40657917",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "f64a493c-b566-4718-86b7-9396e462de32",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "4e785e12-74ad-4098-804d-76dd953eb227",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "13ca48e6-0442-466c-b7f0-07b8af457717",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "e30ee664-b558-4753-ae59-3a4a2c953acd",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "635e7e10-c19c-4cc7-bcd1-36ae4b178be3",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "ca938c9e-216d-40f6-8b88-767080fb550f",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "6a9dd61b-e751-4351-8c3b-c625818d6276",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "b7a67da9-1592-4406-96b6-e6b438479139",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "473c3dc5-61fe-4e4b-8838-4eda698bb125",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "9f24bee2-f010-4b5e-b024-648ed16b14de",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "6b2fb4e5-70b4-40b5-8add-41414a8aadb9",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "6630cf62-6056-435a-9872-0aa6d0ca2c02",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "405d530c-00aa-492a-8db3-38e47f7d91e0",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "team_id": "9fc4fbdc-9027-4654-9d78-b2a845a284a9",
+      "payment_status": "cleared",
+      "amount_paid": 800,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "b61aff4c-7a26-4f38-887c-c28188c8328b",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "b2fc4ef1-6d01-49d8-8bfa-2620bf79bff8",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "c462cccc-5b59-4dff-ac30-2a04bda56aed",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "e23d7c20-bc71-4ce2-a906-bd6c3876ea73",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "95fb6a1c-5c30-4bb7-bb45-b5c8a4f10eba",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "81daae28-0914-4742-a569-21f2fe06873d",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "a27e36e4-67e0-4414-94fe-56c3d0d8a51f",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    },
+    {
+      "id": "5d75c3f7-71ab-4dd6-bb7c-e35c5d5c160a",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "team_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "payment_status": "cleared",
+      "amount_paid": 1200,
+      "submitted_at": "2026-09-05T14:40:36.315+00:00"
+    }
+  ],
+  "matches": [
+    {
+      "id": "9dd661b2-9e32-4f15-b3b8-4cc93fb04d08",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T09:00:00+00:00",
+      "team_a_id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "team_b_id": "3723f606-02b4-4629-8fe1-c04f58a5dfc9",
+      "score_a": [
+        13,
+        15,
+        11
+      ],
+      "score_b": [
+        15,
+        13,
+        8
+      ],
+      "winner_team_id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T15:12:00.765+00:00",
+      "planned_time": "2026-09-05T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "79962115388d94451617fe973e7bf9dd"
+    },
+    {
+      "id": "3f6ff895-5386-4875-ba56-28d892e3a0ab",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "bed0f2085628cac5be5b2dfed40495bd"
+    },
+    {
+      "id": "2d578cb5-78c6-4c19-9b21-e08d29b39d6d",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "5461b512969e0cf9a002cbddcffb69d5"
+    },
+    {
+      "id": "731c1ef9-be15-458b-b4d9-8c1feb656eb3",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "6ffac83bc4aa67e60dad8cf33cf4490d"
+    },
+    {
+      "id": "816d0ee2-982e-4fa4-ad44-acc824184334",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "7948eaa66d967e10503d5f4fd12bbb90"
+    },
+    {
+      "id": "9f2d2ddc-62e6-433d-b101-494108b05d4c",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T17:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T17:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "4f9f476364fe6e8f4cf49c63408dda10"
+    },
+    {
+      "id": "513d5e11-ffc2-42b0-8b18-c24377b38a34",
+      "round_id": "7f49b930-2878-4c4a-88f2-2c9ef92f4f35",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-06T10:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "5f8827c21ed327f9266ccae76facd71c"
+    },
+    {
+      "id": "48c7d8dc-027c-403d-87b1-d5516b012039",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T10:00:00+00:00",
+      "team_a_id": "45b25e64-a122-41e7-b5ac-7202b4e19f93",
+      "team_b_id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "d86cca70d3e63adf72d8d53323236387"
+    },
+    {
+      "id": "1f5c4506-7868-484c-af63-f1bc96c54a75",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T11:00:00+00:00",
+      "team_a_id": "45b25e64-a122-41e7-b5ac-7202b4e19f93",
+      "team_b_id": "3723f606-02b4-4629-8fe1-c04f58a5dfc9",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "a008b22c36b3597b704bf2ca8ff27855"
+    },
+    {
+      "id": "71ffbf21-4757-40d7-8a85-bc3742a058f6",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T10:00:00+00:00",
+      "team_a_id": "cb359f91-1c13-48f1-81bd-1a113a986df3",
+      "team_b_id": "f9bc878d-a058-43ed-976b-97d42e80a859",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "0592ea73e0379d0c936df5b9e483ad3a"
+    },
+    {
+      "id": "c710d0cf-8eee-4054-9a62-9ed89bfd63cb",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T11:30:00+00:00",
+      "team_a_id": "1a3db47d-7acb-42a1-99d4-1071c95f30f2",
+      "team_b_id": "d7ee5b22-8323-485a-bc97-2e7888c7d41f",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "f5fcbf362423882015935ddede952eee"
+    },
+    {
+      "id": "c65849ee-be57-4b07-a344-30b66b357e69",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T10:30:00+00:00",
+      "team_a_id": "cbf333c3-6253-47d6-89d7-60b540c2aba9",
+      "team_b_id": "fe47713d-83f7-4a8b-8a27-bc8f9ebc4164",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "fedbf980b593f695765d74f30c923cfc"
+    },
+    {
+      "id": "abd7e360-6792-4cf9-b0b9-56ff876bfabb",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T11:30:00+00:00",
+      "team_a_id": "cbf333c3-6253-47d6-89d7-60b540c2aba9",
+      "team_b_id": "b4a530fd-bb87-4efa-a89a-49fac16fca25",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "9a25f0b738eca69bfa82465603748589"
+    },
+    {
+      "id": "43927cfe-59f0-475a-80d8-f3ce999f589f",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T11:30:00+00:00",
+      "team_a_id": "0bcd834a-11d9-4fc7-8ecb-cce7a96ca1a3",
+      "team_b_id": "fe47713d-83f7-4a8b-8a27-bc8f9ebc4164",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "861e9fd676d345940795288d32d3b422"
+    },
+    {
+      "id": "36a42cfc-1e6b-466f-8c78-3552b9a2cfa2",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T10:30:00+00:00",
+      "team_a_id": "0bcd834a-11d9-4fc7-8ecb-cce7a96ca1a3",
+      "team_b_id": "b4a530fd-bb87-4efa-a89a-49fac16fca25",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "65b7c9d21f14f4b95f42cbef4d1166b2"
+    },
+    {
+      "id": "d904f00d-776a-4db6-806f-7e0f85d8fa63",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T09:30:00+00:00",
+      "team_a_id": "fe47713d-83f7-4a8b-8a27-bc8f9ebc4164",
+      "team_b_id": "b4a530fd-bb87-4efa-a89a-49fac16fca25",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T09:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "722c5b17552672dcb2236768ac306919"
+    },
+    {
+      "id": "58d3aebb-5302-412a-8852-b8ae673cc5eb",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T16:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T16:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "8d2d4632ec34ac3752b5a787acae4e0b"
+    },
+    {
+      "id": "e994e08c-f0dc-41a1-99e5-71cc24af3962",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T16:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T16:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "b64e52a9c8aa448e8c917beaf20319c5"
+    },
+    {
+      "id": "04afc94f-ccd3-4ab1-9e21-96af4c6e9ce9",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T17:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T17:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "8ae7cf2f32d69c1f10a6f830d9692975"
+    },
+    {
+      "id": "3c34811b-263a-494d-95e4-b1af5b07b2f7",
+      "round_id": "6544f285-debc-4081-8ad7-4b6cbb9ac101",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T17:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T17:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "3606cbbfbf2157b3bb17e724a9fc1696"
+    },
+    {
+      "id": "a97545ab-1e55-4afc-8e61-6cc1aada2bb8",
+      "round_id": "89abbb81-4155-4127-9982-79d89fcbc0d7",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-06T09:00:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "c4c4bb5da2907b0dcda074ed809a78a1"
+    },
+    {
+      "id": "815d309f-b263-4717-8c7e-f10d1261c026",
+      "round_id": "89abbb81-4155-4127-9982-79d89fcbc0d7",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-06T09:00:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "07a01b7e59ccfbdf22cd01d0c00304f5"
+    },
+    {
+      "id": "794a9f3f-0ecd-4300-b631-dd80f6e2c845",
+      "round_id": "89abbb81-4155-4127-9982-79d89fcbc0d7",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-06T09:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T09:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "9698b32c99452f2217660878e3e15870"
+    },
+    {
+      "id": "c61b0edb-201f-485a-9b85-85b10d05175e",
+      "round_id": "89abbb81-4155-4127-9982-79d89fcbc0d7",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-06T09:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T09:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "775e2ad5b6a2369a30b8995bbaecb527"
+    },
+    {
+      "id": "219c0818-6254-41d0-b51d-37c60bda60f3",
+      "round_id": "8f5c1d77-9112-4f3d-ab87-6ca433600910",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-06T10:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "5a6b956df2d5050168db2c3e429a30cf"
+    },
+    {
+      "id": "bbf82483-115e-4492-a057-8a7214bb2787",
+      "round_id": "8f5c1d77-9112-4f3d-ab87-6ca433600910",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-06T10:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "eb4ed4a1a9ab4cbcfa8006069f9a53ae"
+    },
+    {
+      "id": "59eb7ab2-8986-4da3-ba00-fa410665bca1",
+      "round_id": "23883fdb-88a5-4259-acdd-0ce8d2e7075a",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T15:00:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T15:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "a18bb41ca8afe15566d0e91dc24fe1fd"
+    },
+    {
+      "id": "ee448e07-ac93-4fd4-94f1-396dbaf1a533",
+      "round_id": "16007d35-c192-45a1-bdc3-f68929360f73",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-06T13:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-06T13:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "0f6cc1012119e8ac1dd81c288c1603c2"
+    },
+    {
+      "id": "eefa52da-6cf7-49df-8c4a-7ae53b2258a6",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T14:30:00+00:00",
+      "team_a_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "team_b_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T14:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "479b1ee473972d691d504ec787691fb2"
+    },
+    {
+      "id": "fd0ae855-a75f-4db9-bf5f-8799cb3046ce",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T16:00:00+00:00",
+      "team_a_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "team_b_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T16:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "86e459474f6bea207c63d27f43c46a2f"
+    },
+    {
+      "id": "30080ee0-9816-410d-91ca-0ba5b7fa0060",
+      "round_id": "4ac96cd5-b4c0-4842-b27d-003eceb16c7c",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T15:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-06T15:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "67dda8f971089e882b4a9ff97c590056"
+    },
+    {
+      "id": "eb0c7481-1f4c-4c16-a215-f6fc3962ff45",
+      "round_id": "94381882-453c-4b85-a6b8-8e22c7c8aaa9",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-06T13:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-06T13:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "87da671f4acc137409e2da08ab54733a"
+    },
+    {
+      "id": "7289db55-713c-4dd9-96fa-bdcc1f41ee64",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T09:00:00+00:00",
+      "team_a_id": "45b25e64-a122-41e7-b5ac-7202b4e19f93",
+      "team_b_id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "score_a": [
+        10,
+        13
+      ],
+      "score_b": [
+        15,
+        15
+      ],
+      "winner_team_id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T15:10:25.825+00:00",
+      "planned_time": "2026-09-05T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "7b455c19ce05a12f3167d86c2a6b91f5"
+    },
+    {
+      "id": "462e713a-ad74-41eb-89d5-f47ad9f3713c",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "9ada4ef064a0afad3115f0c3c5e367b4"
+    },
+    {
+      "id": "e40c6117-0f0d-4d05-9f1b-346d9bdcbb4c",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "c81d86380b38b4c20a6beea721165efa"
+    },
+    {
+      "id": "2dfc8601-3d34-461f-b721-727f40b82add",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T12:00:00+00:00",
+      "team_a_id": "0ab4ec39-7f6f-4179-a8b3-6ee56a8f1f71",
+      "team_b_id": "37cf53da-f853-4ac1-96c7-2d3f40657917",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T12:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "bf6ef399a601937d16216cba43503af9"
+    },
+    {
+      "id": "61f2fd69-cc21-41d9-b162-334cbf2a0c46",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T13:30:00+00:00",
+      "team_a_id": "0ab4ec39-7f6f-4179-a8b3-6ee56a8f1f71",
+      "team_b_id": "21570085-3892-406e-8b57-c08e55a3cd8c",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T13:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "f58298411ceea99ffee351da68613974"
+    },
+    {
+      "id": "cd9b5b21-171f-47e5-861a-7555499382c0",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T14:00:00+00:00",
+      "team_a_id": "37cf53da-f853-4ac1-96c7-2d3f40657917",
+      "team_b_id": "21570085-3892-406e-8b57-c08e55a3cd8c",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T14:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "8d25b00b31169070907f3920bdc1033d"
+    },
+    {
+      "id": "a84f0c75-077d-4f27-8d3a-ed1b656e09ef",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T12:00:00+00:00",
+      "team_a_id": "e30ee664-b558-4753-ae59-3a4a2c953acd",
+      "team_b_id": "e0fb9133-491e-4e4e-9f1b-47779a68f5e7",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T12:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "d22b998c9d9a5eec91eae9c8dc61ac04"
+    },
+    {
+      "id": "f5ed505b-57f9-45f6-9405-e7d25d664309",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T13:30:00+00:00",
+      "team_a_id": "e30ee664-b558-4753-ae59-3a4a2c953acd",
+      "team_b_id": "9fc4fbdc-9027-4654-9d78-b2a845a284a9",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T13:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "c0f0bcda10ea596a344b9c82e4e7954b"
+    },
+    {
+      "id": "e2d3122a-0333-492b-9d23-2693ba86461b",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T14:00:00+00:00",
+      "team_a_id": "e0fb9133-491e-4e4e-9f1b-47779a68f5e7",
+      "team_b_id": "9fc4fbdc-9027-4654-9d78-b2a845a284a9",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T14:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "82785bb91857a64b4cb03dca132cc0ef"
+    },
+    {
+      "id": "0cc72033-c360-4133-acad-5eba70744416",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T12:00:00+00:00",
+      "team_a_id": "9f24bee2-f010-4b5e-b024-648ed16b14de",
+      "team_b_id": "6630cf62-6056-435a-9872-0aa6d0ca2c02",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T12:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "cfbcec972cc3ef2b6dc8b2df82d1d26d"
+    },
+    {
+      "id": "006c5819-d359-4137-8599-9acaa30b8995",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T13:30:00+00:00",
+      "team_a_id": "9f24bee2-f010-4b5e-b024-648ed16b14de",
+      "team_b_id": "ca938c9e-216d-40f6-8b88-767080fb550f",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T13:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "63760c80a26b8c2588a70355343f05c9"
+    },
+    {
+      "id": "98ec879c-b553-4140-8d94-ada28f1dd6ae",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T14:00:00+00:00",
+      "team_a_id": "6630cf62-6056-435a-9872-0aa6d0ca2c02",
+      "team_b_id": "ca938c9e-216d-40f6-8b88-767080fb550f",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T14:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "fa1df816254f2d1e06b1881f1f477713"
+    },
+    {
+      "id": "fb7cb7f4-ee0e-44a8-9dea-ba8c0caaa55b",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T12:00:00+00:00",
+      "team_a_id": "b7a67da9-1592-4406-96b6-e6b438479139",
+      "team_b_id": "4e785e12-74ad-4098-804d-76dd953eb227",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T12:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "06861133c4b7c1f10ca3e25124f764fc"
+    },
+    {
+      "id": "b0b03f09-baff-4722-9770-b9780cc06712",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T13:30:00+00:00",
+      "team_a_id": "b7a67da9-1592-4406-96b6-e6b438479139",
+      "team_b_id": "754a24fe-275e-4e11-8c69-406ee2b82b2a",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T13:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "b1a79a1c6d6e9d26c2d11e2076dd74ae"
+    },
+    {
+      "id": "49181693-77a4-48e3-85dd-d2e0d508988d",
+      "round_id": "f141473f-9ba4-4b63-8fd6-03ca0ad2d6fd",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T14:00:00+00:00",
+      "team_a_id": "4e785e12-74ad-4098-804d-76dd953eb227",
+      "team_b_id": "754a24fe-275e-4e11-8c69-406ee2b82b2a",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T14:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "e17b4b7d65a7b45f74739b7954d374b3"
+    },
+    {
+      "id": "45102c8d-2b25-4268-96f2-08dd14e3b785",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T17:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-05T17:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "0eb01c26ecd860475bbd1ea602227e41"
+    },
+    {
+      "id": "c500f0f6-30c6-4297-858d-d29e26a8397d",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "898e93ea60fd21c46f1986a796b4ecd6"
+    },
+    {
+      "id": "1c8b9f1f-ce69-4424-8fa5-efbb8cbed630",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": null,
+      "scheduled_time": null,
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "done",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": null,
+      "referee_team_id": null,
+      "scorekeeper_token": "57bb0578cc0f0bf98e55da3da405dcfe"
+    },
+    {
+      "id": "a129f4c7-dab4-4a9d-9a66-bd61771c414b",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T09:00:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "5ed34d870224b7c5acb4eeff0a6e181d"
+    },
+    {
+      "id": "b1ed35f4-7c68-4f40-b971-3f73af9982b3",
+      "round_id": "3ec72623-83cd-4bb4-a539-1fc7193d90ee",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-06T09:00:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "999e5467d7da95e49a44d143cabe2dce"
+    },
+    {
+      "id": "40c181dc-c6e3-4a07-b8ed-9c69381a83fb",
+      "round_id": "7f49b930-2878-4c4a-88f2-2c9ef92f4f35",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T09:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T09:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "b4a8c77a55736966119147f3e8572da2"
+    },
+    {
+      "id": "560c4617-b7fd-43bb-b915-16ff1ef0de28",
+      "round_id": "7f49b930-2878-4c4a-88f2-2c9ef92f4f35",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-06T09:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T09:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "a2bc3e1a5bb81402ebf6d657a9a2e856"
+    },
+    {
+      "id": "60fe7391-da1b-4623-80a0-8b3eceee3e59",
+      "round_id": "7f49b930-2878-4c4a-88f2-2c9ef92f4f35",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T10:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "4f54e82c1f86625822790f2486df953b"
+    },
+    {
+      "id": "ad1c3f30-c07e-4c2b-8512-d50b2837cb4a",
+      "round_id": "c82ada78-6136-4665-84db-ec3527b9008a",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T11:15:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T11:15:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "2ee8843904b168751076f3326fa26ab5"
+    },
+    {
+      "id": "a5886eaa-94ca-46d1-8724-0cba7d84229d",
+      "round_id": "c82ada78-6136-4665-84db-ec3527b9008a",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-06T11:15:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T11:15:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "512fd99591a8472359bdac8748829e3c"
+    },
+    {
+      "id": "75ffa477-4f24-4796-96ef-875c99d08eed",
+      "round_id": "454ec455-901f-4612-a945-1ddf5af53f1b",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T14:15:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T14:15:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "14beedf13f275d826ea35b2898a11a77"
+    },
+    {
+      "id": "4e58a910-0e6a-44e2-bafa-5629dbd5fb32",
+      "round_id": "509851cd-ad81-47df-a97d-4dabfe560477",
+      "division_id": "5f18631a-9916-43ef-a3e5-9855286a53c8",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-06T13:30:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:49:10.000742+00:00",
+      "planned_time": "2026-09-06T13:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "c2aeda818ab5a7e1e782d52239e35eb4"
+    },
+    {
+      "id": "d5c45f9e-fa71-4ff0-85f3-6cec89471c44",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T15:15:00+00:00",
+      "team_a_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "team_b_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T15:15:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "df3ab96cd6dfe47677aa1e5661f08638"
+    },
+    {
+      "id": "0fdfe18b-70d0-415d-89b3-da4f0c71dbfe",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T16:00:00+00:00",
+      "team_a_id": "424c24e7-d379-4237-81cd-b2da04eee06b",
+      "team_b_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T16:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "dfb7c0c81fa25d7c5f60dd4f137d3213"
+    },
+    {
+      "id": "fd8e90d3-4ba3-42b1-8ddc-5a832a5ffe6d",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T16:00:00+00:00",
+      "team_a_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "team_b_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T16:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "a5ecf0c47a9cc1222574c8eca69a14b5"
+    },
+    {
+      "id": "bb486603-392c-492c-b23b-63eb6aa97f52",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T15:15:00+00:00",
+      "team_a_id": "6fb12bc5-e911-4d96-80cf-f159eea37a6c",
+      "team_b_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T15:15:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "51d85c7c0e24aebc1dc65ee68ab1adc3"
+    },
+    {
+      "id": "9597cab2-c158-4c0c-a83a-50329fb59be9",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T14:30:00+00:00",
+      "team_a_id": "98181d9d-3343-44c1-bb70-8e49b741ac0d",
+      "team_b_id": "c6dbe2d1-f3a1-444e-9325-edf7a5d09204",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T14:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "14f51094ade87a5f4eb9562af76b781f"
+    },
+    {
+      "id": "462d8490-3d15-4fee-ac72-49009b302a05",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T14:30:00+00:00",
+      "team_a_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "team_b_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T14:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "40523b7f86519c0f80bdca37588ad9ec"
+    },
+    {
+      "id": "14afa66e-aa1e-4a14-9a9d-4acc7c634476",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T15:15:00+00:00",
+      "team_a_id": "0c0d8934-9416-477f-8287-7e1159dd8990",
+      "team_b_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T15:15:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "ba5b426ad420bf76ed0b09df9b9fb2c2"
+    },
+    {
+      "id": "4c5e57bb-b364-4c58-a38e-f22b318d475a",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T16:00:00+00:00",
+      "team_a_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "team_b_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T16:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "5fbb2b1cef998c77f06f110e08e67860"
+    },
+    {
+      "id": "e7ea3854-04e9-48d4-8138-d06cafd9aed3",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T15:15:00+00:00",
+      "team_a_id": "c3414a60-251f-4be4-b957-ae253f86f189",
+      "team_b_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T15:15:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "90c2f1e41db430071279bb58e33c65c0"
+    },
+    {
+      "id": "b0ce461a-518a-4c74-a690-9efc95d55257",
+      "round_id": "9ef4dd34-9cd9-4fe4-8a81-b07682946fb7",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T14:30:00+00:00",
+      "team_a_id": "4114760e-3dea-45d6-96f8-726ccd322dea",
+      "team_b_id": "f8f6a2c0-6217-40d8-9ffd-22daf28b02eb",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T14:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "77947867380cad05eb5cd3301d7861a3"
+    },
+    {
+      "id": "0463c65c-862d-4e8d-85ef-db06e780b125",
+      "round_id": "c0bc8834-879c-4bea-be5b-020be8e93e74",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T16:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T16:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "af412d21581e16559e541d16a808a580"
+    },
+    {
+      "id": "f7995567-888a-4dd2-a3d6-075cf34687d8",
+      "round_id": "c0bc8834-879c-4bea-be5b-020be8e93e74",
+      "division_id": "6fe24846-7950-4d42-9041-bfbba77e879a",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T16:45:00+00:00",
+      "team_a_id": null,
+      "team_b_id": null,
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:53:42.830731+00:00",
+      "planned_time": "2026-09-05T16:45:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "5e5ebbafe95401a204f276a49069c994"
+    },
+    {
+      "id": "531cde2b-ca5f-4fd6-bf60-f3a95973d019",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T11:00:00+00:00",
+      "team_a_id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "team_b_id": "5f1866a4-65f5-4d94-842d-d4a642a7d5be",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "d8ee37703b98a6ca61c94a2f2ef3880b"
+    },
+    {
+      "id": "9ca1d082-8165-4c78-9059-e1ae9783ae81",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T10:00:00+00:00",
+      "team_a_id": "b6d502c0-fc8c-481f-97d3-38d1df4b07cb",
+      "team_b_id": "3723f606-02b4-4629-8fe1-c04f58a5dfc9",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "a1e52e83d6a9e9cbaaa1385386ccf73a"
+    },
+    {
+      "id": "db390e31-6cb9-4c34-9d69-9224726d0398",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T09:00:00+00:00",
+      "team_a_id": "cb359f91-1c13-48f1-81bd-1a113a986df3",
+      "team_b_id": "e9ea8a49-cb5f-49aa-8ca4-3624799b13d4",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "eb04e63ceddb6c4f396777502c51542f"
+    },
+    {
+      "id": "adf58d50-756d-4bb8-84b5-2cc8258f1416",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T11:00:00+00:00",
+      "team_a_id": "cb359f91-1c13-48f1-81bd-1a113a986df3",
+      "team_b_id": "c9a8bc30-840b-4b61-aec2-18c72ae7cbbc",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "b7fa66eedc022d682bf83372928b8e64"
+    },
+    {
+      "id": "e4efed58-9799-403f-8565-c8acaedb1639",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T11:00:00+00:00",
+      "team_a_id": "e9ea8a49-cb5f-49aa-8ca4-3624799b13d4",
+      "team_b_id": "f9bc878d-a058-43ed-976b-97d42e80a859",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "e69de553800094200adac46f6bba5fe0"
+    },
+    {
+      "id": "8077801d-a530-4c03-9f02-b4838937a826",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T10:00:00+00:00",
+      "team_a_id": "e9ea8a49-cb5f-49aa-8ca4-3624799b13d4",
+      "team_b_id": "c9a8bc30-840b-4b61-aec2-18c72ae7cbbc",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "18c3ff74957efaa010e504fc861f52cd"
+    },
+    {
+      "id": "8be24480-8723-4b86-9d9a-3e24575082a5",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 4",
+      "scheduled_time": "2026-09-05T09:00:00+00:00",
+      "team_a_id": "f9bc878d-a058-43ed-976b-97d42e80a859",
+      "team_b_id": "c9a8bc30-840b-4b61-aec2-18c72ae7cbbc",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T09:00:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "b150ed5ad86e3f257aabf742e85bc64a"
+    },
+    {
+      "id": "3c20c98f-3368-4a68-8d23-f2ea7720ec79",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T09:30:00+00:00",
+      "team_a_id": "1a3db47d-7acb-42a1-99d4-1071c95f30f2",
+      "team_b_id": "98af0b28-6c29-47ea-a37f-e6ad9376b00a",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T09:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "a82d1ac4097a96889d0a4e66f7007345"
+    },
+    {
+      "id": "412527f1-919e-45f5-a762-507a091eb0da",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 1",
+      "scheduled_time": "2026-09-05T10:30:00+00:00",
+      "team_a_id": "1a3db47d-7acb-42a1-99d4-1071c95f30f2",
+      "team_b_id": "84d77178-d256-4d70-8f3d-0bcaeed3df9b",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "4eb76a86cf2ca899214d0c51fbcaa2f8"
+    },
+    {
+      "id": "1c76553b-336b-414d-98d9-6f79b5cca06c",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T11:30:00+00:00",
+      "team_a_id": "98af0b28-6c29-47ea-a37f-e6ad9376b00a",
+      "team_b_id": "84d77178-d256-4d70-8f3d-0bcaeed3df9b",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T11:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "433fff96050bd2f8b4c11c9535a56b39"
+    },
+    {
+      "id": "b2ef2c91-8375-4bde-bca5-814575508142",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T10:30:00+00:00",
+      "team_a_id": "98af0b28-6c29-47ea-a37f-e6ad9376b00a",
+      "team_b_id": "d7ee5b22-8323-485a-bc97-2e7888c7d41f",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T10:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "30b8154048db6bc649171b9ce48c258a"
+    },
+    {
+      "id": "0ae8ce2a-beb8-4a9f-861e-88902cc80e5d",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 2",
+      "scheduled_time": "2026-09-05T09:30:00+00:00",
+      "team_a_id": "84d77178-d256-4d70-8f3d-0bcaeed3df9b",
+      "team_b_id": "d7ee5b22-8323-485a-bc97-2e7888c7d41f",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T09:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "f32b30fca173133cb9bbccdbecdefdf4"
+    },
+    {
+      "id": "54052593-d047-45e6-9b2d-f4f113a38da5",
+      "round_id": "41b2cfa5-a867-45dc-8f46-37b64fdf4cfd",
+      "division_id": "2f52a917-a391-46d4-a331-0b8578934b6f",
+      "court": "Court 3",
+      "scheduled_time": "2026-09-05T09:30:00+00:00",
+      "team_a_id": "cbf333c3-6253-47d6-89d7-60b540c2aba9",
+      "team_b_id": "0bcd834a-11d9-4fc7-8ecb-cce7a96ca1a3",
+      "score_a": null,
+      "score_b": null,
+      "winner_team_id": null,
+      "status": "upcoming",
+      "live_snapshot": null,
+      "updated_at": "2026-09-05T14:46:53.813126+00:00",
+      "planned_time": "2026-09-05T09:30:00+00:00",
+      "referee_team_id": null,
+      "scorekeeper_token": "a4091985329675f6f5157f4c34a14a3b"
+    }
+  ],
+  "vouchers": [
+    {
+      "id": "5cb5f522-24bf-4355-8bd6-016ac8a4b864",
+      "tournament_id": "179651b1-79f1-43cd-8967-23ef9c9b8481",
+      "code": "ANDAMAN15",
+      "discount_type": "percent",
+      "discount_value": 15,
+      "max_uses": 20,
+      "uses_count": 6,
+      "expires_at": "2026-09-06T16:59:59+00:00"
+    },
+    {
+      "id": "954840a7-faaf-4559-860c-971be8e1d0b5",
+      "tournament_id": "179651b1-79f1-43cd-8967-23ef9c9b8481",
+      "code": "BEACH2026",
+      "discount_type": "flat",
+      "discount_value": 100,
+      "max_uses": 50,
+      "uses_count": 14,
+      "expires_at": "2026-09-06T16:59:59+00:00"
+    }
+  ]
+}

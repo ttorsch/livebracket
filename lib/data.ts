@@ -422,7 +422,8 @@ export async function getPublicTournaments(): Promise<DashboardTournament[]> {
     .filter((t) => {
       if (t.is_template) return false;
       if (t.sandbox_id) return false;
-      if (t.slug?.startsWith('andaman-masters-')) return false;
+      if (t.slug?.endsWith('-template')) return false;
+      if (t.slug?.startsWith('andaman-masters-') || t.slug?.startsWith('khao-lak-open-')) return false;
       return true;
     });
 

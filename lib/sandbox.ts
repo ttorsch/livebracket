@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { supabaseAdmin } from './supabaseAdmin.ts';
 
 export const TEMPLATE_SLUG = 'andaman-beach-masters-template';
+export const TEMPLATE_SLUG_2 = 'khao-lak-beach-open-template';
 export const SANDBOX_DURATION_HOURS = 24;
 
 export interface SandboxRecord {
@@ -42,30 +43,38 @@ function shiftTimeToDate(isoString: string | null, targetDateYMD: string): strin
 }
 
 /**
- * Find the Golden Template tournament row.
+ * Find all Golden Template tournament rows.
  */
-export async function getGoldenTemplateTournament() {
+export async function getGoldenTemplateTournaments(): Promise<Record<string, any>[]> {
   // First try querying with is_template: true
   const { data: byFlag, error: flagErr } = await supabaseAdmin
     .from('tournaments')
     .select('*')
     .eq('is_template', true)
-    .maybeSingle();
+    .order('created_at', { ascending: true });
 
-  if (byFlag && !flagErr) return byFlag;
+  if (byFlag && byFlag.length > 0 && !flagErr) return byFlag;
 
-  // Fallback: query by well-known template slug
+  // Fallback: query by well-known template slugs
   const { data: bySlug, error: slugErr } = await supabaseAdmin
     .from('tournaments')
     .select('*')
-    .eq('slug', TEMPLATE_SLUG)
-    .maybeSingle();
+    .in('slug', [TEMPLATE_SLUG, TEMPLATE_SLUG_2])
+    .order('created_at', { ascending: true });
 
   if (slugErr) {
-    throw new Error(`Failed to query golden template tournament: ${slugErr.message}`);
+    throw new Error(`Failed to query golden template tournaments: ${slugErr.message}`);
   }
 
-  return bySlug;
+  return bySlug ?? [];
+}
+
+/**
+ * Find the primary Golden Template tournament row (for single-tournament lookups).
+ */
+export async function getGoldenTemplateTournament() {
+  const all = await getGoldenTemplateTournaments();
+  return all.find((t) => t.slug === TEMPLATE_SLUG) || all[0] || null;
 }
 
 /**
@@ -89,15 +98,26 @@ export async function cloneTournamentForSandbox(
   // 1. Tournaments
   const newTournamentId = crypto.randomUUID();
   idMap.set(templateTournament.id, newTournamentId);
-  const newSlug = `andaman-masters-${shortId(5)}`;
+  const isKhaoLak = templateTournament.slug?.includes('khao-lak');
+  const slugPrefix = isKhaoLak ? 'khao-lak-open' : 'andaman-masters';
+  const newSlug = `${slugPrefix}-${shortId(5)}`;
+
+  let startDate = day1;
+  let endDate = templateTournament.is_one_day ? day1 : day2;
+
+  // If template tournament is scheduled for future, preserve its scheduled future dates:
+  if (templateTournament.start_date && templateTournament.start_date > day1) {
+    startDate = templateTournament.start_date;
+    endDate = templateTournament.end_date || startDate;
+  }
 
   const tournamentRow: Record<string, any> = {
     ...templateTournament,
     id: newTournamentId,
     organizer_id: organizerId,
     slug: newSlug,
-    start_date: day1,
-    end_date: templateTournament.is_one_day ? day1 : day2,
+    start_date: startDate,
+    end_date: endDate,
     created_at: now.toISOString(),
     updated_at: now.toISOString(),
   };
@@ -265,11 +285,12 @@ export async function cloneTournamentForSandbox(
 
   const newMatches = (matches ?? []).map((m) => {
     const newMatchId = crypto.randomUUID();
+    idMap.set(m.id, newMatchId);
 
     // Work out target date (Day 1 or Day 2) based on whether scheduled time was on templateDay1
     const matchTime = m.scheduled_time || m.planned_time;
     const isDay2 = matchTime && !matchTime.startsWith(templateDay1);
-    const targetDate = isDay2 ? day2 : day1;
+    const targetDate = isDay2 ? endDate : startDate;
 
     return {
       ...m,
@@ -290,6 +311,45 @@ export async function cloneTournamentForSandbox(
   if (newMatches.length > 0) {
     const { error: matchInsertErr } = await supabaseAdmin.from('matches').insert(newMatches);
     if (matchInsertErr) throw new Error(`Failed to clone matches: ${matchInsertErr.message}`);
+  }
+
+  // Remap draw settings in divisions (slots, crossSlots, loserFeeders) with new match UUIDs
+  for (const div of newDivisions) {
+    if (div.settings?.draw) {
+      const draw = { ...div.settings.draw };
+      let changed = false;
+      if (draw.slots) {
+        const nextSlots: Record<string, string[]> = {};
+        for (const [seq, mids] of Object.entries(draw.slots as Record<string, string[]>)) {
+          nextSlots[seq] = (mids || []).map((mid) => remap(mid) || mid);
+        }
+        draw.slots = nextSlots;
+        changed = true;
+      }
+      if (draw.crossSlots) {
+        const nextCross: Record<string, any> = {};
+        for (const [mid, cs] of Object.entries(draw.crossSlots as Record<string, any>)) {
+          nextCross[remap(mid) || mid] = cs;
+        }
+        draw.crossSlots = nextCross;
+        changed = true;
+      }
+      if (draw.loserFeeders) {
+        const nextFeeders: Record<string, string[]> = {};
+        for (const [mid, fids] of Object.entries(draw.loserFeeders as Record<string, string[]>)) {
+          nextFeeders[remap(mid) || mid] = (fids || []).map((fid) => remap(fid) || fid);
+        }
+        draw.loserFeeders = nextFeeders;
+        changed = true;
+      }
+      if (changed) {
+        div.settings = { ...div.settings, draw };
+        await supabaseAdmin
+          .from('divisions')
+          .update({ settings: div.settings })
+          .eq('id', div.id);
+      }
+    }
   }
 
   // 8. Vouchers
@@ -391,13 +451,19 @@ export async function createDemoSandbox(): Promise<{
     }
   }
 
-  // 4. Locate golden template tournament and clone it
-  const template = await getGoldenTemplateTournament();
-  if (!template) {
-    throw new Error('Golden template tournament not found. Run "npm run seed:golden" first.');
+  // 4. Locate golden template tournaments and clone all of them
+  const templates = await getGoldenTemplateTournaments();
+  if (!templates || templates.length === 0) {
+    throw new Error('Golden template tournaments not found. Run "npm run seed:golden" first.');
   }
 
-  const clonedTournament = await cloneTournamentForSandbox(template, sandboxId, organizerId);
+  let primaryCloned: ClonedTournamentResult | null = null;
+  for (const template of templates) {
+    const cloned = await cloneTournamentForSandbox(template, sandboxId, organizerId);
+    if (!primaryCloned || template.slug === TEMPLATE_SLUG) {
+      primaryCloned = cloned;
+    }
+  }
 
   // 5. Sign in through the SSR client to set session cookies on the response
   try {
@@ -420,7 +486,7 @@ export async function createDemoSandbox(): Promise<{
     sandboxId,
     userId,
     organizerId,
-    clonedTournament,
+    clonedTournament: primaryCloned!,
   };
 }
 
@@ -461,13 +527,21 @@ export async function resetDemoSandbox(userId: string): Promise<ClonedTournament
     if (delErr) throw new Error(`Failed to remove old sandbox tournaments: ${delErr.message}`);
   }
 
-  // Re-clone fresh from golden template
-  const template = await getGoldenTemplateTournament();
-  if (!template) {
-    throw new Error('Golden template tournament not found. Run "npm run seed:golden" first.');
+  // Re-clone fresh from golden templates
+  const templates = await getGoldenTemplateTournaments();
+  if (!templates || templates.length === 0) {
+    throw new Error('Golden template tournaments not found. Run "npm run seed:golden" first.');
   }
 
-  return cloneTournamentForSandbox(template, sandboxId, organizer.id);
+  let primaryCloned: ClonedTournamentResult | null = null;
+  for (const template of templates) {
+    const cloned = await cloneTournamentForSandbox(template, sandboxId, organizer.id);
+    if (!primaryCloned || template.slug === TEMPLATE_SLUG) {
+      primaryCloned = cloned;
+    }
+  }
+
+  return primaryCloned!;
 }
 
 /**
