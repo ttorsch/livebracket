@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Utensils } from 'lucide-react';
+import { Calendar, Clock, Utensils, ChevronDown, Search, X } from 'lucide-react';
 import styles from './CourtScheduleView.module.css';
 import type { TournamentDetail, DetailDivision } from '../../lib/data';
 import { labelDivisions } from '../../lib/schedule/schedulableDivisions';
@@ -25,6 +25,10 @@ interface ScheduleMatch {
   date: string;
   dateLabel: string;
   durationMinutes: number;
+  /* Everything the search box looks through, lowercased once here rather
+     than on every keystroke: both teams, the players inside them, the court
+     and the round. */
+  haystack: string;
 }
 
 interface BlockRow {
@@ -320,6 +324,11 @@ export default function CourtScheduleView({
 }: CourtScheduleViewProps) {
   const [showAllDivisions, setShowAllDivisions] = useState(true);
   const [activeDay, setActiveDay] = useState<'all' | number>('all');
+  const [query, setQuery] = useState('');
+  /* Only the narrow layout collapses search to an icon; on a wide filter bar
+     the field is always there and this flag does nothing. */
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const isFirstMount = useRef(true);
   useEffect(() => {
@@ -361,6 +370,12 @@ export default function CourtScheduleView({
           const day = m.scheduledDate ? dayIndexOf(tournament.startDate, m.scheduledDate) : 0;
           const dateStr = m.scheduledDate || tournament.startDate || '';
 
+          const teamA = label?.teamA ?? m.teamAName ?? (m.teamA.length ? m.teamA.map(p => p.name).join(' / ') : 'TBD');
+          const teamB = label?.teamB ?? m.teamBName ?? (m.teamB.length ? m.teamB.map(p => p.name).join(' / ') : 'TBD');
+          // The roster too: a pair shows as a team name on the card, and a
+          // player looking for their own match types their own name.
+          const players = [...m.teamA, ...m.teamB].map(pl => pl.name);
+
           list.push({
             id: m.id,
             divisionLabel: div.label,
@@ -369,8 +384,9 @@ export default function CourtScheduleView({
             matchNo: label?.no ?? '',
             court: court || 'Court 1',
             time: time || '—',
-            teamA: label?.teamA ?? m.teamAName ?? (m.teamA.length ? m.teamA.map(p => p.name).join(' / ') : 'TBD'),
-            teamB: label?.teamB ?? m.teamBName ?? (m.teamB.length ? m.teamB.map(p => p.name).join(' / ') : 'TBD'),
+            teamA,
+            teamB,
+            haystack: [teamA, teamB, ...players, court, round.round].join(' ').toLowerCase(),
             scoreA: m.scoreA,
             scoreB: m.scoreB,
             winner: (m as any).winner ?? null,
@@ -390,6 +406,8 @@ export default function CourtScheduleView({
   const currentDivisionId = activeDivisionId || tournament.divisions[0]?.id;
 
   // Filter matches based on selected division and active day
+  const searchTerm = query.trim().toLowerCase();
+
   const filteredMatches = useMemo(() => {
     return allMatches.filter(m => {
       if (!showAllDivisions && currentDivisionId && m.divisionId !== currentDivisionId) {
@@ -398,9 +416,12 @@ export default function CourtScheduleView({
       if (activeDay !== 'all' && m.day !== activeDay) {
         return false;
       }
+      if (searchTerm && !m.haystack.includes(searchTerm)) {
+        return false;
+      }
       return true;
     });
-  }, [allMatches, showAllDivisions, currentDivisionId, activeDay]);
+  }, [allMatches, showAllDivisions, currentDivisionId, activeDay, searchTerm]);
 
   const dayCount = tournament.dayCount || 1;
   const splitByDay = dayCount > 1 && activeDay === 'all';
@@ -496,9 +517,12 @@ export default function CourtScheduleView({
 
   return (
     <div className={styles.container}>
-      {/* ── Filter Bar: Show all divisions toggle + Multi-day date selector ── */}
-      {(tournament.divisions.length > 1 || dayCount > 1) && (
-        <div className={styles.filterBar} role="toolbar" aria-label="Schedule filters">
+      {/* ── Filter Bar: divisions toggle + day selector + search ── */}
+      <div
+        className={`${styles.filterBar} ${searchOpen ? styles.filterBarSearching : ''}`}
+        role="toolbar"
+        aria-label="Schedule filters"
+      >
           {tournament.divisions.length > 1 && (
             <button
               type="button"
@@ -515,6 +539,7 @@ export default function CourtScheduleView({
               {tournament.divisions.length > 1 && (
                 <span className={styles.filterDivider} aria-hidden="true" />
               )}
+              {/* Desktop segmented date selector */}
               <div className={`${styles.segmented} ${styles.daySegmented}`} role="group" aria-label="Filter by day">
                 <button
                   type="button"
@@ -558,17 +583,98 @@ export default function CourtScheduleView({
                   );
                 })}
               </div>
+
+              {/* Mobile native picker select pill */}
+              <div className={`${styles.dateSelectWrap} ${activeDay !== 'all' ? styles.dateSelectActive : ''}`}>
+                <span className={styles.dateSelectLabel}>
+                  {activeDay === 'all' ? (
+                    'All Days'
+                  ) : (
+                    <>
+                      <span>Day {activeDay + 1}</span>
+                      {tournament.startDate && (
+                        <span className={styles.dateSelectSub}>
+                          · {shortDate(addDaysUTC(tournament.startDate, activeDay))}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </span>
+                <ChevronDown size={14} className={styles.selectChevron} aria-hidden="true" />
+                <select
+                  className={styles.nativeDateSelect}
+                  value={activeDay}
+                  onChange={(e) => setActiveDay(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  aria-label="Filter schedule by day"
+                >
+                  <option value="all">All Days</option>
+                  {Array.from({ length: dayCount }, (_, i) => {
+                    const dateStr = tournament.startDate ? addDaysUTC(tournament.startDate, i) : '';
+                    const dateText = dateStr ? shortDate(dateStr) : '';
+                    return (
+                      <option key={i} value={i}>
+                        Day {i + 1}{dateText ? ` (${dateText})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </>
           )}
+
+        {(tournament.divisions.length > 1 || dayCount > 1) && (
+          <span className={styles.filterDivider} aria-hidden="true" />
+        )}
+
+        {/* Narrow layouts show a magnifier until it is asked for; the field
+            then takes the row, which is why the other filters step aside. */}
+        <button
+          type="button"
+          className={styles.searchToggle}
+          onClick={() => {
+            setSearchOpen(true);
+            // After the commit that unhides it — a hidden input cannot take focus.
+            setTimeout(() => searchInputRef.current?.focus(), 0);
+          }}
+          aria-label="Search the schedule"
+          aria-expanded={searchOpen}
+        >
+          <Search size={15} />
+        </button>
+
+        <div className={`${styles.searchWrap} ${searchOpen ? styles.searchWrapOpen : ''}`}>
+          <Search size={14} className={styles.searchIcon} aria-hidden="true" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            className={styles.searchInput}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onBlur={() => { if (!query.trim()) setSearchOpen(false); }}
+            placeholder="Search player, team, court"
+            aria-label="Search the schedule by player, team, court or round"
+          />
+          {(query || searchOpen) && (
+            <button
+              type="button"
+              className={styles.searchClear}
+              onClick={() => { setQuery(''); setSearchOpen(false); }}
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       {/* ── Court Sections ── */}
       {courtSections.length === 0 || courtSections.every(s => s.courts.length === 0) ? (
         <div className={styles.emptyState}>
-          <p className={styles.emptyTitle}>No scheduled matches</p>
+          <p className={styles.emptyTitle}>{searchTerm ? 'No matches found' : 'No scheduled matches'}</p>
           <p className={styles.emptyBody}>
-            {!showAllDivisions
+            {searchTerm
+              ? `Nothing matches “${query.trim()}”. Try a player, team, court or round.`
+              : !showAllDivisions
               ? 'No scheduled matches found for this division.'
               : activeDay !== 'all'
               ? 'No scheduled matches found for this day.'

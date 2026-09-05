@@ -7,7 +7,7 @@ import { resolveScorekeeperToken, liveKey, setWins } from '../../../../../lib/sc
  * puts the result in the bracket. */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const body = (await request.json()) as { sets?: { a: number; b: number }[] };
+  const body = (await request.json()) as { sets?: { a: number; b: number }[]; isBye?: boolean };
 
   let match;
   try {
@@ -43,15 +43,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const winnerTeamId = wins.a > wins.b ? match.teamA.id : match.teamB.id;
 
+  const updatePayload: Record<string, unknown> = {
+    score_a: sets.map(s => s.a),
+    score_b: sets.map(s => s.b),
+    winner_team_id: winnerTeamId,
+    status: 'done',
+    updated_at: new Date().toISOString(),
+  };
+  if (body.isBye) {
+    updatePayload.live_snapshot = { isBye: true };
+  }
+
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .update({
-      score_a: sets.map(s => s.a),
-      score_b: sets.map(s => s.b),
-      winner_team_id: winnerTeamId,
-      status: 'done',
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', match.matchId)
     .select('id, score_a, score_b, winner_team_id, status')
     .single();

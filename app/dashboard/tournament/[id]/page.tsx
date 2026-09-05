@@ -32,8 +32,9 @@ const cardVariants: Variants = {
 import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch } from '../../../../lib/data';
 import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
-import { isGroupFormat, isKnockoutFormat, roundFormatLabel } from '../../../../lib/roundFormat';
-import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../../../lib/tournamentLifecycle';
+import { isGroupFormat, isKnockoutFormat, roundFormatLabel, isForfeitMatch, STANDING_POINTS } from '../../../../lib/roundFormat';
+import { calculatePoolStandings } from '../../../../lib/standings';
+import { divisionRegistrationState, isPublic, isTournamentLiveDate, type Phase, PHASE } from '../../../../lib/tournamentLifecycle';
 import { describeDiscardCost, type DiscardCost } from '../../../../lib/schedule/discardCost';
 import { formatTeamFirstName } from '../../../../lib/teamName';
 
@@ -570,50 +571,44 @@ export default function OrganizerBracketPage() {
   /* Standings: pool matches carry no explicit pool id, so teams are
      attributed to a pool via poolGroups (which mirrors the server's
      serpentine assignment) and results are tallied from completed
-     round-robin matches. */
+     round-robin matches using official head-to-head and tiebreaker rules. */
   const poolStandings = useMemo(() => {
     if (poolGroups.length === 0) return [];
     const poolRound = division?.bracket.find(r => isGroupFormat(r.format));
-    const matches = poolRound?.matches ?? [];
+    const allMatches = poolRound?.matches ?? [];
+    const confirmed = division?.teamsList ?? [];
 
-    interface Standing {
-      teamId: string;
-      name: string;
-      played: number;
-      wins: number;
-      losses: number;
-      pointsFor: number;
-      pointsAgainst: number;
-    }
-    const statsByTeam = new Map<string, Standing>();
-    poolGroups.forEach(p => p.teams.forEach(t => {
-      statsByTeam.set(t.id, { teamId: t.id, name: t.name, played: 0, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0 });
-    }));
+    return poolGroups.map(pool => {
+      const poolTeamIds = new Set(pool.teams.map(t => t.id));
+      const poolTeams = pool.teams.map(t => ({
+        id: t.id,
+        name: t.name,
+        seed: t.seed,
+        entryOrder: confirmed.findIndex(ct => ct.id === t.id),
+      }));
 
-    matches.forEach(m => {
-      if (m.status !== 'done' || !m.teamAId || !m.teamBId || !m.winner) return;
-      const a = statsByTeam.get(m.teamAId);
-      const b = statsByTeam.get(m.teamBId);
-      if (!a || !b) return;
-      a.played += 1; b.played += 1;
-      if (m.winner === 'A') { a.wins += 1; b.losses += 1; } else { b.wins += 1; a.losses += 1; }
-      (m.scoreA ?? []).forEach((points, i) => {
-        const against = m.scoreB?.[i] ?? 0;
-        a.pointsFor += points; a.pointsAgainst += against;
-        b.pointsFor += against; b.pointsAgainst += points;
-      });
+      const poolMatches = allMatches.filter(
+        m => m.teamAId && m.teamBId && poolTeamIds.has(m.teamAId) && poolTeamIds.has(m.teamBId),
+      );
+
+      const calculated = calculatePoolStandings(poolTeams, poolMatches);
+      return {
+        name: pool.name,
+        standings: calculated.map(c => ({
+          teamId: c.teamId,
+          name: c.team,
+          played: c.played,
+          wins: c.wins,
+          losses: c.losses,
+          byes: c.byes,
+          points: c.points,
+          setsFor: c.setsFor,
+          setsAgainst: c.setsAgainst,
+          pointsFor: c.pointsFor,
+          pointsAgainst: c.pointsAgainst,
+        })),
+      };
     });
-
-    return poolGroups.map(pool => ({
-      name: pool.name,
-      standings: pool.teams
-        .map(t => statsByTeam.get(t.id)!)
-        .sort((x, y) =>
-          y.wins - x.wins ||
-          (y.pointsFor - y.pointsAgainst) - (x.pointsFor - x.pointsAgainst) ||
-          y.pointsFor - x.pointsFor
-        ),
-    }));
   }, [poolGroups, division]);
 
   /* A ranking has to come from results. Until a pool's matches are played every
@@ -790,7 +785,7 @@ export default function OrganizerBracketPage() {
 
   const totalTeams = detail.divisions.reduce((sum, d) => sum + d.filled, 0);
   const totalCap = detail.divisions.reduce((sum, d) => sum + d.teams, 0);
-  const isLive = detail.date === 'Today';
+  const isLive = isTournamentLiveDate(detail.startDate, detail.endDate);
 
   const computeSingleStatus = (): { label: string; variant: 'live' | 'open' | 'highlight' | 'status' | 'outline' } => {
     if (!detail || detail.phase === PHASE.draft || !isPublic(detail.phase as Phase)) {
@@ -1602,6 +1597,7 @@ export default function OrganizerBracketPage() {
                             <th>Players</th>
                             <th>W</th>
                             <th>L</th>
+                            <th>Bye</th>
                             <th>Pts</th>
                           </tr>
                         </thead>
@@ -1625,7 +1621,8 @@ export default function OrganizerBracketPage() {
                                 </td>
                                 <td>{s.wins}</td>
                                 <td>{s.losses}</td>
-                                <td>{s.pointsFor - s.pointsAgainst > 0 ? '+' : ''}{s.pointsFor - s.pointsAgainst}</td>
+                                <td>{s.byes}</td>
+                                <td>{s.points}</td>
                               </tr>
                             );
                           })}

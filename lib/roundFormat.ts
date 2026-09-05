@@ -54,3 +54,26 @@ export function isGroupFormat(format: string): boolean {
 export function isKnockoutFormat(format: string): boolean {
   return format === 'single' || format === 'double';
 }
+
+/** Points awarded in group/round-robin standings tables. */
+export const STANDING_POINTS = {
+  WIN: 2,     // Match won (2–0 or 2–1)
+  LOSS: 1,    // Match lost (1–2 or 0–2, completed)
+  FORFEIT: 0, // Forfeit / Default / Bye (0 points)
+} as const;
+
+/**
+ * Checks whether a completed match is a Forfeit / Default (Bye).
+ * Defined as a 2–0 win with sets of 21–0, 21–0 (or where the losing side
+ * scored 0 points in all sets).
+ */
+export function isForfeitMatch(
+  scoreWinner: number[] | null | undefined,
+  scoreLoser: number[] | null | undefined,
+): boolean {
+  if (!scoreWinner || !scoreLoser || scoreWinner.length === 0 || scoreLoser.length === 0) return false;
+  const loserTotal = scoreLoser.reduce((sum, p) => sum + (typeof p === 'number' ? p : 0), 0);
+  const winnerTotal = scoreWinner.reduce((sum, p) => sum + (typeof p === 'number' ? p : 0), 0);
+  return loserTotal === 0 && winnerTotal > 0;
+}
+

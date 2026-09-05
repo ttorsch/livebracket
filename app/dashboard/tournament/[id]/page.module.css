@@ -1152,7 +1152,7 @@
 .standingsTable th:not(:first-child):not(:nth-child(2)),
 .standingsTable td:not(:first-child):not(:nth-child(2)) {
   text-align: right;
-  width: 32px;
+  width: 28px;
 }
 .standingsTable td {
   padding: 6px 4px;

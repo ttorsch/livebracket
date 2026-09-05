@@ -124,6 +124,7 @@ export default function ScorekeeperPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [finalizeError, setFinalizeError] = useState('');
+  const [byeModalOpen, setByeModalOpen] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
   /* The match clock runs from the first point, stamped into the live state
    * server-side — not from when this tab opened. So a referee who reloads
@@ -492,6 +493,35 @@ export default function ScorekeeperPage() {
     }
   };
 
+  const submitByeWinner = async (winner: 'A' | 'B') => {
+    if (!token || finalizing) return;
+    setFinalizing(true);
+    setFinalizeError('');
+    const byeSets: SetScore[] = winner === 'A'
+      ? [{ a: 21, b: 0 }, { a: 21, b: 0 }]
+      : [{ a: 0, b: 21 }, { a: 0, b: 21 }];
+    try {
+      const res = await fetch(`/api/score/${token}/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sets: byeSets, isBye: true }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Could not submit the forfeit result.');
+      writePending(matchId, null);
+      setSets(byeSets);
+      setScoreA(0);
+      setScoreB(0);
+      setConfirmed(true);
+      setByeModalOpen(false);
+    } catch (err) {
+      setFinalizeError(err instanceof Error ? err.message : 'Could not submit the forfeit result.');
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
+
   /* ── Loading / invalid-token states ─────────────────────────── */
   if (loading) {
     return (
@@ -546,12 +576,17 @@ export default function ScorekeeperPage() {
   const showFinalize = matchOver;
 
   if (confirmed) {
+    const isForfeit = sets.length >= 2 && ((sets[0].a === 21 && sets[0].b === 0 && sets[1].a === 21 && sets[1].b === 0) || (sets[0].a === 0 && sets[0].b === 21 && sets[1].a === 0 && sets[1].b === 21));
     return (
       <div className={styles.page}>
         <div className={styles.stateWrap}>
           <CheckCircle size={44} color="var(--color-primary)" />
           <h2 className={styles.stateTitle}>Score submitted</h2>
-          <p className={styles.stateSub}>The final score has been recorded and the bracket updated.</p>
+          <p className={styles.stateSub}>
+            {isForfeit
+              ? 'The forfeit / bye result has been recorded (21–0, 21–0) and the bracket updated.'
+              : 'The final score has been recorded and the bracket updated.'}
+          </p>
           <div className={styles.stateResult}>
             <span>{match.teamA.name}</span>
             <span className={styles.stateSets}>{wins.a} – {wins.b}</span>
@@ -564,6 +599,11 @@ export default function ScorekeeperPage() {
                   Set {i + 1}: <strong>{s.a}</strong> – <strong>{s.b}</strong>
                 </span>
               ))}
+              {isForfeit && (
+                <span className={`${styles.setChip} ${styles.setChipForfeit}`}>
+                  Bye (Forfeit)
+                </span>
+              )}
             </div>
           )}
           <Link href={`/tournament/${match.tournamentSlug}`} className={styles.btnPrimary}>
@@ -773,6 +813,15 @@ export default function ScorekeeperPage() {
             Technical Timeout
           </button>
           <button
+            type="button"
+            className={styles.byeBtn}
+            onClick={() => setByeModalOpen(true)}
+            disabled={!scoring || matchOver}
+            aria-label="Declare Bye or Forfeit"
+          >
+            Bye
+          </button>
+          <button
             className={styles.timeoutBtn}
             onClick={() => takeTimeout(rightTeam === 'A' ? 0 : 1, teamOf(rightTeam).name)}
             disabled={timeouts[rightTeam === 'A' ? 0 : 1] >= TIMEOUTS_PER_SET}
@@ -851,6 +900,49 @@ export default function ScorekeeperPage() {
                 </button>
                 <button className={styles.btnPrimary} onClick={submitFinal} disabled={finalizing}>
                   {finalizing ? 'Submitting…' : 'Confirm & submit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {byeModalOpen && scoring && (
+          <div className={styles.confirmScrim}>
+            <div className={styles.finalizeCard}>
+              <p className={styles.finalizeKicker}>Forfeit / Bye</p>
+              <p className={styles.finalizeTitle}>Declare Bye Winner</p>
+              <p className={styles.finalizeSub}>
+                Select the team that advances. The winner is awarded a 2–0 win (21–0, 21–0). The forfeiting team receives 0 points in standings.
+              </p>
+              <div className={styles.byeOptions}>
+                <button
+                  type="button"
+                  className={styles.byeOptionBtn}
+                  onClick={() => submitByeWinner('A')}
+                  disabled={finalizing}
+                >
+                  <span className={styles.byeOptionWinner}>{match.teamA.name} wins (Bye)</span>
+                  <span className={styles.byeOptionDetail}>21–0, 21–0 · {match.teamB.name} forfeits</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.byeOptionBtn}
+                  onClick={() => submitByeWinner('B')}
+                  disabled={finalizing}
+                >
+                  <span className={styles.byeOptionWinner}>{match.teamB.name} wins (Bye)</span>
+                  <span className={styles.byeOptionDetail}>21–0, 21–0 · {match.teamA.name} forfeits</span>
+                </button>
+              </div>
+              {finalizeError && <p className={styles.finalizeError}>{finalizeError}</p>}
+              <div className={styles.finalizeActions}>
+                <button
+                  type="button"
+                  className={styles.btnGhost}
+                  onClick={() => setByeModalOpen(false)}
+                  disabled={finalizing}
+                >
+                  Cancel
                 </button>
               </div>
             </div>

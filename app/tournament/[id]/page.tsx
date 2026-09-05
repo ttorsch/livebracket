@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
@@ -29,12 +29,13 @@ const cardVariants: Variants = {
     },
   }),
 };
-import { roundFormatLabel, isGroupFormat } from '@/lib/roundFormat';
+import { roundFormatLabel, isGroupFormat, isKnockoutFormat, isForfeitMatch, STANDING_POINTS } from '@/lib/roundFormat';
+import { calculatePoolStandings } from '@/lib/standings';
 import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
   type DetailDivision,
 } from '../../../lib/data';
-import { isThirdPlaceRound } from '../../../lib/divisionMatches';
+import { isThirdPlaceRound, assignPools } from '../../../lib/divisionMatches';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
 import { registrationState, nextOpening, isPublic, isTournamentLiveDate, type Phase } from '../../../lib/tournamentLifecycle';
 import { ageLimitLabel } from '../../../lib/divisionEligibility';
@@ -45,6 +46,11 @@ import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
 
 // Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
+
+/* A bracket card plus the breathing room under it. Cards are a fixed two
+   rows, so this holds unless a very long name wraps — then the column grows
+   and takes its slots with it. */
+const BRACKET_SLOT_H = 126;
 
 /* Dates are read in UTC everywhere in this app — a browser west of Greenwich
    would otherwise show a deadline a day early. */
@@ -77,62 +83,57 @@ function getTitleInitials(title: string): string {
  * the finished matches in the group rounds. Match points are 3 for a win,
  * which is the rule this app applies — the organizer's own scoring settings
  * cover sets and points within a match, not how a pool is ranked. */
-const WIN_POINTS = 3;
-
 interface StandingRow {
   teamId: string;
   team: string;
   wins: number;
   losses: number;
+  byes: number;
   setsFor: number;
   setsAgainst: number;
+  pointsFor: number;
+  pointsAgainst: number;
   points: number;
 }
 
-function buildStandings(division: DetailDivision): StandingRow[] {
-  const table = new Map<string, StandingRow>();
+interface PoolStandingGroup {
+  name: string;
+  rows: StandingRow[];
+}
 
-  const row = (id: string, name: string) => {
-    let r = table.get(id);
-    if (!r) {
-      r = { teamId: id, team: name, wins: 0, losses: 0, setsFor: 0, setsAgainst: 0, points: 0 };
-      table.set(id, r);
-    }
-    return r;
-  };
+function buildPoolStandings(division: DetailDivision): PoolStandingGroup[] {
+  const poolsCount = Math.max(1, division.drawConfig?.pools ?? 1);
+  const confirmedTeams = division.teamsList.filter(t => t.status !== 'waitlist');
+  const pools = assignPools(confirmedTeams, poolsCount);
 
+  // Collect all group matches
+  const groupMatches: DetailMatch[] = [];
   for (const round of division.bracket) {
     if (!isGroupFormat(round.format)) continue;
-    for (const m of round.matches) {
-      // Only a finished match has told us anything.
-      if (m.status !== 'done' || !m.teamAId || !m.teamBId || !m.winner) continue;
-
-      const a = row(m.teamAId, m.teamAName ?? (m.teamA.length ? m.teamA.map(p => p.name).join(' / ') : 'TBD'));
-      const b = row(m.teamBId, m.teamBName ?? (m.teamB.length ? m.teamB.map(p => p.name).join(' / ') : 'TBD'));
-
-      const setsA = m.scoreA ?? [];
-      const setsB = m.scoreB ?? [];
-      for (let i = 0; i < Math.max(setsA.length, setsB.length); i++) {
-        const sa = setsA[i] ?? 0;
-        const sb = setsB[i] ?? 0;
-        if (sa === sb) continue;
-        if (sa > sb) { a.setsFor++; b.setsAgainst++; } else { b.setsFor++; a.setsAgainst++; }
-      }
-
-      const winner = m.winner === 'A' ? a : b;
-      const loser = m.winner === 'A' ? b : a;
-      winner.wins++;
-      winner.points += WIN_POINTS;
-      loser.losses++;
-    }
+    groupMatches.push(...round.matches);
   }
 
-  return [...table.values()].sort(
-    (x, y) =>
-      y.points - x.points ||
-      (y.setsFor - y.setsAgainst) - (x.setsFor - x.setsAgainst) ||
-      x.team.localeCompare(y.team),
-  );
+  return pools.map(p => {
+    const poolTeamIds = new Set(p.items.map(t => t.id));
+    const poolTeams = p.items.map((t, idx) => ({
+      id: t.id,
+      name: t.name,
+      seed: t.seed,
+      entryOrder: confirmedTeams.findIndex(ct => ct.id === t.id),
+    }));
+
+    const poolMatches = groupMatches.filter(
+      m => m.teamAId && m.teamBId && poolTeamIds.has(m.teamAId) && poolTeamIds.has(m.teamBId),
+    );
+
+    const rows = calculatePoolStandings(poolTeams, poolMatches);
+    return { name: p.name, rows };
+  });
+}
+
+function buildStandings(division: DetailDivision): StandingRow[] {
+  const groups = buildPoolStandings(division);
+  return groups.flatMap(g => g.rows);
 }
 
 /* ── One round, as the Format & Rules panel presents it ───────────── */
@@ -204,10 +205,10 @@ function buildRoundViews(division: DetailDivision, advanceCount: number): RoundV
 /* ── A court currently in play ───────────────────────────────────── */
 interface LiveCourt {
   id: string;
-  heading: string;      // "Court 1 · Open Men"
+  heading: string;      // "Open Men" — the card itself names the court
   setLabel: string;     // "Set 3"
-  a: { name: string; history: string; score: number; leading: boolean };
-  b: { name: string; history: string; score: number; leading: boolean };
+  a: { name: string; sets: number[]; score: number; leading: boolean };
+  b: { name: string; sets: number[]; score: number; leading: boolean };
   footnote: string;     // "Semifinal"
 }
 
@@ -223,22 +224,39 @@ function toLiveCourt(divisionLabel: string, roundName: string, m: DetailMatch): 
 
   return {
     id: m.id,
-    heading: [m.court, divisionLabel].filter(Boolean).join(' · '),
+    heading: divisionLabel,
     setLabel: `Set ${Math.max(1, setsA.length)}`,
     a: {
       name: m.teamAName ?? m.teamA.map(p => p.name).join(' / '),
-      history: doneA.length ? doneA.join(' · ') : '—',
+      sets: doneA,
       score: currentA,
       leading: currentA >= currentB,
     },
     b: {
       name: m.teamBName ?? m.teamB.map(p => p.name).join(' / '),
-      history: doneB.length ? doneB.join(' · ') : '—',
+      sets: doneB,
       score: currentB,
       leading: currentB > currentA,
     },
     footnote: roundName,
   };
+}
+
+/* ── One court on the day of the event ───────────────────────────── */
+interface CourtCard {
+  key: string;
+  court: string;                       // "Court 1"
+  live: LiveCourt | null;
+  next: { time: string; where: string; teamA: string; teamB: string; match?: string } | null;
+}
+
+interface DivisionRoundTab {
+  id: string;
+  label: string;
+  roundIndex: number;
+  format: string;
+  isGroup: boolean;
+  isKnockout: boolean;
 }
 
 export default function TournamentPage() {
@@ -320,33 +338,6 @@ export default function TournamentPage() {
     setActiveTab(t);
   };
 
-  /* Every court in play across the whole event, plus what is due on next —
-     the panel is about the tournament, not the selected division. */
-  const { liveCourts, nextUp } = useMemo(() => {
-    const live: LiveCourt[] = [];
-    const upcoming: { time: string; sortKey: string; where: string; match: string }[] = [];
-
-    for (const d of tournament?.divisions ?? []) {
-      for (const round of d.bracket) {
-        for (const m of round.matches) {
-          if (m.status === 'live') {
-            live.push(toLiveCourt(d.label, round.round, m));
-          } else if (m.status === 'upcoming' && m.teamAId && m.teamBId) {
-            upcoming.push({
-              time: m.time,
-              sortKey: `${m.scheduledDate ?? '9999-99-99'} ${m.time || '99:99'}`,
-              where: [m.court, d.label].filter(Boolean).join(' · '),
-              match: `${m.teamAName ?? 'TBD'} vs ${m.teamBName ?? 'TBD'}`,
-            });
-          }
-        }
-      }
-    }
-
-    upcoming.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-    return { liveCourts: live, nextUp: upcoming.slice(0, 2) };
-  }, [tournament]);
-
   const regState = tournament ? registrationState(tournament.divisions) : null;
   const opensAt = tournament ? nextOpening(tournament.divisions) : null;
 
@@ -366,10 +357,56 @@ export default function TournamentPage() {
       .filter(Boolean),
   ).size, [tournament]);
 
-  const standings = useMemo(
-    () => (activeDivision ? buildStandings(activeDivision) : []),
+  const poolStandings = useMemo(
+    () => (activeDivision ? buildPoolStandings(activeDivision) : []),
     [activeDivision],
   );
+
+  const divisionRounds = useMemo<DivisionRoundTab[]>(() => {
+    if (!activeDivision) return [];
+    if (activeDivision.configuredRounds && activeDivision.configuredRounds.length > 0) {
+      return activeDivision.configuredRounds.map((r, i) => {
+        const isGroup = isGroupFormat(r.format);
+        const isKnockout = isKnockoutFormat(r.format);
+        const label = `Round ${i + 1}`;
+        return {
+          id: label,
+          label,
+          roundIndex: i,
+          format: r.format,
+          isGroup,
+          isKnockout,
+        };
+      });
+    }
+
+    const formats: string[] = [];
+    for (const round of activeDivision.bracket) {
+      if (formats.length === 0 || formats[formats.length - 1] !== round.format) {
+        formats.push(round.format);
+      }
+    }
+    if (formats.length === 0) {
+      return [
+        {
+          id: 'Round 1',
+          label: 'Round 1',
+          roundIndex: 0,
+          format: 'round-robin',
+          isGroup: true,
+          isKnockout: false,
+        },
+      ];
+    }
+    return formats.map((fmt, i) => ({
+      id: `Round ${i + 1}`,
+      label: `Round ${i + 1}`,
+      roundIndex: i,
+      format: fmt,
+      isGroup: isGroupFormat(fmt),
+      isKnockout: isKnockoutFormat(fmt),
+    }));
+  }, [activeDivision]);
 
   /* A configured elimination round exists in the rounds table before the draw
      has run, with no matches hanging off it — that is "not drawn yet", not a
@@ -402,10 +439,70 @@ export default function TournamentPage() {
     [activeDivision],
   );
 
+  /* One slot per match in the widest round, tall enough for a card and the
+     gap under it. The tree is sized from that so every column divides into
+     the same slots and the rounds line up with each other. */
+  const bracketTreeHeight = useMemo(
+    () => Math.max(1, ...knockoutRounds.map(r => r.matches.length)) * BRACKET_SLOT_H,
+    [knockoutRounds],
+  );
+
   const isLive = useMemo(
     () => isTournamentLiveDate(tournament?.startDate, tournament?.endDate),
     [tournament?.startDate, tournament?.endDate],
   );
+
+  /* Every court in the schedule, on the day of the event: what is on it
+     right now, or what is due on it next. The rail is about the tournament,
+     not the selected division, and its length holds steady through the day
+     so courts don't reshuffle under a reader mid-scroll. */
+  const courtCards = useMemo<CourtCard[]>(() => {
+    if (!isLive || !tournament) return [];
+
+    const byCourt = new Map<string, CourtCard>();
+    const soonest = new Map<string, string>();
+
+    for (const d of tournament.divisions) {
+      for (const round of d.bracket) {
+        for (const m of round.matches) {
+          const court = m.court?.trim();
+          // A match with no court has no card to live in.
+          if (!court) continue;
+
+          let entry = byCourt.get(court);
+          if (!entry) {
+            entry = { key: court, court, live: null, next: null };
+            byCourt.set(court, entry);
+          }
+
+          if (m.status === 'live') {
+            // Two matches live on one court shouldn't happen; the first wins.
+            entry.live = entry.live ?? toLiveCourt(d.label, round.round, m);
+          } else if (m.status === 'upcoming') {
+            const sortKey = `${m.scheduledDate ?? '9999-99-99'} ${m.time || '99:99'}`;
+            const prev = soonest.get(court);
+            if (prev === undefined || sortKey < prev) {
+              soonest.set(court, sortKey);
+              const teamAName = m.teamAName ?? (m.teamA && m.teamA.length > 0 ? m.teamA.map(p => p.name).join(' / ') : 'TBD');
+              const teamBName = m.teamBName ?? (m.teamB && m.teamB.length > 0 ? m.teamB.map(p => p.name).join(' / ') : 'TBD');
+              entry.next = {
+                time: m.time,
+                where: [d.label, round.round].filter(Boolean).join(' · '),
+                teamA: teamAName,
+                teamB: teamBName,
+                match: `${teamAName} vs ${teamBName}`,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // Numeric so Court 2 lands before Court 10.
+    return [...byCourt.values()].sort((a, b) =>
+      a.court.localeCompare(b.court, undefined, { numeric: true }),
+    );
+  }, [isLive, tournament]);
 
   const hasSchedule = useMemo(() => {
     return (tournament?.divisions ?? []).some(d =>
@@ -413,26 +510,81 @@ export default function TournamentPage() {
     );
   }, [tournament]);
 
-  /* Tabs follow the design's order. When the tournament is live, the Schedule
-     tab appears first across all screen sizes. Otherwise it sits after Bracket.
-     A pool table only earns a tab when the division actually has a group round,
-     and vouchers only when the organizer created some. */
+  /* Tab order across mobile and desktop:
+     1. Schedule (first tab when schedule exists)
+     2. Round tabs (Round 1, Round 2, ...)
+     3. Supporting tabs (Teams, Format & Rules, Prize, Vouchers) */
   const tabs = useMemo(() => {
     const t: string[] = [];
-    if (isLive && hasSchedule) {
+    if (hasSchedule) {
       t.push('Schedule');
     }
-    t.push('Format & Rules', 'Prize', 'Teams');
-    if (standings.length > 0) t.push('Standings');
-    if (knockoutRounds.length > 0) t.push('Bracket');
-    if (!isLive && hasSchedule) t.push('Schedule');
+    divisionRounds.forEach(r => {
+      t.push(r.label);
+    });
+    t.push('Teams', 'Format & Rules', 'Prize');
     if ((tournament?.vouchers.length ?? 0) > 0) t.push('Vouchers');
     return t;
-  }, [isLive, hasSchedule, standings, knockoutRounds, tournament]);
+  }, [hasSchedule, divisionRounds, tournament]);
 
-  // A division change can retire the tab that was open.
-  const defaultTab = isLive && hasSchedule ? 'Schedule' : 'Format & Rules';
-  const currentTab = tabs.includes(activeTab) ? activeTab : (tabs.includes(defaultTab) ? defaultTab : tabs[0]);
+  const defaultTab = hasSchedule
+    ? 'Schedule'
+    : (divisionRounds.length > 0 ? divisionRounds[0].label : 'Format & Rules');
+
+  const normalizedActiveTab = useMemo(() => {
+    if (activeTab === 'Standings') {
+      const groupRound = divisionRounds.find(r => r.isGroup);
+      return groupRound ? groupRound.label : (divisionRounds[0]?.label ?? activeTab);
+    }
+    if (activeTab === 'Bracket') {
+      const koRound = divisionRounds.find(r => r.isKnockout);
+      return koRound ? koRound.label : (divisionRounds[1]?.label ?? divisionRounds[0]?.label ?? activeTab);
+    }
+    return activeTab;
+  }, [activeTab, divisionRounds]);
+
+  const currentTab = tabs.includes(normalizedActiveTab)
+    ? normalizedActiveTab
+    : (tabs.includes(defaultTab) ? defaultTab : tabs[0]);
+
+  const activeRoundTab = useMemo(
+    () => divisionRounds.find(r => r.label === currentTab),
+    [divisionRounds, currentTab],
+  );
+
+  const tabBarInnerRef = useRef<HTMLDivElement | null>(null);
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+  const snapBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTouchingRef = useRef<boolean>(false);
+
+  const scheduleSnapBack = useCallback((delay = 1200) => {
+    if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
+    snapBackTimerRef.current = setTimeout(() => {
+      if (isTouchingRef.current) return;
+      const tabElem = activeTabRef.current;
+      const container = tabBarInnerRef.current;
+      if (!tabElem || !container) return;
+      const elemRect = tabElem.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const isVisible = elemRect.left >= containerRect.left - 4 && elemRect.right <= containerRect.right + 4;
+      if (!isVisible) {
+        tabElem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, delay);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
+    };
+  }, []);
+
+  // Center active tab when currentTab changes
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentTab]);
 
   useEffect(() => {
     const handleSave = () => {
@@ -568,61 +720,11 @@ export default function TournamentPage() {
         </div>
       </section>
 
-      {/* ── Live now ──────────────────────────────────────────── */}
-      {liveCourts.length > 0 && (
-        <section className={styles.liveSection}>
-          <div className={styles.livePanel}>
-            <div className={styles.livePanelHead}>
-              <span className={styles.liveNowLabel}>
-                <span className={styles.livePulse} />
-                Live Now
-              </span>
-              <span className={styles.liveUpdated}>Updates every 15s</span>
-            </div>
-
-            <div className={styles.liveGrid}>
-              {liveCourts.map(c => (
-                <div key={c.id} className={styles.liveCard}>
-                  <div className={styles.liveCardHead}>
-                    <span className={styles.liveCourtName}>{c.heading}</span>
-                    <span className={styles.liveSet}>{c.setLabel}</span>
-                  </div>
-
-                  {[c.a, c.b].map((side, i) => (
-                    <div key={i}>
-                      {i === 1 && <div className={styles.liveDivider} />}
-                      <div className={styles.liveTeamRow}>
-                        <span className={side.leading ? styles.liveTeamLead : styles.liveTeam}>{side.name}</span>
-                        <span className={styles.liveScoreGroup}>
-                          <span className={styles.liveHistory}>{side.history}</span>
-                          <span className={side.leading ? styles.liveScoreLead : styles.liveScore}>{side.score}</span>
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {c.footnote && <div className={styles.liveFootnote}>{c.footnote}</div>}
-                </div>
-              ))}
-
-              {nextUp.length > 0 && (
-                <div className={styles.nextCard}>
-                  <span className={styles.nextLabel}>Next up</span>
-                  {nextUp.map((n, i) => (
-                    <div key={i} className={i === 0 ? styles.nextItem : styles.nextItemDivided}>
-                      <div className={styles.nextTimeRow}>
-                        <span className={styles.nextTime}>{n.time || '—'}</span>
-                        <span className={styles.nextWhere}>{n.where}</span>
-                      </div>
-                      <div className={styles.nextMatch}>{n.match}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ── Courts today ──────────────────────────────────────────
+           On the day of the event every court rides in one horizontal rail
+           above the division picker — live score if the court is in play,
+           what's due on it next if it isn't. */}
+      {courtCards.length > 0 && <CourtRail courts={courtCards} />}
 
       {/* ── Division picker + tabs ───────────────────────────────
            On mobile these two ride together in one sticky rail under the
@@ -637,9 +739,13 @@ export default function TournamentPage() {
               return (
                 <button
                   key={d.id}
+                  id={`division-tab-${d.id}`}
                   type="button"
                   className={`${styles.segment} ${isActive ? styles.segmentActive : ''}`}
-                  onClick={() => handleSelectDivision(d.id)}
+                  onClick={(e) => {
+                    handleSelectDivision(d.id);
+                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  }}
                   aria-pressed={isActive}
                 >
                   {isActive && (
@@ -659,14 +765,37 @@ export default function TournamentPage() {
 
       {/* ── Tabs ──────────────────────────────────────────────── */}
       <div className={styles.tabBar}>
-        <div className={styles.tabBarInner}>
+        <div
+          ref={tabBarInnerRef}
+          className={styles.tabBarInner}
+          onTouchStart={() => {
+            isTouchingRef.current = true;
+            if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
+          }}
+          onTouchEnd={() => {
+            isTouchingRef.current = false;
+            scheduleSnapBack(1200);
+          }}
+          onScroll={() => {
+            if (isTouchingRef.current) {
+              if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
+            } else {
+              scheduleSnapBack(1200);
+            }
+          }}
+        >
           {tabs.map(t => {
             const isActive = currentTab === t;
             return (
               <button
                 key={t}
+                ref={isActive ? activeTabRef : null}
                 className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
-                onClick={() => handleSelectTab(t)}
+                onClick={(e) => {
+                  if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
+                  handleSelectTab(t);
+                  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }}
               >
                 {isActive && (
                   <motion.span
@@ -890,54 +1019,105 @@ export default function TournamentPage() {
           </div>
         )}
 
-        {/* ── Standings ───────────────────────────────────────── */}
-        {currentTab === 'Standings' && (
-            <div className={styles.tableCard}>
-              <div className={styles.tableHead}>
-                <span>#</span>
-                <span>Players</span>
-                <span className={styles.center}>W–L</span>
-                <span className={styles.center}>Sets</span>
-                <span className={styles.right}>Points</span>
-              </div>
-              {standings.map((r, i) => (
-                <div key={r.teamId} className={styles.tableRow}>
-                  <span className={styles.rank}>{i + 1}</span>
-                  <span className={styles.tableTeam}>{r.team}</span>
-                  <span className={`${styles.center} ${styles.num}`}>{r.wins}–{r.losses}</span>
-                  <span className={`${styles.center} ${styles.numMuted}`}>{r.setsFor}–{r.setsAgainst}</span>
-                  <span className={`${styles.right} ${styles.numBold}`}>{r.points}</span>
-                </div>
-              ))}
-            </div>
-        )}
+        {/* ── Round content (Standings or Bracket) ─────────────── */}
+        {(activeRoundTab || currentTab === 'Standings' || currentTab === 'Bracket') && (
+          (activeRoundTab?.isKnockout || currentTab === 'Bracket') ? (
+            knockoutRounds.length > 0 ? (
+              <div className={styles.bracketScroll}>
+                <div className={styles.bracketGrid}>
+                  {knockoutRounds.map((round, ri) => {
+                    const feedsAnother = ri < knockoutRounds.length - 1;
+                    return (
+                      <div key={round.round} className={styles.bracketColumn}>
+                        <div className={styles.bracketRoundLabel}>{round.round}</div>
 
-        {/* ── Bracket ─────────────────────────────────────────── */}
-        {currentTab === 'Bracket' && (
-          knockoutRounds.length > 0 ? (
-            <div className={styles.bracketScroll}>
-              <div className={styles.bracketGrid}>
-                {knockoutRounds.map((round, ri) => (
-                  <div key={round.round} className={styles.bracketColumn}>
-                    <div className={styles.bracketRoundLabel}>{round.round}</div>
-                    <div className={styles.bracketMatches}>
-                      {round.matches.map(m => <BracketCard key={m.id} match={m} />)}
-                      {ri === knockoutRounds.length - 1 && thirdPlaceRound?.matches[0] && (
-                        <div className={styles.thirdPlaceBlock}>
-                          <div className={styles.thirdPlaceLabel}>3rd Place</div>
-                          <BracketCard match={thirdPlaceRound.matches[0]} />
+                        {/* Every round's tree is the same height, so each slot in
+                            it is the same height, so a match sits exactly halfway
+                            between the two it is fed by. */}
+                        <div className={styles.bracketMatches} style={{ minHeight: bracketTreeHeight }}>
+                          {round.matches.map((m, mi) => (
+                            <div key={m.id} className={styles.bracketSlot}>
+                              <BracketCard match={m} />
+                              {feedsAnother && <span className={styles.connRight} aria-hidden="true" />}
+                              {/* One spine per pair, drawn from the upper match
+                                  down to the lower one's middle. */}
+                              {feedsAnother && mi % 2 === 0 && (
+                                <span className={styles.connSpine} aria-hidden="true" />
+                              )}
+                            </div>
+                          ))}
                         </div>
+
+                        {/* The play-off for 3rd hangs off the semifinals, not off
+                            the round before the final, so it sits under the final
+                            rather than inside the tree. */}
+                        {ri === knockoutRounds.length - 1 && thirdPlaceRound?.matches[0] && (
+                          <div className={styles.thirdPlaceBlock}>
+                            <div className={styles.thirdPlaceLabel}>3rd Place</div>
+                            <BracketCard match={thirdPlaceRound.matches[0]} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <EmptyCard
+                title="Bracket not drawn yet"
+                body="This division is still in pool play. The draw appears here once pools finish."
+              />
+            )
+          ) : (
+            poolStandings.length > 0 ? (
+              <div className={styles.poolsContainer}>
+                {poolStandings.map((pool) => {
+                  const isSingle = poolStandings.length === 1;
+                  const displayName = pool.name.startsWith('Pool ') ? pool.name : `Pool ${pool.name}`;
+                  return (
+                    <div
+                      key={pool.name}
+                      className={`${styles.poolCard} ${isSingle ? styles.poolCardSingle : ''}`}
+                    >
+                      <div className={styles.poolHeader}>
+                        <h3 className={styles.poolTitle}>{displayName}</h3>
+                        <span className={styles.poolTeamCount}>
+                          {pool.rows.length} {pool.rows.length === 1 ? 'team' : 'teams'}
+                        </span>
+                      </div>
+                    <div className={styles.tableCard}>
+                      <div className={styles.tableHead}>
+                        <span>#</span>
+                        <span>Players</span>
+                        <span className={styles.center}>W</span>
+                        <span className={styles.center}>L</span>
+                        <span className={styles.center}>Bye</span>
+                        <span className={styles.right}>Pts</span>
+                      </div>
+                      {pool.rows.map((r, i) => (
+                        <div key={r.teamId} className={styles.tableRow}>
+                          <span className={styles.rank}>{i + 1}</span>
+                          <span className={styles.tableTeam}>{r.team}</span>
+                          <span className={`${styles.center} ${styles.num}`}>{r.wins}</span>
+                          <span className={`${styles.center} ${styles.numMuted}`}>{r.losses}</span>
+                          <span className={`${styles.center} ${styles.numMuted}`}>{r.byes}</span>
+                          <span className={`${styles.right} ${styles.numBold}`}>{r.points}</span>
+                        </div>
+                      ))}
+                      {pool.rows.length === 0 && (
+                        <div className={styles.poolEmpty}>No teams assigned yet</div>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          ) : (
-            <EmptyCard
-              title="Bracket not drawn yet"
-              body="This division is still in pool play. The draw appears here once pools finish."
-            />
+            ) : (
+              <EmptyCard
+                title="No standings yet"
+                body="Registered teams and standings will appear here once entries are received."
+              />
+            )
           )
         )}
 
@@ -1040,6 +1220,184 @@ function SiteHeader({ onSignInClick }: { onSignInClick?: () => void }) {
 
 /* Uses the platform share sheet where there is one, and falls back to the
    clipboard — with the label reporting which happened. */
+/* Pointer capture throws if the pointer has already ended — a cancelled
+   drag, a mouse released outside the window — and neither end of a drag is
+   worth an exception. */
+function capture(el: Element, pointerId: number, on: boolean) {
+  try {
+    if (on) el.setPointerCapture(pointerId);
+    else el.releasePointerCapture(pointerId);
+  } catch { /* the pointer is already gone */ }
+}
+
+/* ── The courts rail ──────────────────────────────────────────────
+   Horizontal, one card per court. Touch scrolls it natively and snaps to
+   each court; a mouse drags it anywhere in the rail, because a 3.5-card
+   viewport gives a pointer user nothing obvious to grab otherwise. The
+   slim bar above is that drag made visible, and is itself draggable. */
+function CourtRail({ courts }: { courts: CourtCard[] }) {
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ startX: number; startScroll: number } | null>(null);
+  const barDragRef = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const [thumb, setThumb] = useState({ width: 0, left: 0 });
+
+  const syncThumb = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const ratio = el.clientWidth / el.scrollWidth;
+    // Nothing overflows — no bar to draw.
+    if (!Number.isFinite(ratio) || ratio >= 0.999) {
+      setThumb({ width: 0, left: 0 });
+      return;
+    }
+    const max = el.scrollWidth - el.clientWidth;
+    setThumb({
+      width: ratio * 100,
+      left: max > 0 ? (el.scrollLeft / max) * (1 - ratio) * 100 : 0,
+    });
+  }, []);
+
+  useEffect(() => {
+    syncThumb();
+    const el = railRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(syncThumb);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [syncThumb, courts.length]);
+
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Touch keeps the browser's own momentum and snapping.
+    if (e.pointerType === 'touch') return;
+    const el = railRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    dragRef.current = { startX: e.clientX, startScroll: el.scrollLeft };
+    setDragging(true);
+    capture(el, e.pointerId, true);
+  };
+
+  const moveDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    const el = railRef.current;
+    if (!d || !el) return;
+    el.scrollLeft = d.startScroll - (e.clientX - d.startX);
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setDragging(false);
+    if (railRef.current) capture(railRef.current, e.pointerId, false);
+  };
+
+  /* Put the middle of the thumb under the pointer, so a click on the bar
+     jumps there and a drag along it tracks the finger. */
+  const scrollFromBar = (clientX: number) => {
+    const bar = barRef.current;
+    const el = railRef.current;
+    if (!bar || !el) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = el.clientWidth / el.scrollWidth;
+    const usable = rect.width * (1 - ratio);
+    if (usable <= 0) return;
+    const offset = clientX - rect.left - (rect.width * ratio) / 2;
+    const pct = Math.max(0, Math.min(1, offset / usable));
+    el.scrollLeft = pct * (el.scrollWidth - el.clientWidth);
+  };
+
+  return (
+    <section className={styles.courtsSection} aria-label="Courts">
+      {thumb.width > 0 && (
+        <div className={styles.courtsBar}>
+          <div
+            ref={barRef}
+            className={styles.courtsBarTrack}
+            onPointerDown={e => {
+              barDragRef.current = true;
+              scrollFromBar(e.clientX);
+              capture(e.currentTarget, e.pointerId, true);
+            }}
+            onPointerMove={e => { if (barDragRef.current) scrollFromBar(e.clientX); }}
+            onPointerUp={e => {
+              barDragRef.current = false;
+              capture(e.currentTarget, e.pointerId, false);
+            }}
+            onPointerCancel={() => { barDragRef.current = false; }}
+          >
+            <div
+              className={styles.courtsBarThumb}
+              style={{ width: `${thumb.width}%`, left: `${thumb.left}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div
+        ref={railRef}
+        className={`${styles.courtsRail} ${dragging ? styles.courtsRailDragging : ''}`}
+        tabIndex={0}
+        onScroll={syncThumb}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        {courts.map(c => (
+          <article key={c.key} className={c.live ? styles.courtCardLive : styles.courtCard}>
+            <div className={styles.courtCardHead}>
+              <span className={c.live ? styles.courtName : styles.courtNameIdle}>{c.court}</span>
+              {c.live ? (
+                <span className={styles.liveSet}>
+                  <span className={styles.livePulse} />
+                  {c.live.setLabel}
+                </span>
+              ) : (
+                <span className={styles.idleLabel}>{c.next ? 'Next up' : 'Open'}</span>
+              )}
+            </div>
+
+            {c.live ? (
+              <>
+                {[c.live.a, c.live.b].map((side, i) => (
+                  <div key={i}>
+                    {i === 1 && <div className={styles.liveDivider} />}
+                    <div className={styles.liveTeamRow}>
+                      <span className={side.leading ? styles.liveTeamLead : styles.liveTeam}>{side.name}</span>
+                      <span className={styles.liveScoreGroup}>
+                        <SetHistory sets={side.sets} className={styles.liveHistory} />
+                        <span className={side.leading ? styles.liveScoreLead : styles.liveScore}>{side.score}</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className={styles.liveFootnote}>
+                  {[c.live.heading, c.live.footnote].filter(Boolean).join(' · ')}
+                </div>
+              </>
+            ) : c.next ? (
+              <>
+                <div className={styles.nextTimeRow}>
+                  <span className={styles.nextTime}>{c.next.time || '—'}</span>
+                  <span className={styles.nextWhere}>{c.next.where}</span>
+                </div>
+                <div className={styles.nextTeamsWrap}>
+                  <div className={styles.nextTeamName}>{c.next.teamA}</div>
+                  <div className={styles.nextDivider} />
+                  <div className={styles.nextTeamName}>{c.next.teamB}</div>
+                </div>
+              </>
+            ) : (
+              <div className={styles.idleEmpty}>No match scheduled</div>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ShareButton() {
   const [copied, setCopied] = useState(false);
 
@@ -1132,11 +1490,26 @@ function BracketCard({ match }: { match: DetailMatch }) {
             <span className={match.winner === side ? styles.matchTeamWin : styles.matchTeam}>
               {name ?? 'TBD'}
             </span>
-            <span className={styles.matchSets}>{sets.length ? sets.join(' · ') : '—'}</span>
+            <SetHistory sets={sets} className={styles.matchSets} />
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+/* Set scores, one column per set. Sharing a column is what makes set 2 sit
+   under set 2 when "15" is above "9" — numbers run together with dots do not
+   line up between the two rows. */
+function SetHistory({ sets, className }: { sets: readonly number[]; className: string }) {
+  return (
+    <span className={className}>
+      {sets.length === 0 ? (
+        <span className={styles.setCell}>—</span>
+      ) : (
+        sets.map((v, i) => <span key={i} className={styles.setCell}>{v}</span>)
+      )}
+    </span>
   );
 }
 

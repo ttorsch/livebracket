@@ -11,6 +11,7 @@
 .filterBar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 12px;
   padding: 4px 0 10px;
@@ -64,6 +65,94 @@
   flex: none;
   background: var(--sand-400, #DCD7CE);
 }
+
+/* ── Search ──────────────────────────────────────────────── */
+/* Collapsed until asked for, at every width: the bar reads as filters, and
+   the field only takes space once someone is actually searching. */
+.searchWrap {
+  position: relative;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  width: 240px;
+  padding: 5px 8px 5px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: var(--surface-card, #FFFFFF);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.searchWrap:focus-within {
+  border-color: var(--orange, #EE7A4C);
+  box-shadow: 0 0 0 3px rgba(238, 122, 76, 0.16);
+}
+.searchIcon {
+  color: var(--ink-500, #6B7280);
+  flex: none;
+}
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-900, #14181E);
+  /* The type=search clear affordance differs per browser; this one is ours. */
+  appearance: none;
+  -webkit-appearance: none;
+}
+.searchInput::-webkit-search-cancel-button { display: none; }
+.searchInput::placeholder {
+  color: var(--ink-500, #6B7280);
+  font-weight: 500;
+}
+.searchClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--sand-200, #EFEAE1);
+  color: var(--ink-600, #3A414D);
+  cursor: pointer;
+}
+.searchClear:hover { background: var(--sand-300, #EAE5DD); color: var(--ink-900, #14181E); }
+
+.searchWrapOpen { display: inline-flex; }
+
+.searchToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: var(--surface-card, #FFFFFF);
+  color: var(--ink-800, #2C323D);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.searchToggle:hover {
+  border-color: var(--sand-500, #C5BFB4);
+  background: var(--sand-50, #FAF8F5);
+  color: var(--ink-900, #14181E);
+}
+.searchToggle:focus-visible {
+  outline: 2px solid var(--orange, #EE7A4C);
+  outline-offset: 2px;
+}
+/* The field replaces the icon rather than sitting next to it. */
+.filterBarSearching .searchToggle { display: none; }
 
 .segmented {
   position: relative;
@@ -139,17 +228,103 @@
   letter-spacing: 0;
 }
 
-@media (max-width: 640px) {
+/* ── Native Date Select (Mobile Dropdown) ────────────────── */
+.dateSelectWrap {
+  display: none;
+  position: relative;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--sand-400, #DCD7CE);
+  background: var(--surface-card, #FFFFFF);
+  color: var(--ink-800, #2C323D);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+}
+
+.dateSelectWrap:hover {
+  border-color: var(--sand-500, #C5BFB4);
+  background: var(--sand-50, #FAF8F5);
+  color: var(--ink-900, #14181E);
+}
+
+.dateSelectActive {
+  color: var(--ink-900, #14181E);
+  font-weight: 700;
+  border-color: var(--sand-500, #C5BFB4);
+}
+
+.dateSelectLabel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.dateSelectSub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted, #6B7280);
+}
+
+.selectChevron {
+  flex-shrink: 0;
+  color: var(--ink-600, #4B5563);
+  pointer-events: none;
+}
+
+.nativeDateSelect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
   .filterBar {
     gap: 8px;
-  }
-  .segmented {
-    max-width: 100%;
+    /* A scrolling row reads from its start, not its end. */
+    justify-content: flex-start;
+    flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
-  .segmented::-webkit-scrollbar {
+  .filterBar::-webkit-scrollbar {
+    display: none;
+  }
+  .daySegmented {
+    display: none !important;
+  }
+  .dateSelectWrap {
+    display: inline-flex;
+  }
+
+  /* Search rides the same line as the other filters, as a magnifier until
+     it is tapped — three full-width controls will not fit a phone. */
+  .searchWrapOpen {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  /* 16px keeps iOS from zooming the page when the field takes focus. */
+  .searchInput { font-size: 16px; }
+  /* While the field is open it owns the row. */
+  .filterBarSearching .filterBtn,
+  .filterBarSearching .filterDivider,
+  .filterBarSearching .dateSelectWrap,
+  .filterBarSearching .searchToggle {
     display: none;
   }
 }

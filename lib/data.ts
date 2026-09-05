@@ -361,7 +361,7 @@ function toDashboardTournament(t: TournamentRow): DashboardTournament {
   return {
     id: t.slug,
     title: t.title,
-    date: t.start_date === todayLocal() ? 'Today' : formatDateRange(t.start_date, t.end_date, t.is_one_day),
+    date: formatDateRange(t.start_date, t.end_date, t.is_one_day),
     startDate: t.start_date,
     endDate: t.end_date ?? t.start_date,
     location: t.location,
@@ -1021,7 +1021,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     slug: row.slug,
     title: row.title,
     location: row.location,
-    date: row.start_date === todayLocal() ? 'Today' : formatDateRange(row.start_date, row.end_date, row.is_one_day),
+    date: formatDateRange(row.start_date, row.end_date, row.is_one_day),
     startDate: row.start_date,
     endDate: row.end_date ?? row.start_date,
     dayCount: row.is_one_day || !row.end_date ? 1 : Math.max(1, diffDaysUTC(row.start_date, row.end_date) + 1),
