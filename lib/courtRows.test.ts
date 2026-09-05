@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCourtRows, formatUpNext } from './courtRows.ts';
-import type { TournamentDetail, DetailMatch } from './data.ts';
+import { buildCourtRows, formatUpNext } from './courtRows';
+import type { TournamentDetail, DetailMatch } from './data';
+import { normaliseConfig } from './schedule/generate';
 
 function mockMatch(partial: Partial<DetailMatch> & { id: string }): DetailMatch {
   return {
@@ -19,8 +20,12 @@ function mockMatch(partial: Partial<DetailMatch> & { id: string }): DetailMatch 
   };
 }
 
-function mockTournament(bracket: { round: string; matches: DetailMatch[] }[], divisionLabel = 'Open'): TournamentDetail {
+function mockTournament(
+  bracket: { round: string; matches: DetailMatch[] }[],
+  divisionLabel = 'Open Men',
+): TournamentDetail {
   return {
+    id: 'mock-t1',
     slug: 'mock-tournament',
     title: 'Mock Tournament',
     location: 'Beach',
@@ -33,7 +38,7 @@ function mockTournament(bracket: { round: string; matches: DetailMatch[] }[], di
     archived: false,
     cancelled: false,
     description: '',
-    scheduleConfig: null,
+    scheduleConfig: normaliseConfig({}),
     divisions: [
       {
         id: 'div-1',
@@ -49,8 +54,8 @@ function mockTournament(bracket: { round: string; matches: DetailMatch[] }[], di
         })),
         drawConfig: null,
         netHeight: null,
-        gender: 'mixed',
-        ageLimit: null,
+        gender: 'Anyone',
+        ageLimit: '',
         registrationOpens: '',
         registrationCloses: '',
         configuredRounds: [],
@@ -62,6 +67,8 @@ function mockTournament(bracket: { round: string; matches: DetailMatch[] }[], di
         regFields: [],
         waitlistCap: 0,
         rules: '',
+        prizePool: null,
+        confirmationMessage: null,
       },
     ],
   };
