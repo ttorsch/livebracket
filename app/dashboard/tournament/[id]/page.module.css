@@ -1198,6 +1198,11 @@
 .lockBtnActive:hover {
   background: rgba(238, 122, 76, 0.2);
 }
+.lockBtn:disabled,
+.lockBtnActive:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ── Draw reveal choreography ────────────────────────────────
    Cards morph from a small rectangle at their own top-left into

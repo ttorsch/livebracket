@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { ArrowLeft, Calendar, ChevronDown, Lock, MapPin, Settings, Trophy, Unlock, Users, X, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Award, Calendar, ChevronDown, Lock, MapPin, Settings, Trophy, Unlock, Users, X, ImagePlus } from 'lucide-react';
 import styles from './page.module.css';
 
 const cardVariants: Variants = {
@@ -55,7 +55,7 @@ interface DrawSettings {
   thirdPlace: boolean;
 }
 
-const DEFAULT_DRAW: DrawSettings = { pools: 4, advance: 2, crossing: 'fivb', thirdPlace: false };
+const DEFAULT_DRAW: DrawSettings = { pools: 4, advance: 2, crossing: 'fivb', thirdPlace: true };
 
 /* ── Bracket view model ───────────────────────────────────────
    One shape whether the rounds come from the database (generated
@@ -334,6 +334,7 @@ export default function OrganizerBracketPage() {
   const [applying, setApplying] = useState(false); // crossing config only
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applyingThird, setApplyingThird] = useState(false); // 3rd-place play-off only
+  const [pendingThirdPlace, setPendingThirdPlace] = useState<boolean | null>(null);
   const [thirdError, setThirdError] = useState<string | null>(null);
   const [lockError, setLockError] = useState<string | null>(null);
   /* Set when the server refuses a rebuild because it would discard a saved
@@ -392,7 +393,7 @@ export default function OrganizerBracketPage() {
               pools: d.drawConfig.pools,
               advance: d.drawConfig.advance ?? d.advancePerPool ?? 2,
               crossing: d.drawConfig.crossing ?? d.crossing ?? 'fivb',
-              thirdPlace: !!d.drawConfig.thirdPlace,
+              thirdPlace: d.drawConfig?.thirdPlace !== undefined ? !!d.drawConfig.thirdPlace : true,
             }
           : { ...DEFAULT_DRAW, advance: d.advancePerPool ?? 2, crossing: d.crossing ?? 'fivb' };
       });
@@ -678,8 +679,15 @@ export default function OrganizerBracketPage() {
   });
 
   const round2AvailableTabs = useMemo<('config' | 'bracket')[]>(() => {
+    if (hasRoundRobin) return ['bracket'];
     return isDrawLocked ? ['bracket'] : ['config', 'bracket'];
-  }, [isDrawLocked]);
+  }, [hasRoundRobin, isDrawLocked]);
+
+  useEffect(() => {
+    if (hasRoundRobin && round2Tab !== 'bracket') {
+      setRound2Tab('bracket');
+    }
+  }, [hasRoundRobin, round2Tab]);
 
   const round2SwipeHandlers = useTabSwipe({
     tabs: round2AvailableTabs,
@@ -969,8 +977,15 @@ export default function OrganizerBracketPage() {
 
      Before the draw there is nothing to apply to: the checkbox simply rides
      along with `saveDraw` and the round is built with the rest. */
-  const applyThirdPlace = async (confirmDiscard = false) => {
+  const hasThirdPlace = bracket?.fromDb
+    ? bracket.thirdPlaceMatch != null
+    : (config.thirdPlace ?? true);
+
+  const applyThirdPlace = async (confirmDiscard = false, targetVal?: boolean) => {
     if (!division || applyingThird) return;
+    const effectiveVal = targetVal !== undefined
+      ? targetVal
+      : (pendingThirdPlace !== null ? pendingThirdPlace : config.thirdPlace);
     setApplyingThird(true);
     setThirdError(null);
     try {
@@ -979,7 +994,7 @@ export default function OrganizerBracketPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'thirdPlace',
-          thirdPlace: config.thirdPlace,
+          thirdPlace: effectiveVal,
           ...(confirmDiscard ? { confirmDiscard: true } : {}),
         }),
       });
@@ -993,12 +1008,24 @@ export default function OrganizerBracketPage() {
         throw new Error(body?.error ?? `Apply failed (${res.status})`);
       }
       setDiscard(null);
+      setPendingThirdPlace(null);
+      setConfig({ thirdPlace: effectiveVal });
       await load(division.id);
       setRound2Tab('bracket');
     } catch (err) {
       setThirdError(err instanceof Error ? err.message : 'Failed to apply the play-off setting');
     } finally {
       setApplyingThird(false);
+    }
+  };
+
+  const toggleThirdPlace = () => {
+    const nextVal = !hasThirdPlace;
+    setPendingThirdPlace(nextVal);
+    if (bracket?.fromDb) {
+      applyThirdPlace(false, nextVal);
+    } else {
+      setConfig({ thirdPlace: nextVal });
     }
   };
 
@@ -1698,38 +1725,40 @@ export default function OrganizerBracketPage() {
                 </div>
               </div>
               <div className={styles.headBtns}>
-                <div className={styles.tabUnderlineGroup}>
-                  {!isDrawLocked && (
+                {!hasRoundRobin && (
+                  <div className={styles.tabUnderlineGroup}>
+                    {!isDrawLocked && (
+                      <button
+                        type="button"
+                        className={`${styles.tabUnderlineBtn} ${round2Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
+                        onClick={() => handleSelectRound2Tab('config')}
+                      >
+                        {round2Tab === 'config' && (
+                          <motion.span
+                            layoutId="r2-tab-underline"
+                            className={styles.tabUnderlineIndicator}
+                            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                          />
+                        )}
+                        <span>Bracket Config</span>
+                      </button>
+                    )}
                     <button
                       type="button"
-                      className={`${styles.tabUnderlineBtn} ${round2Tab === 'config' ? styles.tabUnderlineBtnActive : ''}`}
-                      onClick={() => handleSelectRound2Tab('config')}
+                      className={`${styles.tabUnderlineBtn} ${round2Tab === 'bracket' ? styles.tabUnderlineBtnActive : ''}`}
+                      onClick={() => handleSelectRound2Tab('bracket')}
                     >
-                      {round2Tab === 'config' && (
+                      {round2Tab === 'bracket' && (
                         <motion.span
                           layoutId="r2-tab-underline"
                           className={styles.tabUnderlineIndicator}
                           transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                         />
                       )}
-                      <span>Bracket Config</span>
+                      <span>Bracket</span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className={`${styles.tabUnderlineBtn} ${round2Tab === 'bracket' ? styles.tabUnderlineBtnActive : ''}`}
-                    onClick={() => handleSelectRound2Tab('bracket')}
-                  >
-                    {round2Tab === 'bracket' && (
-                      <motion.span
-                        layoutId="r2-tab-underline"
-                        className={styles.tabUnderlineIndicator}
-                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                      />
-                    )}
-                    <span>Bracket</span>
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className={styles.roundWrap}>
@@ -1744,7 +1773,7 @@ export default function OrganizerBracketPage() {
                     exit="exit"
                     className={styles.animatedContentWrap}
                   >
-            {round2Tab === 'config' && !isDrawLocked && (
+            {!hasRoundRobin && round2Tab === 'config' && !isDrawLocked && (
               <>
                 {/* Seed / Draw Configuration for pure Single Elimination (no pool play) */}
                 {!hasRoundRobin && (
@@ -1810,7 +1839,7 @@ export default function OrganizerBracketPage() {
                             size="small"
                             fullWidth
                             loading={applyingThird}
-                            onClick={() => applyThirdPlace()}
+                            onClick={() => applyThirdPlace(false, config.thirdPlace)}
                             style={{ height: 30, fontSize: 12, borderRadius: 999 }}
                           >
                             {config.thirdPlace ? 'Add 3rd-place play-off' : 'Remove 3rd-place play-off'}
@@ -2108,22 +2137,36 @@ export default function OrganizerBracketPage() {
 
             {round2Tab === 'bracket' && (
               <>
-                {/* Locking the draw, wherever the bracket is being read.
-                   The flag is one per division. Pool play offers it on its
-                   Draw Result panel too, but that panel lives in the Round 1
-                   section and describes the *pool* draw — an organizer looking
-                   at a locked bracket found no way to unlock it, and a
-                   division whose first round is not a group format had no
-                   control at all. `scheduleGate` refuses to save a schedule
-                   until every division's draw is locked, so an unreachable
-                   lock is a tournament that cannot be scheduled. Both controls
-                   toggle the same flag and read from it, so they cannot
-                   disagree.
+                {/* Real single-elimination rounds from the DB: the organizer can
+                    lock the draw result to unblock the schedule page.
 
-                   Only when there is a drawn bracket to lock: locking a
-                   projection would satisfy the schedule gate for a division
-                   that has no matches in it yet. */}
-                {bracket?.fromDb && (
+                    Pool play and the knockout share `settings.draw.isLocked` so
+                    an organizer can lock from either tab; the two buttons
+                    toggle the same flag and read from it, so they cannot
+                    disagree.
+
+                    When Round 1 is pool play (hasRoundRobin), the bracket is deterministically
+                    populated from pool standings via crossing rules, so locking the bracket
+                    is unnecessary. Instead, an inline toggle for the 3rd place play-off is shown.
+                    When !hasRoundRobin (pure single elimination), the lock button is shown. */}
+                {hasRoundRobin && (
+                  <div className={styles.poolsHead} style={{ marginBottom: 16 }}>
+                    <div className={styles.poolsHeadLeft}>
+                      <h3 className={styles.cardTitle}>Draw Result</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className={hasThirdPlace ? styles.lockBtnActive : styles.lockBtn}
+                      onClick={toggleThirdPlace}
+                      disabled={applyingThird}
+                      title={hasThirdPlace ? 'Click to remove 3rd place play-off' : 'Click to add 3rd place play-off'}
+                    >
+                      <Award size={14} />
+                      <span>3rd Place Play-off: {applyingThird ? 'Updating…' : (hasThirdPlace ? 'On' : 'Off')}</span>
+                    </button>
+                  </div>
+                )}
+                {bracket?.fromDb && !hasRoundRobin && (
                   <div className={styles.poolsHead} style={{ marginBottom: 16 }}>
                     <div className={styles.poolsHeadLeft}>
                       <h3 className={styles.cardTitle}>Draw Result</h3>
@@ -2150,12 +2193,15 @@ export default function OrganizerBracketPage() {
                     </button>
                   </div>
                 )}
-                {bracket?.fromDb && lockError && (
+                {bracket?.fromDb && !hasRoundRobin && lockError && (
                   <p className={styles.saveError} style={{ marginBottom: 16 }}>{lockError}</p>
+                )}
+                {hasRoundRobin && thirdError && (
+                  <p className={styles.saveError} style={{ marginBottom: 16 }}>{thirdError}</p>
                 )}
                 {/* The same warning pool play gives: unlocking destroys nothing
                     by itself, redrawing from the config tab does. */}
-                {bracket?.fromDb && !isDrawLocked && placedMatchCount > 0 && (
+                {bracket?.fromDb && !hasRoundRobin && !isDrawLocked && placedMatchCount > 0 && (
                   <p className={styles.scheduleAtRiskNote} style={{ marginBottom: 16 }}>
                     This division has a saved schedule ({placedMatchCount} match
                     {placedMatchCount === 1 ? '' : 'es'} placed). Redrawing discards it.
@@ -2301,7 +2347,7 @@ export default function OrganizerBracketPage() {
               This cannot be undone.
             </p>
             <div className={styles.confirmActions}>
-              <button type="button" className={styles.btnGhost} onClick={() => setDiscard(null)}>
+              <button type="button" className={styles.btnGhost} onClick={() => { setDiscard(null); setPendingThirdPlace(null); }}>
                 Keep the schedule
               </button>
               <button
