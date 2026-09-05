@@ -520,54 +520,73 @@ function TournamentCard({
 
           <div className={styles.cardMetaList}>
             <div className={styles.cardMetaRow}>
-              <Calendar size={15} className={styles.cardMetaIcon} />
+              <Calendar size={16} className={styles.cardMetaIcon} />
               <span className={styles.cardMetaText}>
                 {formatDateRange(t.dateLabel, t.endDateLabel)}
               </span>
             </div>
             <div className={styles.cardMetaRow}>
-              <MapPin size={15} className={styles.cardMetaIcon} />
+              <MapPin size={16} className={styles.cardMetaIcon} />
               <span className={styles.cardMetaText}>{t.location}</span>
             </div>
           </div>
 
-          {t.registrations && t.registrations.length > 0 && (() => {
-            const totalDivisions = Math.max(t.registrations.length, t.divisions?.length || 0);
-            const extraCount = totalDivisions - 2;
-            return (
-              <div
-                className={styles.cardDivisionsSection}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
-              >
-                {t.registrations.map((reg, idx) => (
-                  <div
-                    key={idx}
-                    className={`${styles.divisionItem} ${idx >= 2 ? styles.divisionItemHiddenDesktop : ''}`}
-                  >
-                    <div className={styles.divisionHeader}>
-                      <span className={styles.divisionName}>{reg.division}</span>
-                      <span className={styles.divisionSeats}>
-                        {reg.filled}/{reg.total}
-                        <span className={styles.divisionSeatsWord}> seats</span>
-                      </span>
+          {t.registrations && t.registrations.length > 0 ? (
+            (() => {
+              const totalDivisions = Math.max(t.registrations.length, t.divisions?.length || 0);
+              const extraCount = totalDivisions - 2;
+              return (
+                <div
+                  className={styles.cardDivisionsSection}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                >
+                  {t.registrations.map((reg, idx) => (
+                    <div
+                      key={idx}
+                      className={`${styles.divisionItem} ${idx >= 2 ? styles.divisionItemHiddenDesktop : ''}`}
+                    >
+                      <div className={styles.divisionHeader}>
+                        <span className={styles.divisionName}>{reg.division}</span>
+                        <span className={styles.divisionSeats}>
+                          {reg.filled}/{reg.total}
+                          <span className={styles.divisionSeatsWord}> seats</span>
+                        </span>
+                      </div>
+                      <div className={styles.progressBarBg}>
+                        <div
+                          className={styles.progressBarFill}
+                          style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className={styles.progressBarBg}>
-                      <div
-                        className={styles.progressBarFill}
-                        style={{ width: `${Math.min(100, (reg.filled / reg.total) * 100)}%` }}
-                      />
+                  ))}
+                  {extraCount > 0 && (
+                    <div className={styles.moreDivisionsText}>
+                      +{extraCount} more
                     </div>
-                  </div>
-                ))}
-                {extraCount > 0 && (
-                  <div className={styles.moreDivisionsText}>
-                    +{extraCount} more
-                  </div>
+                  )}
+                </div>
+              );
+            })()
+          ) : t.divisions && t.divisions.length > 0 ? (
+            <div
+              className={styles.cardDivisionsSection}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
+              <div className={styles.divisionSummaryRow}>
+                <span className={styles.divisionSummaryBadge}>
+                  {t.divisions.length} {t.divisions.length === 1 ? 'Division' : 'Divisions'}
+                </span>
+                {t.teams > 0 && (
+                  <span className={styles.divisionSummaryTeams}>
+                    {t.teams} {t.teams === 1 ? 'Team' : 'Teams'}
+                  </span>
                 )}
               </div>
-            );
-          })()}
+            </div>
+          ) : null}
         </div>
       </Link>
 
@@ -718,7 +737,11 @@ function HeroAvatars({ players }: { players: HeroPlayer[] }) {
 const CARD_EXIT_S = 0.3;
 const CARD_MORPH_S = 1.4;
 const SCORE_HOLD_S = 0.1;
-const SCORE_ROLL_DELAY_MS = (CARD_EXIT_S + CARD_MORPH_S + SCORE_HOLD_S) * 1000;
+/* The score's cue is this card's own entrance having finished, so the wait
+ * for an outgoing card counts only when there was one — a card filling an
+ * empty slot waits for its morph and nothing else. */
+const scoreRollDelayMs = (enterDelayS: number) =>
+  (enterDelayS + CARD_MORPH_S + SCORE_HOLD_S) * 1000;
 /* Small enough to read as a card that hasn't grown yet rather than as a
  * card sliding in — about 35px across, with its corners still rounded. */
 const CARD_SEED_SCALE = 0.12;
@@ -726,10 +749,9 @@ const CARD_SEED_SCALE = 0.12;
 /* One court, as the hero card draws it: what and when on the first line,
  * which division and round on the second, then the two teams.
  *
- * `rollDelayMs` is 0 for the cards already on screen when the page loads —
- * they have no entrance to wait for, and a scoreboard that withheld its
- * scores for the length of an entrance it never played would just
- * look broken. */
+ * `rollDelayMs` is how long the score holds back — the length of the
+ * entrance this card is playing, so the point lands on a finished card
+ * rather than on one still growing. */
 function HeroScoreboard({ match, rollDelayMs }: { match: HeroLiveMatch; rollDelayMs: number }) {
   const isLive = match.status === 'live';
 
@@ -996,19 +1018,9 @@ export default function LiveBracketHome() {
   const [sortBy, setSortBy] = useState<SortOption>('soonest');
   const [query, setQuery] = useState('');
 
-  // Pagination & Swipe Track States
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const cardsSwipeRef = useRef<HTMLDivElement>(null);
   const eventsSectionRef = useRef<HTMLElement>(null);
-
-  // Responsive mobile detection (<= 960px matches mobile card layout)
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 960);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Mobile horizontal swipe handlers
   const touchStartXRef = useRef<number | null>(null);
@@ -1070,12 +1082,6 @@ export default function LiveBracketHome() {
    * render. */
   const heroSlotsRef = useRef<SlotState>(EMPTY_SLOTS);
   const [heroSlots, setHeroSlots] = useState<SlotState>(EMPTY_SLOTS);
-  /* How long a card mounting from here on should hold its score back. The
-   * first cards to fill an empty card don't morph in, so they don't wait —
-   * a scoreboard withholding its scores for the length of an entrance it
-   * never played would just look broken. Decided where the swap is
-   * decided, in the poll. */
-  const [heroRollDelayMs, setHeroRollDelayMs] = useState(0);
 
   // User Geolocation & Upcoming Banner
   const [userLoc, setUserLoc] = useState<string>('Khao Lak, Phang Nga, Thailand');
@@ -1106,24 +1112,7 @@ export default function LiveBracketHome() {
 
   useEffect(() => {
     setCurrentPage(1);
-    if (cardsSwipeRef.current) {
-      cardsSwipeRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
-    }
   }, [query, statusFilter, sortBy]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (cardsSwipeRef.current) {
-        const width = cardsSwipeRef.current.clientWidth;
-        cardsSwipeRef.current.scrollTo({
-          left: (currentPage - 1) * width,
-          behavior: 'instant' as ScrollBehavior,
-        });
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [currentPage]);
 
   const divisionsCount = useMemo(() => {
     const fromEvents = events.reduce((sum, t) => sum + (t.divisions?.length || 0), 0);
@@ -1227,12 +1216,10 @@ export default function LiveBracketHome() {
     const load = () => {
       fetchHeroLiveMatches().then((matches) => {
         if (cancelled) return;
-        const wasShowing = heroSlotsRef.current.ids.some(Boolean);
         const slots = nextSlots(heroSlotsRef.current, matches, Date.now());
         heroSlotsRef.current = slots;
         setHeroMatches(matches);
         setHeroSlots(slots);
-        setHeroRollDelayMs(wasShowing ? SCORE_ROLL_DELAY_MS : 0);
         setHeroLoaded(true);
       });
     };
@@ -1264,6 +1251,12 @@ export default function LiveBracketHome() {
    * at all is on does the card fall back to the soonest-starting
    * tournaments. Until the feed resolves it shows neither, rather than
    * flashing one and swapping to the other. */
+  /* What each slot held on the last paint. An entering card waits for the
+     outgoing one only if there was one — on the first paint, and when a
+     court has just gone live into an empty slot, there is nothing to wait
+     for and the card starts growing at once. */
+  const heroSlotPrevIds = useRef<(string | null)[]>([]);
+
   const heroSlotMatches = useMemo(() => {
     const byId = new Map(heroMatches.map((m) => [m.matchId, m]));
     // Slot positions are preserved — each one owns its own transition, so
@@ -1276,6 +1269,11 @@ export default function LiveBracketHome() {
     () => heroSlotMatches.filter((m): m is HeroLiveMatch => m !== null),
     [heroSlotMatches]
   );
+
+  // Read during the render that draws the new card, written after it.
+  useEffect(() => {
+    heroSlotPrevIds.current = heroSlotMatches.map((m) => m?.matchId ?? null);
+  }, [heroSlotMatches]);
 
   const scrollToTop = (e: React.MouseEvent) => {
     if (typeof window !== 'undefined' && window.location.pathname === '/') {
@@ -1498,27 +1496,9 @@ export default function LiveBracketHome() {
     return pages;
   }, [filteredActiveUpcoming]);
 
-  const handleTrackScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (!el || el.clientWidth === 0) return;
-    const index = Math.round(el.scrollLeft / el.clientWidth);
-    const page = index + 1;
-    if (page >= 1 && page <= totalPages && page !== currentPage) {
-      setCurrentPage(page);
-    }
-  };
-
   const goToPage = (page: number) => {
     const target = Math.max(1, Math.min(page, totalPages));
     setCurrentPage(target);
-
-    if (cardsSwipeRef.current) {
-      const width = cardsSwipeRef.current.clientWidth;
-      cardsSwipeRef.current.scrollTo({
-        left: (target - 1) * width,
-        behavior: 'smooth',
-      });
-    }
   };
 
   const filteredCompletedSlides = useMemo(() => {
@@ -1776,13 +1756,19 @@ export default function LiveBracketHome() {
                     and the incoming card holds the slot's height from the
                     first frame, while it is still a miniature. */}
                 <div className={styles.scoreboardStack}>
-                  {heroSlotMatches.map((m, slot) => (
+                  {heroSlotMatches.map((m, slot) => {
+                    const prevId = heroSlotPrevIds.current[slot] ?? null;
+                    // Only a card taking a slot from another card waits for
+                    // it to clear; the first cards of the page do not.
+                    const enterDelay = prevId && prevId !== m?.matchId ? CARD_EXIT_S : 0;
+
+                    return (
                     /* The slot's AnimatePresence is mounted whether or not
                        it holds a court — it renders nothing when empty, so
-                       it costs no element and no gap, and a court arriving
-                       later still counts as a change and gets the morph
-                       rather than popping in. */
-                    <AnimatePresence key={slot} mode="popLayout" initial={false}>
+                       it costs no element and no gap. It animates its first
+                       children too: the cards the page loads with morph in
+                       the same way a court change does. */
+                    <AnimatePresence key={slot} mode="popLayout">
                       {m && (
                         <motion.div
                           key={m.matchId}
@@ -1808,25 +1794,27 @@ export default function LiveBracketHome() {
                           initial={{ scale: CARD_SEED_SCALE, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{
-                            // Both wait for the outgoing card to clear.
+                            // Both wait for the outgoing card to clear,
+                            // when there is one.
                             scale: {
                               duration: CARD_MORPH_S,
-                              delay: CARD_EXIT_S,
+                              delay: enterDelay,
                               ease: [0.22, 1, 0.36, 1],
                             },
                             // Quick, so the miniature is a card arriving
                             // rather than a shape fading up.
-                            opacity: { duration: 0.2, delay: CARD_EXIT_S },
+                            opacity: { duration: 0.2, delay: enterDelay },
                           }}
                         >
                           <HeroScoreboard
                             match={m}
-                            rollDelayMs={heroRollDelayMs}
+                            rollDelayMs={scoreRollDelayMs(enterDelay)}
                           />
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  ))}
+                    );
+                  })}
                 </div>
                   </>
                 ) : !heroLoaded ? null : upcomingSoon.length > 0 ? (
@@ -1954,59 +1942,38 @@ export default function LiveBracketHome() {
             {/* Active & Upcoming Tournament List */}
             {filteredActiveUpcoming.length > 0 && (
               <>
-                {/* Tournament List: Staggered morph transition on mobile, horizontal slide track on desktop */}
-                {isMobile ? (
-                  <div
-                    className={styles.mobileCardsStack}
-                    onTouchStart={handleMobileTouchStart}
-                    onTouchEnd={handleMobileTouchEnd}
-                  >
-                    {(tournamentPages[currentPage - 1] || []).map((t, idx) => (
-                      <motion.div
-                        key={`${currentPage}-${t.id}`}
-                        style={{ transformOrigin: '100% 0%' }}
-                        initial={{ scale: CARD_SEED_SCALE, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{
-                          scale: {
-                            duration: 0.65,
-                            delay: idx * 0.08,
-                            ease: [0.22, 1, 0.36, 1],
-                          },
-                          opacity: {
-                            duration: 0.25,
-                            delay: idx * 0.08,
-                          },
-                        }}
-                      >
-                        <TournamentCard
-                          t={t}
-                          styles={styles}
-                          saveScrollPosition={saveScrollPosition}
-                        />
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    ref={cardsSwipeRef}
-                    className={styles.cardsSwipeTrack}
-                    onScroll={handleTrackScroll}
-                  >
-                    {tournamentPages.map((pageCards, pageIdx) => (
-                      <div key={pageIdx} className={styles.cardsPageSlide}>
-                        {pageCards.map((t) => (
-                          <TournamentCard
-                            key={t.id}
-                            t={t}
-                            styles={styles}
-                            saveScrollPosition={saveScrollPosition}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Tournament List: Staggered morph transition on both mobile and desktop */}
+                <div
+                  className={styles.cardsGrid}
+                  onTouchStart={handleMobileTouchStart}
+                  onTouchEnd={handleMobileTouchEnd}
+                >
+                  {(tournamentPages[currentPage - 1] || []).map((t, idx) => (
+                    <motion.div
+                      key={`${currentPage}-${t.id}`}
+                      style={{ transformOrigin: '100% 0%', height: '100%', display: 'flex', flexDirection: 'column' }}
+                      initial={{ scale: CARD_SEED_SCALE, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{
+                        scale: {
+                          duration: 0.65,
+                          delay: idx * 0.08,
+                          ease: [0.22, 1, 0.36, 1],
+                        },
+                        opacity: {
+                          duration: 0.25,
+                          delay: idx * 0.08,
+                        },
+                      }}
+                    >
+                      <TournamentCard
+                        t={t}
+                        styles={styles}
+                        saveScrollPosition={saveScrollPosition}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
 
                 {/* Pagination: ‹ 1 • 2 • ... • 8 › */}
                 <PaginationControl

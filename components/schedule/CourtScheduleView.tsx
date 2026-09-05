@@ -736,6 +736,12 @@ export default function CourtScheduleView({
                               <span className={styles.matchTime}>
                                 <span className={styles.matchTimeBtn}>{m.time}</span>
                                 <span className={styles.matchDuration}>{m.durationMinutes || 45} m</span>
+                                {m.status === 'live' && (
+                                  <span className={styles.liveBadge}>
+                                    <span className={styles.liveBadgeDot} aria-hidden="true" />
+                                    Live
+                                  </span>
+                                )}
                               </span>
                               <span className={styles.badgeGroup}>
                                 {m.roundName && <span className={styles.roundBadge}>{m.roundName}</span>}
