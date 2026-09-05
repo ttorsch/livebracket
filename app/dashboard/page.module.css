@@ -3,83 +3,28 @@
    with dark glass scrim · live courts table · refined list rows. */
 
 .page {
+  /* A column, not a row: navigation is a bar above the dashboard now, so
+     nothing stands beside the content and there is no rail gutter left to
+     reserve. The bar carries .main's own horizontal padding, which is what
+     lines the mark and the account up with the content below them. */
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: var(--sand-100, #F5F1EA);
   font-family: var(--font-text, 'DM Sans', sans-serif);
   color: var(--ink-900, #14181E);
-  /* Gutter for the fixed rail at its collapsed width (78px + its 16px
-     inset). It stays this wide however far the rail expands, which is
-     what keeps the page still on hover.
-
-     Mirrored on the right so .main's centred measure lands on the true
-     viewport centre — the same place every other page's 1240px column
-     sits — instead of being pushed 47px right by a one-sided gutter. */
-  padding-left: 94px;
-  padding-right: 94px;
+  position: relative;
 }
 
-/* ── Sidebar (hover-expanding rail) ──────────────────────────────
-   Rests collapsed to icons and expands on hover, on keyboard focus, or
-   when pinned open by clicking the logo.
-
-   Taken out of the flex flow and fixed, with .page holding a matching
-   gutter, so expanding overlays the dashboard instead of shoving it
-   178px to the right every time the cursor crosses the left edge. */
+/* ── Corner bar (mobile only) ────────────────────────────────────
+   What is left of the old rail. Above 960px the top bar below carries the
+   navigation and this is hidden outright; under it, the @media block near
+   the end of this file turns this into the menu in the page's top-right
+   corner, unchanged from before the bar existed. */
 .sidebar {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 60;
-  width: 78px;
-  box-sizing: border-box;
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  padding: 22px 12px 16px;
-  height: calc(100vh - 32px);
-  border-radius: 28px;
-  /* Deliberately not `overflow: hidden`. The design clips the rail to hide
-     labels mid-transition, but here every label is display:none while
-     collapsed, so nothing spills — and clipping would cut off the More
-     menu, which is wider than the collapsed rail. */
-  transition:
-    width 220ms cubic-bezier(0.2, 0.8, 0.3, 1),
-    background 220ms ease,
-    box-shadow 220ms ease;
-}
-/* Expansion is a rail behaviour only — below 960px the sidebar is a
-   horizontal bar with nothing to widen, so this is scoped rather than
-   undone there. Collapsed the rail sits over the page's own gutter and
-   needs no surface; expanded it covers content, so it gets one. */
-@media (min-width: 961px) {
-  .sidebar:hover,
-  .sidebar:focus-within,
-  .sidebarPinned {
-    width: 256px;
-    background: var(--sand-100, #F5F1EA);
-    box-shadow: 0 18px 48px rgba(20, 24, 30, 0.14);
-  }
+  display: none;
 }
 
-.railSpacer { flex: 1 1 auto; }
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 10px 0;
-  margin-bottom: 28px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  user-select: none;
-  text-decoration: none;
-  text-align: left;
-  white-space: nowrap;
-}
-/* The brand slot doubles as Home only on the mobile bar. */
-.brandHome { display: none; }
 .brandMark {
   display: grid;
   place-items: center;
@@ -89,34 +34,6 @@
   filter: drop-shadow(0 4px 10px rgba(242, 103, 73, 0.45));
 }
 .brandMark svg { width: 100%; height: 100%; }
-.brandName {
-  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: 0.05em;
-  color: var(--ink-900, #14181E);
-  white-space: nowrap;
-}
-/* Labels are the collapsed state's cost — hidden at rest, revealed by the
-   same three things that widen the rail. Desktop only: the mobile bar
-   never shows them. */
-.brandName { display: none; }
-@media (min-width: 961px) {
-  .sidebar:hover .brandName,
-  .sidebar:focus-within .brandName,
-  .sidebarPinned .brandName { display: inline; }
-}
-.brandHomeIcon {
-  display: none;
-  flex-shrink: 0;
-  color: var(--ink-900, #14181E);
-}
-
-.sideNav {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
 .sideLink {
   display: flex;
   align-items: center;
@@ -138,14 +55,6 @@
 }
 .sideLink:hover { background: var(--sand-200, #EFEAE0); }
 .sideLink:active { transform: scale(0.97); }
-/* Active is weight and colour, not a filled pill — the rail stays quiet. */
-.sideLinkActive,
-.sideLinkActive:hover {
-  background: transparent;
-  color: var(--coral-500, #EB6F43);
-  font-weight: 700;
-}
-.sideLinkActive:hover { background: var(--sand-200, #EFEAE0); }
 
 .sideIcon {
   position: relative;
@@ -156,31 +65,6 @@
   justify-content: center;
 }
 .sideLabel { min-width: 0; display: none; }
-@media (min-width: 961px) {
-  .sidebar:hover .sideLabel,
-  .sidebar:focus-within .sideLabel,
-  .sidebarPinned .sideLabel { display: inline; }
-}
-
-/* Count sits on the bell, ringed in the page colour so it reads as a
-   badge rather than as part of the icon. */
-.sideBadge {
-  position: absolute;
-  top: -7px;
-  left: 12px;
-  min-width: 10px;
-  height: 17px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--coral-500, #EB6F43);
-  border: 2px solid var(--sand-100, #F5F1EA);
-  color: #fff;
-  font-family: var(--font-ui, Inter, sans-serif);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 17px;
-  text-align: center;
-}
 
 /* ── More menu ──────────────────────────────────────────────────── */
 .moreWrap { position: relative; }
@@ -234,19 +118,207 @@
   border-top: none;
 }
 
-.sideAvatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+/* ── Top bar (desktop) ───────────────────────────────────────────
+   Part of the page rather than a band bolted over it: sticky, so at rest
+   it sits above the dashboard and scrolls away with it, and translated
+   back down when the organizer scrolls up. See the scroll rules in
+   page.tsx for when each of those happens. */
+.topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 70;
+  background: var(--sand-100, #F5F1EA);
+  border-bottom: 1px solid transparent;
+  transition:
+    transform 260ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    box-shadow 200ms ease,
+    border-color 200ms ease;
+}
+/* Off the top of the page the bar is over content, so it earns an edge;
+   at the top it is simply part of the page and has none. */
+.topbarStuck {
+  border-bottom-color: var(--sand-300, #E7E2D9);
+  box-shadow: 0 8px 24px rgba(20, 24, 30, 0.05);
+}
+.topbarHidden {
+  transform: translateY(-100%);
+}
+/* Somebody who cannot tolerate the slide gets the bar appearing and
+   disappearing, which is the same behaviour without the motion. */
+@media (prefers-reduced-motion: reduce) {
+  .topbar { transition: none; }
+}
+
+.topbarInner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 68px;
+  /* Matches .main's own inset, so the mark and the account sit on the
+     same two lines as the content underneath them. */
+  padding: 0 clamp(20px, 3vw, 48px);
+}
+
+/* Brand and account each take a share of what the tabs do not, so the
+   tabs land on the middle of the bar rather than on the middle of
+   whatever is left after a long organizer name. */
+.topBrand,
+.topAccount {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.topAccount { justify-content: flex-end; }
+.topBrand { gap: 12px; user-select: none; }
+.topBrandName {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.05em;
+  color: var(--ink-900, #14181E);
+  white-space: nowrap;
+}
+
+.topNav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.topTab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-900, #14181E);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.topTab:hover { background: var(--sand-200, #EFEAE0); }
+.topTab:focus-visible {
+  outline: 2px solid var(--coral-500, #EB6F43);
+  outline-offset: 2px;
+}
+/* Weight, colour and a rule under the word — the same quiet active state
+   the rail used, in the one form a horizontal bar can carry. */
+.topTabActive {
+  color: var(--coral-500, #EB6F43);
+  font-weight: 700;
+}
+.topTabActive::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 2px;
   background: var(--coral-500, #EB6F43);
+}
+.topTabBadge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+  font-family: var(--font-ui, Inter, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.topAvatarBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.topAvatarBtn:hover { background: var(--sand-200, #EFEAE0); }
+.topAvatarBtn:focus-visible {
+  outline: 2px solid var(--coral-500, #EB6F43);
+  outline-offset: 2px;
+}
+/* The site header's account control, matched: same ring and drop shadow,
+   so the same person reads as the same mark on both surfaces. */
+.topAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--coral-500, #EB6F43);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 10px rgba(20, 24, 30, 0.18);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   flex-shrink: 0;
-  overflow: hidden;
 }
-.sideAvatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.topAvatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.topAvatarChevron {
+  color: var(--text-muted, #7A8294);
+  transition: transform 160ms ease;
+}
+.topAvatarChevronOpen { transform: rotate(180deg); }
+
+/* Same surface as the phone bar's menu — one menu language across both. */
+.topMenu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 232px;
+  padding: 8px;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-radius: 20px;
+  box-shadow: 0 18px 40px rgba(20, 24, 30, 0.16);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+}
+.topMenuItem {
+  padding: 11px 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 15px;
+  color: var(--ink-900, #14181E);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.topMenuItem:hover { background: var(--sand-200, #EFEAE0); }
+/* The way out, kept a rule apart from the two that stay signed in. */
+.topMenuRule {
+  margin: 7px 0;
+  border-top: 1px solid var(--sand-300, #E7E2D9);
+}
+
+@media (min-width: 961px) {
+  .topbar { display: block; }
+  /* The account menu hangs off this, so it is the positioned box. */
+  .topAccount { position: relative; }
+}
 
 /* ── Main ─────────────────────────────────────────────────────── */
 .main {
@@ -1552,38 +1624,23 @@
        bar is flush, square, and scrolls off with the page, so nothing
        about it moves or covers content while you read. */
     margin: 0;
-    /* Top inset matches .main's, and .navProfile below drops its own
-       padding, so the avatar's top edge lands level with the eyebrow
-       that now starts the page beside it. */
+    /* Top inset matches .main's, so the menu's top edge lands level with
+       the eyebrow that starts the page beside it. */
     padding: 16px 14px 12px;
     gap: 8px;
     box-shadow: none;
   }
-  /* The rail's own geometry is undone here — a horizontal bar has no
-     width to collapse, no spacers to centre against, and must not clip. */
   .sidebar { align-self: auto; border-radius: 0; }
-  .railSpacer { display: none; }
 
   /* ── The mobile bar ──────────────────────────────────────────
-     Four controls, split: the tournament list and notifications on the
-     left, the menu and profile on the right. Everything the bar cannot
-     hold moves into the menu rather than being dropped.
-
-     `display: contents` on the nav is what makes that possible — the
-     profile button lives inside .sideNav while the menu button is its
-     sibling, so they can only be ordered against each other once the
-     nav stops being a box of its own. */
-  .sidebar { background: var(--sand-100, #F5F1EA); }
-  .sideNav { display: contents; }
-
-  /* Home leaves the bar: the four controls below are the whole of it,
-     and this tab is already the dashboard's own home. */
-  .brand { display: none; }
-  .brandHome { display: none; }
+     One control: the menu in the corner, holding every view. The rest of
+     the navigation is the desktop top bar, which is hidden at this width
+     — and .sidebar is hidden at every other, so this is where it comes
+     back on. */
+  .sidebar { display: flex; background: var(--sand-100, #F5F1EA); }
 
   /* Menu in the top right. Profile avatar moved in front of organizer name. */
   .moreWrap { display: flex; order: 1; }
-  .navProfile { display: none !important; }
 
   .moreItemMobileOnly { display: block; }
   .moreGroupMobileOnly { display: flex; }
@@ -1601,15 +1658,6 @@
     left: auto;
     right: 0;
   }
-  .brandHomeIcon {
-    display: inline-flex;
-    width: 22px;
-    height: 22px;
-  }
-  /* Unwraps the <nav> so its buttons become flat siblings of the Home
-     icon, letting .sidebar's space-between distribute all five items
-     evenly instead of treating the buttons as one group. */
-  .sideNav { display: contents; }
   .sideLink {
     padding: 9px 11px;
     font-size: 14px;
@@ -1620,27 +1668,6 @@
   .sideLink svg {
     width: 20px;
     height: 20px;
-  }
-  /* A phone bar holds four. Search and Create are dropped because the
-     page already carries both — the search field sits in the list, and
-     New Tournament is in the header. History moves into the menu. */
-  .sideLinkDesktopOnly { display: none; }
-
-  .sideBadge {
-    top: -4px;
-    left: 10px;
-    border-color: #fff;
-  }
-  /* The site header's account control, matched: same 38px, same white
-     ring and drop shadow. It is the same mark in the same corner as on
-     the homepage, so it should not be a different size or a bare disc
-     here. Values mirror components/auth/AccountButton.module.css. */
-  .sideAvatar {
-    width: 38px;
-    height: 38px;
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 10px rgba(20, 24, 30, 0.18);
-    font-size: 13px;
   }
   /* Was 80px of top padding to clear a bar pinned across the top. The
      bar is a corner control now, so this is just page spacing — and the

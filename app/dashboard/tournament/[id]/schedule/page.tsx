@@ -34,6 +34,7 @@ import { axisLabels, buildCalendarAxis, placeOnAxis, rowKind, rowStartMin, type 
 import { courtRoster } from '@/lib/schedule/types';
 import { hasPlacement, isOffEventDay } from '@/lib/schedule/placedMatch';
 import { scheduleSaveGate } from '@/lib/scheduleGate';
+import { MAX_SETS, scoreProblem, type SetScore } from '@/lib/matchScore';
 import {
   DndContext,
   DragOverlay,
@@ -51,6 +52,7 @@ import {
 } from '@dnd-kit/core';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
+import { fetchLiveScores } from '../../../../../lib/liveScores';
 import { Badge, BracketIcon } from '../../../../../components/livebracket-ds';
 import {
   generateSchedule,
@@ -391,6 +393,8 @@ function GridMatchCardItem({
   insertBuffer,
   bufferSuggestion,
   moveMatch,
+  scoreCells,
+  scoreNote,
   day,
   axis,
   netBufferMinutes,
@@ -417,6 +421,10 @@ function GridMatchCardItem({
   insertBuffer: (court: string, day: number, atMin: number, minutes: number, label?: string) => void;
   bufferSuggestion: (m: ScheduleMatch) => number;
   moveMatch: (matchId: string, court: string, day: number, time: string) => void;
+  /* Rendered by the page rather than here: the score cells are the same
+     control in both views, and only the page holds what is being typed. */
+  scoreCells: (m: ScheduleMatch, side: 'a' | 'b') => ReactNode;
+  scoreNote: (m: ScheduleMatch) => ReactNode;
   day: number;
   axis: CalendarAxis;
   netBufferMinutes: number;
@@ -596,24 +604,13 @@ function GridMatchCardItem({
           <div className={styles.gridMatchTeams}>
             <div className={styles.gridTeamRow}>
               <span className={`${styles.gridTeamName} ${isWinnerA ? styles.gridTeamNameWinner : ''} ${isLoserA ? styles.gridTeamNameLoser : ''}`}>{b.m.teamA}</span>
-              {b.m.scoreA && b.m.scoreA.length > 0 && (
-                <div className={styles.gridScoreList}>
-                  {b.m.scoreA.map((s, idx) => (
-                    <span key={idx} className={styles.gridScoreCell}>{s}</span>
-                  ))}
-                </div>
-              )}
+              {scoreCells(b.m, 'a')}
             </div>
             <div className={styles.gridTeamRow}>
               <span className={`${styles.gridTeamName} ${isWinnerB ? styles.gridTeamNameWinner : ''} ${isLoserB ? styles.gridTeamNameLoser : ''}`}>{b.m.teamB}</span>
-              {b.m.scoreB && b.m.scoreB.length > 0 && (
-                <div className={styles.gridScoreList}>
-                  {b.m.scoreB.map((s, idx) => (
-                    <span key={idx} className={styles.gridScoreCell}>{s}</span>
-                  ))}
-                </div>
-              )}
+              {scoreCells(b.m, 'b')}
             </div>
+            {scoreNote(b.m)}
           </div>
         );
       })()}
@@ -895,6 +892,57 @@ export default function TournamentSchedulePage() {
   const [insertAt, setInsertAt] = useState<{ matchId: string; suggested: number } | null>(null);
   /** Match whose time is being typed. */
   const [editingTime, setEditingTime] = useState<string | null>(null);
+
+  /* ── Scores by hand ───────────────────────────────────────────────
+   *
+   * Hand Edit opens the score cells as well as the layout. The scorekeeper
+   * screen is still the way a match *should* be scored, but a link that was
+   * never opened, a phone that died, or a result that came in on paper all
+   * end with a bracket the organizer has to fill in themselves — and a
+   * referee who typed 21 for 12 leaves one they have to correct.
+   *
+   * A match being scored right now is the one thing left alone: the
+   * referee's screen pushes whole state rather than deltas, so anything
+   * typed here would be erased by their next point. `liveNow` is the set of
+   * matches with live state in Redis, which is a tighter test than the
+   * match's own `live` status — a scorekeeper session that was abandoned
+   * hours ago leaves the status behind but no key, and that match is
+   * exactly one an organizer needs to be able to score from here.
+   */
+  const [liveNow, setLiveNow] = useState<ReadonlySet<string>>(new Set());
+  /** The match whose cells are being typed into, and what is in them.
+   *  Strings, not numbers: a half-typed cell is empty, not zero. */
+  const [scoreDraft, setScoreDraft] = useState<{ id: string; a: string[]; b: string[] } | null>(null);
+  /* Handlers fire after the draft has already changed — Escape clears it and
+   * the blur that follows would otherwise commit the render's stale copy —
+   * so what gets saved is read from a ref, and the state is only for drawing. */
+  const scoreDraftRef = useRef<{ id: string; a: string[]; b: string[] } | null>(null);
+  const [scoreSavingId, setScoreSavingId] = useState<string | null>(null);
+  const [scoreNote, setScoreNote] = useState<{ id: string; text: string; kind: 'error' | 'saved' } | null>(null);
+
+  /* Which matches are on court right now. Re-read whenever editing is turned
+   * on, so the answer is current at the moment it starts mattering. */
+  useEffect(() => {
+    if (!slug) return;
+    let cancel = false;
+    fetchLiveScores(slug).then(map => {
+      if (!cancel) setLiveNow(new Set(Object.keys(map)));
+    });
+    return () => { cancel = true; };
+  }, [slug, editMode]);
+
+  // "Score saved" has said what it has to say after a couple of seconds; an
+  // error stays until the organizer does something about it.
+  useEffect(() => {
+    if (scoreNote?.kind !== 'saved') return;
+    const t = setTimeout(() => setScoreNote(null), 2400);
+    return () => clearTimeout(t);
+  }, [scoreNote]);
+
+  const putDraft = (next: { id: string; a: string[]; b: string[] } | null) => {
+    scoreDraftRef.current = next;
+    setScoreDraft(next);
+  };
 
   const [activeDragMatch, setActiveDragMatch] = useState<ScheduleMatch | null>(null);
 
@@ -2087,6 +2135,235 @@ export default function TournamentSchedulePage() {
     </div>
   );
 
+  /* ── The score cells ──────────────────────────────────────────────
+   *
+   * The numbers already on a card become the fields you type into, rather
+   * than opening a dialog over the schedule: correcting a result is usually
+   * one digit, and the schedule around it is the context that says which
+   * match you are looking at.
+   */
+
+  /** Whose result can be typed in here. A slot still waiting on an earlier
+   *  round has nobody to award the match to, and one on court belongs to the
+   *  referee scoring it. */
+  const scoreEditable = (m: ScheduleMatch) =>
+    editMode && !m.overScheduled && m.teamA !== 'TBD' && m.teamB !== 'TBD' && !liveNow.has(m.id);
+
+  const savedCells = (m: ScheduleMatch) => ({
+    a: (m.scoreA ?? []).map(String),
+    b: (m.scoreB ?? []).map(String),
+  });
+
+  const draftOf = (m: ScheduleMatch) =>
+    scoreDraft?.id === m.id ? scoreDraft : { id: m.id, ...savedCells(m) };
+
+  /** Sets with something in them, on either side. */
+  const usedSets = (d: { a: string[]; b: string[] }) => {
+    let n = 0;
+    for (let i = 0; i < MAX_SETS; i++) {
+      if ((d.a[i] ?? '') !== '' || (d.b[i] ?? '') !== '') n = i + 1;
+    }
+    return n;
+  };
+
+  /** Cells to draw: the sets that exist, plus one empty one to type the next
+   *  into — which is what a "+" button would otherwise be for. */
+  const setColumns = (d: { a: string[]; b: string[] }) => Math.min(MAX_SETS, usedSets(d) + 1);
+
+  const setScoreCell = (m: ScheduleMatch, side: 'a' | 'b', idx: number, raw: string) => {
+    const base = scoreDraftRef.current?.id === m.id
+      ? scoreDraftRef.current
+      : { id: m.id, ...savedCells(m) };
+    const next = { id: m.id, a: [...base.a], b: [...base.b] };
+    const arr = next[side];
+    while (arr.length <= idx) arr.push('');
+    // Points only, and no number a set could not reach.
+    arr[idx] = raw.replace(/[^\d]/g, '').slice(0, 3);
+    putDraft(next);
+    if (scoreNote?.id === m.id) setScoreNote(null);
+  };
+
+  /** The draft as sets to store, or the reason it is not one yet. The rules
+   *  a set has to satisfy live in lib/matchScore, which the route reads too. */
+  const draftSets = (d: { a: string[]; b: string[] }): { sets: SetScore[] } | { error: string } => {
+    const sets: SetScore[] = [];
+    for (let i = 0; i < usedSets(d); i++) {
+      const a = (d.a[i] ?? '').trim();
+      const b = (d.b[i] ?? '').trim();
+      if (a === '' || b === '') return { error: 'Each set needs a score for both teams.' };
+      sets.push({ a: Number(a), b: Number(b) });
+    }
+    const problem = scoreProblem(sets);
+    return problem ? { error: problem } : { sets };
+  };
+
+  /** Put a saved result back into the loaded tournament, so the card, the
+   *  winner styling and the status filter all agree without a refetch. */
+  const applyMatchScore = (
+    matchId: string,
+    patch: { scoreA?: number[]; scoreB?: number[]; winner?: 'A' | 'B'; status: 'upcoming' | 'live' | 'done' },
+  ) => {
+    setDetail(prev =>
+      prev
+        ? {
+            ...prev,
+            divisions: prev.divisions.map(d => ({
+              ...d,
+              bracket: d.bracket.map(r => ({
+                ...r,
+                matches: r.matches.map(mm =>
+                  mm.id === matchId
+                    ? { ...mm, scoreA: patch.scoreA, scoreB: patch.scoreB, winner: patch.winner, status: patch.status }
+                    : mm,
+                ),
+              })),
+            })),
+          }
+        : prev,
+    );
+  };
+
+  /* A result is not a placement: it goes to the server on its own, the
+   * moment the organizer leaves the cells, rather than waiting behind the
+   * Save button with the schedule's layout. It also isn't held back by the
+   * locked-draw gate that guards placements — a match that has been played
+   * has a score whatever state its division's draw is in. */
+  const commitScore = async (m: ScheduleMatch) => {
+    const d = scoreDraftRef.current;
+    if (!d || d.id !== m.id || scoreSavingId === m.id) return;
+
+    const built = draftSets(d);
+    if ('error' in built) {
+      setScoreNote({ id: m.id, text: built.error, kind: 'error' });
+      return;
+    }
+
+    const before = m.scoreA ?? [];
+    const beforeB = m.scoreB ?? [];
+    const unchanged =
+      built.sets.length === before.length &&
+      built.sets.every((s, i) => s.a === before[i] && s.b === beforeB[i]);
+    if (unchanged) {
+      putDraft(null);
+      return;
+    }
+
+    setScoreSavingId(m.id);
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/matches/${m.id}/score`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sets: built.sets }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // A 409 is the referee holding the match. Remember that, so the cells
+        // close rather than inviting a second attempt that cannot land.
+        if (res.status === 409) setLiveNow(prev => new Set(prev).add(m.id));
+        setScoreNote({ id: m.id, text: body.error || 'Could not save that score.', kind: 'error' });
+        return;
+      }
+      applyMatchScore(m.id, body.match);
+      // The organizer may have moved on to another match's cells while this
+      // was in flight; only the draft this saved is finished with.
+      if (scoreDraftRef.current?.id === m.id) putDraft(null);
+      setScoreNote({
+        id: m.id,
+        text: built.sets.length === 0 ? 'Score cleared' : 'Score saved',
+        kind: 'saved',
+      });
+    } catch {
+      setScoreNote({ id: m.id, text: 'Could not reach the server.', kind: 'error' });
+    } finally {
+      setScoreSavingId(null);
+    }
+  };
+
+  /** One team's sets on a card: the numbers as they are, or the fields Hand
+   *  Edit turns them into. `listClass`/`cellClass` are the view's own, so the
+   *  cells stay exactly where they were and only gain a box. */
+  const scoreCells = (m: ScheduleMatch, side: 'a' | 'b', listClass: string, cellClass: string) => {
+    const values = side === 'a' ? m.scoreA : m.scoreB;
+
+    if (!scoreEditable(m)) {
+      if (!values || values.length === 0) return null;
+      return (
+        <div
+          className={listClass}
+          title={editMode && liveNow.has(m.id) ? 'Being scored live — use the scorekeeper screen' : undefined}
+        >
+          {values.map((sv, idx) => (
+            <span key={idx} className={cellClass}>{sv}</span>
+          ))}
+        </div>
+      );
+    }
+
+    const d = draftOf(m);
+    const cells = side === 'a' ? d.a : d.b;
+    const faulted = scoreNote?.id === m.id && scoreNote.kind === 'error';
+
+    return (
+      <div
+        className={`${listClass} ${styles.scoreEditList}`}
+        data-score-group={m.id}
+        /* The calendar card is a drag handle; a pointer landing in a field
+           has to stay in the field. */
+        onPointerDown={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        onTouchStart={e => e.stopPropagation()}
+      >
+        {Array.from({ length: setColumns(d) }, (_, i) => (
+          <input
+            key={i}
+            className={`${cellClass} ${styles.scoreInput} ${faulted ? styles.scoreInputFault : ''}`}
+            value={cells[i] ?? ''}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="–"
+            disabled={scoreSavingId === m.id}
+            aria-label={`${side === 'a' ? m.teamA : m.teamB}, set ${i + 1} — match ${m.matchNo}`}
+            title={`Set ${i + 1}`}
+            onChange={e => setScoreCell(m, side, i, e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') {
+                putDraft(null);
+                setScoreNote(null);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            onBlur={e => {
+              // Moving between this match's own cells is not leaving them.
+              const to = e.relatedTarget as HTMLElement | null;
+              if (to?.closest('[data-score-group]')?.getAttribute('data-score-group') === m.id) return;
+              commitScore(m);
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  /** What the cells could not say themselves: saving, a rejected result, or
+   *  a match the referee still holds. */
+  const scoreCellNote = (m: ScheduleMatch) => {
+    if (!editMode) return null;
+    if (liveNow.has(m.id)) {
+      return <div className={styles.scoreNote}>Being scored live — use the scorekeeper screen.</div>;
+    }
+    if (scoreSavingId === m.id) return <div className={styles.scoreNote}>Saving…</div>;
+    if (scoreNote?.id !== m.id) return null;
+    return (
+      <div
+        className={`${styles.scoreNote} ${scoreNote.kind === 'error' ? styles.scoreNoteFault : styles.scoreNoteOk}`}
+      >
+        {scoreNote.kind === 'error' && <AlertTriangle size={11} />}
+        {scoreNote.text}
+      </div>
+    );
+  };
+
   /** A match the organizer can drag: only in edit mode, only once it has a
    *  court and a time to be moved away from. */
   const canMove = (m: ScheduleMatch) => editMode && !m.unscheduled && m.court !== 'Unscheduled';
@@ -2114,7 +2391,7 @@ export default function TournamentSchedulePage() {
 
   /** How the two views explain editing. */
   const editHint = !editMode ? (
-    <>The schedule is locked. Turn <strong>Hand Edit</strong> on to drag matches, retime them, or add buffer time.</>
+    <>The schedule is locked. Turn <strong>Hand Edit</strong> on to drag matches, retime them, add buffer time, or enter scores.</>
   ) : (
     <>
       Drag any match to reposition: drop onto another match to insert before it, or into an empty area to set the start time.
@@ -2127,6 +2404,11 @@ export default function TournamentSchedulePage() {
         <p>
           Click a time to type a new one, or the <strong>+</strong>{' '}
           on a card&apos;s top edge to open a gap before it.
+        </p>
+        <p>
+          Type into a card&apos;s score cells to enter a result the scorekeeper never recorded, or to correct one
+          it got wrong — each match saves on its own as soon as you click away, and clearing every set takes the
+          result back off the bracket. A match being scored live is left to the referee&apos;s screen.
         </p>
         <p>
           Hand moves are yours alone: the next Generate starts again from the solver. Buffers and blocked time are part
@@ -2757,24 +3039,13 @@ export default function TournamentSchedulePage() {
                               <div className={styles.matchTeams}>
                                 <div className={styles.teamRow}>
                                   <span className={`${styles.teamRowName} ${isWinnerA ? styles.teamRowNameWinner : ''} ${isLoserA ? styles.teamRowNameLoser : ''}`}>{m.teamA}</span>
-                                  {m.scoreA && m.scoreA.length > 0 && (
-                                    <div className={styles.teamScoreList}>
-                                      {m.scoreA.map((s, idx) => (
-                                        <span key={idx} className={styles.teamScoreCell}>{s}</span>
-                                      ))}
-                                    </div>
-                                  )}
+                                  {scoreCells(m, 'a', styles.teamScoreList, styles.teamScoreCell)}
                                 </div>
                                 <div className={styles.teamRow}>
                                   <span className={`${styles.teamRowName} ${isWinnerB ? styles.teamRowNameWinner : ''} ${isLoserB ? styles.teamRowNameLoser : ''}`}>{m.teamB}</span>
-                                  {m.scoreB && m.scoreB.length > 0 && (
-                                    <div className={styles.teamScoreList}>
-                                      {m.scoreB.map((s, idx) => (
-                                        <span key={idx} className={styles.teamScoreCell}>{s}</span>
-                                      ))}
-                                    </div>
-                                  )}
+                                  {scoreCells(m, 'b', styles.teamScoreList, styles.teamScoreCell)}
                                 </div>
+                                {scoreCellNote(m)}
                               </div>
                             );
                           })()}
@@ -3058,6 +3329,8 @@ export default function TournamentSchedulePage() {
                               insertBuffer={insertBuffer}
                               bufferSuggestion={bufferSuggestion}
                               moveMatch={moveMatch}
+                              scoreCells={(m, side) => scoreCells(m, side, styles.gridScoreList, styles.gridScoreCell)}
+                              scoreNote={scoreCellNote}
                               day={day.day}
                               axis={calendar.axis}
                               netBufferMinutes={config?.netBufferMinutes || 15}

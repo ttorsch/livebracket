@@ -2,6 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { redis } from './redis';
 import { formatTeamName, formatPlayerNames } from './teamName';
 import type { ScoringRules } from './setCompletion';
+import { setWins } from './matchScore';
 
 /* ── Live score state ─────────────────────────────────────────────
  *
@@ -188,14 +189,10 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
   };
 }
 
-/* How many sets each side has won, by the only rule that matters for a
- * completed set: more points than the other side. */
-export function setWins(sets: { a: number; b: number }[]) {
-  return {
-    a: sets.filter(s => s.a > s.b).length,
-    b: sets.filter(s => s.b > s.a).length,
-  };
-}
+/* How many sets each side has won. The rule itself lives in ./matchScore,
+ * which the schedule page's score cells import too — a client component
+ * cannot pull in this module's Supabase and Redis clients. */
+export { setWins };
 
 // Best-of-N is decided once someone takes more than half the sets.
 export function isMatchDecided(sets: { a: number; b: number }[], rules: ScoringRules): boolean {

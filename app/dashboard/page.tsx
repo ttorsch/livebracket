@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Home, Clock,
-  LayoutList, Menu, Users, Globe,
+  Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Clock,
+  Menu, Users, Globe,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
@@ -15,7 +15,7 @@ import PublishTournamentModal from '@/components/PublishTournamentModal';
 import QrCodeImage from '@/components/QrCodeImage';
 import { useScorekeeperLinks, ScorekeeperQrZoom, type ZoomedCode } from '@/components/ScorekeeperQrCards';
 import { nextPerCourt } from '../../lib/scorekeeperLinks';
-import { Button, SearchField, Icon, Badge, BracketIcon } from '../../components/livebracket-ds';
+import { Button, SearchField, Badge, BracketIcon } from '../../components/livebracket-ds';
 import {
   getDashboardTournaments, getTournamentDetail, todayLocal,
   type DashboardTournament, type TournamentDetail,
@@ -147,51 +147,20 @@ export default function OrganizerDashboard() {
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  /* The rail rests collapsed to icons and widens on hover — that part is
-   * pure CSS, so it costs no re-render. Pinning is the way to hold it open
-   * without a mouse: hover and :focus-within are unavailable to touch, and
-   * focus alone would close it again the moment you tab out. Only
-   * meaningful above 960px, where the sidebar is a rail at all. */
-  const [pinned, setPinned] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  /* The account menu on the desktop top bar. Separate from `moreOpen`,
+   * which belongs to the phone bar's own menu — the two nav surfaces are
+   * never on screen at the same time, but they are different menus with
+   * different items and one state could only ever confuse them. */
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
   /* No notifications exist yet, so the badge stays off rather than showing
    * a decorative number. Point this at the real count when they land. */
   const notificationCount = 0;
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
-  const searchWrapRef = useRef<HTMLDivElement>(null);
-
-  /* Search has no view of its own: it takes you to the list the field
-   * filters and puts the cursor in it.
-   *
-   * When the tab has to change first, the field does not exist yet, so the
-   * focus waits for the render that creates it — tracked on a ref rather
-   * than in state, which would cost an extra render per click. */
-  const wantSearchFocus = useRef(false);
-
-  const putCursorInSearch = () => {
-    const input = searchWrapRef.current?.querySelector('input');
-    input?.focus();
-    input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  };
-
-  const focusSearch = () => {
-    setMoreOpen(false);
-    if (activeTab === 'tournament') {
-      putCursorInSearch();          // already rendered
-    } else {
-      wantSearchFocus.current = true;
-      setActiveTab('tournament');
-    }
-  };
-
-  useEffect(() => {
-    if (!wantSearchFocus.current) return;
-    wantSearchFocus.current = false;
-    putCursorInSearch();
-  }, [activeTab]);
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -203,6 +172,117 @@ export default function OrganizerDashboard() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  /* ── How the top bar comes and goes ───────────────────────────────
+   *
+   * It is part of the page, not a band bolted across the top of it: at
+   * rest it sits above the dashboard and scrolls away with it. Scrolling
+   * back up brings it down again wherever you are, because that gesture is
+   * what "I want the nav" looks like — and then it withdraws once it has
+   * gone unused, so a bar that was asked for by accident does not sit over
+   * the schedule for the rest of the session.
+   *
+   * `hold` is what keeps it: the pointer on it, focus inside it, or its
+   * own menu open. Withdrawing the bar out from under an open menu, or
+   * from under the cursor on the way to it, would be the one moment the
+   * behaviour is certainly wrong.
+   */
+  const [navHidden, setNavHidden] = useState(false);
+  const [navStuck, setNavStuck] = useState(false);
+  const navHold = useRef(false);
+  const navIdle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastScrollY = useRef(0);
+
+  /* Long enough to reach the bar and read it, short enough that it is gone
+   * again before it feels like furniture. */
+  const NAV_IDLE_MS = 2600;
+  /* Ignore the scroll noise a trackpad produces while the page is still. */
+  const NAV_SCROLL_STEP = 5;
+  /* Above this the bar is simply where it lives, and nothing hides it. */
+  const NAV_TOP_ZONE = 8;
+
+  const armNavIdle = useCallback(() => {
+    if (navIdle.current) clearTimeout(navIdle.current);
+    navIdle.current = setTimeout(() => {
+      if (navHold.current) return;
+      if (window.scrollY <= NAV_TOP_ZONE) return;
+      setNavHidden(true);
+    }, NAV_IDLE_MS);
+  }, []);
+
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
+
+    const onScroll = () => {
+      const y = window.scrollY;
+      const prev = lastScrollY.current;
+
+      if (y <= NAV_TOP_ZONE) {
+        lastScrollY.current = y;
+        setNavStuck(false);
+        setNavHidden(false);
+        if (navIdle.current) clearTimeout(navIdle.current);
+        return;
+      }
+      setNavStuck(true);
+
+      if (y > prev + NAV_SCROLL_STEP) {
+        lastScrollY.current = y;
+        if (navHold.current) return;   // never out from under an open menu
+        if (navIdle.current) clearTimeout(navIdle.current);
+        setNavHidden(true);
+      } else if (y < prev - NAV_SCROLL_STEP) {
+        lastScrollY.current = y;
+        setNavHidden(false);
+        armNavIdle();
+      }
+    };
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (navIdle.current) clearTimeout(navIdle.current);
+    };
+  }, [armNavIdle]);
+
+  /* An open account menu holds the bar in place, and closing it starts the
+   * clock again rather than pulling it away on the same click. */
+  useEffect(() => {
+    navHold.current = accountOpen;
+    if (accountOpen) {
+      if (navIdle.current) clearTimeout(navIdle.current);
+    } else if (window.scrollY > NAV_TOP_ZONE) {
+      armNavIdle();
+    }
+  }, [accountOpen, armNavIdle]);
+
+  const holdNav = () => {
+    navHold.current = true;
+    if (navIdle.current) clearTimeout(navIdle.current);
+    setNavHidden(false);
+  };
+
+  const releaseNav = () => {
+    if (accountOpen) return;          // the menu is still holding it
+    navHold.current = false;
+    if (window.scrollY > NAV_TOP_ZONE) armNavIdle();
+  };
+
+  // Close the account menu on an outside click or Escape.
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!accountRef.current?.contains(e.target as Node)) setAccountOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAccountOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [accountOpen]);
 
   // Close the More menu on an outside click or Escape, like the other menus.
   useEffect(() => {
@@ -320,20 +400,29 @@ export default function OrganizerDashboard() {
 
   return (
     <div className={styles.page}>
-      {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside className={`${styles.sidebar} ${pinned ? styles.sidebarPinned : ''}`}>
-        {/* Desktop: the logo row is the rail's collapse handle, per the
-            design. Mobile: the bar has no rail, so the same slot is the
-            Home link it has always been — see the 960px block in the CSS. */}
-        <button
-          type="button"
-          className={styles.brand}
-          onClick={() => { setPinned(v => !v); setMoreOpen(false); }}
-          aria-pressed={pinned}
-          title={pinned ? 'Unpin sidebar' : 'Keep sidebar open'}
-        >
-          <span className={styles.brandMark}>
-            <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* ── Top bar (desktop) ───────────────────────────────────
+          Above 960px the dashboard's navigation is a bar across the top:
+          the mark on the left, the three views it holds in the middle,
+          and the account on the right. Below that width it is hidden and
+          the bar in the corner below takes over unchanged. */}
+      <header
+        className={[
+          styles.topbar,
+          navStuck ? styles.topbarStuck : '',
+          navHidden ? styles.topbarHidden : '',
+        ].filter(Boolean).join(' ')}
+        onMouseEnter={holdNav}
+        onMouseLeave={releaseNav}
+        onFocusCapture={holdNav}
+        onBlurCapture={releaseNav}
+      >
+        <div className={styles.topbarInner}>
+          {/* The mark identifies the product; it goes nowhere on purpose —
+              inside the dashboard every destination worth having is
+              already on this bar. */}
+          <div className={styles.topBrand}>
+            <span className={styles.brandMark}>
+              <svg viewBox="296 73 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
   <circle cx="639.5" cy="416.5" r="343.5" fill="#EB6F43" />
   <rect x="428" y="234" width="165.327" height="35.9406" rx="15" fill="white" />
   <rect x="428" y="561.059" width="165.327" height="35.9406" rx="15" fill="white" />
@@ -344,114 +433,105 @@ export default function OrganizerDashboard() {
   <rect x="722.713" y="498.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 722.713 498.762)" fill="white" />
   <rect x="557.386" y="597" width="180.901" height="35.9406" rx="15" transform="rotate(-90 557.386 597)" fill="white" />
 </svg>
-          </span>
-          <span className={styles.brandName}>LIVE BRACKET</span>
-        </button>
-        {/* Mobile only — below 960px the rail becomes a bar with nothing to
-            collapse, so this slot replaces the brand button (see the CSS).
-            "Home" here means the organizer's own dashboard, not the public
-            site: someone inside the organizer area who taps a house wants
-            their events list, not the marketing page. */}
-        <Link href="/dashboard" className={styles.brandHome} aria-label="Dashboard home">
-          <Home size={22} className={styles.brandHomeIcon} aria-hidden="true" />
-        </Link>
-
-        {/* The nav sits centred between two spacers, per the design. */}
-        <div className={styles.railSpacer} />
-
-        <nav className={styles.sideNav}>
-          <button
-            type="button"
-            onClick={() => setActiveTab('tournament')}
-            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly} ${styles.navTournaments} ${activeTab === 'tournament' ? styles.sideLinkActive : ''}`}
-            title="My Tournament"
-          >
-            <span className={styles.sideIcon}>
-              {/* A list, not a trophy. The trophy read as "prizes" or
-                  "winners"; this tab is the organizer's list of their own
-                  events, and a list icon says that without a caption. */}
-              <LayoutList size={23} strokeWidth={activeTab === 'tournament' ? 2.6 : 1.75} />
             </span>
-            <span className={styles.sideLabel}>My Tournament</span>
-          </button>
+            <span className={styles.topBrandName}>LIVE BRACKET</span>
+          </div>
 
-          {/* Search is not a view of its own — it jumps to the list and puts
-              the cursor in the field that filters it. */}
-          <button
-            type="button"
-            onClick={focusSearch}
-            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly}`}
-            title="Search"
-          >
-            <span className={styles.sideIcon}>
-              <Icon name="search" size={23} strokeWidth={1.75} />
-            </span>
-            <span className={styles.sideLabel}>Search</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('history')}
-            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly} ${activeTab === 'history' ? styles.sideLinkActive : ''}`}
-            title="History"
-          >
-            <span className={styles.sideIcon}>
-              <Icon name="calendar" size={23} strokeWidth={activeTab === 'history' ? 2.6 : 1.75} />
-            </span>
-            <span className={styles.sideLabel}>History</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('notifications')}
-            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly} ${styles.navNotifications} ${activeTab === 'notifications' ? styles.sideLinkActive : ''}`}
-            title="Notifications"
-          >
-            <span className={styles.sideIcon}>
-              <Icon name="bell" size={23} strokeWidth={activeTab === 'notifications' ? 2.6 : 1.75} />
+          <nav className={styles.topNav} aria-label="Dashboard views">
+            <button
+              type="button"
+              onClick={() => setActiveTab('tournament')}
+              className={`${styles.topTab} ${activeTab === 'tournament' ? styles.topTabActive : ''}`}
+              aria-current={activeTab === 'tournament' ? 'page' : undefined}
+            >
+              My Tournament
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('history')}
+              className={`${styles.topTab} ${activeTab === 'history' ? styles.topTabActive : ''}`}
+              aria-current={activeTab === 'history' ? 'page' : undefined}
+            >
+              Tournament History
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('notifications')}
+              className={`${styles.topTab} ${activeTab === 'notifications' ? styles.topTabActive : ''}`}
+              aria-current={activeTab === 'notifications' ? 'page' : undefined}
+            >
+              Notifications
               {/* Reads off the real count, which is zero until notifications
                   exist — so no badge rather than a decorative one. */}
               {notificationCount > 0 && (
-                <span className={styles.sideBadge}>{notificationCount}</span>
+                <span className={styles.topTabBadge}>{notificationCount}</span>
               )}
-            </span>
-            <span className={styles.sideLabel}>Notifications</span>
-          </button>
+            </button>
+          </nav>
 
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className={`${styles.sideLink} ${styles.sideLinkDesktopOnly}`}
-            title="Create"
-          >
-            <span className={styles.sideIcon}>
-              <Icon name="plus" size={23} strokeWidth={1.75} />
-            </span>
-            <span className={styles.sideLabel}>Create</span>
-          </button>
-
-          {/* Inside the dashboard, "Profile" means the organizer identity —
-              the name and photo on the public event pages — not the player
-              profile at /profile, which the site header links to. */}
-          <button
-            type="button"
-            className={`${styles.sideLink} ${styles.navProfile}`}
-            title="Organizer profile"
-            onClick={() => setProfileOpen(true)}
-          >
-            <span className={styles.sideIcon}>
-              <span className={styles.sideAvatar}>
+          <div className={styles.topAccount} ref={accountRef}>
+            <button
+              type="button"
+              className={styles.topAvatarBtn}
+              onClick={() => setAccountOpen(v => !v)}
+              aria-haspopup="menu"
+              aria-expanded={accountOpen}
+              aria-label="Account menu"
+            >
+              <span className={styles.topAvatar}>
                 {organizerIdentity?.avatarUrl
                   ? <img src={organizerIdentity.avatarUrl} alt="" />
                   : '🏐'}
               </span>
-            </span>
-            <span className={styles.sideLabel}>Profile</span>
-          </button>
-        </nav>
+              <ChevronDown
+                size={15}
+                className={`${styles.topAvatarChevron} ${accountOpen ? styles.topAvatarChevronOpen : ''}`}
+                aria-hidden="true"
+              />
+            </button>
 
-        <div className={styles.railSpacer} />
+            {accountOpen && (
+              <div className={styles.topMenu} role="menu">
+                {/* Inside the dashboard, "Profile" means the organizer
+                    identity — the name and photo on the public event pages
+                    — which is what the modal edits. The player profile is
+                    the separate thing you switch to. */}
+                <button
+                  type="button"
+                  className={styles.topMenuItem}
+                  role="menuitem"
+                  onClick={() => { setProfileOpen(true); setAccountOpen(false); }}
+                >
+                  Profile
+                </button>
+                <Link
+                  href="/"
+                  className={styles.topMenuItem}
+                  role="menuitem"
+                  onClick={() => setAccountOpen(false)}
+                >
+                  Switch to player profile
+                </Link>
+                <div className={styles.topMenuRule} />
+                <button
+                  type="button"
+                  className={styles.topMenuItem}
+                  role="menuitem"
+                  onClick={handleLogout}
+                >
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
 
+      {/* ── Corner bar (mobile) ─────────────────────────────────
+          Below 960px this is the whole of the navigation: one menu in the
+          page's top-right corner, holding the views the top bar shows
+          directly. Hidden above that width. */}
+      <aside className={styles.sidebar}>
         <div className={styles.moreWrap} ref={moreRef}>
           {moreOpen && (
             <div className={styles.morePopup} role="menu">
@@ -658,10 +738,7 @@ export default function OrganizerDashboard() {
                   row (70/30); wide ones give the search the full width and
                   use the pill tabs below instead of the select. */}
               <div className={styles.searchRow}>
-                {/* Wrapped so the sidebar's Search item can reach the input —
-                    SearchField is a plain function component, so a ref passed
-                    to it would not forward. */}
-                <div ref={searchWrapRef} className={styles.searchWrap}>
+                <div className={styles.searchWrap}>
                   <SearchField
                     placeholder={isMobile ? 'Search tournament' : 'Search tournaments, locations, divisions'}
                     value={query}
