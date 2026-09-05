@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { tournamentStatus } from '../../../../../lib/tournamentStatus';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -51,7 +52,6 @@ import {
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
 import { Badge, BracketIcon } from '../../../../../components/livebracket-ds';
-import { divisionRegistrationState, isPublic, type Phase, PHASE } from '../../../../../lib/tournamentLifecycle';
 import {
   generateSchedule,
   scheduleInventory,
@@ -1995,27 +1995,18 @@ export default function TournamentSchedulePage() {
   const badgeDivision =
     detail?.divisions.find(d => d.id === activeDivisionId) ?? detail?.divisions[0] ?? null;
 
-  const statusBadge = ((): { label: string; variant: 'live' | 'open' | 'highlight' | 'status' | 'outline' } => {
-    if (!detail || detail.phase === PHASE.draft || !isPublic(detail.phase as Phase)) {
-      return { label: 'Draft', variant: 'status' };
-    }
-    if (detail.phase === 3 || isLive) return { label: 'Live', variant: 'live' };
-    if (detail.phase === 4) return { label: 'Completed', variant: 'status' };
-    if (!badgeDivision) return { label: 'Announced', variant: 'highlight' };
-    const regState = divisionRegistrationState(
-      {
-        registrationOpens: badgeDivision.registrationOpens || '',
-        registrationCloses: badgeDivision.registrationCloses || '',
-      },
-      new Date(),
-    );
-    if (regState === 'opens-soon') return { label: 'Announced', variant: 'highlight' };
-    if (regState === 'closed') return { label: 'Registration Closed', variant: 'status' };
-    if (badgeDivision.teams > 0 && badgeDivision.filled >= badgeDivision.teams) {
-      return { label: 'Waitlist Open', variant: 'highlight' };
-    }
-    return { label: 'Registration Open', variant: 'open' };
-  })();
+  /* One reader for the whole app — see lib/tournamentStatus. */
+  const statusBadge = tournamentStatus({
+    phase: detail?.phase,
+    startDate: detail?.startDate,
+    endDate: detail?.endDate,
+    divisions: (detail?.divisions ?? []).map(d => ({
+      registrationOpens: d.registrationOpens || '',
+      registrationCloses: d.registrationCloses || '',
+      cap: d.teams,
+      filled: d.filled,
+    })),
+  });
 
   /* Editing belongs to the schedule, not to one way of looking at it, so the
      switch and the state of the edits ride along with both views. */
@@ -2185,7 +2176,7 @@ export default function TournamentSchedulePage() {
 
               <div className={styles.eventTextCol}>
                 <div className={styles.eventBadgeRow}>
-                  <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                  <Badge status={statusBadge.key}>{statusBadge.label}</Badge>
                 </div>
                 <h2 className={styles.eventTitle}>{detail?.title ?? 'Untitled tournament'}</h2>
                 <div className={styles.eventMetaCol}>

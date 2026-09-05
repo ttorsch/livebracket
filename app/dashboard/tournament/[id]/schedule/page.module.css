@@ -41,15 +41,15 @@
   position: relative;
   background-color: var(--sand-100, #F5F1EA);
   /* The Tournament Setup & Bracket Generator rhythm: 16px above the title, 24px below
-     the event card. Padding matches the shared 24px container gutter. */
-  padding: 14px 20px 18px;
+     the event card. Padding matches the shared fluid container gutter. */
+  padding: 14px clamp(20px, 3.5vw, 48px) 18px;
   color: var(--ink-900, #14181E);
 }
 
 .heroInner {
-  /* 1240px is the site's shared measure, matching Setup and Bracket pages. */
-  max-width: 1240px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -243,12 +243,13 @@
   transform: translateZ(0);
   will-change: transform, backdrop-filter;
   border-bottom: 1px solid var(--sand-300, #E7E2D9);
-  padding: 14px 24px;
+  padding: 14px clamp(20px, 3.5vw, 48px);
 }
 
 .stickyInner {
-  max-width: 1240px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -411,9 +412,10 @@
 
 /* ── Main Layout Container ───────────────────────────────────── */
 .main {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 24px 24px 64px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 24px clamp(20px, 3.5vw, 48px) 64px;
 }
 
 /* ── The editing hint ────────────────────────────────────────────
@@ -2791,9 +2793,10 @@
   color: #fff;
 }
 .previewInner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 12px 24px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 12px clamp(20px, 3.5vw, 48px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3012,9 +3015,10 @@
 .previewSave:disabled { opacity: 0.6; cursor: default; }
 
 .saveMsg {
-  max-width: 1240px;
-  margin: 12px auto 0;
-  padding: 0 24px;
+  width: 100%;
+  max-width: none;
+  margin: 12px 0 0;
+  padding: 0 clamp(20px, 3.5vw, 48px);
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-700, #3E4654);

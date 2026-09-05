@@ -138,9 +138,10 @@
 
 /* ── Header Container & Header Card (Matches Tournament Setup) ── */
 .headerContainer {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 16px 24px 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 16px clamp(20px, 3.5vw, 48px) 0;
 }
 .setupHeaderRow {
   display: flex;
@@ -271,9 +272,10 @@
   width: 100%;
 }
 .stickyDivisionInner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 14px 40px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 14px clamp(20px, 3.5vw, 48px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -364,9 +366,10 @@
 
 /* ── Main layout ───────────────────────────────────────────── */
 .main {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 20px 24px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 20px clamp(20px, 3.5vw, 48px);
 }
 .section {
   margin-bottom: 28px;
@@ -1095,29 +1098,18 @@
   overflow: hidden;
 }
 
-.stackedTeamNames {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  overflow: hidden;
-}
-.stackedPlayer {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  line-height: 1.25;
-  color: var(--ink-900);
-}
-.singleTeamName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* A team is its two players on one line. Long pairs wrap rather than
+   truncate — a name column narrow enough to cut "Sandstorm / Sandstorm"
+   short would cut both halves of it, and the row can afford the height. */
+.teamPairName {
   display: block;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.3;
   color: var(--ink-900);
+  /* Breaks at the slash and the spaces around it before anywhere else. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ── Standing table ──────────────────────────────────────── */

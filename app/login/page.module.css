@@ -21,9 +21,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 22px 28px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 22px clamp(20px, 3.5vw, 48px);
 }
 .brand {
   display: inline-flex;
@@ -613,13 +614,32 @@
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+/* A grid item is at least its content's own width unless told otherwise, and
+   an input's is wide — without this the second name field is pushed past the
+   modal's edge instead of sharing the row. */
+.nameRow > * { min-width: 0; }
+
+/* Organizer trades the two panels over: the form takes the right column and
+   keeps its extra width, the slogan takes the left. Only where there are two
+   columns to trade — the stacked layout below keeps the form first. */
+@media (min-width: 881px) {
+  .glassPanelSwapped { grid-template-columns: 1fr 1.05fr; }
+  .glassPanelSwapped .loginCard { grid-column: 2; grid-row: 1; }
+  .glassPanelSwapped .heroAside { grid-column: 1; grid-row: 1; }
+}
 
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 880px) {
   .glassPanel { grid-template-columns: 1fr; }
   .heroAside { padding: 18px 18px 10px; }
+  /* Stacked, the copy sits under the form where nobody reads it before
+     signing in — the headline carries the message on its own. */
+  .asideSub { display: none; }
 }
 @media (max-width: 520px) {
+  /* Side by side, neither name field is wide enough to read on a phone, so
+     the surname takes a row of its own. */
+  .nameRow { grid-template-columns: 1fr; }
   .topbar { padding: 16px 18px; }
   .hero { padding: 104px 18px 72px; gap: 40px; }
   .loginCard { padding: 24px 20px; }

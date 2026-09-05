@@ -20,9 +20,10 @@
 /* ── Top bar ──────────────────────────────────────────────────── */
 .topBar { background: var(--ink-1, #14181E); padding: 0; }
 .topBarInner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 0 28px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(20px, 3.5vw, 48px);
   height: 60px;
   display: flex;
   align-items: center;

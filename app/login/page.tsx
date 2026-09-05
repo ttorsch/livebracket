@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
@@ -9,6 +10,10 @@ import { supabase } from '@/lib/supabase';
 import { signInDestination } from '@/lib/authRedirect';
 
 type Role = 'player' | 'organizer';
+
+/* Long enough to read as one panel passing the other, short enough that the
+   form is ready by the time the hand reaches it. */
+const PANEL_SWAP = { type: 'spring' as const, stiffness: 220, damping: 30 };
 
 const ROLE_CONTENT: Record<Role, {
   title: string;
@@ -395,15 +400,21 @@ function LiveBracketLoginInner() {
             <span>{backLabel}</span>
           </button>
 
+          {/* Organizer signs in from the right — the two panels trade sides,
+              and Framer animates the swap so the form is followed across
+              rather than found again. Wide layouts only; stacked, the form
+              stays on top either way. */}
           <div
-            className={styles.glassPanel}
+            className={`${styles.glassPanel} ${role === 'organizer' ? styles.glassPanelSwapped : ''}`}
             style={{
               backdropFilter: 'blur(18px) saturate(150%)',
               WebkitBackdropFilter: 'blur(18px) saturate(150%)',
             }}
           >
-          {/* Left: login card */}
-          <div
+          {/* The login card — left for a player, right for an organizer. */}
+          <motion.div
+            layout
+            transition={PANEL_SWAP}
             className={styles.loginCard}
             style={{ '--role-accent': content.accent } as React.CSSProperties}
           >
@@ -540,15 +551,15 @@ function LiveBracketLoginInner() {
             </p>
               </>
             )}
-          </div>
+          </motion.div>
 
-          {/* Right: slogan + live event preview */}
-          <div className={styles.heroAside}>
+          {/* The slogan — the side the card is not on. */}
+          <motion.div layout transition={PANEL_SWAP} className={styles.heroAside}>
             <p className={styles.asideEyebrow}>Real-time tournament brackets</p>
             <h3 className={styles.asideTitle}>{content.asideTitle}</h3>
             <p className={styles.asideSub}>{content.asideSub}</p>
 
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

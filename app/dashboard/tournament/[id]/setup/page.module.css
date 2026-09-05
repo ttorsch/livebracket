@@ -6,11 +6,10 @@
 }
 
 .container {
-  /* The site's shared measure, same as /tournament/[id] and the
-     organizer dashboard. */
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 0 24px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(20px, 3.5vw, 48px);
 }
 
 /* ── Inline header back button ────────────────────────────────────
@@ -143,6 +142,11 @@
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+/* A grid item is at least as wide as its own content unless told otherwise,
+   and an input's intrinsic width is around 180px — two of them plus the gap
+   were pushing rows, and the modal around them, wider than a phone screen. */
+.twoCol > * { min-width: 0; }
+.input, .select, .textarea { min-width: 0; }
 
 .statusGrid {
   display: grid;
@@ -1353,6 +1357,9 @@
 }
 
 @media (max-width: 640px) {
+  /* Half a phone's width shows about a dozen characters — not enough for a
+     phone number or an email — so paired fields take a row each. */
+  .twoCol { grid-template-columns: 1fr; }
   .detailDeck {
     gap: 8px;
   }

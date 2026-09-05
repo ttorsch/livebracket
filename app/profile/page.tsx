@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { isOrganizer as hasOrganizerRole } from '@/lib/session';
 import type { MyRegistration } from '@/app/api/me/registrations/route';
+import { useTabSwipe } from '@/hooks/useTabSwipe';
 
 /* Built to Profile.dc.html from the Live Bracket design project, using the
  * vendored design system rather than a port of the artboard's markup —
@@ -68,6 +69,8 @@ const TABS = [
   { label: 'My Events', value: 'events' },
   { label: 'Starred', value: 'starred' },
 ];
+
+const PROFILE_TAB_KEYS: readonly Tab[] = ['overview', 'events', 'starred'];
 
 /* "Oct 3 – Oct 4, 2026", collapsing a one-day event to a single date and a
    same-month range to one month name. Read in UTC to match the rest of the
@@ -120,6 +123,11 @@ const money = new Intl.NumberFormat('en-US');
 
 export default function PlayerProfile() {
   const [tab, setTab] = useState<Tab>('overview');
+  const tabSwipeHandlers = useTabSwipe({
+    tabs: PROFILE_TAB_KEYS,
+    activeTab: tab,
+    onTabChange: setTab,
+  });
 
   /* Who is signed in arrives with the page, resolved on the server in
    * app/layout.tsx and handed down by AuthProvider. */
@@ -547,7 +555,7 @@ export default function PlayerProfile() {
       </div>
 
       {/* ── Content ───────────────────────────────────────────────── */}
-      <div className={`${styles.shell} ${styles.content}`}>
+      <div className={`${styles.shell} ${styles.content}`} {...tabSwipeHandlers}>
 
         {/* ── Overview ────────────────────────────────────────────── */}
         {tab === 'overview' && (

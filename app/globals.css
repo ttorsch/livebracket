@@ -1,3 +1,26 @@
+/* ── Design system: Badge ─────────────────────────────────────────
+   The live status badge's dot blinks, and keyframes are the one thing a
+   component built on inline styles cannot carry itself. It lives here
+   rather than beside Badge.jsx because the design system's own stylesheet
+   is an @import manifest, and a rule reached through one more @import hop
+   does not survive the bundler. */
+.lb-badge-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  animation: lbBadgeBlink 1.4s ease-in-out infinite;
+}
+@keyframes lbBadgeBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+/* The colour still says "live" when the blink is switched off. */
+@media (prefers-reduced-motion: reduce) {
+  .lb-badge-dot { animation: none; }
+}
+
 /* ── Reset & Base ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 

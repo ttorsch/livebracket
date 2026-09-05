@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Fragment } from 'react';
+import { tournamentStatus } from '../../../../../lib/tournamentStatus';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
@@ -1764,45 +1765,22 @@ export default function OrganizerSetup() {
   const isDivisionFull = teamCap > 0 && confirmedTeams.length >= teamCap;
 
   // Unified single status computation (Option A: Active Division Context)
-  const computeSingleStatus = (): { label: string; variant: 'live' | 'open' | 'highlight' | 'status' | 'outline' } => {
-    // 1. If tournament is in Draft phase (private setup)
-    if (!basicInfo || basicInfo.phase === PHASE.draft || !isPublic(basicInfo.phase as Phase)) {
-      return { label: 'Draft', variant: 'status' };
-    }
-
-    // 2. If no division is loaded yet
-    if (!activeDivision) {
-      return { label: 'Announced', variant: 'highlight' };
-    }
-
-    const regState = divisionRegistrationState(
-      {
-        registrationOpens: activeDivision.registrationOpenDate || '',
-        registrationCloses: activeDivision.registrationCloseDate || '',
-      },
-      new Date(),
-    );
-
-    if (regState === 'opens-soon') {
-      return { label: 'Announced', variant: 'highlight' };
-    }
-
-    if (regState === 'closed') {
-      return { label: 'Registration Closed', variant: 'status' };
-    }
-
-    // regState is 'open', check capacity
-    if (isDivisionFull) {
-      if (waitlistTeamsList.length > 0 || activeDivision.waitlistCap !== 0) {
-        return { label: 'Waitlist Open', variant: 'highlight' };
-      }
-      return { label: 'Registration Full', variant: 'status' };
-    }
-
-    return { label: 'Registration Open', variant: 'open' };
-  };
-
-  const unifiedStatus = computeSingleStatus();
+  /* The tournament's own status, from the one place that decides it. Seats
+     come from the overview (what is actually confirmed), windows from the
+     divisions being edited. */
+  const unifiedStatus = tournamentStatus({
+    archived: basicInfo?.archived,
+    cancelled: basicInfo?.cancelled,
+    phase: basicInfo?.phase,
+    startDate: basicInfo?.startDate,
+    endDate: basicInfo?.endDate,
+    divisions: divisions.map(d => ({
+      registrationOpens: d.registrationOpenDate || '',
+      registrationCloses: d.registrationCloseDate || '',
+      cap: d.divisionTeamCap,
+      filled: overview?.divisions.find(o => o.name === d.name)?.confirmed ?? 0,
+    })),
+  });
 
   // Registration-detail modal paging. The index is the position in
   // registeredTeams, so ↑/↓ walks the confirmed list straight into the
@@ -2086,6 +2064,20 @@ export default function OrganizerSetup() {
                 <Pencil size={15} />
               </button>
               <div className={styles.mobileEventBody}>
+                {/* Status over the name, as everywhere else. The Publish
+                    control rides with it — it acts on that status. */}
+                <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Badge status={unifiedStatus.key}>{unifiedStatus.label}</Badge>
+                  {basicInfo && !isPublic(basicInfo.phase as Phase) && (
+                    <button
+                      type="button"
+                      className={styles.mobilePublishBtn}
+                      onClick={() => setShowPublishModal(true)}
+                    >
+                      <Globe size={13} /> Publish
+                    </button>
+                  )}
+                </div>
                 <div className={styles.mobileEventTitle}>{displayTitle || 'Untitled tournament'}</div>
                 <div className={styles.mobileEventMeta}>
                   <Calendar size={13} />
@@ -2097,18 +2089,6 @@ export default function OrganizerSetup() {
                     <span>{displayLocation}</span>
                   </div>
                 )}
-                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <Badge variant={unifiedStatus.variant}>{unifiedStatus.label}</Badge>
-                  {basicInfo && !isPublic(basicInfo.phase as Phase) && (
-                    <button
-                      type="button"
-                      className={styles.mobilePublishBtn}
-                      onClick={() => setShowPublishModal(true)}
-                    >
-                      <Globe size={13} /> Publish
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -2152,7 +2132,7 @@ export default function OrganizerSetup() {
 
                 <div className={styles.desktop2aHeaderTextCol}>
                   <div className={styles.desktop2aBadgeRow}>
-                    <Badge variant={unifiedStatus.variant}>{unifiedStatus.label}</Badge>
+                    <Badge status={unifiedStatus.key}>{unifiedStatus.label}</Badge>
                   </div>
 
                   <h2 className={styles.desktop2aEventTitle}>{displayTitle || 'Untitled tournament'}</h2>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,10 +14,14 @@ import {
   Mic,
   ArrowUpDown,
   Menu,
-  X
+  X,
+  LogIn,
+  UserPlus,
+  CalendarPlus,
+  Shield
 } from 'lucide-react';
 import styles from './page.module.css';
-import { DateChip } from '@/components/livebracket-ds';
+import { DateChip, Badge } from '@/components/livebracket-ds';
 import {
   getPublicTournaments,
   getRecentlyCompletedDivisions,
@@ -30,7 +34,7 @@ import {
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '@/components/auth/useSignInHref';
 import { useSession } from '@/components/auth/AuthProvider';
 import AccountButton from '@/components/auth/AccountButton';
-import { registrationState } from '@/lib/tournamentLifecycle';
+import { tournamentStatus } from '@/lib/tournamentStatus';
 import {
   fetchHeroLiveMatches,
   nextSlots,
@@ -314,6 +318,12 @@ const TOURNAMENTS: Tournament[] = [
  * parked off-screen, 'shown' is floated back in over the content. */
 type NavMode = 'top' | 'hidden' | 'shown';
 /* How long the floated bar waits, with no scrolling, before sliding away. */
+/* Mirrors .cardsGrid in page.module.css: cards cap at 360px with a 24px gap
+   between them, and the phone stack pages three at a time. */
+const CARD_MAX_W = 360;
+const CARD_GAP = 24;
+const CARDS_PER_PAGE_STACKED = 3;
+
 const NAV_IDLE_HIDE_MS = 2000;
 /* Ignore scroll jitter (trackpad settle, rubber-banding) below this. */
 const NAV_SCROLL_DELTA = 4;
@@ -367,49 +377,20 @@ function formatDateRange(start: string, end?: string): string {
   return `${start} \u2013 ${end}`;
 }
 
-/* Status pill copy. Long form rides the desktop poster, short form the
-   mobile row. "Filling" once any division passes 80% of its seats. */
-function statusLabels(t: Tournament): {
-  long: string;
-  short: string;
-  variant: 'live' | 'finished' | 'announced' | 'open' | 'waitlist' | 'closed';
-} {
-  if (t.status === 'live') return { long: 'Live now', short: 'Live now', variant: 'live' };
-  if (t.status === 'finished') return { long: 'Finished', short: 'Finished', variant: 'finished' };
-
-  const rawDivs = t.rawDivisions ?? [];
-  if (rawDivs.length === 0) {
-    return { long: 'Announced', short: 'Announced', variant: 'announced' };
-  }
-
-  const regState = registrationState(
-    rawDivs.map((d) => ({
+/* The card's own status, from the one place that decides it. The card
+   carries its own shape of tournament, so this is the mapping into the
+   shared reader — nothing about *what* the status is lives here. */
+function cardStatus(t: Tournament) {
+  return tournamentStatus({
+    startDate: t.startDate,
+    endDate: t.endDate,
+    divisions: (t.rawDivisions ?? []).map(d => ({
       registrationOpens: d.registrationOpens || '',
       registrationCloses: d.registrationCloses || '',
+      cap: d.cap,
+      filled: d.filled,
     })),
-    new Date(),
-  );
-
-  if (regState === 'opens-soon' || regState === null) {
-    return { long: 'Announced', short: 'Announced', variant: 'announced' };
-  }
-
-  if (regState === 'closed') {
-    return { long: 'Registration Closed', short: 'Closed', variant: 'closed' };
-  }
-
-  // regState is 'open'
-  const allFull = rawDivs.length > 0 && rawDivs.every((d) => d.cap > 0 && d.filled >= d.cap);
-  if (allFull) {
-    return { long: 'Waitlist Open', short: 'Waitlist', variant: 'waitlist' };
-  }
-
-  const fullest = (t.registrations || []).reduce(
-    (max, r) => (r.total > 0 ? Math.max(max, r.filled / r.total) : max),
-    0
-  );
-  if (fullest >= 0.8) return { long: 'Filling fast', short: 'Filling fast', variant: 'open' };
-  return { long: 'Open Registration', short: 'Open Registration', variant: 'open' };
+  });
 }
 
 function toEventCard(
@@ -475,18 +456,8 @@ function TournamentCard({
   styles: Record<string, string>;
   saveScrollPosition: (path: string) => void;
 }) {
-  const labelInfo = statusLabels(t);
-  const badgeClass =
-    labelInfo.variant === 'live'
-      ? styles.cardStatusLive
-      : labelInfo.variant === 'finished'
-      ? styles.cardStatusFinished
-      : labelInfo.variant === 'announced'
-      ? styles.cardStatusAnnounced
-      : labelInfo.variant === 'closed'
-      ? styles.cardStatusClosed
-      : '';
-  const isRegisterable = labelInfo.variant === 'open' || labelInfo.variant === 'waitlist';
+  const status = cardStatus(t);
+  const isRegisterable = status.key === 'open' || status.key === 'waitlist';
   const href = isRegisterable ? `/tournament/${t.id}/register` : `/tournament/${t.id}`;
   const btnLabel =
     t.status === 'live'
@@ -510,12 +481,13 @@ function TournamentCard({
 
         <div className={styles.cardBody}>
           <div className={styles.cardTitleRow}>
+            {/* Status leads, the name follows — the reading order on every
+                surface that shows a tournament. */}
+            <Badge status={status.key} className={styles.cardStatus}>
+              <span className={styles.cardStatusLong}>{status.label}</span>
+              <span className={styles.cardStatusShort}>{status.short}</span>
+            </Badge>
             <h3 className={styles.cardTitle}>{t.title}</h3>
-            <span className={`${styles.cardStatusBadge} ${badgeClass}`}>
-              <span className={styles.cardStatusDot} aria-hidden="true" />
-              <span className={styles.cardStatusLong}>{labelInfo.long}</span>
-              <span className={styles.cardStatusShort}>{labelInfo.short}</span>
-            </span>
           </div>
 
           <div className={styles.cardMetaList}>
@@ -1002,10 +974,8 @@ function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide
 export default function LiveBracketHome() {
   // "Sign in" returns the visitor to this page, not to /profile.
   const signInHref = useSignInHref('player');
-  /* Both land on the login form's Organizer tab, but on different forms:
-   * "Create a tournament" promises a new account, so it opens sign-up;
-   * "Organizer login" is for someone who already has one. */
-  const createHref = useSignInHref('organizer', 'signup');
+  const signUpHref = useSignInHref('player', 'signup');
+  const createOrgHref = useSignInHref('organizer', 'signup');
   const organizerHref = useSignInHref('organizer');
   /* Signed in, both of those controls are answers to a question already
    * settled — and "Sign In" was worse than useless: middleware bounced it
@@ -1066,6 +1036,7 @@ export default function LiveBracketHome() {
 
   // Navigation States & Ref
   const navRef = useRef<HTMLElement>(null);
+  const guestMenuRef = useRef<HTMLDivElement>(null);
   const tournamentSearchInputRef = useRef<HTMLInputElement>(null);
   const [navMode, setNavMode] = useState<NavMode>('top');
   const scrolled = navMode !== 'top';
@@ -1423,12 +1394,12 @@ export default function LiveBracketHome() {
     };
   }, []);
 
-  // Auto-hide mobile menu when clicking outside or pressing Escape
+  // Auto-hide guest/mobile menu when clicking outside or pressing Escape
   useEffect(() => {
     if (!menuOpen) return;
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+      if (guestMenuRef.current && !guestMenuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
       }
     };
@@ -1485,16 +1456,57 @@ export default function LiveBracketHome() {
     });
   }, [events, statusFilter, sortBy, query]);
 
-  const TOURNAMENTS_PER_PAGE = 3;
-  const totalPages = Math.max(1, Math.ceil(filteredActiveUpcoming.length / TOURNAMENTS_PER_PAGE));
+  /* How many cards the row can hold, counted the way the grid counts.
+     .cardsGrid is repeat(auto-fit, minmax(320px, 360px)) with a 24px gap,
+     and auto-fit sizes its repetitions by the definite max — so this is the
+     same arithmetic, and the two only disagree if the numbers below drift
+     from the stylesheet. */
+  const [perPage, setPerPage] = useState(CARDS_PER_PAGE_STACKED);
+  const gridObserverRef = useRef<ResizeObserver | null>(null);
+
+  /* A callback ref, not an effect over a ref object: the grid is rendered
+     only once the events have loaded, so an effect running on mount finds
+     nothing to measure and never looks again. */
+  const cardsGridRef = useCallback((el: HTMLDivElement | null) => {
+    gridObserverRef.current?.disconnect();
+    gridObserverRef.current = null;
+    if (!el) return;
+
+    const measure = () => {
+      // Under 640 the grid is one swipeable column, where a card per page
+      // would be a page turn per tournament.
+      const next = window.innerWidth <= 640
+        ? CARDS_PER_PAGE_STACKED
+        : Math.max(1, Math.floor((el.clientWidth + CARD_GAP) / (CARD_MAX_W + CARD_GAP)));
+      setPerPage(prev => (prev === next ? prev : next));
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    gridObserverRef.current = ro;
+  }, []);
+
+  /* A page is a row. The grid places as many cards as fit and no more, so
+     the page has to hold exactly that many — otherwise a wide screen shows
+     a row with a gap where the fourth card would go, and a narrower one
+     wraps to a second row nobody asked for. There, the fourth card belongs
+     on page 2. */
+  const totalPages = Math.max(1, Math.ceil(filteredActiveUpcoming.length / perPage));
 
   const tournamentPages = useMemo(() => {
     const pages: Tournament[][] = [];
-    for (let i = 0; i < filteredActiveUpcoming.length; i += TOURNAMENTS_PER_PAGE) {
-      pages.push(filteredActiveUpcoming.slice(i, i + TOURNAMENTS_PER_PAGE));
+    for (let i = 0; i < filteredActiveUpcoming.length; i += perPage) {
+      pages.push(filteredActiveUpcoming.slice(i, i + perPage));
     }
     return pages;
-  }, [filteredActiveUpcoming]);
+  }, [filteredActiveUpcoming, perPage]);
+
+  /* Widening the window can empty the page being read — four cards across
+     two pages become one page of four. Clamped on the way out rather than
+     corrected in state: the page number the reader chose is still theirs
+     if the window narrows again. */
+  const page = Math.min(currentPage, totalPages);
 
   const goToPage = (page: number) => {
     const target = Math.max(1, Math.min(page, totalPages));
@@ -1581,13 +1593,80 @@ export default function LiveBracketHome() {
                 >
                   Sign In
                 </Link>
-                <Link
-                  href={createHref}
-                  onClick={() => saveScrollPosition()}
-                  className={styles.navCreateBtn}
-                >
-                  Create a tournament
-                </Link>
+
+                {/* Signed-out Hamburger Menu Button & Dropdown */}
+                <div className={styles.guestMenuWrapper} ref={guestMenuRef}>
+                  <button
+                    type="button"
+                    className={styles.guestMenuToggle}
+                    onClick={() => setMenuOpen((prev) => !prev)}
+                    aria-expanded={menuOpen}
+                    aria-haspopup="menu"
+                    aria-label="Navigation menu"
+                  >
+                    {menuOpen ? <X size={20} /> : <Menu size={20} />}
+                  </button>
+
+                  {menuOpen && (
+                    <div className={styles.guestMenuDropdown} role="menu" aria-label="Navigation menu">
+                      {/* Section 1 */}
+                      <Link
+                        href={signInHref}
+                        className={`${styles.menuItem} ${styles.mobileOnlyMenuItem}`}
+                        role="menuitem"
+                        onClick={() => {
+                          saveScrollPosition();
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <LogIn size={15} className={styles.menuIcon} aria-hidden="true" />
+                        <span>Sign In</span>
+                      </Link>
+
+                      <Link
+                        href={signUpHref}
+                        className={styles.menuItem}
+                        role="menuitem"
+                        onClick={() => {
+                          saveScrollPosition();
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <UserPlus size={15} className={styles.menuIcon} aria-hidden="true" />
+                        <span>Sign up</span>
+                      </Link>
+
+                      <div className={styles.menuDivider} role="separator" />
+
+                      {/* Section 2 */}
+                      <Link
+                        href={createOrgHref}
+                        className={styles.menuItem}
+                        role="menuitem"
+                        onClick={() => {
+                          saveScrollPosition();
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <CalendarPlus size={15} className={styles.menuIcon} aria-hidden="true" />
+                        <span>Create organizer account</span>
+                      </Link>
+
+                      <Link
+                        href={organizerHref}
+                        className={styles.menuItem}
+                        role="menuitem"
+                        onClick={() => {
+                          saveScrollPosition();
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Shield size={15} className={styles.menuIcon} aria-hidden="true" />
+                        <span>Login as an organizer</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -1595,55 +1674,8 @@ export default function LiveBracketHome() {
             {signedIn && (
               <AccountButton onNavigate={() => saveScrollPosition()} />
             )}
-
-            {/* Signed-out Mobile Hamburger Menu Button (Rightmost) */}
-            {!signedIn && (
-              <button
-                className={styles.mobileMenuToggle}
-                onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Toggle navigation menu"
-              >
-                {menuOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
-            )}
           </div>
         </div>
-
-        {/* Mobile Menu Dropdown (Signed-out visitor menu) */}
-        {!signedIn && menuOpen && (
-          <div className={styles.mobileMenuDropdown}>
-            <Link
-              href={signInHref}
-              className={styles.mobileNavSignInLink}
-              onClick={() => {
-                saveScrollPosition();
-                setMenuOpen(false);
-              }}
-            >
-              Sign In
-            </Link>
-            <Link
-              href={createHref}
-              className={styles.mobileNavCreateBtn}
-              onClick={() => {
-                saveScrollPosition();
-                setMenuOpen(false);
-              }}
-            >
-              Create a tournament
-            </Link>
-            <Link
-              href={organizerHref}
-              className={styles.mobileNavOrganizerLink}
-              onClick={() => {
-                saveScrollPosition();
-                setMenuOpen(false);
-              }}
-            >
-              Organizer login
-            </Link>
-          </div>
-        )}
       </header>
 
       {/* ── Redesigned Hero Section ──── */}
@@ -1944,13 +1976,14 @@ export default function LiveBracketHome() {
               <>
                 {/* Tournament List: Staggered morph transition on both mobile and desktop */}
                 <div
+                  ref={cardsGridRef}
                   className={styles.cardsGrid}
                   onTouchStart={handleMobileTouchStart}
                   onTouchEnd={handleMobileTouchEnd}
                 >
-                  {(tournamentPages[currentPage - 1] || []).map((t, idx) => (
+                  {(tournamentPages[page - 1] || []).map((t, idx) => (
                     <motion.div
-                      key={`${currentPage}-${t.id}`}
+                      key={`${page}-${t.id}`}
                       style={{ transformOrigin: '100% 0%', height: '100%', display: 'flex', flexDirection: 'column' }}
                       initial={{ scale: CARD_SEED_SCALE, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -1977,7 +2010,7 @@ export default function LiveBracketHome() {
 
                 {/* Pagination: ‹ 1 • 2 • ... • 8 › */}
                 <PaginationControl
-                  currentPage={currentPage}
+                  currentPage={page}
                   totalPages={totalPages}
                   goToPage={goToPage}
                   styles={styles}

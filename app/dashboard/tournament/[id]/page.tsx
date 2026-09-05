@@ -34,9 +34,11 @@ import { getTournamentDetail, type TournamentDetail, type DetailDivision, type D
 import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
 import { isGroupFormat, isKnockoutFormat, roundFormatLabel, isForfeitMatch, STANDING_POINTS } from '../../../../lib/roundFormat';
 import { calculatePoolStandings } from '../../../../lib/standings';
-import { divisionRegistrationState, isPublic, isTournamentLiveDate, type Phase, PHASE } from '../../../../lib/tournamentLifecycle';
+import { isTournamentLiveDate } from '../../../../lib/tournamentLifecycle';
+import { tournamentStatus } from '../../../../lib/tournamentStatus';
 import { describeDiscardCost, type DiscardCost } from '../../../../lib/schedule/discardCost';
 import { formatTeamFirstName } from '../../../../lib/teamName';
+import { useTabSwipe } from '../../../../hooks/useTabSwipe';
 
 const FALLBACK_HERO = '/images/livebracket/beach-volleyball.jpg';
 
@@ -461,7 +463,10 @@ export default function OrganizerBracketPage() {
      locking the draw is what `scheduleGate` requires before a schedule can be
      saved, so an organizer who believes they have locked it is sent back to
      the schedule page to be told, again, that they have not. */
-  const toggleLockDraw = async () => {
+  /* `from` is the panel the button was pressed on. Unlocking is the first
+     half of a re-draw, so the bracket's own button opens the tab that holds
+     one; the pool panel's button opens Round 1's, which is its equivalent. */
+  const toggleLockDraw = async (from: 'pool' | 'bracket' = 'pool') => {
     if (!division) return;
     const nextLocked = !isDrawLocked;
     const wasLocked = isDrawLocked;
@@ -469,12 +474,14 @@ export default function OrganizerBracketPage() {
     setLockError(null);
     setLockedByDiv(prev => ({ ...prev, [activeDiv]: nextLocked }));
     setRound1Tab(nextLocked ? 'standings' : 'config');
-    /* The knockout's config tab is about to disappear, so anyone standing on
-       it is moved to the bracket. Only on the way in: unlocking puts the tab
-       back and the organizer can choose it, where jumping them there would
-       move a pool-play division's view for a reason that has nothing to do
-       with its own crossing settings. */
+    /* Locking: the knockout's config tab is about to disappear, so anyone
+       standing on it is moved to the bracket. Unlocking from the bracket:
+       the config tab comes back and is where the re-draw is, so go there —
+       unlocking is what an organizer does on the way to redrawing. Unlocking
+       from pool play leaves the knockout's view alone, since that press was
+       about the pool draw and says nothing about the crossing settings. */
     if (nextLocked) setRound2Tab('bracket');
+    else if (from === 'bracket') handleSelectRound2Tab('config');
     try {
       const res = await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
         method: 'PATCH',
@@ -656,6 +663,27 @@ export default function OrganizerBracketPage() {
     return r?.format ?? 'single';
   }, [division]);
 
+  const round1AvailableTabs = useMemo<('config' | 'result' | 'standings')[]>(() => {
+    return isDrawLocked ? ['result', 'standings'] : ['config', 'result', 'standings'];
+  }, [isDrawLocked]);
+
+  const round1SwipeHandlers = useTabSwipe({
+    tabs: round1AvailableTabs,
+    activeTab: round1Tab,
+    onTabChange: handleSelectRound1Tab,
+    enabled: isRoundRobin,
+  });
+
+  const round2AvailableTabs = useMemo<('config' | 'bracket')[]>(() => {
+    return isDrawLocked ? ['bracket'] : ['config', 'bracket'];
+  }, [isDrawLocked]);
+
+  const round2SwipeHandlers = useTabSwipe({
+    tabs: round2AvailableTabs,
+    activeTab: round2Tab,
+    onTabChange: handleSelectRound2Tab,
+  });
+
   /* Draw-reveal choreography: pool cards morph in one by one (empty), then
      top seeds land in seed order, then the remaining teams fill pool by pool
      from A. Runs only for the division that was just drawn. */
@@ -787,39 +815,19 @@ export default function OrganizerBracketPage() {
   const totalCap = detail.divisions.reduce((sum, d) => sum + d.teams, 0);
   const isLive = isTournamentLiveDate(detail.startDate, detail.endDate);
 
-  const computeSingleStatus = (): { label: string; variant: 'live' | 'open' | 'highlight' | 'status' | 'outline' } => {
-    if (!detail || detail.phase === PHASE.draft || !isPublic(detail.phase as Phase)) {
-      return { label: 'Draft', variant: 'status' };
-    }
-    if (detail.phase === 3 || isLive) {
-      return { label: 'Live', variant: 'live' };
-    }
-    if (detail.phase === 4) {
-      return { label: 'Completed', variant: 'status' };
-    }
-    if (!division) {
-      return { label: 'Announced', variant: 'highlight' };
-    }
-    const regState = divisionRegistrationState(
-      {
-        registrationOpens: division.registrationOpens || '',
-        registrationCloses: division.registrationCloses || '',
-      },
-      new Date(),
-    );
-    if (regState === 'opens-soon') {
-      return { label: 'Announced', variant: 'highlight' };
-    }
-    if (regState === 'closed') {
-      return { label: 'Registration Closed', variant: 'status' };
-    }
-    if (division.teams > 0 && division.filled >= division.teams) {
-      return { label: 'Waitlist Open', variant: 'highlight' };
-    }
-    return { label: 'Registration Open', variant: 'open' };
-  };
-
-  const statusBadge = computeSingleStatus();
+  /* The tournament's own status, from the one place that decides it — the
+     header describes the event, not whichever division is selected. */
+  const statusBadge = tournamentStatus({
+    phase: detail?.phase,
+    startDate: detail?.startDate,
+    endDate: detail?.endDate,
+    divisions: (detail?.divisions ?? []).map(d => ({
+      registrationOpens: d.registrationOpens || '',
+      registrationCloses: d.registrationCloses || '',
+      cap: d.teams,
+      filled: d.filled,
+    })),
+  });
 
   const setConfig = (patch: Partial<DrawSettings>) => {
     setConfigByDiv({ ...configByDiv, [activeDiv]: { ...config, ...patch } });
@@ -1037,6 +1045,10 @@ export default function OrganizerBracketPage() {
           </div>
           <div className={styles.mobileEventCard}>
             <div className={styles.mobileEventBody}>
+              {/* Status over the name, as everywhere else. */}
+              <div style={{ marginBottom: 4 }}>
+                <Badge status={statusBadge.key}>{statusBadge.label}</Badge>
+              </div>
               <div className={styles.mobileEventTitle}>{detail.title || 'Untitled tournament'}</div>
               <div className={styles.mobileEventMeta}>
                 <Calendar size={13} />
@@ -1048,9 +1060,6 @@ export default function OrganizerBracketPage() {
                   <span>{detail.location}</span>
                 </div>
               )}
-              <div style={{ marginTop: 6 }}>
-                <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
-              </div>
             </div>
           </div>
         </div>
@@ -1079,7 +1088,7 @@ export default function OrganizerBracketPage() {
 
               <div className={styles.desktop2aHeaderTextCol}>
                 <div className={styles.desktop2aBadgeRow}>
-                  <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                  <Badge status={statusBadge.key}>{statusBadge.label}</Badge>
                 </div>
 
                 <h2 className={styles.desktop2aEventTitle}>{detail.title || 'Untitled tournament'}</h2>
@@ -1318,7 +1327,7 @@ export default function OrganizerBracketPage() {
             </div>
             <div className={styles.roundWrap}>
             {isRoundRobin ? (
-              <div className={styles.sliderOverflowWrap}>
+              <div className={styles.sliderOverflowWrap} {...round1SwipeHandlers}>
                 <AnimatePresence mode="wait" initial={false} custom={r1TabDirection}>
                   <motion.div
                     key={round1Tab}
@@ -1501,7 +1510,7 @@ export default function OrganizerBracketPage() {
                   <button
                     type="button"
                     className={isDrawLocked ? styles.lockBtnActive : styles.lockBtn}
-                    onClick={toggleLockDraw}
+                    onClick={() => toggleLockDraw('pool')}
                   >
                     {isDrawLocked ? (
                       <>
@@ -1542,8 +1551,9 @@ export default function OrganizerBracketPage() {
                       </div>
                       <div className={styles.poolTeamList}>
                         {pool.teams.map(t => {
+                          // A pair reads as one team — "Aurora / Adela" — not as
+                          // two names filed under each other.
                           const display = formatTeamFirstName(t.name);
-                          const parts = display.split('/').map(p => p.trim()).filter(Boolean);
                           return (
                             <div
                               key={t.id}
@@ -1551,15 +1561,7 @@ export default function OrganizerBracketPage() {
                               style={poolAnim ? { animationDelay: `${poolAnim.teamDelay.get(t.id) ?? 0}s` } : undefined}
                               title={t.name}
                             >
-                              {parts.length > 1 ? (
-                                <div className={styles.stackedTeamNames}>
-                                  {parts.map((part, pIdx) => (
-                                    <span key={pIdx} className={styles.stackedPlayer}>{part}</span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className={styles.singleTeamName}>{display}</span>
-                              )}
+                              <span className={styles.teamPairName}>{display}</span>
                             </div>
                           );
                         })}
@@ -1604,20 +1606,11 @@ export default function OrganizerBracketPage() {
                         <tbody>
                           {pool.standings.map((s, i) => {
                             const display = formatTeamFirstName(s.name);
-                            const parts = display.split('/').map(p => p.trim()).filter(Boolean);
                             return (
                               <tr key={s.teamId}>
                                 <td>{i + 1}</td>
                                 <td className={styles.standingsTeam} title={s.name}>
-                                  {parts.length > 1 ? (
-                                    <div className={styles.stackedTeamNames}>
-                                      {parts.map((part, pIdx) => (
-                                        <span key={pIdx} className={styles.stackedPlayer}>{part}</span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <span className={styles.singleTeamName}>{display}</span>
-                                  )}
+                                  <span className={styles.teamPairName}>{display}</span>
                                 </td>
                                 <td>{s.wins}</td>
                                 <td>{s.losses}</td>
@@ -1699,7 +1692,7 @@ export default function OrganizerBracketPage() {
               </div>
             </div>
             <div className={styles.roundWrap}>
-              <div className={styles.sliderOverflowWrap}>
+              <div className={styles.sliderOverflowWrap} {...round2SwipeHandlers}>
                 <AnimatePresence mode="wait" initial={false} custom={r2TabDirection}>
                   <motion.div
                     key={round2Tab}
@@ -2074,21 +2067,22 @@ export default function OrganizerBracketPage() {
 
             {round2Tab === 'bracket' && (
               <>
-                {/* Locking the draw, for a division that has no pool round.
-                    The flag is one per division and pool play already offers it
-                    on its Draw Result panel — but that panel lives inside the
-                    Round 1 section, which a pure knockout does not have. So the
-                    only control was unreachable for exactly the divisions that
-                    still need it: `scheduleGate` refuses to save a schedule
-                    until every division's draw is locked, and the schedule page
-                    sends the organizer to "the bracket page", which had no
-                    button. A single-elimination tournament could not save a
-                    schedule at all.
+                {/* Locking the draw, wherever the bracket is being read.
+                   The flag is one per division. Pool play offers it on its
+                   Draw Result panel too, but that panel lives in the Round 1
+                   section and describes the *pool* draw — an organizer looking
+                   at a locked bracket found no way to unlock it, and a
+                   division whose first round is not a group format had no
+                   control at all. `scheduleGate` refuses to save a schedule
+                   until every division's draw is locked, so an unreachable
+                   lock is a tournament that cannot be scheduled. Both controls
+                   toggle the same flag and read from it, so they cannot
+                   disagree.
 
-                    Only when there is a drawn bracket to lock: locking a
-                    projection would satisfy the schedule gate for a division
-                    that has no matches in it yet. */}
-                {!hasRoundRobin && bracket?.fromDb && (
+                   Only when there is a drawn bracket to lock: locking a
+                   projection would satisfy the schedule gate for a division
+                   that has no matches in it yet. */}
+                {bracket?.fromDb && (
                   <div className={styles.poolsHead} style={{ marginBottom: 16 }}>
                     <div className={styles.poolsHeadLeft}>
                       <h3 className={styles.cardTitle}>Draw Result</h3>
@@ -2101,7 +2095,7 @@ export default function OrganizerBracketPage() {
                     <button
                       type="button"
                       className={isDrawLocked ? styles.lockBtnActive : styles.lockBtn}
-                      onClick={toggleLockDraw}
+                      onClick={() => toggleLockDraw('bracket')}
                     >
                       {isDrawLocked ? (
                         <>
@@ -2115,12 +2109,12 @@ export default function OrganizerBracketPage() {
                     </button>
                   </div>
                 )}
-                {!hasRoundRobin && lockError && (
+                {bracket?.fromDb && lockError && (
                   <p className={styles.saveError} style={{ marginBottom: 16 }}>{lockError}</p>
                 )}
                 {/* The same warning pool play gives: unlocking destroys nothing
                     by itself, redrawing from the config tab does. */}
-                {!hasRoundRobin && bracket?.fromDb && !isDrawLocked && placedMatchCount > 0 && (
+                {bracket?.fromDb && !isDrawLocked && placedMatchCount > 0 && (
                   <p className={styles.scheduleAtRiskNote} style={{ marginBottom: 16 }}>
                     This division has a saved schedule ({placedMatchCount} match
                     {placedMatchCount === 1 ? '' : 'es'} placed). Redrawing discards it.

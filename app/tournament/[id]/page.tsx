@@ -37,12 +37,20 @@ import {
 } from '../../../lib/data';
 import { isThirdPlaceRound, assignPools } from '../../../lib/divisionMatches';
 import { fetchLiveScores, applyLiveScores, type LiveScoreMap } from '../../../lib/liveScores';
-import { registrationState, nextOpening, isPublic, isTournamentLiveDate, type Phase } from '../../../lib/tournamentLifecycle';
+import { registrationState, nextOpening, isPublic, isTournamentLiveDate, hasTournamentStarted, type Phase } from '../../../lib/tournamentLifecycle';
+import { tournamentStatus } from '../../../lib/tournamentStatus';
+import { Badge } from '../../../components/livebracket-ds';
 import { ageLimitLabel } from '../../../lib/divisionEligibility';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../components/auth/useSignInHref';
 import { useSession } from '../../../components/auth/AuthProvider';
 import AccountButton from '../../../components/auth/AccountButton';
 import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
+import { useTabSwipe } from '../../../hooks/useTabSwipe';
+
+type NavMode = 'top' | 'shown' | 'hidden';
+const NAV_SCROLL_DELTA = 10;
+const NAV_IDLE_HIDE_MS = 2400;
+const NAV_TOP_EPSILON = 8;
 
 // Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
@@ -62,6 +70,22 @@ function formatCloseDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return '';
   return formatDay(new Date(Date.UTC(y, m - 1, d)));
+}
+
+/* Centre a chip inside its own horizontal rail.
+ *
+ * scrollIntoView would do this too, but `block: 'nearest'` also scrolls the
+ * *page* to reveal the rail — on first load that drags the reader straight
+ * past the hero to the tab bar. Scrolling the rail itself moves nothing
+ * else. */
+function centerInRail(el: HTMLElement | null) {
+  const rail = el?.parentElement;
+  if (!el || !rail) return;
+  const railRect = rail.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const delta = (elRect.left + elRect.width / 2) - (railRect.left + railRect.width / 2);
+  if (Math.abs(delta) < 1) return;
+  rail.scrollBy({ left: delta, behavior: 'smooth' });
 }
 
 function getTitleInitials(title: string): string {
@@ -273,7 +297,10 @@ export default function TournamentPage() {
     if (state.activeTab) setActiveTab(state.activeTab);
   }, []);
 
-  useRestoreScrollPosition(Boolean(baseTournament), handleRestoreState);
+  /* The tab and division come back; the scroll position does not. This page
+     opens on its hero every time, so the reader always gets the event's name
+     and dates before anything else. */
+  useRestoreScrollPosition(Boolean(baseTournament), handleRestoreState, { restoreScroll: false });
 
   useEffect(() => {
     getTournamentDetail(slug).then((data) => {
@@ -339,6 +366,22 @@ export default function TournamentPage() {
   };
 
   const regState = tournament ? registrationState(tournament.divisions) : null;
+
+  /* Where this tournament is up to, from the one place that decides it. */
+  const status = useMemo(
+    () => tournamentStatus({
+      cancelled: tournament?.cancelled,
+      startDate: tournament?.startDate,
+      endDate: tournament?.endDate,
+      divisions: (tournament?.divisions ?? []).map(d => ({
+        registrationOpens: d.registrationOpens,
+        registrationCloses: d.registrationCloses,
+        cap: d.teams,
+        filled: d.filled,
+      })),
+    }),
+    [tournament],
+  );
   const opensAt = tournament ? nextOpening(tournament.divisions) : null;
 
   /* The soonest close date still ahead — what "open until" refers to when
@@ -447,6 +490,14 @@ export default function TournamentPage() {
     [knockoutRounds],
   );
 
+  /* From the first day on — a finished tournament counts as started, so the
+     page keeps leading with play rather than falling back to the pre-event
+     order once there are results to read. */
+  const hasStarted = useMemo(
+    () => hasTournamentStarted(tournament?.startDate),
+    [tournament?.startDate],
+  );
+
   const isLive = useMemo(
     () => isTournamentLiveDate(tournament?.startDate, tournament?.endDate),
     [tournament?.startDate, tournament?.endDate],
@@ -514,22 +565,27 @@ export default function TournamentPage() {
      1. Schedule (first tab when schedule exists)
      2. Round tabs (Round 1, Round 2, ...)
      3. Supporting tabs (Teams, Format & Rules, Prize, Vouchers) */
+  /* Two orders, and the start date picks between them.
+     Before the first day there is nothing being played, so the page leads
+     with what the event is — the rules, who is in, what is on offer — and
+     a published schedule or draw sits behind that rather than in front of
+     it. From the first day on the order flips: what is happening now comes
+     first, and the reference material moves behind it. */
   const tabs = useMemo(() => {
-    const t: string[] = [];
-    if (hasSchedule) {
-      t.push('Schedule');
-    }
-    divisionRounds.forEach(r => {
-      t.push(r.label);
-    });
-    t.push('Teams', 'Format & Rules', 'Prize');
+    const play = [
+      ...(hasSchedule ? ['Schedule'] : []),
+      ...divisionRounds.map(r => r.label),
+    ];
+    const t = hasStarted
+      ? [...play, 'Teams', 'Format & Rules', 'Prize']
+      : ['Format & Rules', 'Teams', 'Prize', ...play];
     if ((tournament?.vouchers.length ?? 0) > 0) t.push('Vouchers');
     return t;
-  }, [hasSchedule, divisionRounds, tournament]);
+  }, [hasStarted, hasSchedule, divisionRounds, tournament]);
 
-  const defaultTab = hasSchedule
-    ? 'Schedule'
-    : (divisionRounds.length > 0 ? divisionRounds[0].label : 'Format & Rules');
+  const defaultTab = hasStarted
+    ? (hasSchedule ? 'Schedule' : (divisionRounds[0]?.label ?? 'Format & Rules'))
+    : 'Format & Rules';
 
   const normalizedActiveTab = useMemo(() => {
     if (activeTab === 'Standings') {
@@ -552,6 +608,12 @@ export default function TournamentPage() {
     [divisionRounds, currentTab],
   );
 
+  const tabSwipeHandlers = useTabSwipe({
+    tabs,
+    activeTab: currentTab,
+    onTabChange: handleSelectTab,
+  });
+
   const tabBarInnerRef = useRef<HTMLDivElement | null>(null);
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
   const snapBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -568,7 +630,7 @@ export default function TournamentPage() {
       const containerRect = container.getBoundingClientRect();
       const isVisible = elemRect.left >= containerRect.left - 4 && elemRect.right <= containerRect.right + 4;
       if (!isVisible) {
-        tabElem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        centerInRail(tabElem);
       }
     }, delay);
   }, []);
@@ -579,11 +641,10 @@ export default function TournamentPage() {
     };
   }, []);
 
-  // Center active tab when currentTab changes
+  // Centre the active tab in its strip — horizontally only, so the load
+  // that picks a default tab doesn't scroll the page down to the tab bar.
   useEffect(() => {
-    if (activeTabRef.current) {
-      activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
+    centerInRail(activeTabRef.current);
   }, [currentTab]);
 
   useEffect(() => {
@@ -600,10 +661,84 @@ export default function TournamentPage() {
     };
   }, [activeDiv, currentTab]);
 
+  const [navMode, setNavMode] = useState<NavMode>('top');
+  const headerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    let mode: NavMode = 'top';
+    let navHeight = headerRef.current?.offsetHeight || 62;
+    let lastY = window.scrollY;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearIdle = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    };
+
+    const apply = (next: NavMode, offset?: number) => {
+      const el = headerRef.current;
+      if (el) el.style.transform = offset === undefined ? '' : `translateY(${-offset}px)`;
+      if (next !== mode) {
+        mode = next;
+        setNavMode(next);
+      }
+    };
+
+    const armIdle = () => {
+      clearIdle();
+      idleTimer = setTimeout(() => {
+        const el = headerRef.current;
+        if (el && (el.matches(':hover') || el.contains(document.activeElement))) {
+          armIdle();
+          return;
+        }
+        if (mode === 'shown') apply('hidden');
+      }, NAV_IDLE_HIDE_MS);
+    };
+
+    const handleScroll = () => {
+      const y = window.scrollY;
+
+      if (mode === 'top' && y <= navHeight) {
+        apply('top', y);
+      } else if (y <= NAV_TOP_EPSILON) {
+        clearIdle();
+        apply('top', y);
+      } else if (y < lastY - NAV_SCROLL_DELTA) {
+        apply('shown');
+        armIdle();
+      } else if (y > lastY + NAV_SCROLL_DELTA) {
+        clearIdle();
+        apply('hidden');
+      }
+
+      lastY = y;
+    };
+
+    const handleResize = () => {
+      if (mode === 'top') navHeight = headerRef.current?.offsetHeight || navHeight;
+      handleScroll();
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize);
+    handleScroll();
+
+    return () => {
+      clearIdle();
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      if (headerRef.current) headerRef.current.style.transform = '';
+    };
+  }, []);
+
   if (!tournament) {
     return (
-      <div className={styles.page}>
-        <SiteHeader />
+      <div className={styles.page} style={{ ['--nav-offset' as any]: navMode === 'shown' ? '62px' : '0px' }}>
+        <SiteHeader headerRef={headerRef} navMode={navMode} />
+        <div className={styles.headerSpacer} aria-hidden="true" />
         <div className={styles.stateWrap}>Loading tournament…</div>
       </div>
     );
@@ -614,8 +749,9 @@ export default function TournamentPage() {
      event stays up so the teams who registered find out. */
   if (!isPublic(tournament.phase as Phase) || tournament.archived) {
     return (
-      <div className={styles.page}>
-        <SiteHeader />
+      <div className={styles.page} style={{ ['--nav-offset' as any]: navMode === 'shown' ? '62px' : '0px' }}>
+        <SiteHeader headerRef={headerRef} navMode={navMode} />
+        <div className={styles.headerSpacer} aria-hidden="true" />
         <div className={styles.stateWrap}>
           <h1 className={styles.stateTitle}>This tournament isn&apos;t published</h1>
           <p className={styles.stateBody}>The organizer hasn&apos;t made it public yet. Check back soon.</p>
@@ -627,8 +763,16 @@ export default function TournamentPage() {
   const canRegister = regState === 'open';
 
   return (
-    <div className={styles.page}>
-      <SiteHeader onSignInClick={() => saveScrollPosition(undefined, { activeDiv, activeTab: currentTab })} />
+    <div
+      className={styles.page}
+      style={{ ['--nav-offset' as any]: navMode === 'shown' ? '62px' : '0px' }}
+    >
+      <SiteHeader
+        headerRef={headerRef}
+        navMode={navMode}
+        onSignInClick={() => saveScrollPosition(undefined, { activeDiv, activeTab: currentTab })}
+      />
+      <div className={styles.headerSpacer} aria-hidden="true" />
 
       {/* ── Event head ────────────────────────────────────────── */}
       <section className={styles.headSection}>
@@ -655,27 +799,15 @@ export default function TournamentPage() {
           </div>
 
           <div className={styles.headMain}>
+            {/* The same status, in the same colours, as the card this page
+                was opened from. A date is more use than the word "announced"
+                when there is one to give, so that copy stays. */}
             <div className={styles.pillRow}>
-              {tournament.cancelled ? (
-                <span className={styles.pillCancelled}>Cancelled</span>
-              ) : (
-                <>
-                  {regState === 'open' && (
-                    <span className={styles.pillPrimary}>
-                      <span className={styles.pillDot} />
-                      Registration Open
-                    </span>
-                  )}
-                  {regState === 'opens-soon' && (
-                    <span className={styles.pillOutline}>
-                      <Calendar size={12} />
-                      {opensAt ? `Opens ${formatDay(opensAt)}` : 'Opens soon'}
-                    </span>
-                  )}
-                  {regState === 'closed' && <span className={styles.pillMuted}>Registration Closed</span>}
-                  {regState === null && <span className={styles.pillMuted}>Save the date</span>}
-                </>
-              )}
+              <Badge status={status.key}>
+                {status.key === 'announced' && opensAt
+                  ? `Opens ${formatDay(opensAt)}`
+                  : status.label}
+              </Badge>
             </div>
 
             <h1 className={styles.title}>{tournament.title}</h1>
@@ -744,7 +876,7 @@ export default function TournamentPage() {
                   className={`${styles.segment} ${isActive ? styles.segmentActive : ''}`}
                   onClick={(e) => {
                     handleSelectDivision(d.id);
-                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    centerInRail(e.currentTarget);
                   }}
                   aria-pressed={isActive}
                 >
@@ -794,7 +926,7 @@ export default function TournamentPage() {
                 onClick={(e) => {
                   if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
                   handleSelectTab(t);
-                  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  centerInRail(e.currentTarget);
                 }}
               >
                 {isActive && (
@@ -812,7 +944,7 @@ export default function TournamentPage() {
       </div>
       </div>
 
-      <main className={styles.main}>
+      <main className={styles.main} {...tabSwipeHandlers}>
         <div className={styles.sliderOverflowWrap}>
           <AnimatePresence mode="wait" initial={false} custom={slideDirection}>
             <motion.div
@@ -1152,11 +1284,26 @@ export default function TournamentPage() {
 
 /* ── Pieces ──────────────────────────────────────────────────────── */
 
-function SiteHeader({ onSignInClick }: { onSignInClick?: () => void }) {
+function SiteHeader({
+  headerRef,
+  navMode = 'top',
+  onSignInClick,
+}: {
+  headerRef?: React.RefObject<HTMLElement | null>;
+  navMode?: NavMode;
+  onSignInClick?: () => void;
+}) {
   const signInHref = useSignInHref();
   const { signedIn } = useSession();
   return (
-    <header className={styles.siteHeader}>
+    <header
+      ref={headerRef}
+      className={[
+        styles.siteHeader,
+        navMode !== 'top' ? styles.headerFloat : '',
+        navMode === 'shown' ? styles.headerRevealed : '',
+      ].filter(Boolean).join(' ')}
+    >
       <div className={styles.siteHeaderInner}>
         {/* Narrow screens fold the way back into the header row, so the
             back link, the wordmark and the account control share one

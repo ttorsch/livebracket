@@ -15,13 +15,10 @@
 }
 
 .container {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 0 28px;
-  /* .heroNew is a flex row, which makes this a flex item — and a flex
-     item's automatic minimum is its min-content width, so the container
-     refused to shrink below the hero CTAs and pushed ~29px of every
-     section off the right edge on a phone. */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(20px, 3.5vw, 56px);
   min-width: 0;
 }
 
@@ -84,9 +81,9 @@
   position: relative;
   pointer-events: auto;
   width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 20px 32px;
+  max-width: none;
+  margin: 0;
+  padding: 20px clamp(20px, 3.5vw, 56px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -102,7 +99,7 @@
 }
 
 .scrolled .navRow {
-  padding: 12px 32px;
+  padding: 12px clamp(20px, 3.5vw, 56px);
   background: transparent;
   border-radius: 0;
   backdrop-filter: none;
@@ -178,125 +175,117 @@
 .navSignInLink:hover {
   color: var(--color-primary, #EB6F43);
 }
-.navCreateBtn {
+.guestMenuWrapper {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 9px 20px;
-  border-radius: 9999px;
-  background: var(--color-primary, #EB6F43);
-  color: #FFFFFF;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 4px 14px rgba(235, 111, 67, 0.35);
-  transition: all 0.15s ease;
+  flex: none;
 }
-.navCreateBtn:hover {
-  background: var(--color-primary-hover, #E44F1C);
-  transform: translateY(-1px);
-}
-.mobileMenuToggle {
-  display: none;
+
+.guestMenuToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 38px;
   height: 38px;
   border-radius: 12px;
   background: transparent;
   border: none;
-  align-items: center;
-  justify-content: center;
   color: #14181E;
   cursor: pointer;
   padding: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
 }
-.mobileMenuDropdown {
-  /* Floats over the page instead of pushing it down: the nav is in flow at
-     mobile widths, so the panel is absolutely positioned under the nav row. */
+
+.guestMenuToggle:hover {
+  color: var(--color-primary, #EB6F43);
+  background: var(--sand-100, #F5F1EA);
+}
+
+.guestMenuToggle:focus-visible {
+  outline: 2px solid var(--color-primary, #EB6F43);
+  outline-offset: 2px;
+}
+
+/* ── Guest Dropdown Menu (matches AccountButton profile dropdown) ── */
+.guestMenuDropdown {
   position: absolute;
-  top: 100%;
-  left: 0;
+  top: calc(100% + 8px);
   right: 0;
-  z-index: 1001;
-  pointer-events: auto;
-  padding: 16px 20px 20px;
-  background: var(--surface-app, #F5F1EA);
-  border-bottom: 1px solid rgba(20, 31, 46, 0.08);
-  box-shadow: 0 16px 32px rgba(20, 31, 46, 0.16);
+  min-width: 220px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  box-sizing: border-box;
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid var(--sand-300, #E7E2D9);
+  box-shadow: 0 12px 32px rgba(20, 24, 30, 0.14), 0 2px 6px rgba(20, 24, 30, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  animation: slideDownMenu 0.18s ease-out;
+  gap: 2px;
+  z-index: 1000;
+  animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
-@keyframes slideDownMenu {
+
+@keyframes dropdownFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(-4px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
-.mobileNavSignInLink {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 12px 20px;
-  border-radius: 9999px;
-  background: #FFFFFF;
-  color: #14181E;
-  border: 1px solid rgba(20, 31, 46, 0.1);
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14.5px;
-  font-weight: 700;
-  text-decoration: none;
-  text-align: center;
-  transition: all 0.15s ease;
-}
-.mobileNavSignInLink:hover {
-  background: var(--sand-200, #EFEAE0);
-}
-.mobileNavCreateBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 12px 20px;
-  border-radius: 9999px;
-  background: var(--color-primary, #EB6F43);
-  color: #FFFFFF;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 14.5px;
-  font-weight: 700;
-  text-decoration: none;
-  text-align: center;
-  box-shadow: 0 4px 14px rgba(235, 111, 67, 0.35);
-  transition: all 0.15s ease;
-}
-.mobileNavCreateBtn:hover {
-  background: var(--color-primary-hover, #E44F1C);
-}
 
-/* Returning organizers land on the same tab as "Create a tournament", so this
-   stays a quiet text link — it is a second door, not a competing CTA. */
-.mobileNavOrganizerLink {
-  display: block;
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(20, 31, 46, 0.08);
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 13.5px;
-  font-weight: 600;
-  color: #7A8294;
-  text-align: center;
+  font-weight: 500;
+  color: var(--ink-800, #1E2733);
   text-decoration: none;
-  transition: color 0.15s ease;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
-.mobileNavOrganizerLink:hover {
-  color: #14181E;
-  text-decoration: underline;
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--sand-100, #F5F1EA);
+  color: var(--ink-900, #14181E);
+  outline: none;
+}
+
+.menuIcon {
+  color: var(--ink-500, #7A8294);
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+
+.menuItem:hover .menuIcon {
+  color: var(--coral-500, #EB6F43);
+}
+
+.menuDivider {
+  height: 1px;
+  background: var(--sand-300, #E7E2D9);
+  margin: 4px 6px;
+}
+
+.mobileOnlyMenuItem {
+  display: none;
 }
 
 /* ── Hero Section (New Warm Cream Layout) ─────────────────────── */
@@ -308,12 +297,17 @@
   display: flex;
   align-items: center;
 }
+/* The section is full-bleed, its content is not: past 1440px the copy and
+   the live card would sit against opposite edges of the screen with the
+   width of a third column of nothing between them. */
 .heroNewGrid {
   display: grid;
   grid-template-columns: 1.15fr 0.95fr;
   gap: 56px;
   align-items: stretch;
   width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
 }
 
 .heroNewLeftCol {
@@ -962,14 +956,11 @@
 
 /* Responsive Media Queries */
 @media (max-width: 960px) {
-  .mobileMenuToggle {
-    display: flex;
-  }
   .navSignInLink {
     display: none;
   }
-  .navCreateBtn {
-    display: none;
+  .mobileOnlyMenuItem {
+    display: flex;
   }
   .heroNew {
     /* 20px of hero air + the 70px bar the hero now sits beneath. */
@@ -2032,10 +2023,23 @@
 }
 
 /* Card List - Active & Upcoming */
+/* A capped track, not a 1fr one: the section runs edge to edge now, and
+   1fr handed every card a share of that — three 580px cards on a wide
+   screen, each with a poster half a screen tall. Past the cap the row
+   takes another card instead of growing the ones it has, and the row sits
+   in the middle of whatever it does not fill. No cap on the row itself:
+   the hero's 1440 would hold it to three columns for ever, and four need
+   1512.
+
+   360 is chosen for where the fourth card lands: four across from about
+   1620px, which takes in a 16" laptop and every desktop monitor, and five
+   past ~2010px. Below that the row falls to three, two and one on its own,
+   and the pager pages by whatever the row holds — see page.tsx. */
 .cardsGrid,
 .mobileCardsStack {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 360px));
+  justify-content: center;
   gap: 24px;
   width: 100%;
   align-items: stretch;
@@ -2070,10 +2074,15 @@
   color: inherit;
 }
 
+/* A band of fixed height rather than a ratio. A ratio made the poster grow
+   with the card, so a wider screen bought more photograph — the height a
+   taller card has to spare belongs to the details underneath, which are
+   what the reader came for. */
 .cardMedia {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 7.2;
+  height: 180px;
+  flex: none;
   overflow: hidden;
   background: rgba(20, 31, 46, 0.06);
 }
@@ -2088,70 +2097,22 @@
   transform: scale(1.04);
 }
 
-/* Sits in .cardBody markup so the mobile row can place it beside the
-   title; on desktop it is lifted back onto the poster (.card is the
-   nearest positioned ancestor). */
+/* Status over name, at both sizes — the status is read first and the
+   poster is left to the photograph. */
 .cardTitleRow {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .cardStatusShort {
   display: none;
 }
 
-.cardStatusBadge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px 5px 10px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--coral-400, #F28864), var(--coral-600, #E44F1C));
-  color: #ffffff;
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 10.5px;
-  font-weight: 700;
+/* The status is the DS badge's own text; the card only says where it sits. */
+.cardStatus {
   letter-spacing: 0.08em;
-  text-transform: uppercase;
-  box-shadow: 0 8px 20px -8px rgba(228, 79, 28, 0.7);
-}
-
-.cardStatusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ffffff;
-  flex-shrink: 0;
-}
-
-.cardStatusLive {
-  background: linear-gradient(135deg, var(--status-live, #F16767), #D14545);
-  box-shadow: 0 8px 20px -8px rgba(209, 69, 69, 0.7);
-}
-.cardStatusLive .cardStatusDot {
-  animation: statusPulse 1.4s ease-in-out infinite;
-}
-
-.cardStatusFinished {
-  background: linear-gradient(135deg, var(--ink-500, #7A8294), var(--ink-600, #3A414D));
-  box-shadow: 0 8px 20px -8px rgba(58, 65, 77, 0.6);
-}
-
-.cardStatusAnnounced {
-  background: linear-gradient(135deg, #204ECF, #173896);
-  box-shadow: 0 8px 20px -8px rgba(32, 78, 207, 0.7);
-}
-
-.cardStatusClosed {
-  background: linear-gradient(135deg, var(--ink-500, #7A8294), var(--ink-600, #3A414D));
-  box-shadow: 0 8px 20px -8px rgba(58, 65, 77, 0.6);
-}
-
-@keyframes statusPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.45; transform: scale(0.8); }
 }
 
 .cardBody {
@@ -3104,23 +3065,7 @@
   /* Plain orange label beside the title instead of a pill on the poster. */
   /* order:-1 lifts it above the title visually while the heading stays
      first in the DOM for screen readers. */
-  .cardStatusBadge {
-    order: -1;
-    position: static;
-    padding: 0;
-    background: none;
-    box-shadow: none;
-    border-radius: 0;
-    flex-shrink: 0;
-    color: var(--coral-600, #E44F1C);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-  }
-  .cardStatusLive { background: none; box-shadow: none; color: #D14545; }
-  .cardStatusFinished { background: none; box-shadow: none; color: var(--text-muted, #7A8294); }
-  .cardStatusAnnounced { background: none; box-shadow: none; color: #204ECF; }
-  .cardStatusClosed { background: none; box-shadow: none; color: var(--text-muted, #7A8294); }
-  .cardStatusDot { display: none; }
+  /* The short label on a narrow row: "Closed", not "Registration Closed". */
   .cardStatusLong { display: none; }
   .cardStatusShort { display: inline; }
 

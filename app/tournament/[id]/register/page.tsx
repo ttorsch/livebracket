@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { tournamentStatus } from '../../../../lib/tournamentStatus';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Check, AlertCircle } from 'lucide-react';
@@ -643,6 +644,18 @@ function Hero({ slug, tournament, stepLabel }: {
   stepLabel: string;
 }) {
   const rosterSizes = Array.from(new Set(tournament.divisions.map(d => d.rosterSize))).sort((a, b) => a - b);
+
+  const registerStatus = tournamentStatus({
+    cancelled: tournament.cancelled,
+    startDate: tournament.startDate,
+    endDate: tournament.endDate,
+    divisions: tournament.divisions.map(d => ({
+      registrationOpens: d.registrationOpens,
+      registrationCloses: d.registrationCloses,
+      cap: d.teams,
+      filled: d.filled,
+    })),
+  });
   const playersLabel = rosterSizes.length === 1
     ? `${rosterSizes[0]} players per team`
     : `${rosterSizes[0]}–${rosterSizes[rosterSizes.length - 1]} players per team`;
@@ -661,7 +674,10 @@ function Hero({ slug, tournament, stepLabel }: {
         <BackToEvent slug={slug} className={styles.backPillLead} />
 
         <div className={styles.heroTags}>
-          <Badge>Registration open</Badge>
+          {/* The event's real status, in the same colours as the card and the
+              tournament page this was opened from — it used to say
+              "Registration open" whatever was true. */}
+          <Badge status={registerStatus.key}>{registerStatus.label}</Badge>
         </div>
 
         <h1 className={styles.heroTitle}>{tournament.title}</h1>

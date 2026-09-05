@@ -28,10 +28,15 @@ export function saveScrollPosition(
   }
 }
 
+/* `restoreScroll: false` restores the saved tab and division but leaves the
+ * page where it loads — for a page that should always open at its own top,
+ * whatever the reader was looking at before they left it. */
 export function useRestoreScrollPosition(
   isReady: boolean = true,
-  onRestoreState?: (state: { activeDiv?: string; activeTab?: string }) => void
+  onRestoreState?: (state: { activeDiv?: string; activeTab?: string }) => void,
+  options?: { restoreScroll?: boolean }
 ) {
+  const restoreScroll = options?.restoreScroll !== false;
   const pathname = usePathname();
   const restoredRef = useRef(false);
 
@@ -58,7 +63,7 @@ export function useRestoreScrollPosition(
           onRestoreState({ activeDiv, activeTab });
         }
 
-        if (!isNaN(top) && top > 0) {
+        if (restoreScroll && !isNaN(top) && top > 0) {
           restoredRef.current = true;
           // Apply scroll immediately and retry on subsequent layout frames
           // to ensure async content and dynamic image heights do not clamp the scroll position.
@@ -76,7 +81,7 @@ export function useRestoreScrollPosition(
     } catch {
       // Ignore storage errors
     }
-  }, [pathname, isReady, onRestoreState]);
+  }, [pathname, isReady, onRestoreState, restoreScroll]);
 }
 
 /* Builds the /login link for a public "Sign in" control.

@@ -25,7 +25,10 @@ import { useSession } from '../../components/auth/AuthProvider';
 import { fetchLiveScores, applyLiveScores } from '../../lib/liveScores';
 import { buildCourtRows } from '../../lib/courtRows';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
-import { isPublic, type Phase, registrationState } from '../../lib/tournamentLifecycle';
+import { tournamentStatus, type TournamentStatus } from '../../lib/tournamentStatus';
+import { useTabSwipe } from '../../hooks/useTabSwipe';
+
+const DASHBOARD_TABS = ['tournament', 'history', 'notifications'] as const;
 
 interface Organizer {
   name: string;
@@ -41,10 +44,6 @@ function isLiveNow(t: CardTournament): boolean {
 }
 
 /* Map tournament phase → filter status */
-/* The More menu's destinations. The first three still lead nowhere and stay
- * disabled; "Log out" is real now that there is a session to end, and is the
- * organizer's only way out of the dashboard. */
-const MORE_ITEMS = ['Settings', 'Saved brackets', 'Switch club'];
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
@@ -63,55 +62,21 @@ function isCompleted(t: CardTournament): boolean {
   return (t.endDate || t.startDate) < TODAY;
 }
 
-function getTournamentStatus(t: CardTournament): {
-  key: 'draft' | 'announced' | 'open' | 'waitlist' | 'closed' | 'completed' | 'archived';
-  label: string;
-  variant: 'status' | 'highlight' | 'open' | 'live' | 'outline';
-} {
-  // 0. Archived
-  if (t.archived) {
-    return { key: 'archived', label: 'Archived', variant: 'status' };
-  }
-
-  // 1. Draft phase (not public)
-  if (t.phase === 1 || !isPublic(t.phase as Phase)) {
-    return { key: 'draft', label: 'Draft', variant: 'status' };
-  }
-
-  // 2. Completed (past end date)
-  if (isCompleted(t)) {
-    return { key: 'completed', label: 'Completed', variant: 'status' };
-  }
-
-  // 3. Derived from divisions for published tournament
-  if (!t.divisions || t.divisions.length === 0) {
-    return { key: 'announced', label: 'Announced', variant: 'highlight' };
-  }
-
-  const regState = registrationState(
-    t.divisions.map((d) => ({
+/* The dashboard's shape of tournament, read by the one thing that decides a
+   status. `key` is what the filters below match on, so it keeps its name. */
+function getTournamentStatus(t: CardTournament): TournamentStatus {
+  return tournamentStatus({
+    archived: t.archived,
+    phase: t.phase,
+    startDate: t.startDate,
+    endDate: t.endDate,
+    divisions: (t.divisions ?? []).map(d => ({
       registrationOpens: d.registrationOpens || '',
       registrationCloses: d.registrationCloses || '',
+      cap: d.cap,
+      filled: d.filled,
     })),
-    new Date(),
-  );
-
-  if (regState === 'opens-soon') {
-    return { key: 'announced', label: 'Announced', variant: 'highlight' };
-  }
-
-  if (regState === 'closed') {
-    return { key: 'closed', label: 'Registration closed', variant: 'status' };
-  }
-
-  // regState is 'open'
-  // Check if all divisions are full
-  const allFull = t.divisions.every((d) => d.cap > 0 && d.filled >= d.cap);
-  if (allFull) {
-    return { key: 'waitlist', label: 'Waitlist open', variant: 'highlight' };
-  }
-
-  return { key: 'open', label: 'Registration open', variant: 'open' };
+  });
 }
 
 function matchesFilter(t: CardTournament, key: StatusKey | null): boolean {
@@ -165,6 +130,11 @@ function matchesQuery(t: CardTournament, q: string): boolean {
 
 export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState<'tournament' | 'history' | 'notifications'>('tournament');
+  const tabSwipeHandlers = useTabSwipe({
+    tabs: DASHBOARD_TABS,
+    activeTab,
+    onTabChange: setActiveTab,
+  });
   const [tournaments, setTournaments] = useState<DashboardTournament[]>([]);
   const [organizer, setOrganizer] = useState<Organizer | null>(null);
   /* Resolved on the server in app/layout.tsx and handed down by
@@ -485,55 +455,56 @@ export default function OrganizerDashboard() {
         <div className={styles.moreWrap} ref={moreRef}>
           {moreOpen && (
             <div className={styles.morePopup} role="menu">
-              {/* Everything the phone bar cannot hold lives here instead.
-                  The bar is down to the menu and the profile now, so My
-                  Tournament and Notifications join History in the menu —
-                  all three hidden on desktop, where the rail shows them
-                  directly. */}
-              <button
-                type="button"
-                className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
-                role="menuitem"
-                onClick={() => { setActiveTab('tournament'); setMoreOpen(false); }}
-              >
-                My Tournament
-              </button>
-              <button
-                type="button"
-                className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
-                role="menuitem"
-                onClick={() => { setActiveTab('notifications'); setMoreOpen(false); }}
-              >
-                {/* The count comes along, since the badge it used to wear
-                    on the bar is not there to carry it any more. */}
-                Notifications{notificationCount > 0 ? ` (${notificationCount})` : ''}
-              </button>
-              <button
-                type="button"
-                className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
-                role="menuitem"
-                onClick={() => { setActiveTab('history'); setMoreOpen(false); }}
-              >
-                History
-              </button>
-              {/* Nothing behind these yet — shown disabled rather than as
-                  links that go nowhere. */}
-              {MORE_ITEMS.map(label => (
-                <button key={label} type="button" className={styles.moreItem} disabled role="menuitem">
-                  {label}
+              {/* Three groups: the tournaments, the person, the way out.
+                  Everything the phone bar cannot hold lives here — the first
+                  group and Notifications are hidden on desktop, where the
+                  rail shows them directly, which leaves the menu there as
+                  Profile and Log out. */}
+              <div className={`${styles.moreGroup} ${styles.moreGroupMobileOnly}`}>
+                <button
+                  type="button"
+                  className={styles.moreItem}
+                  role="menuitem"
+                  onClick={() => { setActiveTab('tournament'); setMoreOpen(false); }}
+                >
+                  My Tournament
                 </button>
-              ))}
-              <Link href="/profile" className={styles.moreItem} role="menuitem">
-                Player profile
-              </Link>
-              <button
-                type="button"
-                className={styles.moreItem}
-                role="menuitem"
-                onClick={handleLogout}
-              >
-                Log out
-              </button>
+                <button
+                  type="button"
+                  className={styles.moreItem}
+                  role="menuitem"
+                  onClick={() => { setActiveTab('history'); setMoreOpen(false); }}
+                >
+                  Tournament History
+                </button>
+              </div>
+
+              <div className={styles.moreGroup}>
+                <button
+                  type="button"
+                  className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
+                  role="menuitem"
+                  onClick={() => { setActiveTab('notifications'); setMoreOpen(false); }}
+                >
+                  {/* The count comes along, since the badge it used to wear
+                      on the bar is not there to carry it any more. */}
+                  Notifications{notificationCount > 0 ? ` (${notificationCount})` : ''}
+                </button>
+                <Link href="/profile" className={styles.moreItem} role="menuitem">
+                  Profile
+                </Link>
+              </div>
+
+              <div className={styles.moreGroup}>
+                <button
+                  type="button"
+                  className={styles.moreItem}
+                  role="menuitem"
+                  onClick={handleLogout}
+                >
+                  Log out
+                </button>
+              </div>
             </div>
           )}
           <button
@@ -553,18 +524,31 @@ export default function OrganizerDashboard() {
       </aside>
 
       {/* ── Main area ─────────────────────────────────────────── */}
-      <main className={styles.main}>
+      <main className={styles.main} {...tabSwipeHandlers}>
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerIdentity}>
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
-            {/* The organizer's own name, not a greeting. The session copy
-                is the fallback because it is server-rendered and therefore
-                already there — /api/organizer resolves a moment later, so
-                leading with it would flash an empty heading. */}
-            <h1 className={styles.headerTitle}>
-              {organizer?.name ?? organizerIdentity?.name ?? 'Organizer'}
-            </h1>
+            <div className={styles.headerTitleRow}>
+              <button
+                type="button"
+                className={styles.mobileOrganizerAvatarBtn}
+                title="Organizer profile"
+                aria-label="Organizer profile"
+                onClick={() => setProfileOpen(true)}
+              >
+                <span className={styles.mobileOrganizerAvatar}>
+                  {organizerIdentity?.avatarUrl ? (
+                    <img src={organizerIdentity.avatarUrl} alt="" />
+                  ) : (
+                    '🏐'
+                  )}
+                </span>
+              </button>
+              <h1 className={styles.headerTitle}>
+                {organizer?.name ?? organizerIdentity?.name ?? 'Organizer'}
+              </h1>
+            </div>
           </div>
           <Button
             variant="primary"
@@ -1045,19 +1029,6 @@ function CourtCards({ detail }: { detail: TournamentDetail | null }) {
 }
 
 
-/* The row's status badge, one size down from the design system's default
- * so it sits over the title as a label rather than beside it as a peer.
- * Built once per variant rather than inline, so the object identity is
- * stable across the list's re-renders. */
-const ROW_BADGE_SIZE = { padding: '3px 8px', fontSize: 9.5, letterSpacing: '0.07em' } as const;
-const ROW_BADGE_STYLE: Record<string, React.CSSProperties> = {
-  status: ROW_BADGE_SIZE,
-  open: ROW_BADGE_SIZE,
-  live: ROW_BADGE_SIZE,
-  outline: ROW_BADGE_SIZE,
-  highlight: { ...ROW_BADGE_SIZE, background: 'var(--amber-100, #FEF3C7)' },
-};
-
 /* ── Compact tournament row (expandable) ────────────────────────── */
 
 function TournamentRow({
@@ -1118,9 +1089,7 @@ function TournamentRow({
                   kind of thing entirely, so it borrows the light amber and
                   matches. Overridden here rather than in Badge, which a
                   dozen other surfaces share. */}
-              <Badge variant={status.variant} style={ROW_BADGE_STYLE[status.variant]}>
-                {status.label}
-              </Badge>
+              <Badge status={status.key}>{status.label}</Badge>
               {isLive && (
                 <span className={styles.rowLive}>
                   <span className={styles.rowLiveDot} aria-hidden="true" /> Live

@@ -304,6 +304,23 @@ export function getOrganizerDivisionBadge(
   }
 }
 
+/** Has the first day arrived? True from the start date onwards, so a
+ *  finished tournament still counts as started — pages that lead with play
+ *  (schedule, rounds) should keep leading with it once there are results.
+ *  Local and UTC are both accepted, as in isTournamentLiveDate below: a
+ *  viewer whose clock has rolled over should not be told the event hasn't
+ *  begun. */
+export function hasTournamentStarted(
+  startDate?: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (!startDate) return false;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayLocal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const todayUTC = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}`;
+  return todayLocal >= startDate || todayUTC >= startDate;
+}
+
 /** Checks if a tournament is currently live based on its date range (inclusive). */
 export function isTournamentLiveDate(
   startDate?: string | null,

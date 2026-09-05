@@ -21,9 +21,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 22px 28px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 22px clamp(20px, 3.5vw, 48px);
 }
 .brand {
   display: inline-flex;

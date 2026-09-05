@@ -89,6 +89,8 @@
   /* Status */
   --status-live: var(--red-live);
   --status-highlight: var(--amber-300);
+  --status-open: #1E7A4A;              /* registration open, waitlist open */
+  --status-closed: var(--blue-link);   /* registration closed */
 
   /* Focus ring */
   --focus-ring: rgba(235, 111, 67, 0.45);

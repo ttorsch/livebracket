@@ -58,25 +58,48 @@
   color: var(--text-primary);
 }
 
-/* Every section shares the design's 1240px measure. */
+/* Every section expands fluidly across the screen with responsive gutters. */
 .siteHeaderInner,
 .headSection,
 .courtsSection,
 .divisionSection,
 .tabBarInner,
 .main {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding-left: 20px;
-  padding-right: 20px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-left: clamp(20px, 3.5vw, 48px);
+  padding-right: clamp(20px, 3.5vw, 48px);
 }
 
 /* ── Site header ─────────────────────────────────────────────── */
 .siteHeader {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 30;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 100;
   background: var(--surface-app, #F5F1EA);
+  transition: box-shadow 0.2s ease;
+}
+.headerSpacer {
+  height: 62px;
+  width: 100%;
+}
+.headerFloat {
+  transform: translateY(-100%);
+  transition:
+    transform 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 200ms ease;
+  will-change: transform;
+}
+.headerRevealed {
+  transform: translateY(0);
+  box-shadow: 0 8px 24px rgba(20, 31, 46, 0.10);
+}
+@media (prefers-reduced-motion: reduce) {
+  .headerFloat { transition: none; }
 }
 .siteHeaderInner {
   height: 62px;
@@ -381,7 +404,7 @@
 /* 3.5 cards to a screen — the half card is the tell that the rail moves. */
 .courtCard,
 .courtCardLive {
-  flex: 0 0 calc(100% / 3.5 - 12px);
+  flex: 0 0 clamp(280px, calc(100% / 3.5 - 12px), 380px);
   min-width: 0;
   border-radius: var(--radius-xl);
   padding: 16px 18px;
@@ -620,13 +643,14 @@
 /* ── Tabs ────────────────────────────────────────────────────── */
 .tabBar {
   position: sticky;
-  top: 62px;
+  top: var(--nav-offset, 0px);
   z-index: 20;
   background: rgba(245, 241, 234, 0.9);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border-hairline);
   margin-top: 18px;
+  transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .tabBarInner {
   display: flex;
@@ -1209,7 +1233,7 @@
 
 @media (min-width: 900px) {
   .poolsContainer {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
     gap: 32px 24px;
     align-items: start;
   }
@@ -1472,9 +1496,10 @@
 
 /* ── Load / unavailable states ───────────────────────────────── */
 .stateWrap {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 140px 20px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 140px clamp(20px, 3.5vw, 48px);
   text-align: center;
   color: var(--text-muted);
   font-size: 15px;
@@ -1531,12 +1556,13 @@
   .controlRail {
     display: block;
     position: sticky;
-    top: 62px;
+    top: var(--nav-offset, 0px);
     z-index: 20;
     /* Opaque, like the header above it — a translucent rail let the cards
        underneath read straight through the tab labels. */
     background: var(--surface-app, #F5F1EA);
     padding-bottom: 2px;
+    transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   /* Header 62 + the rail's 115: chips and tabs are both pinned here. */
   .main {

@@ -213,10 +213,26 @@
   cursor: pointer;
 }
 .moreItem:hover:not(:disabled) { background: var(--sand-200, #EFEAE0); }
-/* Nothing behind these yet — see MORE_ITEMS in page.tsx. */
 .moreItem:disabled { opacity: 0.45; cursor: default; }
-.moreItem:nth-last-child(2) { margin-bottom: 6px; }
-.moreItem:last-child { border-top: 1px solid var(--sand-300, #E7E2D9); padding-top: 13px; }
+
+/* Three groups, each a rule apart: the tournaments, the person, the way out. */
+.moreGroup {
+  display: flex;
+  flex-direction: column;
+}
+.moreGroup + .moreGroup {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--sand-300, #E7E2D9);
+}
+/* The rail carries this group on desktop, so it — and the rule that would
+   sit under it — only exist on the phone bar's menu. */
+.moreGroupMobileOnly { display: none; }
+.moreGroupMobileOnly + .moreGroup {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
 
 .sideAvatar {
   width: 24px;
@@ -236,19 +252,10 @@
 .main {
   flex: 1;
   min-width: 0;
-  /* Definite, so the column stops widening to fit its widest child. As a
-     stretched item of the column-flex .page below 961px, min-width: 0 was
-     not enough on its own: a row whose max-content ran past the screen —
-     the search field beside the status select — pushed .main past the
-     viewport and gave the page a sideways scroll. Ignored above 961px,
-     where .page is a row and flex-basis decides the width. */
   width: 100%;
-  /* The site's shared measure — /tournament/[id], the dashboard detail
-     page and the create wizard all cap their content the same way, and
-     this page used to be the one that ran full-bleed. */
-  max-width: 1240px;
-  margin-inline: auto;
-  padding: 24px 20px 60px;
+  max-width: none;
+  margin-inline: 0;
+  padding: 24px clamp(20px, 3vw, 48px) 60px;
 }
 
 .header {
@@ -265,6 +272,14 @@
   text-transform: uppercase;
   color: var(--coral-500, #EB6F43);
   margin-bottom: 4px;
+}
+.headerTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mobileOrganizerAvatarBtn {
+  display: none;
 }
 /* The create action reads as an invitation to add something rather than
    as the page's loudest control — the same dashed-outline language the
@@ -1513,8 +1528,7 @@
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 960px) {
   /* No rail here, so no gutter to reserve. */
-  .page { flex-direction: column; padding-left: 0; padding-right: 0; }
-  .page { position: relative; }
+  .page { flex-direction: column; padding-left: 0; padding-right: 0; width: 100%; box-sizing: border-box; position: relative; }
   .sidebar {
     width: auto;
     height: auto;
@@ -1567,17 +1581,17 @@
   .brand { display: none; }
   .brandHome { display: none; }
 
-  /* Menu, then profile. My Tournament and Notifications moved into the
-     menu, so there is nothing left to split the bar around. */
+  /* Menu in the top right. Profile avatar moved in front of organizer name. */
   .moreWrap { display: flex; order: 1; }
-  .navProfile { order: 2; }
-  /* No padding of its own: the avatar is the tallest thing in the bar, so
-     letting it set the content box is what makes the top inset above land
-     on the avatar rather than 9px below it. Scoped through .sidebar to
-     outweigh the `.sideLink { padding: 9px 11px }` rule further down. */
-  .sidebar .navProfile { padding: 0; }
+  .navProfile { display: none !important; }
 
   .moreItemMobileOnly { display: block; }
+  .moreGroupMobileOnly { display: flex; }
+  .moreGroupMobileOnly + .moreGroup {
+    margin-top: 7px;
+    padding-top: 7px;
+    border-top: 1px solid var(--sand-300, #E7E2D9);
+  }
 
   /* The bar sits at the top of the page here, so its menu drops down
      from the trigger rather than rising off the screen edge. */
@@ -1633,11 +1647,52 @@
      header starts at the top of the page, level with the profile. */
   .main { padding: 16px 16px 40px; }
   /* Sits alongside the bar rather than under it: reserves the width the
-     menu and profile occupy, and matches their height so the New
-     Tournament button below still clears the corner. */
+     menu occupies. */
   .headerIdentity {
-    padding-right: 116px;
-    min-height: 68px;
+    padding-right: 56px;
+    min-height: auto;
+  }
+  .headerEyebrow {
+    font-size: 8px;
+    letter-spacing: 0.14em;
+    margin-bottom: 2px;
+  }
+  .mobileOrganizerAvatarBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .mobileOrganizerAvatarBtn:focus-visible {
+    outline: 2px solid var(--color-primary, #EB6F43);
+    outline-offset: 2px;
+    border-radius: 50%;
+  }
+  .mobileOrganizerAvatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(20, 24, 30, 0.16);
+    background: var(--color-primary, #EB6F43);
+    color: #FFFFFF;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .mobileOrganizerAvatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
   }
   .headerTitle { font-size: 20px; }
   .heroTitle { font-size: 18px; }
@@ -1755,6 +1810,17 @@
     border-radius: 0;
     background: transparent;
     min-height: 0;
+  }
+  /* A full-size code left the idle card standing taller than a live one
+     next to it, over nothing but quiet zone. At 88 the block matches the
+     scoreboard's height, and the code is still its own enlarge button for
+     anyone who needs it bigger. The source raster is unchanged, so it is
+     downscaled rather than redrawn — the modules stay hard-edged. */
+  .courtFreeQrImg {
+    width: 88px;
+    height: 88px;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
   /* Name and score were 12px apart with the score alone on the right;
      now there are set numbers between them and less to separate. */

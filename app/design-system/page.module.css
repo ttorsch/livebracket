@@ -3,14 +3,16 @@
   background-color: var(--surface-app, #F5F1EA);
   color: var(--text-primary, #14181E);
   font-family: var(--font-text, 'DM Sans', sans-serif);
-  padding: 40px 24px 120px;
+  padding: 40px 0 120px;
   background-image: radial-gradient(at 0% 0%, rgba(235, 111, 67, 0.05) 0px, transparent 50%),
                     radial-gradient(at 100% 0%, rgba(32, 78, 207, 0.03) 0px, transparent 50%);
 }
 
 .container {
-  max-width: 1280px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(20px, 3.5vw, 48px);
 }
 
 /* ── Navigation ────────────────────────────────────────────────── */
