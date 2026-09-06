@@ -307,6 +307,9 @@
   background: var(--sand-200, #EFEAE0);
   transform: translateY(-1px);
 }
+.barLinkBtnText {
+  display: inline;
+}
 
 /* Which colour is which division. */
 .divKey {
@@ -484,12 +487,20 @@
    so two days never pile up inside the same column. Single-day events show
    no heading — there is only one day to be in. */
 .daySection + .daySection { margin-top: 32px; }
+/* Holds under the control bar as the day scrolls, so which day you are
+   reading stays on screen. Plain `position: sticky` is enough here — unlike
+   the court headers, this sits outside .courtsGrid and so is not trapped in
+   that scrollport. Opaque, because the schedule passes underneath it. */
 .dayHeading {
+  position: sticky;
+  top: var(--chrome-h, 0px);
+  z-index: 22;
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 14px;
-  padding-bottom: 10px;
+  padding: 8px 0 10px;
+  background: var(--sand-100, #F5F1EA);
   border-bottom: 1px solid var(--sand-300, #EAE5DD);
   font-family: var(--font-display, 'Outfit', sans-serif);
   font-size: 16px;
@@ -522,8 +533,15 @@
   scrollbar-color: var(--sand-300, #E7E2D9) transparent;
 }
 
+/* Five courts or more: the screen is divided into four and the rest are
+   scrolled to, so a court column is the same width whatever the roster is.
+   It used to show 3.5 — a deliberate half-column, hinting there was more
+   sideways — which meant a four-court event, the common case, scrolled to
+   read its last court and carried a scrollbar to say so. Four fit now, and
+   at four or fewer the grid below fills the width and there is nothing to
+   scroll. */
 .courtsGrid[data-multi-court='true'] {
-  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 42px) / 3.5));
+  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 3 * 14px) / 4));
 }
 
 /* ── Small Slide Bar above Court Names ───────────────────────── */
@@ -554,14 +572,17 @@
   position: absolute;
   top: 0;
   height: 100%;
-  background: var(--coral-500, #EB6F43);
+  /* Grey, not coral. It reports where you are in a row of courts — it is not
+     an action and not a status, and in brand orange it read as one of the two
+     things on screen that actually are. */
+  background: var(--ink-400, #9EA8B6);
   border-radius: 999px;
   pointer-events: none;
   transition: background 0.15s ease;
 }
 
 .courtSlideBarTrack:active .courtSlideBarThumb {
-  background: var(--coral-600, #D85A2E);
+  background: var(--ink-600, #5A6270);
 }
 
 /* A court is a column, not a card: a hairline under its name and the run of
@@ -582,7 +603,10 @@
   padding: 6px 14px;
   min-height: 32px;
   border-radius: 14px;
-  background: var(--sand-200, #EFEAE0);
+  /* Orange, and shared by both views — the court is the one thing on a
+     schedule you navigate by, so it carries the brand rather than the sand
+     everything else sits on. */
+  background: var(--coral-500, #EB6F43);
   box-sizing: border-box;
 }
 
@@ -600,10 +624,15 @@
   cursor: grabbing;
 }
 
+/* A court that is off the roster is deliberately not the brand colour — it is
+   not somewhere play is happening. It keeps the pale ground, so its text has
+   to go back to ink rather than the white the orange pill uses. */
 .courtHeaderOff {
   background: var(--ink-050, #F4F5F7);
   border: 1px dashed var(--ink-300, #C6CBD4);
 }
+.courtHeaderOff .courtName { color: var(--ink-900, #14181E); }
+.courtHeaderOff .courtCount { color: var(--ink-500, #7A8294); }
 
 .gridGrabbing,
 .gridGrabbing * {
@@ -615,7 +644,7 @@
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
   font-size: 14px;
   font-weight: 700;
-  color: var(--ink-900, #14181E);
+  color: #FFFFFF;
   line-height: 1.2;
 }
 
@@ -626,7 +655,9 @@
 .courtCount {
   font-size: 13px;
   font-weight: 600;
-  color: var(--ink-500, #7A8294);
+  /* The played/total count is secondary, so it steps back inside the pill
+     rather than matching the name. */
+  color: rgba(255, 255, 255, 0.82);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   white-space: nowrap;
@@ -655,6 +686,10 @@
   background: var(--surface-card, #FFFFFF);
   box-shadow: 0 2px 10px rgba(20, 31, 46, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.matchItem:hover {
+  z-index: 25;
 }
 
 .matchItemLive {
@@ -1015,7 +1050,6 @@
 }
 .gridMatchCardFault {
   border-color: #D64545 !important;
-  background: rgba(214, 69, 69, 0.04);
 }
 
 @keyframes faultPulse {
@@ -1184,7 +1218,6 @@
 .matchItemEdited { border-style: dashed; }
 .matchItemFault {
   border-color: #D64545;
-  background: rgba(214, 69, 69, 0.04);
 }
 
 /* ── Editing ─────────────────────────────────────────────────
@@ -1490,11 +1523,28 @@
 }
 
 /* Sticky court-header container in grid view */
+/* Held under the control bar as the page scrolls.
+ *
+ * Not `position: sticky`, which cannot work here: a sticky element sticks
+ * inside its nearest scrollport, and .calScroll is one — `overflow-x: auto`
+ * makes a box a scrollport on both axes and there is no way to opt out
+ * (`visible` computes to `auto`, `clip` to `hidden`). It never scrolls
+ * vertically, so sticky pinned these to a frame that never moved and they
+ * left with the page.
+ *
+ * So the offset is measured instead: the page publishes --head-shift on each
+ * grid, and the headers ride it down. They stay inside .calScroll, which is
+ * the point — the horizontal scroll carries them along with their columns for
+ * free, which a separate floating strip would have had to re-synchronise. */
 .calCourtHead {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--sand-100, #F5F1EA);
+  position: relative;
+  transform: translateY(var(--head-shift, 0px));
+  z-index: 20;
+  /* No ground of its own — the pill inside is the whole header, and it floats
+     over the schedule rather than riding a band across it. The day corner
+     keeps its background, because it also has to mask the time column
+     scrolling underneath it. */
+  background: transparent;
   padding: 0 2px 12px;
   box-sizing: border-box;
   display: flex;
@@ -1507,7 +1557,11 @@
 .calTimeGutter {
   position: sticky;
   left: 0;
-  z-index: 3;
+  /* Above the match cards (z-index 5), which is what makes the sentence above
+     true. At 3 the cards passed *through* the gutter rather than under it:
+     nothing showed on a desktop, where the courts never scroll sideways, but
+     on a phone a column sliding left came straight over the time axis. */
+  z-index: 6;
   background: var(--sand-100, #F5F1EA);
   border-right: 1px solid var(--sand-300, #EAE5DD);
   pointer-events: none;
@@ -1547,7 +1601,8 @@
   position: sticky;
   left: 0;
   align-self: start;
-  z-index: 4;
+  /* One above the gutter it sits on, which is now above the cards. */
+  z-index: 7;
   padding: 6px 8px 0 4px;
   background: var(--sand-100, #F5F1EA);
   white-space: nowrap;
@@ -1607,7 +1662,9 @@
      band rather than being hidden by it. */
   z-index: 1;
   min-height: 30px;
-  overflow: hidden;
+  /* No `overflow: hidden` here: an overflow ancestor is a sticky-breaker, and
+     the badge inside has to stay put while the courts scroll sideways. The
+     watermark clips itself instead. */
 }
 
 /* Hand Edit opens the break to its true height (see calendarAxis: collapsed).
@@ -1638,9 +1695,23 @@
 /* Big enough to read past whatever is sitting on it, quiet enough not to
    compete with the cards. Scales with the band so a 30-minute lunch does not
    get the same lettering as a two-hour one. */
+/* Sticks to the visible part of the break rather than the whole of it.
+ *
+ * The band spans every court, so on a phone it is ~990px wide inside a 375px
+ * window — and centring in *that* put both the watermark and the badge around
+ * x 490, well off the right edge. They were rendering the whole time; nobody
+ * could see them. Sticky keeps them in the scrollport, and the width caps at
+ * the viewport so "centred" means centred on screen. Where the band already
+ * fits (desktop) neither has any effect and it stays centred as before. */
 .lunchWatermark {
+  /* Absolute, so it stays out of the band's flex flow — as a sticky flex item
+     it took space and shoved the badge further off screen. Capped to the
+     viewport so "centred" means centred on what you can see. */
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(100%, 100vw);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1653,6 +1724,8 @@
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
+  /* Clips itself now that the band no longer does. */
+  overflow: hidden;
 }
 .lunchBreakSlotEncroached .lunchWatermark {
   color: rgba(235, 111, 67, 0.22);
@@ -1706,6 +1779,7 @@
 
 .gridMatchCard:hover {
   box-shadow: 0 6px 18px rgba(20, 24, 30, 0.10);
+  z-index: 25;
 }
 
 /* A match being played now, in either view. */
@@ -1964,7 +2038,9 @@
   /* Horizontal only. Vertical growth is the page's job: the calendar lays
      itself out in full and the window scrolls, rather than trapping a second
      scrollbar inside a short pane. A wide court roster still scrolls sideways
-     in here, so the page itself never scrolls horizontally. */
+     in here, so the page itself never scrolls horizontally.
+     The court headers are held under the control bar by --head-shift rather
+     than by `position: sticky` — see .calCourtHead. */
   overflow-x: auto;
   border-radius: 14px;
   /* Sand, not white: the match cards are white, and on a white ground they
@@ -2030,10 +2106,12 @@
    bottom-aligned column of day/weekday/date, which pushed "Day 1" well below
    the headers even though it sat in the same grid row. */
 .calCorner {
+  /* Sticky sideways (it holds the left edge as courts scroll) and shifted
+     vertically by the same measured offset as the court headers. */
   position: sticky;
-  top: 0;
   left: 0;
-  z-index: 6;
+  transform: translateY(var(--head-shift, 0px));
+  z-index: 21;
   background: var(--sand-100, #F4F1EA);
   border-right: 1px solid var(--sand-300, #EAE5DD);
   padding: 0 10px 0 0;
@@ -2081,7 +2159,8 @@
 .calTimeLabel {
   position: sticky;
   left: 0;
-  z-index: 2;
+  /* With the gutter, above the cards that slide under it. */
+  z-index: 7;
   padding: 2px 8px 0 10px;
   font-size: 11px;
   font-weight: 600;
@@ -2991,15 +3070,6 @@
 .previewSave:hover { filter: brightness(0.96); }
 .previewSave:disabled { opacity: 0.6; cursor: default; }
 
-.saveMsg {
-  width: 100%;
-  max-width: none;
-  margin: 12px 0 0;
-  padding: 0 clamp(20px, 3.5vw, 48px);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-700, #3E4654);
-}
 
 .matchItemPreview {
   border-color: rgba(238, 122, 76, 0.45);
@@ -3109,17 +3179,38 @@
   .stickyInner { flex-direction: column; align-items: stretch; gap: 8px; }
   .barRow { align-items: center; flex-wrap: wrap; gap: 8px; }
   .barRowSecondary { padding-top: 8px; }
-  /* .filterGroup is `display: contents` on a phone (below), so its selects
-     become children of .barRow and their `order` competes with the leave-the
-     -page links. Without an order of its own the pair sorted ahead of the
-     filters and squeezed them to "Di…". Sent to the end and given a full
-     row, so the two dropdowns get the width instead. */
+
+  /* Row 1 keeps the two filters and the two icon buttons on a single row.
+     Bracket and Setup drop their text labels on phone, turning into compact
+     square/pill icon buttons so everything fits without wrapping. */
+  .barRow:not(.barRowSecondary) {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
   .barRowRight {
     order: 3;
-    flex: 1 1 100%;
-    justify-content: flex-start;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     margin-left: 0;
   }
+
+  .barLinkBtnText {
+    display: none;
+  }
+
+  .barLinkBtn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+    flex: 0 0 32px;
+    border-radius: 999px;
+  }
+
   .filterGroup,
   .controlsGroup { display: contents; }
   .segmented {
@@ -3142,8 +3233,20 @@
      the leftover in proportion to the labels ("All matches" is the longer
      of the two). */
   .filterGroup > .divisionSelectWrap { order: 1; flex: 1 1 0; min-width: 0; }
-  .filterGroup > .statusSelectWrap { order: 2; flex: 1.2 1 0; min-width: 0; }
-  .filterGroup .select { padding-right: 28px; }
+  .filterGroup > .statusSelectWrap { order: 2; flex: 1.15 1 0; min-width: 0; }
+  .filterGroup .select,
+  .stickyBar .select {
+    width: 100%;
+    height: 32px;
+    padding: 0 22px 0 9px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 30px;
+    text-overflow: ellipsis;
+  }
+  .stickyBar .selectChevron {
+    right: 6px;
+  }
   /* Last on the shared line, at its natural width — the dropdowns split
      whatever is left. */
   /* The segmented control is now the only one — view and mode collapsed into
@@ -3177,11 +3280,6 @@
   /* Division dropdown spans the bar; below it the view switch takes the width it
      needs and the status dropdown absorbs the rest. */
   .controlsGroup > .selectWrap { flex: 1 1 0; min-width: 0; }
-  .stickyBar .select {
-    width: 100%;
-    padding: 9px 30px 9px 14px;
-    text-overflow: ellipsis;
-  }
 
   .main { padding: 20px 16px 48px; }
 
@@ -3267,7 +3365,6 @@
   .genCancelBtn { display: none; }
   .genSubmitBtn { flex: 1; min-width: 0; height: 48px; }
   .previewInner { padding: 12px 16px; }
-  .saveMsg { padding: 0 16px; }
 
   /* Section heading */
   .gridHeaderRow { gap: 12px; margin-bottom: 16px; }
@@ -3275,9 +3372,11 @@
   .gridHeaderRight { gap: 10px; }
   .calLegendItem { font-size: 11px; gap: 5px; }
 
-  /* Grid view calendar — geometry is set on the scroll container so that both
-     the track sizing and the snap padding read the same values. */
-  .calScroll {
+  /* Grid view calendar — geometry is set on the day *section*, not on the
+     scroll container, so the floating header strip inherits it too. The strip
+     is a sibling of the scroller, so anything declared there never reached it
+     and its columns sat 44px out of step with the grid's. */
+  .calDaySection {
     --cal-time-col: 78px;
     --cal-court-col: 240px;
   }
@@ -3347,12 +3446,16 @@
      keeps its size — it is the anchor of the axis, and shrinking it to buy
      another 9px would make it the size of the minor labels it is meant to
      stand above. */
-  .calScroll {
+  /* On the section, so the header strip reads the same columns — see the note
+     on the wide breakpoint above. */
+  .calDaySection {
     --cal-time-col: 52px;
     /* 1.2 courts across: the width left over once the page padding, the border
        and the time gutter are taken out, divided so a fifth of the next court
        is always showing — enough to say the calendar carries on sideways. */
     --cal-court-col: calc((100vw - 32px - 2px - var(--cal-time-col)) / 1.2);
+  }
+  .calScroll {
     scroll-snap-type: x mandatory;
     /* Snap past the sticky time gutter so a court lands flush beside it.
        The gutter sticks to the *padding* edge, so its right edge is the time
@@ -3445,7 +3548,6 @@
   .stickyBar,
   .genOverlay,
   .previewBar,
-  .saveMsg,
   .heroActions,
   .headerActions,
   .eventCardActions {
@@ -3692,6 +3794,11 @@
 }
 
 @media (max-width: 768px) {
+  /* No courts scrollbar on a phone: a column is swiped to directly, and the
+     bar was a desktop affordance taking a row to say what the swipe already
+     says. */
+  .courtSlideBarWrap { display: none; }
+
   .divKeyChip {
     font-size: 12px;
     padding: 5px 11px;
@@ -3923,15 +4030,345 @@
   .problemPaneFix { padding-top: 13px; }
 }
 
-/* The whole warning, while reading: a flag in front of the start time. The
-   sentences belong to Edit mode and to the problem bar, which can step to the
-   card and fix it — see the note on .gridFaults' gate in page.tsx. The title
-   carries the messages for anyone who wants them without switching mode. */
+/* ── Schedule error / fault indicator tooltip ────────────────── */
 .gridMatchFaultFlag {
+  position: relative;
   display: inline-flex;
   align-items: center;
   margin-right: 5px;
   color: #D64545;
   flex: none;
-  cursor: help;
+  cursor: pointer;
+  border-radius: 4px;
+  outline: none;
+  transition: color 0.15s ease;
+}
+
+.gridMatchFaultFlag:hover,
+.gridMatchFaultFlagOpen {
+  color: #B92D2D;
+}
+
+.gridMatchFaultFlag:focus-visible {
+  box-shadow: 0 0 0 2px rgba(214, 69, 69, 0.4);
+}
+
+.faultTooltip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: -8px;
+  background: var(--ink-900, #14181E);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-width: 180px;
+  max-width: 260px;
+  width: max-content;
+  box-shadow: 0 4px 18px rgba(20, 24, 30, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(3px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s ease;
+  z-index: 60;
+  text-align: left;
+}
+
+.faultTooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: var(--ink-900, #14181E) transparent transparent transparent;
+}
+
+.gridMatchFaultFlag:hover .faultTooltip,
+.gridMatchFaultFlag:focus-visible .faultTooltip,
+.gridMatchFaultFlagOpen .faultTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.faultTooltipHeader {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #FF7B7B;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.faultTooltipHeaderIcon {
+  flex: none;
+}
+
+.faultTooltipSingle {
+  display: block;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #F4F5F7;
+  white-space: normal;
+}
+
+.faultTooltipList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.faultTooltipItem {
+  position: relative;
+  padding-left: 11px;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #F4F5F7;
+  white-space: normal;
+}
+
+.faultTooltipItem::before {
+  content: '•';
+  position: absolute;
+  left: 1px;
+  top: -1px;
+  color: #FF7B7B;
+  font-size: 12px;
+}
+
+.gridMatchCard:has(.gridMatchFaultFlag:hover),
+.gridMatchCard:has(.gridMatchFaultFlagOpen),
+.matchItem:has(.gridMatchFaultFlag:hover),
+.matchItem:has(.gridMatchFaultFlagOpen) {
+  z-index: 30;
+}
+
+/* ── By Court: the court headers ride the same measured offset ─────
+   .courtsGrid scrolls sideways, so it is a scrollport on both axes and
+   `position: sticky` cannot reach the page from inside it — the same reason
+   the grid view's headers are shifted rather than stuck. See the note on
+   .calCourtHead and the effect that publishes --head-shift. */
+.courtCard > .courtHeader {
+  position: relative;
+  transform: translateY(var(--head-shift, 0px));
+  z-index: 20;
+}
+
+/* ── Held headers: sticky when possible, measured when not ────────
+ *
+ * A scroller that does not overflow is told to stop being one, and then the
+ * headers inside it can be held by `position: sticky` against the page.
+ * That is the whole point of the switch: the measured fallback runs in
+ * JavaScript a frame behind the compositor, which shows up as the header
+ * juddering while you scroll. Sticky is compositor-driven and does not.
+ *
+ * The page sets --pin-top (the control bar, plus a sticky day heading where
+ * By Court has one) and toggles data-fits from the same pass.
+ *
+ * Every selector is anchored on a local class: CSS Modules rejects a rule
+ * made only of attribute selectors ("not pure"), and that is a build error
+ * rather than a warning. */
+.calScroll[data-fits],
+.courtsGrid[data-fits] {
+  overflow-x: visible;
+}
+
+.calScroll[data-fits] .calCourtHead,
+.calScroll[data-fits] .calCorner,
+.courtsGrid[data-fits] .courtHeader {
+  position: sticky;
+  top: var(--pin-top, 0px);
+  transform: none;
+}
+
+/* The corner holds the left edge as well as the top. */
+.calScroll[data-fits] .calCorner {
+  left: 0;
+}
+
+/* The measured path only. Its own layer, so the per-frame transform does not
+   repaint the cards behind it. */
+.calScroll:not([data-fits]) .calCourtHead,
+.calScroll:not([data-fits]) .calCorner,
+.courtsGrid:not([data-fits]) .courtHeader {
+  will-change: transform;
+}
+
+/* ── The floating header strip ────────────────────────────────────
+ *
+ * A repeat of the grid's header row, outside the horizontal scroller so it
+ * can use native `position: sticky` — smooth, because the compositor owns
+ * it. Only used where the in-grid row cannot be sticky (a roster that
+ * overflows sideways: phones, and wide court lists), and only while the day
+ * is actually under the control bar. The page toggles data-strip-on and
+ * publishes --strip-x from the scroller's own scrollLeft. */
+.calHeadStrip {
+  position: sticky;
+  top: var(--pin-top, 0px);
+  z-index: 24;
+  /* Out of the way until the page says otherwise: no height, nothing drawn,
+     and no pointer target. */
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  /* No band behind the row: the pills float over the schedule, the way the
+     in-grid header does. The day corner keeps its own ground because it has
+     to mask the courts sliding under the time column. */
+  background: transparent;
+  /* The grid sits inside .calScroll's own padding, so the strip takes the
+     same inset — it used to pull itself out with a negative margin as well,
+     which put its columns 12px left of the ones they name. */
+  padding: 0 var(--cal-scroll-pad, 12px);
+}
+
+.calHeadStrip[data-strip-on] {
+  height: auto;
+  opacity: 1;
+}
+
+/* Same geometry as .calGrid's first row, so the repeat lines up with the
+   columns it is standing in for. */
+.calHeadStripInner {
+  display: grid;
+  column-gap: 12px;
+  grid-template-columns: var(--cal-time-col, 96px) repeat(var(--cal-courts, 1), minmax(0, 1fr));
+  transform: translateX(var(--strip-x, 0px));
+  will-change: transform;
+}
+
+.calHeadStrip .calCourtHead {
+  /* Positioned with an explicit order rather than left static: the day
+     corner has to mask the courts that slide under the time column, and
+     relying on the paint phases for that was fragile. */
+  position: relative;
+  z-index: 0;
+  transform: none;
+  will-change: auto;
+}
+
+/* The day holds the left edge here as it does in the grid, where it is
+   `position: sticky; left: 0`. Sticky cannot work in the strip — the strip is
+   translated rather than scrolled, so there is no scrollport for it to stick
+   inside — so it is counter-translated by the same offset instead, which
+   leaves it standing still while the courts slide underneath. */
+.calHeadStrip .calCorner {
+  position: relative;
+  z-index: 2;
+  transform: translateX(calc(-1 * var(--strip-x, 0px)));
+  will-change: transform;
+  /* Opaque and the full width of the time column, so a court sliding
+     underneath is covered rather than showing through beside the day. */
+  background: var(--sand-100, #F5F1EA);
+  min-width: var(--cal-time-col, 96px);
+  /* Reach out over the strip's own left padding as well. The grid masks that
+     strip with .calTimeGutter; here the corner is the only mask, and without
+     this a sliver of the court scrolling underneath showed beside the day. */
+  margin-left: calc(-1 * var(--cal-scroll-pad, 12px));
+  padding-left: var(--cal-scroll-pad, 12px);
+  box-shadow: 6px 0 6px -6px rgba(20, 31, 46, 0.18);
+}
+
+@media (max-width: 768px) {
+  /* Phones size their columns rather than sharing the width — the strip has
+     to match or it would not sit over the courts it names. */
+  .calHeadStripInner {
+    column-gap: 12px;
+    grid-template-columns: var(--cal-time-col, 56px) repeat(var(--cal-courts, 1), minmax(var(--cal-court-col, 240px), 1fr));
+    width: calc(var(--cal-time-col, 56px) + var(--cal-courts, 1) * var(--cal-court-col, 240px));
+    min-width: 100%;
+  }
+}
+
+/* ── By Court: the same floating header row ───────────────────────
+   Its grid scrolls sideways too, so its court headers are stuck in the same
+   trap. Simpler than the calendar's strip: no time column, so nothing to
+   mask. */
+.courtHeadStrip {
+  position: sticky;
+  top: var(--pin-top, 0px);
+  z-index: 24;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  /* As in the grid: the pills float, with nothing behind them. */
+  background: transparent;
+}
+
+.courtHeadStrip[data-strip-on] {
+  height: auto;
+  opacity: 1;
+  padding-bottom: 8px;
+}
+
+.courtHeadStripInner {
+  display: grid;
+  grid-template-columns: repeat(var(--court-count, 1), minmax(0, 1fr));
+  gap: 14px;
+  transform: translateX(var(--strip-x, 0px));
+  will-change: transform;
+}
+
+.courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
+  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 3 * 14px) / 4));
+}
+
+@media (max-width: 768px) {
+  .courtHeadStripInner,
+  .courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
+    grid-template-columns: repeat(var(--court-count, 1), 85vw);
+  }
+}
+
+/* ── Where the division key lives ─────────────────────────────────
+   Two copies, one shown at a time — see divisionKeyChips in page.tsx. On a
+   wide screen it sits in the control bar; on a phone that bar is already
+   three rows deep, so the key drops below the problem banner instead. The
+   lower copy is ordinary flow, not sticky: it scrolls away with the
+   schedule rather than eating height that the cards need. */
+.divKeyBelow {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .divKeyInBar {
+    display: none;
+  }
+  .divKeyBelow {
+    display: flex;
+    margin: 0 0 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* The break spans every court, so on a phone the band is ~990px wide inside
+     a 375px window and centring put the badge around x 490 — off screen, which
+     read as the badge being missing. It goes to the leading edge instead, and
+     sticks there so a sideways swipe cannot take it away. The wide layout is
+     untouched: there the band fits, and centred is centred on screen. */
+  .lunchBreakSlot {
+    justify-content: flex-start;
+  }
+  .lunchBreakContent {
+    position: sticky;
+    left: 8px;
+    margin-left: 8px;
+  }
 }

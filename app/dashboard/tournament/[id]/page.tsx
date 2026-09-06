@@ -446,6 +446,32 @@ export default function OrganizerBracketPage() {
   }, [activeDiv, lockedByDiv, division]);
 
   const prevActiveDivRef = useRef<string>('');
+  const mobileDivisionBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mobileDivisionBarRef.current || !detail?.divisions) return;
+    const container = mobileDivisionBarRef.current;
+    const activeIdx = detail.divisions.findIndex(d => d.id === activeDiv);
+    if (activeIdx === -1) return;
+    const total = detail.divisions.length;
+    const btn = container.children[activeIdx] as HTMLElement | undefined;
+    if (!btn) return;
+    const hasLeft = activeIdx > 0;
+    const hasRight = activeIdx < total - 1;
+    if (hasLeft && hasRight) {
+      const btnLeft = btn.offsetLeft;
+      const btnWidth = btn.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      container.scrollTo({
+        left: btnLeft - (containerWidth - btnWidth) / 2,
+        behavior: 'smooth',
+      });
+    } else if (!hasLeft) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+    } else if (!hasRight) {
+      container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+    }
+  }, [activeDiv, detail?.divisions.length]);
 
   useEffect(() => {
     if (!activeDiv) return;
@@ -1178,8 +1204,8 @@ export default function OrganizerBracketPage() {
       {detail.divisions.length > 0 && (
         <div className={styles.stickyDivisionBar}>
           <div className={styles.stickyDivisionInner}>
-            <div className={styles.segmentedControl}>
-              {detail.divisions.map(d => {
+            <div className={styles.segmentedControl} ref={mobileDivisionBarRef}>
+              {detail.divisions.map((d, idx) => {
                 const isActive = d.id === activeDiv;
                 return (
                   <button
@@ -1193,13 +1219,22 @@ export default function OrganizerBracketPage() {
                       const btn = e.currentTarget;
                       const container = btn.parentElement;
                       if (container) {
-                        const btnLeft = btn.offsetLeft;
-                        const btnWidth = btn.offsetWidth;
-                        const containerWidth = container.offsetWidth;
-                        container.scrollTo({
-                          left: btnLeft - containerWidth / 2 + btnWidth / 2,
-                          behavior: 'smooth',
-                        });
+                        const total = detail.divisions.length;
+                        const hasLeft = idx > 0;
+                        const hasRight = idx < total - 1;
+                        if (hasLeft && hasRight) {
+                          const btnLeft = btn.offsetLeft;
+                          const btnWidth = btn.offsetWidth;
+                          const containerWidth = container.offsetWidth;
+                          container.scrollTo({
+                            left: btnLeft - (containerWidth - btnWidth) / 2,
+                            behavior: 'smooth',
+                          });
+                        } else if (!hasLeft) {
+                          container.scrollTo({ left: 0, behavior: 'smooth' });
+                        } else if (!hasRight) {
+                          container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+                        }
                       }
                     }}
                     aria-pressed={isActive}

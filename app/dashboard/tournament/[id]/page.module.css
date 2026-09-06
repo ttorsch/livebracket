@@ -1540,7 +1540,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 6px;
+    padding: 4px 0 4px 4px;
     background: transparent;
     border: none;
     border-radius: 999px;
@@ -1550,17 +1550,21 @@
     overflow-y: hidden;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
-    scroll-padding: 0 6px;
     flex: 1 1 auto;
     min-width: 0;
     margin-right: auto;
+    clip-path: inset(0 round 0 20px 20px 0);
+    -webkit-clip-path: inset(0 round 0 20px 20px 0);
   }
   .segmentedControl::-webkit-scrollbar {
     display: none;
   }
   .segBtn {
-    padding: 8px 18px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
     font-size: 13.5px;
     font-weight: 700;
     border-radius: 999px;
@@ -1570,10 +1574,9 @@
     box-shadow: 0 1px 3px rgba(20, 24, 30, 0.04);
     flex-shrink: 0;
     white-space: nowrap;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
     outline: none;
     -webkit-tap-highlight-color: transparent;
+    min-width: calc((100% - 8px) * 0.55);
   }
   .segBtn:focus-visible {
     outline: 2px solid var(--orange, #EE7A4C);
@@ -1584,6 +1587,14 @@
     color: #FFFFFF !important;
     border-color: transparent !important;
     box-shadow: none !important;
+  }
+  .segBtnLabel {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
   /* Both drop their labels and become circles — two icons and the division
      rail is all the row can carry at this width. */

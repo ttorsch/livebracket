@@ -406,8 +406,15 @@
   scrollbar-color: var(--sand-300, #E7E2D9) transparent;
 }
 
+/* Five courts or more: the screen is divided into four and the rest are
+   scrolled to, so a court column is the same width whatever the roster is.
+   It used to show 3.5 — a deliberate half-column, hinting there was more
+   sideways — which meant a four-court event, the common case, scrolled to
+   read its last court and carried a scrollbar to say so. Four fit now, and
+   at four or fewer the grid below fills the width and there is nothing to
+   scroll. */
 .courtsGrid[data-multi-court='true'] {
-  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 42px) / 3.5));
+  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 3 * 14px) / 4));
 }
 
 @media (max-width: 1024px) {

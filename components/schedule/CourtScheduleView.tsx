@@ -281,7 +281,11 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
         </div>
       )}
 
-      {section.courts.length > 3 && canScroll && (
+      {/* `canScroll` is measured, so at four courts or fewer — where the grid
+          fills the width and nothing overflows — this never appears. The count
+          test only keeps it out of the DOM for rosters that could never need
+          it. */}
+      {section.courts.length > 4 && canScroll && (
         <div className={styles.courtSlideBarWrap}>
           <div
             ref={trackRef}
@@ -689,7 +693,7 @@ export default function CourtScheduleView({
                 ref={gridRef}
                 onScroll={onScroll}
                 className={`${styles.courtsGrid} ${isGrabbing ? styles.gridGrabbing : ''}`}
-                data-multi-court={section.courts.length > 3 ? 'true' : undefined}
+                data-multi-court={section.courts.length > 4 ? 'true' : undefined}
                 style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
               >
                 {section.courts.map(group => (

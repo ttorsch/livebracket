@@ -342,6 +342,81 @@ function BufferPrompt({
 }
 
 
+/**
+ * Hover/tap error tooltip indicator for match cards on the schedule generator.
+ * Shows problem count and description(s) on desktop hover and touch tap.
+ */
+function MatchFaultIndicator({
+  faults,
+}: {
+  faults: ScheduleProblem[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside);
+    };
+  }, [open]);
+
+  if (!faults || faults.length === 0) return null;
+
+  return (
+    <span
+      ref={ref}
+      className={`${styles.gridMatchFaultFlag} ${open ? styles.gridMatchFaultFlagOpen : ''}`}
+      onClick={e => {
+        e.stopPropagation();
+        setOpen(v => !v);
+      }}
+      onPointerDown={e => e.stopPropagation()}
+      onTouchStart={e => e.stopPropagation()}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.stopPropagation();
+          e.preventDefault();
+          setOpen(v => !v);
+        } else if (e.key === 'Escape') {
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+      aria-label={`${faults.length} problem${faults.length === 1 ? '' : 's'} with this match`}
+      aria-expanded={open}
+    >
+      <AlertTriangle size={12} />
+      <span className={styles.faultTooltip} role="tooltip">
+        <span className={styles.faultTooltipHeader}>
+          <AlertTriangle size={10} className={styles.faultTooltipHeaderIcon} />
+          {faults.length === 1 ? 'Problem' : `${faults.length} Problems`}
+        </span>
+        {faults.length === 1 ? (
+          <span className={styles.faultTooltipSingle}>{faults[0].message}</span>
+        ) : (
+          <ul className={styles.faultTooltipList}>
+            {faults.map((f, i) => (
+              <li key={i} className={styles.faultTooltipItem}>
+                {f.message}
+              </li>
+            ))}
+          </ul>
+        )}
+      </span>
+    </span>
+  );
+}
+
+
 /** Droppable empty time slot cell in Grid View. */
 function GridDroppableSlot({
   court,
@@ -589,13 +664,7 @@ function GridMatchCardItem({
           onTouchStart={e => e.stopPropagation()}
         >
           {!editMode && faults.length > 0 && (
-            <span
-              className={styles.gridMatchFaultFlag}
-              title={faults.map(f => f.message).join('\n')}
-              aria-label={`${faults.length} problem${faults.length === 1 ? '' : 's'} with this match`}
-            >
-              <AlertTriangle size={12} />
-            </span>
+            <MatchFaultIndicator faults={faults} />
           )}
           {editingTime === b.m.id ? (
             <input
@@ -722,6 +791,58 @@ function GridMatchCardItem({
 }
 
 /** Court section block that manages horizontal scroll and provides a small slide bar above court names */
+/* The calendar's header row — the day corner plus one cell per court.
+ *
+ * Rendered twice: once inside the grid, where it scrolls with the schedule,
+ * and once in the floating strip above it (see .calHeadStrip). One function
+ * so the two cannot say different things, and so a column added here appears
+ * in both.
+ */
+function CalendarHeadRow({
+  columns,
+  offRoster,
+  day,
+  dayCount,
+}: {
+  columns: string[];
+  offRoster: string[];
+  day: { day: number; dateLabel: string; courtCounts: Map<string, { total: number; played: number }>; trayCount: number };
+  dayCount: number;
+}) {
+  return (
+    <>
+      <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties}>
+        {isOffEventDay(day.day, dayCount) ? (
+          <span className={styles.calCornerOffEvent}>Outside the event</span>
+        ) : (
+          <span className={styles.calCornerDay} title={day.dateLabel || undefined}>
+            Day {day.day + 1}
+          </span>
+        )}
+      </div>
+      {columns.map((court, ci) => {
+        const { total, played } = day.courtCounts.get(court) ?? { total: 0, played: 0 };
+        const stranded = offRoster.includes(court);
+        const isTray = court === 'Unscheduled';
+        return (
+          <div key={court} data-cal-head="" className={styles.calCourtHead} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
+            <div className={`${styles.courtHeader} ${stranded ? styles.courtHeaderOff : ''}`}>
+              <span className={styles.courtName}>{court}</span>
+              <span className={styles.courtCount}>
+                {stranded
+                  ? `${total} match${total === 1 ? '' : 'es'}`
+                  : isTray
+                  ? `${day.trayCount} waiting`
+                  : `${played}/${total}`}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function CourtSectionBlock({
   section,
   children,
@@ -865,7 +986,7 @@ function CourtSectionBlock({
   return (
     <section key={section.key} className={styles.daySection}>
       {section.title && (
-        <div className={styles.dayHeading}>
+        <div className={styles.dayHeading} data-day-heading="">
           <Calendar size={16} color="var(--orange, #EE7A4C)" />
           <span>{section.title}</span>
           <span className={styles.dayHeadingMeta}>
@@ -874,7 +995,39 @@ function CourtSectionBlock({
         </div>
       )}
 
-      {section.courts.length > 3 && canScroll && (
+      {/* The floating header row, for the same reason the calendar has one:
+          .courtsGrid scrolls sideways, so it is its headers' scrollport and
+          they cannot be sticky against the page from inside it. This repeat
+          lives outside it and can be. The page toggles data-strip-on and
+          publishes --strip-x. */}
+      <div
+        className={styles.courtHeadStrip}
+        data-cal-strip=""
+        data-multi-court={section.courts.length > 4 ? 'true' : undefined}
+        aria-hidden="true"
+        style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
+      >
+        <div className={styles.courtHeadStripInner}>
+          {section.courts.map((group: any) => {
+            const total = group.matches.length;
+            const played = group.matches.filter((m: any) => m.status === 'done').length;
+            return (
+              <div key={group.courtName} className={styles.courtHeader}>
+                <span className={styles.courtName}>{group.courtName}</span>
+                <span className={styles.courtCount}>
+                  {group.courtName === 'Unscheduled' ? `${total} waiting` : `${played}/${total}`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* `canScroll` is measured, so at four courts or fewer — where the grid
+          fills the width and nothing overflows — this never appears. The count
+          test only keeps it out of the DOM for rosters that could never need
+          it. */}
+      {section.courts.length > 4 && canScroll && (
         <div className={styles.courtSlideBarWrap}>
           <div
             ref={trackRef}
@@ -1522,14 +1675,13 @@ export default function TournamentSchedulePage() {
       setPreview(null);
       clearEdits();
       setDirty(false);
-      setSaveMsg('Schedule saved.');
       /* Saving is the end of an edit, so the page comes out of the working
          mode rather than sitting in it with nothing left to save — every card
          still a drag away from moving. Grid is the reading state, and the
          mode control is exclusive, so leaving Edit has to land somewhere. */
       selectBarMode('grid');
     } catch (e) {
-      setSaveMsg(e instanceof Error ? e.message : 'Save failed');
+      console.error('Save failed:', e);
     } finally {
       setSaving(false);
     }
@@ -2295,6 +2447,102 @@ export default function TournamentSchedulePage() {
      beside activeDragMatch. */
   const dragGhostSlots = Math.max(1, Math.round(dragGhostMinutes / calendar.axis.pitch));
 
+  /* ── Holding the court headers under the control bar ──────────────
+   *
+   * The headers cannot do this with `position: sticky`: .calScroll is their
+   * nearest scrollport (any box with `overflow-x: auto` is one on both axes,
+   * and there is no way to opt out) and it never scrolls vertically, so
+   * sticky had nothing to stick to and they left with the page.
+   *
+   * Measured instead. Each grid publishes how far its header row has to ride
+   * down to sit just under the bar, clamped so it never leaves its own grid:
+   * once the last row is reached the headers travel with the schedule again
+   * rather than hanging over the day below.
+   *
+   * One style write per grid per frame, on a rAF, so a fast scroll coalesces
+   * into a single update. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let frame = 0;
+
+    const apply = () => {
+      frame = 0;
+      const grids = document.querySelectorAll<HTMLElement>('[data-cal-grid]');
+      for (const grid of grids) {
+        const head = grid.querySelector<HTMLElement>('[data-cal-head]');
+        const headH = head?.offsetHeight ?? 0;
+
+        /* By Court states the day in a heading above the grid, and that
+           heading is sticky in its own right — so the court headers pin
+           below it rather than under it. The grid view has no such heading
+           (its day is the corner *inside* the grid), so the line is just the
+           control bar. */
+        const heading = grid.parentElement?.querySelector<HTMLElement>('[data-day-heading]');
+        const pinLine = chromeHeight + (heading?.offsetHeight ?? 0);
+        grid.style.setProperty('--pin-top', `${Math.round(pinLine)}px`);
+
+        /* Does the court roster actually overflow sideways?
+         *
+         * When it does not — four courts or fewer, which is most events — the
+         * scroller can be told to stop being one, and then the headers can be
+         * held by `position: sticky` against the page. That matters: the
+         * measured fallback below runs in JavaScript a frame behind the
+         * compositor, which is visible as the header juddering as you scroll.
+         * Sticky is done by the compositor and does not. */
+        const scroller = grid.matches('[data-cal-scroll]')
+          ? grid
+          : grid.closest<HTMLElement>('[data-cal-scroll]');
+        const fits = !scroller || scroller.scrollWidth <= scroller.clientWidth + 1;
+        if (scroller) scroller.toggleAttribute('data-fits', fits);
+
+        /* The strip repeats this grid's header outside the scroller. It is
+           only needed when the in-grid row cannot be sticky — i.e. when the
+           roster overflows — and only while the grid is actually under the
+           bar. */
+        const section = grid.closest<HTMLElement>('[class]')?.parentElement ?? null;
+        const strip = (scroller?.parentElement ?? section)?.querySelector<HTMLElement>('[data-cal-strip]')
+          ?? null;
+
+        grid.style.setProperty('--head-shift', '0px');
+
+        if (fits) {
+          if (strip) strip.toggleAttribute('data-strip-on', false);
+          continue;
+        }
+
+        const rect = grid.getBoundingClientRect();
+        const covered = rect.top < pinLine && rect.bottom > pinLine + headH;
+        if (strip) {
+          strip.style.setProperty('--pin-top', `${Math.round(pinLine)}px`);
+          strip.toggleAttribute('data-strip-on', covered);
+          if (covered && scroller) {
+            strip.style.setProperty('--strip-x', `${-Math.round(scroller.scrollLeft)}px`);
+          }
+        }
+      }
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(apply);
+    };
+
+    apply();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    /* The strip has to follow the columns sideways too, and a sideways scroll
+       does not fire a window scroll event. */
+    const scrollers = [...document.querySelectorAll<HTMLElement>('[data-cal-scroll]')];
+    for (const el of scrollers) el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      for (const el of scrollers) el.removeEventListener('scroll', onScroll);
+    };
+  }, [chromeHeight, calendar, activeDay, viewMode]);
+
+
   /* Applying a move: turn what is on screen into placements, ask the planner
      what has to shift, and write the answer back as hand edits. The rules live
      in lib/schedule/dropPlan.ts, where they can be reasoned about on their own
@@ -2484,9 +2732,8 @@ export default function TournamentSchedulePage() {
    * there is one answer to "what am I doing", and picking any of them says
    * what the other three are not.
    *
-   * The view survives underneath. Edit and Score do not choose a view, they
-   * keep whichever was last picked, so leaving Edit puts you back where you
-   * were rather than somewhere the control decided for you.
+   * Edit and Score each carry a view: Edit opens the grid, Score opens By
+   * Court. See selectBarMode for why.
    */
   const barMode: 'court' | 'grid' | 'edit' | 'score' =
     scoreMode ? 'score' : editMode ? 'edit' : viewMode === 'court' ? 'court' : 'grid';
@@ -2504,6 +2751,17 @@ export default function TournamentSchedulePage() {
       setScoreMode(false);
       return;
     }
+
+    /* Each working mode brings its own view rather than inheriting whichever
+       was last read in.
+       Editing is rearranging the day, and that is a question about time and
+       courts together — the grid is the only view that shows both, and the
+       drag targets, buffers and pins all live there. Scoring is the opposite:
+       one court at a time, working down the order a referee hands you, which
+       is exactly what By Court lays out. Leaving the view alone meant Edit
+       could open in a list with no drop targets, and Score in a timeline where
+       the cards are too narrow to type into. */
+    setViewMode(next === 'edit' ? 'grid' : 'court');
     setEditMode(next === 'edit');
     setScoreMode(next === 'score');
   };
@@ -2518,10 +2776,10 @@ export default function TournamentSchedulePage() {
       title: 'Read the schedule one court at a time' },
     { key: 'grid', label: 'Grid', icon: <Table size={14} className={styles.segBtnIcon} />,
       title: 'Read the whole day as a timeline' },
-    { key: 'edit', label: 'Edit', icon: <Pencil size={14} className={styles.segBtnIcon} />,
-      title: 'Drag matches, retime them, pin them, and insert buffer time' },
     { key: 'score', label: 'Score', icon: <ClipboardList size={14} className={styles.segBtnIcon} />,
       title: 'Type in results for matches that were not scored on the scorekeeper screen' },
+    { key: 'edit', label: 'Edit', icon: <Pencil size={14} className={styles.segBtnIcon} />,
+      title: 'Drag matches, retime them, pin them, and insert buffer time' },
   ];
 
   const modeSegmented = (
@@ -2597,6 +2855,18 @@ export default function TournamentSchedulePage() {
    * Selecting a problem jumps to its card and pulses it, so the sentence in
    * the bar and the thing on the board are never far apart.
    */
+  /* Applying a fix drops the page into Edit.
+   *
+   * A fix is a hand edit — it lands in `edits` and waits behind Save like a
+   * drag would — so leaving the page in read mode afterwards hid its own
+   * consequence: the schedule changed, the Save button appeared somewhere
+   * else, and none of the editing affordances that let you check or undo the
+   * change were on screen. Entering Edit puts you where the change lives. */
+  const runProblemFix = (fix: ProblemFix) => {
+    selectBarMode('edit');
+    fix.run();
+  };
+
   const problemAt = problems.length > 0
     ? problems[Math.min(problemIndex, problems.length - 1)]
     : null;
@@ -2611,6 +2881,29 @@ export default function TournamentSchedulePage() {
       fix: problemFix(p),
     };
   };
+
+  /* Which colour is which division, for the cards below.
+   *
+   * Rendered twice, and only one is ever visible. On a wide screen it belongs
+   * in the control bar with the other things that describe what you are
+   * looking at. On a phone the bar is already three rows deep, so the key
+   * drops below the problem banner instead — near the cards it explains
+   * rather than pushing the schedule further down the page. CSS picks; the
+   * chips themselves are defined once. */
+  const divisionKeyChips = calendar.divOrder.map(label => (
+    <span
+      key={label}
+      className={styles.divKeyChip}
+      data-div={divColorIndex.get(label) ?? 0}
+    >
+      <span className={styles.divKeyDot} aria-hidden="true" />
+      {label}
+    </span>
+  ));
+
+  const divisionKeyBelow = calendar.divOrder.length > 0 && (
+    <div className={`${styles.divKey} ${styles.divKeyBelow}`}>{divisionKeyChips}</div>
+  );
 
   const problemBar = problems.length > 0 && (
     <div className={styles.problemBarWrap}>
@@ -2662,7 +2955,7 @@ export default function TournamentSchedulePage() {
               </span>
 
               {row.fix && (
-                <button type="button" className={styles.problemBarFix} onClick={row.fix.run}>
+                <button type="button" className={styles.problemBarFix} onClick={() => runProblemFix(row.fix!)}>
                   {row.fix.label}
                 </button>
               )}
@@ -2709,7 +3002,7 @@ export default function TournamentSchedulePage() {
                   <span className={styles.problemPaneMsg}>{p.message}</span>
                 </button>
                 {row.fix && (
-                  <button type="button" className={styles.problemPaneFix} onClick={row.fix.run}>
+                  <button type="button" className={styles.problemPaneFix} onClick={() => runProblemFix(row.fix!)}>
                     {row.fix.label}
                   </button>
                 )}
@@ -3105,11 +3398,23 @@ export default function TournamentSchedulePage() {
             </div>
 
             <div className={styles.barRowRight}>
-              <Link href={`/dashboard/tournament/${slug}`} className={styles.barLinkBtn}>
-                <BracketIcon size={14} /> Bracket
+              <Link
+                href={`/dashboard/tournament/${slug}`}
+                className={styles.barLinkBtn}
+                title="Bracket"
+                aria-label="Bracket"
+              >
+                <BracketIcon size={14} />
+                <span className={styles.barLinkBtnText}>Bracket</span>
               </Link>
-              <Link href={`/dashboard/tournament/${slug}/setup`} className={styles.barLinkBtn}>
-                <Settings size={14} /> Setup
+              <Link
+                href={`/dashboard/tournament/${slug}/setup`}
+                className={styles.barLinkBtn}
+                title="Setup"
+                aria-label="Setup"
+              >
+                <Settings size={14} />
+                <span className={styles.barLinkBtnText}>Setup</span>
               </Link>
             </div>
           </div>
@@ -3148,19 +3453,8 @@ export default function TournamentSchedulePage() {
                 </>
               )}
 
-              {/* Which colour is which division, for the cards below. */}
-              <div className={styles.divKey}>
-                {calendar.divOrder.map(label => (
-                  <span
-                    key={label}
-                    className={styles.divKeyChip}
-                    data-div={divColorIndex.get(label) ?? 0}
-                  >
-                    <span className={styles.divKeyDot} aria-hidden="true" />
-                    {label}
-                  </span>
-                ))}
-              </div>
+              {/* The wide-screen copy. See divisionKeyChips. */}
+              <div className={`${styles.divKey} ${styles.divKeyInBar}`}>{divisionKeyChips}</div>
             </div>
 
             <div className={styles.controlsGroup}>
@@ -3440,7 +3734,6 @@ export default function TournamentSchedulePage() {
           </div>
         </div>
       )}
-      {saveMsg && <div className={styles.saveMsg}>{saveMsg}</div>}
 
       {/* ── Main Schedule Content ───────────────────────────── */}
       <main className={styles.main}>
@@ -3449,6 +3742,7 @@ export default function TournamentSchedulePage() {
 
             {editBar}
             {problemBar}
+            {divisionKeyBelow}
 
 
             {courtSections.map(section => (
@@ -3458,7 +3752,9 @@ export default function TournamentSchedulePage() {
                     ref={gridRef}
                     onScroll={onScroll}
                     className={`${styles.courtsGrid} ${isGrabbing ? styles.gridGrabbing : ''}`}
-                    data-multi-court={section.courts.length > 3 ? 'true' : undefined}
+                    data-cal-grid=""
+                    data-cal-scroll=""
+                    data-multi-court={section.courts.length > 4 ? 'true' : undefined}
                     style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
                   >
               {section.courts.map(group => {
@@ -3468,6 +3764,7 @@ export default function TournamentSchedulePage() {
                 <div key={group.courtName} className={styles.courtCard}>
                   <div
                     className={styles.courtHeader}
+                    data-cal-head=""
                     {...courtHeaderProps}
                     title={courtHeaderProps['data-draggable'] ? 'Click and drag to slide courts' : undefined}
                   >
@@ -3544,13 +3841,7 @@ export default function TournamentSchedulePage() {
                           <div className={styles.matchItemTop}>
                             <span className={styles.matchTime}>
                               {!editMode && !m.overScheduled && faults.length > 0 && (
-                                <span
-                                  className={styles.gridMatchFaultFlag}
-                                  title={faults.map(f => f.message).join('\n')}
-                                  aria-label={`${faults.length} problem${faults.length === 1 ? '' : 's'} with this match`}
-                                >
-                                  <AlertTriangle size={12} />
-                                </span>
+                                <MatchFaultIndicator faults={faults} />
                               )}
                               {m.overScheduled ? (
                                 <><AlertTriangle size={13} /> Over-scheduled · {m.matchNo}</>
@@ -3667,6 +3958,7 @@ export default function TournamentSchedulePage() {
 
             {editBar}
             {problemBar}
+            {divisionKeyBelow}
 
 
             <DndContext
@@ -3702,9 +3994,40 @@ export default function TournamentSchedulePage() {
                   </div>
                 ) : (
                   <div key={day.day} className={styles.calDaySection}>
-                    <div className={styles.calScroll}>
+                    {/* ── The floating header row ──────────────────────
+                        A repeat of the grid's own header, living *outside*
+                        the horizontal scroller so it can use native
+                        `position: sticky` — which is compositor-driven and
+                        therefore smooth. The in-grid row cannot: it is inside
+                        a box that scrolls sideways, which makes that box its
+                        scrollport, and driving it from JavaScript instead put
+                        it a frame behind the scroll (the judder).
+                        Its horizontal offset is synced from the scroller, so
+                        the lag moves to the sideways swipe, which is
+                        intermittent rather than continuous. Hidden entirely
+                        when the roster fits, because then the in-grid row is
+                        already sticky on its own. */}
+                    <div
+                      className={styles.calHeadStrip}
+                      data-cal-strip=""
+                      aria-hidden="true"
+                      style={{
+                        '--cal-courts': calendar.columns.length,
+                      } as CSSProperties}
+                    >
+                      <div className={styles.calHeadStripInner}>
+                        <CalendarHeadRow
+                          columns={calendar.columns}
+                          offRoster={calendar.offRoster}
+                          day={day}
+                          dayCount={dayCount}
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.calScroll} data-cal-scroll="">
                       <div
                         className={styles.calGrid}
+                        data-cal-grid=""
                         style={{
                           '--cal-courts': calendar.columns.length,
                           '--cal-rows': day.slots,
@@ -3714,43 +4037,15 @@ export default function TournamentSchedulePage() {
                           gridTemplateRows: rowTemplate(calendar.axis, day.slots),
                         } as CSSProperties}
                       >
-                        {/* Top-left corner: which day this grid is — the only
-                            date marker on the grid now. It used to be a
-                            three-line lockup sitting below a separate
-                            "Sat, Sep 5" heading, so the same day was announced
-                            twice a few pixels apart. One line, level with the
-                            court headers it shares the sticky row with; the
-                            date itself is still on the day pills above. */}
-                        <div className={styles.calCorner} style={{ gridColumn: 1, gridRow: 1 } as CSSProperties}>
-                          {isOffEventDay(day.day, dayCount) ? (
-                            <span className={styles.calCornerOffEvent}>Outside the event</span>
-                          ) : (
-                            <span className={styles.calCornerDay} title={day.dateLabel || undefined}>
-                              Day {day.day + 1}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Top Sticky Court Headers */}
-                        {calendar.columns.map((court, ci) => {
-                          const { total, played } = day.courtCounts.get(court) ?? { total: 0, played: 0 };
-                          const stranded = calendar.offRoster.includes(court);
-                          const isTray = court === 'Unscheduled';
-                          return (
-                            <div key={court} className={styles.calCourtHead} style={{ gridColumn: ci + 2, gridRow: 1 } as CSSProperties}>
-                              <div className={`${styles.courtHeader} ${stranded ? styles.courtHeaderOff : ''}`}>
-                                <span className={styles.courtName}>{court}</span>
-                                <span className={styles.courtCount}>
-                                  {stranded
-                                    ? `${total} match${total === 1 ? '' : 'es'}`
-                                    : isTray
-                                    ? `${day.trayCount} waiting`
-                                    : `${played}/${total}`}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {/* The day corner and the court headers. In the grid
+                            they scroll with the schedule; the strip above
+                            repeats them while the day is under the bar. */}
+                        <CalendarHeadRow
+                          columns={calendar.columns}
+                          offRoster={calendar.offRoster}
+                          day={day}
+                          dayCount={dayCount}
+                        />
 
                         {/* Opaque backing for the sticky time column. It covers the
                             header row too, so the corner above it can stop painting

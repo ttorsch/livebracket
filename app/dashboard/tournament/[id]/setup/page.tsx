@@ -956,6 +956,7 @@ export default function OrganizerSetup() {
   const [importError, setImportError] = useState('');
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
+  const mobileDivControlRef = useRef<HTMLDivElement>(null);
 
   // Modal Form Inputs — A. Basics & dynamic capacity
   const [divName, setDivName] = useState('');
@@ -2183,6 +2184,31 @@ export default function OrganizerSetup() {
     };
   });
 
+  useEffect(() => {
+    if (!mobileDivControlRef.current) return;
+    const container = mobileDivControlRef.current;
+    const activeIdx = divisionCards.findIndex(c => c.active);
+    if (activeIdx === -1) return;
+    const total = divisionCards.length;
+    const btn = container.children[activeIdx] as HTMLElement | undefined;
+    if (!btn) return;
+    const hasLeft = activeIdx > 0;
+    const hasRight = activeIdx < total - 1;
+    if (hasLeft && hasRight) {
+      const btnLeft = btn.offsetLeft;
+      const btnWidth = btn.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      container.scrollTo({
+        left: btnLeft - (containerWidth - btnWidth) / 2,
+        behavior: 'smooth',
+      });
+    } else if (!hasLeft) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+    } else if (!hasRight) {
+      container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+    }
+  }, [activeDivision?.id, divisionCards.length]);
+
   // Search matches a player's name or phone; the segmented control narrows
   // by payment or waiting-list status. Both apply to the loaded division.
   const matchesTeamQuery = (t: RegisteredTeamRow) => {
@@ -2227,18 +2253,6 @@ export default function OrganizerSetup() {
                 to repeat what the event page already shows, and the
                 desktop header keeps it (with the full-size view). */}
             <div className={styles.mobileEventCard}>
-              {/* Editing the event's own details — title, dates, location,
-                  phase. The division below has its own edit action; this
-                  one is deliberately on the card it edits. */}
-              <button
-                type="button"
-                className={styles.mobileEventEditBtn}
-                onClick={openBasicInfoEdit}
-                aria-label="Edit tournament details"
-                title="Edit tournament details"
-              >
-                <Pencil size={15} />
-              </button>
               <div className={styles.mobileEventBody}>
                 {/* Status over the name, as everywhere else. The Publish
                     control rides with it — it acts on that status. */}
@@ -2803,39 +2817,83 @@ export default function OrganizerSetup() {
 
                   {/* Mobile had no way to change division at all before this. */}
                   {divisionCards.length > 0 && (
-                    <div className={styles.mobileDivTabs}>
-                      {divisionCards.map(card => {
-                        const active = card.active;
-                        return (
+                    <div className={styles.stickyDivisionBar}>
+                      <div className={styles.stickyDivisionInner}>
+                        <div className={styles.segmentedControl} ref={mobileDivControlRef}>
+                          {divisionCards.map((card, idx) => {
+                            const active = card.active;
+                            return (
+                              <button
+                                key={card.id}
+                                type="button"
+                                className={`${styles.segBtn} ${active ? styles.segBtnActive : ''}`}
+                                onClick={(e) => {
+                                  handleSelectDivision(card.id);
+                                  const btn = e.currentTarget;
+                                  const container = btn.parentElement;
+                                  if (container) {
+                                    const total = divisionCards.length;
+                                    const hasLeft = idx > 0;
+                                    const hasRight = idx < total - 1;
+                                    if (hasLeft && hasRight) {
+                                      const btnLeft = btn.offsetLeft;
+                                      const btnWidth = btn.offsetWidth;
+                                      const containerWidth = container.offsetWidth;
+                                      container.scrollTo({
+                                        left: btnLeft - (containerWidth - btnWidth) / 2,
+                                        behavior: 'smooth',
+                                      });
+                                    } else if (!hasLeft) {
+                                      container.scrollTo({ left: 0, behavior: 'smooth' });
+                                    } else if (!hasRight) {
+                                      container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+                                    }
+                                  }
+                                }}
+                                aria-pressed={active}
+                              >
+                                {active && (
+                                  <motion.span
+                                    layoutId="setup-division-mobile-pill"
+                                    className={styles.segBtnActivePill}
+                                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                                  />
+                                )}
+                                <span className={styles.segBtnLabel}>{card.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className={styles.stickyDivisionActions}>
                           <button
-                            key={card.id}
                             type="button"
-                            className={`${styles.mobileDivTab} ${active ? styles.mobileDivTabActive : ''}`}
-                            onClick={() => handleSelectDivision(card.id)}
-                            aria-pressed={active}
+                            className={styles.addDivIconBtn}
+                            onClick={handleOpenCreateModal}
+                            title="Add division"
+                            aria-label="Add division"
                           >
-                            {active && (
-                              <motion.span
-                                layoutId="setup-division-mobile-pill"
-                                className={styles.mobileDivTabActivePill}
-                                transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                              />
-                            )}
-                            <span className={styles.mobileDivTabLabel}>{card.name}</span>
+                            <Plus size={16} />
                           </button>
-                        );
-                      })}
-                      {/* Adding a division belongs at the end of the list
-                          it adds to. Dashed, so it reads as the slot for
-                          one more rather than as a division itself. */}
-                      <button
-                        type="button"
-                        className={styles.mobileDivAdd}
-                        onClick={handleOpenCreateModal}
-                      >
-                        <Plus size={15} />
-                        <span>New Division</span>
-                      </button>
+                          <Link
+                            href={`/dashboard/tournament/${slug}`}
+                            className={styles.bracketLinkBtn}
+                            style={{ textDecoration: 'none' }}
+                            title="Bracket"
+                            aria-label="Bracket"
+                          >
+                            <BracketIcon size={16} />
+                          </Link>
+                          <Link
+                            href={`/dashboard/tournament/${slug}/schedule`}
+                            className={styles.scheduleLinkBtn}
+                            style={{ textDecoration: 'none' }}
+                            title="Schedule"
+                            aria-label="Schedule"
+                          >
+                            <Calendar size={16} />
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   )}
 
