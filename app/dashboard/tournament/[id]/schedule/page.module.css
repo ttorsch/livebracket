@@ -246,15 +246,75 @@
   padding: 14px clamp(20px, 3.5vw, 48px);
 }
 
+/* Two rows: what you are looking at, then how it is drawn. See the note on
+   the control bar in page.tsx. */
 .stickyInner {
   width: 100%;
   max-width: none;
   margin: 0;
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.barRow {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
   flex-wrap: wrap;
+}
+
+/* The second row reads as the quieter of the two — it changes presentation,
+   not which matches exist — so it is separated by a hairline rather than by
+   more space. */
+.barRowSecondary {
+  padding-top: 10px;
+  border-top: 1px solid var(--sand-300, #EAE5DD);
+}
+
+.barRowRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Leaving the page: the same pill the bracket and setup pages use for each
+   other, so the three read as one set of doors. */
+.barLinkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-800, #2C3442);
+  background: #FFFFFF;
+  border: 1px solid rgba(20, 24, 30, 0.09);
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(20, 24, 30, 0.04);
+  transition: all 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.barLinkBtn:hover {
+  background: var(--sand-200, #EFEAE0);
+  transform: translateY(-1px);
+}
+
+/* Which colour is which division. */
+.divKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 /* What is shown, all together on the left: division, then day, then
@@ -418,58 +478,6 @@
   padding: 24px clamp(20px, 3.5vw, 48px) 64px;
 }
 
-/* ── The editing hint ────────────────────────────────────────────
-   A rule of the room, not a caption: it sits in a card with a coral edge so it
-   reads as an instruction while the schedule is unlocked, and drops back to
-   quiet grey text once it is only saying the schedule is locked. */
-.hintBanner {
-  margin: 0 0 18px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--ink-500, #7A8294);
-}
-
-.hintBannerOn {
-  max-width: 960px;
-  padding: 14px 18px;
-  border: 1px solid var(--sand-300, #E7E2D9);
-  border-left: 3px solid var(--coral-500, #EB6F43);
-  border-radius: 14px;
-  background: var(--surface-card, #FFFFFF);
-  font-size: 14px;
-  color: var(--ink-600, #3A414D);
-}
-
-.hintBannerOn strong { color: var(--coral-600, #E44F1C); }
-
-/* The rest of the rules, folded away. Closed it costs one line; open it reads
-   as the paragraph it always was. */
-.hintMore { margin-top: 8px; }
-.hintMoreSummary {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--coral-600, #E44F1C);
-  cursor: pointer;
-  list-style: none;
-}
-.hintMoreSummary::-webkit-details-marker { display: none; }
-/* The arrow is drawn rather than listed so it can turn with the disclosure. */
-.hintMoreSummary::after {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: translateY(-2px) rotate(45deg);
-  transition: transform 0.2s ease;
-}
-.hintMore[open] .hintMoreSummary::after { transform: translateY(1px) rotate(-135deg); }
-.hintMore p { margin: 10px 0 0; }
-.hintMore p:first-of-type { margin-top: 8px; }
-
 /* ── Day sections ─────────────────────────────────────────────
    A multi-day event viewed as a whole is shown one day at a time: each day
    gets its own row of courts (or run of time slots) under a dated heading,
@@ -568,11 +576,14 @@
 
 .courtHeader {
   display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 6px;
-  padding: 0 4px 10px;
-  border-bottom: 1px solid var(--sand-300, #E7E2D9);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px;
+  min-height: 32px;
+  border-radius: 14px;
+  background: var(--sand-200, #EFEAE0);
+  box-sizing: border-box;
 }
 
 .courtHeader[data-draggable='true'] {
@@ -589,6 +600,11 @@
   cursor: grabbing;
 }
 
+.courtHeaderOff {
+  background: var(--ink-050, #F4F5F7);
+  border: 1px dashed var(--ink-300, #C6CBD4);
+}
+
 .gridGrabbing,
 .gridGrabbing * {
   cursor: grabbing !important;
@@ -597,23 +613,23 @@
 
 .courtName {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--ink-900, #14181E);
+  line-height: 1.2;
 }
 
 .courtCountDot {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-400, #9CA3AF);
-  line-height: 1;
+  display: none;
 }
 
 .courtCount {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink-500, #7A8294);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* When a court's last match ends. The one number an organizer standing at the
@@ -629,14 +645,13 @@
 .matchList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .matchItem {
-  padding: 12px 14px;
-  border-radius: 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid var(--sand-300, #E7E2D9);
-  border-left: 3px solid var(--cal-accent, var(--coral-500, #EB6F43));
   background: var(--surface-card, #FFFFFF);
   box-shadow: 0 2px 10px rgba(20, 31, 46, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -652,7 +667,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .matchTime {
@@ -728,7 +743,7 @@
 .matchTeams {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .teamRow {
@@ -929,7 +944,10 @@
 .calBlockedSlot {
   z-index: 2;
   display: flex;
-  margin: 2px 3px;
+  /* The same inset the match cards take — a buffer sitting flush between two
+     inset cards read as taller than the minutes it stands for. Its height is
+     set inline and already has the two gaps taken out of it. */
+  margin: var(--card-gap, 3px) 3px;
   min-height: 0;
   overflow: hidden;
 }
@@ -965,10 +983,6 @@
   background: rgba(238, 122, 76, 0.08);
   border: 1px solid rgba(238, 122, 76, 0.28);
 }
-.editBarFault {
-  background: rgba(214, 69, 69, 0.08);
-  border-color: rgba(214, 69, 69, 0.32);
-}
 .editBarText {
   display: inline-flex;
   align-items: center;
@@ -976,26 +990,6 @@
   flex-wrap: wrap;
   font-size: 12.5px;
   color: var(--ink-700, #3E4654);
-}
-.editBarProblemBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: transparent;
-  border: none;
-  color: #D64545;
-  font-size: 13px;
-  font-weight: 700;
-  overflow: hidden;
-  pointer-events: none;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: inherit;
-  transition: background 0.15s;
-}
-.editBarProblemBtn:hover {
-  background: rgba(214, 69, 69, 0.12);
 }
 .editBarActions {
   display: inline-flex;
@@ -1054,7 +1048,17 @@
    Match cards in Grid View can be dragged when Hand Edit is on. */
 .gridMatchCardDraggable {
   cursor: grab !important;
-  touch-action: none;
+  /* `manipulation`, not `none`.
+     `none` hands every touch on the card to the drag system, and since the
+     cards cover most of the grid that left the schedule unscrollable in both
+     directions once Hand Edit was on — there was nowhere left to put a
+     finger to pan.
+     `manipulation` keeps panning with the browser and still allows the drag,
+     because the touch sensor is delay-based (200ms hold, 5px tolerance — see
+     the sensors in page.tsx): move within the delay and the sensor aborts so
+     the pan wins; hold still and the drag starts and takes the gesture. Only
+     double-tap zoom is given up, which a scheduling grid has no use for. */
+  touch-action: manipulation;
   user-select: none;
   z-index: 6;
 }
@@ -1123,7 +1127,7 @@
 /* Empty slot droppable cells and ghost placeholder */
 .calDropSlotCell {
   position: relative;
-  min-height: var(--cal-slot-h, 57px);
+  min-height: var(--cal-slot-h, 36px);
   border-radius: 12px;
   pointer-events: auto;
   z-index: 2;
@@ -1485,8 +1489,7 @@
   flex-wrap: wrap;
 }
 
-/* Court headers are dark cards, so the courts read as the fixed structure of
-   the day and the white match cards read as the things placed into it. */
+/* Sticky court-header container in grid view */
 .calCourtHead {
   position: sticky;
   top: 0;
@@ -1494,93 +1497,9 @@
   background: var(--sand-100, #F5F1EA);
   padding: 0 2px 12px;
   box-sizing: border-box;
-}
-.calCourtHeadCard {
-  height: 96px;
-  box-sizing: border-box;
-  background: var(--ink-900, #14181E);
-  border-radius: 20px;
-  padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 8px 20px rgba(20, 24, 30, 0.16);
-}
-.calCourtHeadTop {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.calCourtBadge {
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border-radius: 999px;
-  background: var(--coral-500, #EB6F43);
-  color: #fff;
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 14px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.calCourtName {
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.calCourtHeadBottom {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.calCourtProgress {
-  flex: 1;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-  overflow: hidden;
-}
-.calCourtProgressFill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--coral-500, #EB6F43);
-  transition: width 240ms var(--ease-standard, cubic-bezier(0.4, 0, 0.2, 1));
-}
-.calCourtPlayed {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.72);
-  white-space: nowrap;
-}
-
-/* A court column the venue no longer has — a schedule saved back when there
-   were more courts still names it. Drawn muted and outlined rather than in the
-   solid head every real court gets, so "this is not one of your courts" reads
-   off the shape of the column before anyone reads the note. */
-.calCourtHeadOff {
-  background: var(--ink-050, #F4F5F7);
-  border: 1px dashed var(--ink-300, #C6CBD4);
-  box-shadow: none;
-}
-.calCourtHeadOff .calCourtBadge {
-  background: var(--ink-300, #C6CBD4);
-  color: var(--ink-800, #2C323D);
-}
-.calCourtHeadOff .calCourtName { color: var(--ink-800, #2C323D); }
-.calCourtOffNote {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--ink-600, #5A6270);
+  justify-content: flex-end;
 }
 
 /* Full-height backing behind the hourly time labels, so courts scrolling
@@ -1763,11 +1682,20 @@
   position: relative;
   z-index: 5;
   background: var(--surface-card, #FFFFFF);
-  border: none;
-  border-left: 4px solid var(--div-accent, #EB6F43);
+  /* No division stripe. The match-number badge is already the division's
+     colour, so the bar down the edge said the same thing a second time and
+     cost 4px of a card that is only ever as tall as its own duration.
+     A neutral hairline keeps the card's edge without the repetition. */
+  border: 1px solid rgba(20, 31, 46, 0.10);
   border-radius: 12px;
-  padding: 6px 12px;
-  margin: 0 2px 4px;
+  padding: 4px 10px;
+  /* The gap between stacked cards, declared on .calGrid so blocked time and
+     buffers inset by exactly the same amount. Vertical margin comes out of
+     the card rather than being added to it — the grid row is the match's
+     duration, so a card that grew by its own margins would end later than the
+     match does. offsetStyle() subtracts the same value for cards that start
+     mid-row. */
+  margin: var(--card-gap, 3px) 2px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -1792,13 +1720,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .gridMatchTimeWrap {
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
+  /* The round name sits here now and can be long ("Round Robin"), so this
+     group has to be allowed to shrink for its ellipsis to engage. */
+  min-width: 0;
 }
 
 .gridMatchTime {
@@ -1838,6 +1769,9 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
+  /* Duration and match number are short and fixed — they keep their width
+     and the round name on the left gives way instead. */
+  flex: none;
 }
 
 .gridMatchRound {
@@ -1867,7 +1801,7 @@
 .gridMatchTeams {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   justify-content: center;
 }
@@ -1877,7 +1811,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 18px;
+  min-height: 16px;
 }
 
 .gridTeamName {
@@ -2026,13 +1960,6 @@
   font-weight: 600;
   margin-left: auto;
 }
-.calDayHeading {
-  font-family: var(--font-display, 'Outfit', sans-serif);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--ink-800, #2C323D);
-  margin: 4px 0 8px;
-}
 .calScroll {
   /* Horizontal only. Vertical growth is the page's job: the calendar lays
      itself out in full and the window scrolls, rather than trapping a second
@@ -2057,6 +1984,9 @@
 .calGrid {
   display: grid;
   position: relative;
+  /* How far every timed thing — match card, buffer, blocked period — is inset
+     from its own row, so a stack of them lines up. */
+  --card-gap: 3px;
   /* On a wide screen every court shares the width: `minmax(0, 1fr)` rather than
      a minimum column width, so four courts always fit and nothing a card
      contains can push the grid past the viewport. It used to be `max-content`
@@ -2072,7 +2002,7 @@
      every rule in this file. Everything sized in minutes is a calc against it:
      the row template the page writes out, --cal-slot-h below, and an off-pitch
      card's offset and height. */
-  --cal-px-per-min: var(--cal-ppm-wide, 3.8px);
+  --cal-px-per-min: var(--cal-ppm-wide, 2.4px);
   /* One pitch, in pixels — the height of an ordinary playing row. Derived
      rather than passed in, so it cannot disagree with the scale above. */
   --cal-slot-h: calc(var(--cal-pitch, 15) * var(--cal-px-per-min));
@@ -2090,12 +2020,15 @@
      squeezed. */
   --cal-lunch-h: 30px;
   grid-template-columns: var(--cal-time-col, 96px) repeat(var(--cal-courts, 1), minmax(0, 1fr));
-  grid-template-rows: auto repeat(var(--cal-rows, 1), minmax(var(--cal-slot-h, 57px), auto));
+  grid-template-rows: auto repeat(var(--cal-rows, 1), minmax(var(--cal-slot-h, 36px), auto));
 }
 /* Sticky court-header row (top) */
 /* The corner says which day the grid below belongs to, and sits above the
    court cards — they share the sticky top row and come later in the DOM, so
    without this they'd slide out over it. */
+/* One line, centred on the court-header row it shares. It used to be a
+   bottom-aligned column of day/weekday/date, which pushed "Day 1" well below
+   the headers even though it sat in the same grid row. */
 .calCorner {
   position: sticky;
   top: 0;
@@ -2103,20 +2036,26 @@
   z-index: 6;
   background: var(--sand-100, #F4F1EA);
   border-right: 1px solid var(--sand-300, #EAE5DD);
-  padding: 0 10px 12px 0;
+  padding: 0 10px 0 0;
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-start;
+  /* The same box .courtHeader occupies — top of the row, 32px tall — so the
+     two centre their text on the same line. Stretching instead made the
+     corner as tall as the row (44px) while the header stayed 32px, which put
+     "Day 1" six pixels below "Court 1". */
+  align-self: start;
+  min-height: 32px;
 }
 .calCornerDay {
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
-  font-size: 22px;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--coral-500, #EB6F43);
-  line-height: 1.1;
-  margin-bottom: 3px;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 /* Where the day number would be, on a day the event does not cover. Muted
    rather than coral: it is a statement of fact about the section, not an
@@ -2130,19 +2069,6 @@
   line-height: 1.2;
   margin-bottom: 3px;
 }
-.calCornerWeekday {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  color: var(--ink-900, #14181E);
-}
-.calCornerDate {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-500, #8A92A0);
-  line-height: 1.2;
-}
 .calCornerCount {
   margin-top: 8px;
   font-size: 10px;
@@ -2150,14 +2076,6 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-500, #8A92A0);
-}
-.calCourtHead {
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-900, #14181E);
-  text-align: center;
-  border-right: 1px solid var(--sand-200, #F0EDE6);
 }
 /* Sticky time column (left) */
 .calTimeLabel {
@@ -2224,12 +2142,12 @@
    division — calendar blocks, the legend, the grid cards and the court /
    timeline cards — so a division is the same color wherever it appears.
    The index comes from divColorIndex and cycles after six. */
-.calBlock[data-div="0"], .calSwatch[data-div="0"], .gridMatchCard[data-div="0"], .matchItem[data-div="0"] { --cal-bg: rgba(238,122,76,0.12); --cal-border: rgba(238,122,76,0.40); --cal-accent: #E06838; }
-.calBlock[data-div="1"], .calSwatch[data-div="1"], .gridMatchCard[data-div="1"], .matchItem[data-div="1"] { --cal-bg: rgba(59,130,246,0.12); --cal-border: rgba(59,130,246,0.40); --cal-accent: #2563EB; }
-.calBlock[data-div="2"], .calSwatch[data-div="2"], .gridMatchCard[data-div="2"], .matchItem[data-div="2"] { --cal-bg: rgba(16,185,129,0.12); --cal-border: rgba(16,185,129,0.40); --cal-accent: #059669; }
-.calBlock[data-div="3"], .calSwatch[data-div="3"], .gridMatchCard[data-div="3"], .matchItem[data-div="3"] { --cal-bg: rgba(139,92,246,0.12); --cal-border: rgba(139,92,246,0.40); --cal-accent: #7C3AED; }
-.calBlock[data-div="4"], .calSwatch[data-div="4"], .gridMatchCard[data-div="4"], .matchItem[data-div="4"] { --cal-bg: rgba(236,72,153,0.12); --cal-border: rgba(236,72,153,0.40); --cal-accent: #DB2777; }
-.calBlock[data-div="5"], .calSwatch[data-div="5"], .gridMatchCard[data-div="5"], .matchItem[data-div="5"] { --cal-bg: rgba(202,138,4,0.14); --cal-border: rgba(202,138,4,0.40); --cal-accent: #CA8A04; }
+.calBlock[data-div="0"], .calSwatch[data-div="0"], .divKeyChip[data-div="0"], .gridMatchCard[data-div="0"], .matchItem[data-div="0"] { --cal-bg: rgba(238,122,76,0.12); --cal-border: rgba(238,122,76,0.40); --cal-accent: #E06838; }
+.calBlock[data-div="1"], .calSwatch[data-div="1"], .divKeyChip[data-div="1"], .gridMatchCard[data-div="1"], .matchItem[data-div="1"] { --cal-bg: rgba(59,130,246,0.12); --cal-border: rgba(59,130,246,0.40); --cal-accent: #2563EB; }
+.calBlock[data-div="2"], .calSwatch[data-div="2"], .divKeyChip[data-div="2"], .gridMatchCard[data-div="2"], .matchItem[data-div="2"] { --cal-bg: rgba(16,185,129,0.12); --cal-border: rgba(16,185,129,0.40); --cal-accent: #059669; }
+.calBlock[data-div="3"], .calSwatch[data-div="3"], .divKeyChip[data-div="3"], .gridMatchCard[data-div="3"], .matchItem[data-div="3"] { --cal-bg: rgba(139,92,246,0.12); --cal-border: rgba(139,92,246,0.40); --cal-accent: #7C3AED; }
+.calBlock[data-div="4"], .calSwatch[data-div="4"], .divKeyChip[data-div="4"], .gridMatchCard[data-div="4"], .matchItem[data-div="4"] { --cal-bg: rgba(236,72,153,0.12); --cal-border: rgba(236,72,153,0.40); --cal-accent: #DB2777; }
+.calBlock[data-div="5"], .calSwatch[data-div="5"], .divKeyChip[data-div="5"], .gridMatchCard[data-div="5"], .matchItem[data-div="5"] { --cal-bg: rgba(202,138,4,0.14); --cal-border: rgba(202,138,4,0.40); --cal-accent: #CA8A04; }
 
 /* The grid cards and badges were written against their own variable names. */
 .gridMatchCard[data-div], .matchItem[data-div] {
@@ -3188,7 +3106,20 @@
      line with the dropdowns while the day strip still spans the full
      width. Ordering below, as with the dropdowns, keeps the desktop row
      reading left to right in source order. */
-  .stickyInner { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .stickyInner { flex-direction: column; align-items: stretch; gap: 8px; }
+  .barRow { align-items: center; flex-wrap: wrap; gap: 8px; }
+  .barRowSecondary { padding-top: 8px; }
+  /* .filterGroup is `display: contents` on a phone (below), so its selects
+     become children of .barRow and their `order` competes with the leave-the
+     -page links. Without an order of its own the pair sorted ahead of the
+     filters and squeezed them to "Di…". Sent to the end and given a full
+     row, so the two dropdowns get the width instead. */
+  .barRowRight {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
   .filterGroup,
   .controlsGroup { display: contents; }
   .segmented {
@@ -3215,14 +3146,20 @@
   .filterGroup .select { padding-right: 28px; }
   /* Last on the shared line, at its natural width — the dropdowns split
      whatever is left. */
-  /* The segments give way to the single button, which is narrower and so
-     leaves the two dropdowns more of the shared line. */
-  .controlsGroup > .segmented { display: none; }
-  .controlsGroup > .viewToggleBtn {
+  /* The segmented control is now the only one — view and mode collapsed into
+     it — so the phone shows it too rather than a narrower stand-in. It gets
+     its own full-width line and scrolls sideways if four segments will not
+     fit, which beats hiding two of them. */
+  .controlsGroup > .segmented {
     display: inline-flex;
-    order: 3;
-    flex: 0 0 auto;
+    order: 4;
+    flex: 1 1 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
+  .controlsGroup > .segmented::-webkit-scrollbar { display: none; }
+  .controlsGroup > .segmented > .segBtn { flex: 1 0 auto; }
+  .controlsGroup > .viewToggleBtn { display: none; }
 
   /* The day in view is the thing this screen is anchored to, so on a phone
      its pill carries the brand accent rather than the neutral white the
@@ -3337,7 +3274,6 @@
   .gridHeaderTitle { font-size: 22px; }
   .gridHeaderRight { gap: 10px; }
   .calLegendItem { font-size: 11px; gap: 5px; }
-  .hintBannerOn { padding: 12px 14px; font-size: 13px; }
 
   /* Grid view calendar — geometry is set on the scroll container so that both
      the track sizing and the snap padding read the same values. */
@@ -3366,8 +3302,6 @@
   .gridTeamName { min-width: 0; }
   .calTimeLabelCell { padding: 6px 6px 0 4px; }
   .calTimeHour .calTimeText { font-size: 12px; }
-  .calCourtHeadCard { height: 84px; padding: 10px 14px; border-radius: 16px; }
-  .calCourtName { font-size: 17px; }
   .calCornerDay { font-size: 18px; }
   .lunchBreakContent { padding: 5px 12px; font-size: 11px; letter-spacing: 0.02em; }
 }
@@ -3428,7 +3362,7 @@
     scroll-padding-left: calc(var(--cal-time-col) + var(--cal-scroll-pad));
     border-radius: 12px;
   }
-  .calCourtHeadCard {
+  .calCourtHead {
     scroll-snap-align: start;
     scroll-margin-left: 4px;
   }
@@ -3457,15 +3391,8 @@
   .calTimeRule,
   .calTimeDot { display: none; }
 
-  /* The corner sits in the time column, so narrowing the gutter narrows it too
-     — at 52px its type wrapped "Day 1" onto two lines. It loses the weekday and
-     the date rather than the space: .calDayHeading states them right above this
-     on a multi-day event, and on a single-day one the hero already has. What is
-     left is which day this grid is, which is the one thing the heading does not
-     always say. */
-  .calCornerWeekday,
-  .calCornerDate { display: none; }
-  .calCornerDay { font-size: 15px; margin-bottom: 0; }
+  /* Narrower gutter on a phone, so the day reads a size down. */
+  .calCornerDay { font-size: 15px; }
   .calCornerCount { margin-top: 4px; font-size: 9px; letter-spacing: 0.04em; }
   .calCorner { padding-right: 6px; }
 
@@ -3476,9 +3403,10 @@
      it, and two 24px team rows — 86px, plus the 3px inset at each end. Change
      any of these and re-measure that constant, or the shortest card stops
      fitting its row and every court's row stretches with it. */
-  .gridMatchCard { padding: 6px 9px; margin: 3px 4px; border-radius: 10px; }
-  .gridMatchTop { margin-bottom: 4px; }
-  .gridTeamRow { min-height: 20px; }
+  .calGrid { --card-gap: 2px; }
+  .gridMatchCard { padding: 4px 8px; margin: var(--card-gap) 3px; border-radius: 10px; }
+  .gridMatchTop { margin-bottom: 2px; }
+  .gridTeamRow { min-height: 16px; }
   /* The card's length *is* the duration on a timeline — this chip is the one
      label the geometry already states, and the width it gives back is width the
      227px column wants. */
@@ -3613,19 +3541,18 @@
 /* ── Pin control on a calendar card ───────────────────────────────
    Sits in the card's top-right while Hand Edit is on, opposite the buffer
    handle on the leading edge, so the two edit affordances never collide. */
+/* Sits in the card's tag row where the drag grip used to, so it takes part in
+   the layout instead of floating over the card — on a phone the card is
+   barely wider than its own text and an absolutely placed button landed on
+   the team names. */
 .cardPinBtn {
-  position: absolute;
-  /* Below the card's top row, not in it. The grip icon and the match number
-     live up there (see .gridMatchTags), and a pin at top: 4px landed right
-     on the grip. */
-  top: 26px;
-  right: 4px;
-  z-index: 5;
+  flex: none;
+  margin-left: 3px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border-radius: 999px;
   border: 1px solid rgba(20, 31, 46, 0.12);
@@ -3728,4 +3655,283 @@
   font-weight: 700;
   text-transform: none;
   letter-spacing: 0;
+}
+
+/* Four segments rather than two, so they need to be allowed to shrink before
+   they wrap. */
+.modeSegmented {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+/* ── Division key ─────────────────────────────────────────────────
+   A tinted pill per division, carrying a solid dot in the division's own
+   accent — the same three tokens the cards below are drawn from, so the key
+   cannot drift from the thing it is a key to. */
+.divKeyChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--cal-bg, rgba(20, 24, 30, 0.06));
+  color: var(--ink-900, #14181E);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.divKeyDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cal-accent, #EB6F43);
+  flex: none;
+}
+
+@media (max-width: 768px) {
+  .divKeyChip {
+    font-size: 12px;
+    padding: 5px 11px;
+    gap: 6px;
+  }
+  .divKeyDot { width: 8px; height: 8px; }
+}
+
+/* ── Schedule problems ────────────────────────────────────────────
+   A single fault on a bar, the rest a click below it. See the note on
+   problemBar in page.tsx. */
+.problemBarWrap {
+  margin-bottom: 14px;
+}
+
+.problemBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 16px;
+  background: #FDECEA;
+  border: 1px solid rgba(214, 69, 69, 0.28);
+}
+
+.problemBarCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding-right: 14px;
+  border-right: 1px solid rgba(214, 69, 69, 0.25);
+  font-family: var(--font-heading);
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #D64545;
+  white-space: nowrap;
+}
+
+/* The message is the button: reading it and going to it are the same act. */
+.problemBarBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.problemBarMessage {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-900, #14181E);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.problemBarMeta {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 12px;
+  color: var(--ink-500, #8A92A0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.problemBarBody:hover .problemBarMessage { text-decoration: underline; }
+
+.problemBarNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.problemBarNavBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 31, 46, 0.12);
+  background: #FFFFFF;
+  color: var(--ink-700, #3D4453);
+  cursor: pointer;
+}
+.problemBarNavBtn:hover:not(:disabled) { border-color: var(--coral-500, #EB6F43); color: var(--coral-500, #EB6F43); }
+.problemBarNavBtn:disabled { opacity: 0.4; cursor: default; }
+
+.problemBarNavCount {
+  font-family: var(--font-heading);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-800, #2C3442);
+  white-space: nowrap;
+}
+
+/* The one thing to do about the fault on screen. */
+.problemBarFix {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: none;
+  background: var(--coral-500, #EB6F43);
+  color: #FFFFFF;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.problemBarFix:hover { background: var(--coral-600, #D95F35); }
+
+.problemBarExpand {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 31, 46, 0.12);
+  background: #FFFFFF;
+  color: var(--ink-700, #3D4453);
+  cursor: pointer;
+}
+.problemBarExpand:hover { border-color: var(--coral-500, #EB6F43); color: var(--coral-500, #EB6F43); }
+.problemBarChevronOpen { transform: rotate(180deg); }
+
+/* The whole list, under the bar rather than over the schedule — the board is
+   what the list is about, so covering it was the wrong trade. */
+.problemPane {
+  margin-top: 8px;
+  border: 1px solid var(--sand-300, #EAE5DD);
+  border-radius: 16px;
+  background: #FFFFFF;
+  overflow: hidden;
+}
+
+.problemPaneRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 0 14px;
+  border-bottom: 1px solid var(--sand-200, #F0ECE3);
+}
+.problemPaneRow:last-child { border-bottom: none; }
+.problemPaneRow:hover { background: var(--sand-100, #FAF8F4); }
+/* The one the bar is showing. */
+.problemPaneRowCurrent { background: var(--sand-200, #F1ECE2); }
+
+.problemPaneMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.problemDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+/* Cannot be played as it stands, versus playable but worse than it should be. */
+.problemDotHard { background: #EF5350; }
+.problemDotSoft { background: #F5B84C; }
+
+.problemPaneNo {
+  flex: none;
+  min-width: 34px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-800, #2C3442);
+}
+
+.problemPaneMsg {
+  min-width: 0;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 14px;
+  color: var(--ink-900, #14181E);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.problemPaneFix {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 6px 0 6px 12px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--coral-500, #EB6F43);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.problemPaneFix:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .problemBar { flex-wrap: wrap; gap: 10px; padding: 12px; }
+  .problemBarCount { border-right: none; padding-right: 0; }
+  .problemBarBody { flex: 1 1 100%; order: 3; }
+  .problemBarMessage, .problemBarMeta { white-space: normal; }
+  .problemBarNav { order: 2; margin-left: auto; }
+  .problemBarFix { order: 4; flex: 1 1 auto; justify-content: center; }
+  .problemBarExpand { order: 5; }
+  .problemPaneMsg { white-space: normal; }
+  .problemPaneRow { align-items: flex-start; padding: 0 12px; }
+  .problemPaneFix { padding-top: 13px; }
+}
+
+/* The whole warning, while reading: a flag in front of the start time. The
+   sentences belong to Edit mode and to the problem bar, which can step to the
+   card and fix it — see the note on .gridFaults' gate in page.tsx. The title
+   carries the messages for anyone who wants them without switching mode. */
+.gridMatchFaultFlag {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 5px;
+  color: #D64545;
+  flex: none;
+  cursor: help;
 }

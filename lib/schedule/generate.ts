@@ -34,7 +34,7 @@ import type {
 import { courtRoster, normaliseConfig, toHHMM } from './types.ts';
 import { buildGraph, type MatchGraph } from './graph.ts';
 import { buildGrid, DAY_SPAN, type Grid } from './grid.ts';
-import { placeMatches, type Placement } from './place.ts';
+import { placeMatches, type Placement, type PinnedPlacement } from './place.ts';
 import { measure, type ScheduleMetrics } from './metrics.ts';
 import type { Appetite } from './appetite.ts';
 import { scheduleInventory, type Inventory } from './inventory.ts';
@@ -107,6 +107,9 @@ export function generateSchedule(
   divisions: SchedulableDivision[],
   rawConfig: Partial<ScheduleConfig>,
   days = 1,
+  /* Matches the organizer has pinned to a time. Generating again re-deals
+   * everything else around them rather than moving them. See placeMatches. */
+  pinned: PinnedPlacement[] = [],
 ): ScheduleResult {
   const config = normaliseConfig(rawConfig);
   // The grid's resolution follows the lengths actually declared, so a
@@ -119,7 +122,7 @@ export function generateSchedule(
   );
   const graph = buildGraph(divisions, grid.blockMinutes);
 
-  const placed = placeMatches(graph, grid, config);
+  const placed = placeMatches(graph, grid, config, pinned);
   const placements = placed.placements;
   const metrics = measure(placements, graph, grid);
 
@@ -271,3 +274,7 @@ function netAdjustBlocks(placements: Placement[], config: ScheduleConfig, grid: 
   }
   return out;
 }
+
+/* Re-exported so callers that already import from this module — the
+   schedule page does — ask for a pin in one place. */
+export type { PinnedPlacement };

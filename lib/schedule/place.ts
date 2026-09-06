@@ -31,7 +31,6 @@ import type { MatchGraph, MatchNode } from './graph.ts';
 import { DAY_SPAN, type Grid } from './grid.ts';
 import type { BlockedPeriod, ScheduleConfig } from './types.ts';
 import { parseHHMM, parseNetHeight } from './types.ts';
-import { normaliseBuffer } from './netChange.ts';
 import { allotBlocks, appetiteOf, cohortRank, divisionQueue, type Appetite } from './appetite.ts';
 import { compareCandidates, poolKey, scoreCandidate, type CourtHistory } from './score.ts';
 
@@ -95,12 +94,26 @@ interface Interval { s: number; e: number }
 const teamsOf = (n: MatchNode): string[] =>
   [n.teamA, n.teamB].filter((t): t is string => Boolean(t));
 
+/** A match the organizer has fixed to a time, as the solver needs to see it. */
+export interface PinnedPlacement {
+  matchId: string;
+  courtName: string;
+  /** Day index, 0-based. */
+  day: number;
+  /** Minutes into the day, matching the grid's own frame. */
+  startMin: number;
+}
+
 export function placeMatches(
   graph: MatchGraph,
   grid: Grid,
   config: ScheduleConfig,
+  /* Matches the organizer has pinned. They are not placed — they are already
+   * placed, and generating again must not move them. Each is committed at the
+   * time it already holds and then treated as occupied court time, so the
+   * solver routes everything else around it rather than on top of it. */
+  pinned: PinnedPlacement[] = [],
 ): PlaceResult {
-  const buffer = normaliseBuffer(config.netBufferMinutes);
   const matchesOf = new Map<string, MatchNode[]>();
   for (const node of graph.nodes.values()) {
     const list = matchesOf.get(node.divisionId);
@@ -119,7 +132,15 @@ export function placeMatches(
   const heightOf = new Map<string, number | null>();
   for (const [id, shape] of graph.divisions) heightOf.set(id, shape.netHeight);
 
-  const blockedOn = courtBlocks(config, grid);
+  const configBlocks = courtBlocks(config, grid);
+  /* Pinned matches are court time that is spoken for, exactly like a blocked
+     period — so they are read through the same door the solver already
+     consults when it looks for somewhere to put a match. */
+  const blockedOn = (courtIndex: number, day: number) => {
+    const pins = pinnedSpans.get(spanKey(courtIndex, day));
+    const base = configBlocks(courtIndex, day);
+    return pins && pins.length > 0 ? [...base, ...pins] : base;
+  };
   const dailyCap = Math.max(0, Math.trunc(config.maxMatchesPerTeamPerDay) || 0);
   const stageEndgame = config.stageFinals !== false;
   const holdFinals = config.finalsOnLastDay && grid.days > 1;
@@ -145,6 +166,53 @@ export function placeMatches(
   const poolLastStart = new Map<string, number>();
   /** The one court every final is played on, claimed by the first final. */
   let finalsCourt: number | null = null;
+
+  /* ── Pinned matches, seated before anything else ──────────────────
+   *
+   * A pin says "this one plays here, at this time, whatever else changes",
+   * so generating again has to honour it rather than re-deal it. Each pinned
+   * match is written straight into the result at the time it already holds,
+   * its teams are marked busy, and its span joins the court's blocked time —
+   * which is what makes the solver schedule *around* it instead of stopping
+   * at it. Committing through `commit()` would be wrong: that advances the
+   * court's `freeAt` to the pin's end, so a pin at 14:00 would leave the
+   * whole morning unusable.
+   */
+  const pinnedSpans = new Map<string, { start: number; end: number }[]>();
+  const spanKey = (courtIndex: number, day: number) => `${courtIndex}\u0000${day}`;
+
+  for (const pin of pinned) {
+    const node = graph.nodes.get(pin.matchId);
+    if (!node || !remaining.has(pin.matchId)) continue;
+    const courtIndex = grid.courts.findIndex(c => c.name === pin.courtName);
+    if (courtIndex < 0) continue;
+
+    const start = pin.day * DAY_SPAN + pin.startMin;
+    const end = start + node.durationMinutes;
+
+    placements.set(node.id, {
+      matchId: node.id,
+      courtIndex,
+      courtName: pin.courtName,
+      day: pin.day,
+      startAbs: start,
+      endAbs: end,
+      netChange: false,
+    });
+    endOf.set(node.id, end);
+    remaining.delete(node.id);
+
+    for (const team of teamsOf(node)) {
+      const list = teamBusy.get(team);
+      if (list) list.push({ s: start, e: end });
+      else teamBusy.set(team, [{ s: start, e: end }]);
+    }
+
+    const key = spanKey(courtIndex, pin.day);
+    const list = pinnedSpans.get(key);
+    if (list) list.push({ start, end });
+    else pinnedSpans.set(key, [{ start, end }]);
+  }
 
   // ── The phase of a match, and what the endgame programme demands of it ──
   //
