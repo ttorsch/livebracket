@@ -47,6 +47,8 @@ import AccountButton from '../../../components/auth/AccountButton';
 import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
 import PlayerCardModal, { type PlayerCardTarget } from '../../../components/PlayerCardModal';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
+import { hasPrizes, prizeTotal } from '../../../lib/prizes';
+import { formatMoney } from '../../../lib/currency';
 
 type NavMode = 'top' | 'shown' | 'hidden';
 const NAV_SCROLL_DELTA = 10;
@@ -1018,7 +1020,7 @@ export default function TournamentPage() {
                 <p className={styles.microLabel}>Entry fee</p>
                 <p className={styles.feeValue}>
                   {activeDivision.registrationFee > 0
-                    ? `${activeDivision.registrationFee.toLocaleString()} THB`
+                    ? formatMoney(activeDivision.registrationFee, activeDivision.currency)
                     : 'Free'}
                 </p>
               </div>
@@ -1103,16 +1105,47 @@ export default function TournamentPage() {
                 {activeDivision.registrationFee > 0 && (
                   <div className={styles.prizeFeeBadge}>
                     <span className={styles.microLabel}>Entry Fee</span>
-                    <span className={styles.prizeFeeValue}>{activeDivision.registrationFee.toLocaleString()} THB</span>
+                    <span className={styles.prizeFeeValue}>
+                      {formatMoney(activeDivision.registrationFee, activeDivision.currency)}
+                    </span>
                   </div>
                 )}
               </div>
 
-              {activeDivision.prizePool && activeDivision.prizePool.trim() ? (
+              {hasPrizes(activeDivision.prizes) ? (
                 <div className={styles.prizeBody}>
-                  <div className={styles.prizeText}>
-                    {activeDivision.prizePool.trim()}
-                  </div>
+                  {activeDivision.prizes.placings.length > 0 && (
+                    <>
+                      <ol className={styles.prizeList}>
+                        {activeDivision.prizes.placings.map((p, i) => (
+                          <li key={i} className={styles.prizeRow}>
+                            <span className={styles.prizePlace}>{p.place}</span>
+                            <span className={styles.prizeRowDetail}>
+                              <span className={styles.prizeAmount}>
+                                {p.amount > 0
+                                  ? formatMoney(p.amount, activeDivision.currency)
+                                  : 'Trophy'}
+                              </span>
+                              {p.note && <span className={styles.prizeRowNote}>{p.note}</span>}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                      {/* Only when there is cash — a trophy-only table has no
+                          total worth printing. */}
+                      {prizeTotal(activeDivision.prizes) > 0 && (
+                        <div className={styles.prizeTotalRow}>
+                          <span className={styles.microLabel}>Total prize money</span>
+                          <span className={styles.prizeTotalValue}>
+                            {formatMoney(prizeTotal(activeDivision.prizes), activeDivision.currency)}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {activeDivision.prizes.note && (
+                    <p className={styles.prizeText}>{activeDivision.prizes.note}</p>
+                  )}
                 </div>
               ) : (
                 <EmptyCard

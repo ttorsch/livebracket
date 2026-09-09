@@ -1077,3 +1077,19 @@
   .stepLabel { display: none; }
   .stepLabelActive { display: inline; }
 }
+
+/* What the division pays out, on the card where a player is choosing which
+   one to enter. Sits between the fee and the fill bar: cost, reward, odds. */
+.divPrize {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--sand-100, #F5F1EA);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary, #EB6F43);
+}

@@ -5,6 +5,8 @@ import {
   normalizeGender, normalizeAgeLimit, type DivisionGender, type AgeLimit,
 } from './divisionEligibility';
 import { normalizeRegFields, rosterSize, type RegField } from './registrationFields';
+import { normalizeCurrency } from './currency';
+import { readPrizes, prizeTotal, type DivisionPrizes } from './prizes';
 
 export type { ScheduleConfig };
 
@@ -21,6 +23,10 @@ export interface DashboardDivision {
   filled: number;
   registrationOpens?: string;
   registrationCloses?: string;
+  /** Cash on the table for this division, in `currency`. 0 = none advertised.
+   *  Cards headline the tournament-wide roll-up; see lib/prizes. */
+  prizeTotal: number;
+  currency: string;
 }
 
 export interface DashboardTournament {
@@ -396,6 +402,8 @@ function toDashboardTournament(t: TournamentRow): DashboardTournament {
         filled: (d.teams ?? []).filter((team) => team.status !== 'waitlist').length,
         registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
         registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
+        prizeTotal: prizeTotal(readPrizes(settings)),
+        currency: normalizeCurrency(settings.currency),
       };
     }),
   };
@@ -792,12 +800,16 @@ export interface DetailDivision {
      drawConfig.crossing is what a draw actually ran with. */
   crossing: string;
   registrationFee: number;        // flat, per team; 0 is a legitimate fee
+  currency: string;               // prices the fee *and* the prize money
   formatTypeOnSand: string;       // '2v2' … '6v6' — the roster's floor
   rosterSize: number;             // players the form asks for, alternates included
   regFields: RegField[];          // the questions this division asks each player
   waitlistCap: number;            // teams accepted past the cap; 0 = none
   rules: string;                  // shown alongside the rules consent
-  prizePool: string;              // division prize structure or award breakdown
+  /* Placings and their payouts, priced in `currency`. Divisions written
+     before placings existed surface their old free-text breakdown as
+     prizes.note — see lib/prizes. */
+  prizes: DivisionPrizes;
   confirmationMessage: string;    // organizer's own post-registration note
 }
 
@@ -1070,6 +1082,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         registrationOpenDate?: unknown; registrationCloseDate?: unknown;
         maxRosterSize?: unknown; waitlistCap?: unknown; rules?: unknown;
         confirmationMessage?: unknown; advancePerPool?: number; crossing?: string;
+        currency?: unknown;
       };
       const divTeamMap = new Map(d.teams.map((t) => [t.id, t]));
       return {
@@ -1142,12 +1155,13 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           : 2,
         crossing: typeof settings.crossing === 'string' && settings.crossing ? settings.crossing : 'fivb',
         registrationFee: Number(d.registration_fee ?? 0) || 0,
+        currency: normalizeCurrency(settings.currency),
         formatTypeOnSand: d.format_type_on_sand,
         rosterSize: rosterSize(d.format_type_on_sand, settings.maxRosterSize),
         regFields: normalizeRegFields(d.reg_fields),
         waitlistCap: typeof settings.waitlistCap === 'number' ? Math.max(0, Math.trunc(settings.waitlistCap)) : 0,
         rules: typeof settings.rules === 'string' ? settings.rules : '',
-        prizePool: typeof (settings as { prizePool?: unknown }).prizePool === 'string' ? (settings as { prizePool: string }).prizePool : '',
+        prizes: readPrizes(settings as Record<string, unknown>),
         confirmationMessage: typeof settings.confirmationMessage === 'string' ? settings.confirmationMessage : '',
       };
     }),

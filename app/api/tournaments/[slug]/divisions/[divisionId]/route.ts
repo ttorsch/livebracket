@@ -3,6 +3,8 @@ import { supabaseAdmin } from '../../../../../../lib/supabaseAdmin';
 import { formatPlayerNames } from '../../../../../../lib/teamName';
 import { requireTournamentOwner } from '../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../lib/authResponse';
+import { toStoredPrizes } from '../../../../../../lib/prizes';
+import { normalizeCurrency } from '../../../../../../lib/currency';
 
 interface DivisionBody {
   name: string;
@@ -22,7 +24,10 @@ interface DivisionBody {
   allowMulti: boolean;
   genderEligibility: string;
   ageLimit: string;
-  prizePool: string;
+  // Prize money, defined per division. `prizes` is the payout table and
+  // `prizeNote` the free text under it; see lib/prizes.
+  prizes: { place: string; amount: number; note: string }[];
+  prizeNote: string;
   netHeight: string;
   minTeams: number;
   waitlistCap: number;
@@ -38,14 +43,12 @@ const roundLabel = (i: number) => `Round ${i + 1}`;
 const clampMinutes = (v: number | undefined) =>
   typeof v === 'number' && v > 0 ? Math.max(5, Math.min(240, Math.trunc(v))) : 45;
 
-const CURRENCIES = ['THB', 'USD', 'EUR', 'GBP', 'AUD', 'SGD'];
-
 function toSettings(body: DivisionBody) {
   return {
     maxRosterSize: body.maxRosterSize,
     // Display currency for registrationFee. Whitelisted so a hand-made
     // request cannot store an arbitrary code the form can't render back.
-    currency: CURRENCIES.includes(body.currency) ? body.currency : 'THB',
+    currency: normalizeCurrency(body.currency),
     registrationOpenDate: body.registrationOpenDate,
     // Registration is derived from these two dates (lib/tournamentLifecycle),
     // and settings is replaced wholesale below — leaving the close date out
@@ -55,7 +58,10 @@ function toSettings(body: DivisionBody) {
     allowMulti: body.allowMulti,
     genderEligibility: body.genderEligibility,
     ageLimit: body.ageLimit,
-    prizePool: body.prizePool,
+    // Sanitised here as well as in the form: settings is written wholesale,
+    // so an unlabelled or negative row from a hand-made request would
+    // otherwise persist and render as a blank line on the public payout.
+    ...toStoredPrizes({ placings: body.prizes ?? [], note: body.prizeNote ?? '' }),
     netHeight: body.netHeight,
     minTeams: body.minTeams,
     waitlistCap: body.waitlistCap,

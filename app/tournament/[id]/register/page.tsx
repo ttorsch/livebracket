@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { tournamentStatus } from '../../../../lib/tournamentStatus';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, Trophy } from 'lucide-react';
 import { Badge, Button, Icon, Logo } from '@/components/livebracket-ds';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
@@ -15,6 +15,7 @@ import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../
 import { useSession } from '../../../../components/auth/AuthProvider';
 import RosterFields from '../../../../components/registration/RosterFields';
 import AccountButton from '../../../../components/auth/AccountButton';
+import { prizeSummary, prizeTotal } from '../../../../lib/prizes';
 
 const STEPS = ['Division', 'Players', 'Review'];
 const DONE = STEPS.length; // the confirmation panel sits one past the last step
@@ -283,7 +284,7 @@ export default function TournamentRegister() {
 
   const hints = [
     selectedDiv
-      ? `${selectedDiv.label} · ${selectedDiv.registrationFee.toLocaleString()} THB per team`
+      ? `${selectedDiv.label} · ${selectedDiv.registrationFee.toLocaleString()} ${selectedDiv.currency} per team`
       : 'Pick a division to continue',
     '',
     '',
@@ -375,13 +376,20 @@ export default function TournamentRegister() {
                           </span>
                           <span className={styles.divFee}>
                             <span className={styles.divFeeValue}>{div.registrationFee.toLocaleString()}</span>
-                            <span className={styles.divFeeCurrency}>THB</span>
+                            <span className={styles.divFeeCurrency}>{div.currency}</span>
                           </span>
                         </span>
                         <span className={`${styles.divCheck} ${selected ? styles.divCheckOn : ''}`} aria-hidden="true">
                           <Check size={14} strokeWidth={3} />
                         </span>
                       </span>
+
+                      {prizeSummary(div.prizes, div.currency) && (
+                        <span className={styles.divPrize}>
+                          <Trophy size={13} strokeWidth={2.2} aria-hidden="true" />
+                          {prizeSummary(div.prizes, div.currency)}
+                        </span>
+                      )}
 
                       <span className={styles.divProgressWrap}>
                         <span className={styles.divTrack}>
@@ -502,9 +510,20 @@ export default function TournamentRegister() {
                     <span className={styles.reviewFeeRowLabel}>Entry fee, per team</span>
                     <span className={styles.reviewFeeAmount}>
                       <span className={styles.reviewFeeValue}>{selectedDiv.registrationFee.toLocaleString()}</span>
-                      <span className={styles.reviewFeeCurrency}>THB</span>
+                      <span className={styles.reviewFeeCurrency}>{selectedDiv.currency}</span>
                     </span>
                   </div>
+                  {prizeTotal(selectedDiv.prizes) > 0 && (
+                    <div className={styles.reviewFeeRow}>
+                      <span className={styles.reviewFeeRowLabel}>Prize money in this division</span>
+                      <span className={styles.reviewFeeAmount}>
+                        <span className={styles.reviewFeeValue}>
+                          {prizeTotal(selectedDiv.prizes).toLocaleString()}
+                        </span>
+                        <span className={styles.reviewFeeCurrency}>{selectedDiv.currency}</span>
+                      </span>
+                    </div>
+                  )}
                   {selectedDiv.filled >= selectedDiv.teams ? (
                     <span className={styles.waitlistNote}>
                       This division is full. You&apos;ll join the waitlist and pay nothing unless a spot opens.

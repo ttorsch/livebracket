@@ -88,6 +88,10 @@ import {
   BASE_REG_FIELDS, FORMAT_PLAYERS, targetFor, type RegField, type RegFieldType, type PresetKey,
 } from '../../../../../lib/registrationFields';
 import { ROUND_FORMAT_LABEL, type RoundFormat } from '../../../../../lib/roundFormat';
+import {
+  readPrizes, defaultPlacings, prizeTotal, type DivisionPrizes, type PrizePlacing,
+} from '../../../../../lib/prizes';
+import { CURRENCIES, CURRENCY_SYMBOLS, normalizeCurrency, formatMoney } from '../../../../../lib/currency';
 
 
 // The registration schema types live in lib/registrationFields because the
@@ -179,7 +183,9 @@ interface SetupDivision {
   regFields: RegField[];
   // Advanced options (recommended)
   allowMulti: boolean;
-  prizePool: string;
+  /* Payout table + free-text note. Divisions saved before placings existed
+     surface their old breakdown string as prizes.note — see lib/prizes. */
+  prizes: DivisionPrizes;
   netHeight: string;
   minTeams: number;
   waitlistCap: number;
@@ -256,7 +262,7 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
     rules: typeof settings.rules === 'string' ? settings.rules : 'Standard FIVB Beach Volleyball rules apply.',
     regFields: (row.regFields as RegField[]) ?? makeBaseFields(),
     allowMulti: typeof settings.allowMulti === 'boolean' ? settings.allowMulti : true,
-    prizePool: typeof settings.prizePool === 'string' ? settings.prizePool : '',
+    prizes: readPrizes(settings),
     netHeight: typeof settings.netHeight === 'string' ? settings.netHeight : '2.24m',
     minTeams: typeof settings.minTeams === 'number' ? settings.minTeams : 4,
     waitlistCap: typeof settings.waitlistCap === 'number' ? settings.waitlistCap : 5,
@@ -266,16 +272,8 @@ const mapDbDivision = (row: SetupDivisionRow): SetupDivision => {
 };
 
 // Create Division modal is split into three navigable steps.
-const MODAL_STEPS = ['Basics & Fee', 'Format & Rules', 'Registration'];
+const MODAL_STEPS = ['Basics, Fee & Prizes', 'Format & Rules', 'Registration'];
 
-/* Currencies an organizer can price a division in. The symbol is display
-   only — the fee is stored as a plain number and the code alongside it. */
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  THB: '\u0e3f', USD: '$', EUR: '\u20ac', GBP: '\u00a3', AUD: 'A$', SGD: 'S$',
-};
-const CURRENCIES = Object.keys(CURRENCY_SYMBOLS);
-const normalizeCurrency = (v: unknown): string =>
-  typeof v === 'string' && CURRENCIES.includes(v) ? v : 'THB';
 
 /* The teams table's segmented filter. "Waitlist" is a status rather than a
  * payment state, which is why this is one control and not two. */
@@ -1013,7 +1011,9 @@ export default function OrganizerSetup() {
 
   // Recommended/Missing Fields Inputs (Advanced Options)
   const [allowMulti, setAllowMulti] = useState(true);
-  const [prizePool, setPrizePool] = useState('');
+  // Prize money — step 1, next to the fee that funds it.
+  const [prizePlacings, setPrizePlacings] = useState<PrizePlacing[]>(defaultPlacings);
+  const [prizeNote, setPrizeNote] = useState('');
   const [netHeight, setNetHeight] = useState('2.24m');
   const [minTeams, setMinTeams] = useState(4);
   const [waitlistCap, setWaitlistCap] = useState(5);
@@ -1048,7 +1048,8 @@ export default function OrganizerSetup() {
     setGenderEligibility('Anyone');
     setAgeLimit('');
     setAllowMulti(true);
-    setPrizePool('');
+    setPrizePlacings(defaultPlacings());
+    setPrizeNote('');
     setNetHeight('2.24m');
     setMinTeams(4);
     setWaitlistCap(5);
@@ -1083,7 +1084,10 @@ export default function OrganizerSetup() {
     setGenderEligibility(d.genderEligibility);
     setAgeLimit(d.ageLimit);
     setAllowMulti(d.allowMulti);
-    setPrizePool(d.prizePool);
+    // A division that never had placings still opens on the usual podium, so
+    // filling one in is typing an amount rather than building a table first.
+    setPrizePlacings(d.prizes.placings.length ? d.prizes.placings.map(p => ({ ...p })) : defaultPlacings());
+    setPrizeNote(d.prizes.note);
     setNetHeight(d.netHeight);
     setMinTeams(d.minTeams);
     setWaitlistCap(d.waitlistCap);
@@ -1094,6 +1098,20 @@ export default function OrganizerSetup() {
     setModalStep(0);
     setShowModal(true);
   };
+
+  // ── Prize table editing (step 1) ────────────────────────────────
+  const updatePlacing = (i: number, patch: Partial<PrizePlacing>) =>
+    setPrizePlacings(rows => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  const addPlacing = () =>
+    setPrizePlacings(rows => [...rows, { place: '', amount: 0, note: '' }]);
+
+  /* Removing every row is allowed — a division with no prize money is a
+     normal division, and the public page has an empty state for it. */
+  const removePlacing = (i: number) =>
+    setPrizePlacings(rows => rows.filter((_, j) => j !== i));
+
+  const prizePot = prizeTotal({ placings: prizePlacings, note: prizeNote });
 
   // Per-step validation for the Create Division wizard.
   const validateModalStep = (s: number): string | null => {
@@ -1519,6 +1537,11 @@ export default function OrganizerSetup() {
       return;
     }
 
+    /* The API takes the payout table and its note as two fields; the page's
+       own SetupDivision keeps them together. Both shapes come from here so
+       they cannot drift apart. */
+    const prizes: DivisionPrizes = { placings: prizePlacings, note: prizeNote };
+
     const data = {
       name: divName,
       divisionTeamCap: divCap,
@@ -1536,7 +1559,8 @@ export default function OrganizerSetup() {
       rules: divRules,
       regFields,
       allowMulti,
-      prizePool,
+      prizes: prizes.placings,
+      prizeNote: prizes.note,
       netHeight,
       minTeams,
       waitlistCap,
@@ -1551,11 +1575,11 @@ export default function OrganizerSetup() {
     // until the tournament itself is published.
     if (!basicInfo || !id) {
       if (editingDivisionId) {
-        setDivisions(divisions.map(d => d.id === editingDivisionId ? { ...d, ...data } : d));
+        setDivisions(divisions.map(d => d.id === editingDivisionId ? { ...d, ...data, prizes } : d));
         setActiveDivisionId(editingDivisionId);
       } else {
         const newId = 'd_' + Date.now();
-        setDivisions([...divisions, { id: newId, ...data }]);
+        setDivisions([...divisions, { id: newId, ...data, prizes }]);
         setActiveDivisionId(newId);
       }
       setShowModal(false);
@@ -1884,13 +1908,15 @@ export default function OrganizerSetup() {
     genderEligibility: d.genderEligibility,
     ageLimit: d.ageLimit,
     registrationFee: d.registrationFee,
+    currency: d.currency,
     registrationOpenDate: d.registrationOpenDate,
     registrationCloseDate: d.registrationCloseDate,
     rounds: d.rounds,
     rules: d.rules,
     regFields: d.regFields,
     allowMulti: d.allowMulti,
-    prizePool: d.prizePool,
+    prizes: d.prizes.placings,
+    prizeNote: d.prizes.note,
     netHeight: d.netHeight,
     minTeams: d.minTeams,
     waitlistCap: d.waitlistCap,
@@ -3455,6 +3481,86 @@ export default function OrganizerSetup() {
                   </span>
                 </div>
               </div>
+
+              {/* ── C. Prize Money ───────────────────────────────── */}
+              {/* Sits with the fee, not in the advanced panel on step 3
+                  where it used to hide: the entry fee is what funds the
+                  payout, and an organizer deciding one is deciding both. */}
+              <div className={styles.stepCard}>
+                <span className={styles.stepCardEyebrow}>Prize Money</span>
+                <p className={styles.prizeHint}>
+                  What each placing takes home, priced in {currency} like the entry fee.
+                  Leave an amount at 0 for a trophy-only placing and say what it wins beside it.
+                  Blank rows are dropped on save.
+                </p>
+
+                <div className={styles.prizeRows}>
+                  {prizePlacings.map((p, i) => (
+                    <div key={i} className={styles.prizeRow}>
+                      <input
+                        type="text"
+                        className={styles.prizePlaceInput}
+                        placeholder="1st"
+                        aria-label={`Placing ${i + 1} name`}
+                        value={p.place}
+                        onChange={e => updatePlacing(i, { place: e.target.value })}
+                      />
+                      <div className={styles.prizeAmountBox}>
+                        <span className={styles.prizeAmountSymbol}>
+                          {CURRENCY_SYMBOLS[currency] ?? currency}
+                        </span>
+                        <input
+                          type="number"
+                          className={styles.prizeAmountInput}
+                          min={0}
+                          step={100}
+                          aria-label={`Prize amount for ${p.place || `placing ${i + 1}`}`}
+                          value={p.amount}
+                          onChange={e => updatePlacing(i, { amount: Math.max(0, parseInt(e.target.value) || 0) })}
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        className={styles.prizeRowNoteInput}
+                        placeholder="+ trophy, 2 nights at Sunset Resort…"
+                        aria-label={`What else ${p.place || `placing ${i + 1}`} wins`}
+                        value={p.note}
+                        onChange={e => updatePlacing(i, { note: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        className={styles.prizeRowDelete}
+                        onClick={() => removePlacing(i)}
+                        aria-label={`Remove ${p.place || `placing ${i + 1}`}`}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className={styles.prizeFooterRow}>
+                  <button type="button" className={styles.prizeAddBtn} onClick={addPlacing}>
+                    <Plus size={14} /> Add placing
+                  </button>
+                  <span className={styles.feeTotalText}>
+                    {prizePot > 0
+                      ? `${formatMoney(prizePot, currency)} total prize money`
+                      : 'No prize money set — the public page will say prizes are to be announced'}
+                  </span>
+                </div>
+
+                <div className={styles.stepFieldBlock}>
+                  <label className={styles.stepFieldLabel}>Prize notes (optional)</label>
+                  <textarea
+                    className={styles.prizeNoteArea}
+                    rows={2}
+                    placeholder="e.g. Paid out in cash at the closing ceremony. Divisions under 8 teams pay the top 2 only."
+                    value={prizeNote}
+                    onChange={e => setPrizeNote(e.target.value)}
+                  />
+                </div>
+              </div>
               </>
               )}
 
@@ -3911,7 +4017,7 @@ export default function OrganizerSetup() {
                 {showAdvanced && (
                   <div className={styles.advancedFieldsPanel}>
                     <p style={{ fontSize: 11.5, color: '#D35400', marginBottom: 12, lineHeight: 1.4 }}>
-                      ⚠️ <strong>Missing Parameters Detected:</strong> To ensure high-quality competition scoring and player logistics, we recommend configuring these 4 additional fields:
+                      ⚠️ <strong>Missing Parameters Detected:</strong> To ensure high-quality competition scoring and player logistics, we recommend configuring these 3 additional fields:
                     </p>
 
                     <div className={styles.twoCol}>
@@ -3937,22 +4043,8 @@ export default function OrganizerSetup() {
                       </div>
                     </div>
 
-                    {/* Full width — it holds a whole payout breakdown, and
-                        with net height gone there is no field left to pair
-                        it with anyway. */}
                     <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
-                      <label className={styles.fieldLabel}>3. Prizes &amp; Payout</label>
-                      <input
-                        type="text"
-                        className={styles.input}
-                        placeholder="e.g. Cash 1st: 50%, 2nd: 30%, 3rd: 20%"
-                        value={prizePool}
-                        onChange={e => setPrizePool(e.target.value)}
-                      />
-                    </div>
-
-                    <div className={styles.fieldGroup} style={{ marginTop: 10 }}>
-                      <label className={styles.fieldLabel}>4. Allow Multi-Division Play</label>
+                      <label className={styles.fieldLabel}>3. Allow Multi-Division Play</label>
                       <select
                         className={styles.select}
                         value={allowMulti ? 'yes' : 'no'}

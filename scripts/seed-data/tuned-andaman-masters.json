@@ -249,7 +249,8 @@
         "currency": "THB",
         "minTeams": 4,
         "netHeight": "2.24m",
-        "prizePool": "",
+        "prizes": [],
+        "prizeNote": "",
         "allowMulti": true,
         "waitlistCap": 5,
         "formatRounds": [
@@ -501,7 +502,8 @@
         "currency": "THB",
         "minTeams": 4,
         "netHeight": "2.24m",
-        "prizePool": "",
+        "prizes": [],
+        "prizeNote": "",
         "allowMulti": true,
         "waitlistCap": 5,
         "formatRounds": [
@@ -652,7 +654,8 @@
           "courtCount": 4
         },
         "netHeight": "2.24m",
-        "prizePool": "",
+        "prizes": [],
+        "prizeNote": "",
         "allowMulti": true,
         "waitlistCap": 5,
         "formatRounds": [

@@ -4759,3 +4759,166 @@
   -webkit-touch-callout: none;
   will-change: transform;
 }
+
+/* ── Prize money editor (division modal, step 1) ────────────────────
+   Deliberately built from the Fees vocabulary above — the same sand
+   field, the same tabular amount — because the two are one decision
+   split over two cards. */
+.prizeHint {
+  margin: -4px 0 0;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary, #3A414D);
+}
+
+.prizeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* place / amount / what-else / remove. The amount column is fixed so the
+   numbers line up down the table the way a payout should read. */
+.prizeRow {
+  display: grid;
+  grid-template-columns: minmax(64px, 0.8fr) 132px minmax(0, 1.6fr) 30px;
+  align-items: center;
+  gap: 8px;
+}
+
+.prizePlaceInput,
+.prizeRowNoteInput {
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 12px;
+  background: var(--sand-100, #F5F1EA);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  color: var(--text-primary, #14181E);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.prizePlaceInput {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+}
+.prizePlaceInput:focus,
+.prizeRowNoteInput:focus,
+.prizeNoteArea:focus {
+  border-color: var(--color-primary, #EB6F43);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(235, 111, 67, 0.45));
+}
+
+.prizeAmountBox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 12px;
+  background: var(--sand-100, #F5F1EA);
+  box-sizing: border-box;
+}
+.prizeAmountBox:focus-within {
+  border-color: var(--color-primary, #EB6F43);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(235, 111, 67, 0.45));
+}
+.prizeAmountSymbol {
+  flex: none;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted, #7A8294);
+}
+.prizeAmountInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary, #14181E);
+}
+
+.prizeRowDelete {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted, #7A8294);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.prizeRowDelete:hover {
+  background: var(--sand-100, #F5F1EA);
+  color: var(--color-danger, #C0392B);
+}
+
+.prizeFooterRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.prizeAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px dashed var(--border-hairline, #E7E2D9);
+  border-radius: 12px;
+  background: transparent;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-primary, #EB6F43);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.prizeAddBtn:hover {
+  background: var(--sand-100, #F5F1EA);
+  border-color: var(--color-primary, #EB6F43);
+}
+
+.prizeNoteArea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-hairline, #E7E2D9);
+  border-radius: 12px;
+  background: var(--sand-100, #F5F1EA);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary, #14181E);
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+/* Too narrow for four columns — the "what else" line drops under the
+   placing and its amount rather than squeezing all three. */
+@media (max-width: 620px) {
+  .prizeRow {
+    grid-template-columns: minmax(56px, 1fr) 120px 30px;
+    row-gap: 6px;
+  }
+  /* Placed explicitly: the note is third in the DOM, and letting it span the
+     row by auto-placement would push the delete button onto a third row. */
+  .prizePlaceInput { grid-column: 1; grid-row: 1; }
+  .prizeAmountBox  { grid-column: 2; grid-row: 1; }
+  .prizeRowDelete  { grid-column: 3; grid-row: 1; }
+  .prizeRowNoteInput { grid-column: 1 / -1; grid-row: 2; }
+}

@@ -78,7 +78,8 @@ function division(patch: {
     regFields: [],
     waitlistCap: 0,
     rules: '',
-    prizePool: '',
+    prizes: { placings: [], note: '' },
+    currency: 'THB',
     confirmationMessage: '',
   };
 }

@@ -18,7 +18,8 @@ import {
   LogIn,
   UserPlus,
   CalendarPlus,
-  Shield
+  Shield,
+  Trophy
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip, Badge } from '@/components/livebracket-ds';
@@ -35,6 +36,7 @@ import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '@/c
 import { useSession } from '@/components/auth/AuthProvider';
 import AccountButton from '@/components/auth/AccountButton';
 import { tournamentStatus } from '@/lib/tournamentStatus';
+import { tournamentPrizeLabel } from '@/lib/prizes';
 import {
   fetchHeroLiveMatches,
   nextSlots,
@@ -75,6 +77,9 @@ interface Tournament {
     registrationOpens?: string;
     registrationCloses?: string;
   }[];
+  /** Prize money across the event's divisions, already rolled up and
+   *  formatted — null when nothing pays out. See lib/prizes. */
+  prizeLabel?: string | null;
   image: string;
   timeLabel: string;
   registrations?: RegistrationInfo[];
@@ -425,6 +430,7 @@ function toEventCard(
     accent: CARD_ACCENTS[index % CARD_ACCENTS.length],
     divisions: t.divisions.map(d => d.name),
     rawDivisions: t.divisions,
+    prizeLabel: tournamentPrizeLabel(t.divisions),
     image: t.imageUrl || '/images/Hero.jpg',
     timeLabel: '',
     registrations: t.divisions.map(d => ({ division: d.name, filled: d.filled, total: d.cap })),
@@ -477,6 +483,14 @@ function TournamentCard({
       >
         <div className={styles.cardMedia}>
           <img src={t.image} alt={t.title} className={styles.cardPoster} />
+          {/* Prize money is the strongest reason to click into an event, so
+              it rides the poster rather than queueing behind the meta rows. */}
+          {t.prizeLabel && (
+            <span className={styles.cardPrizeBadge}>
+              <Trophy size={13} strokeWidth={2.4} aria-hidden="true" />
+              {t.prizeLabel}
+            </span>
+          )}
         </div>
 
         <div className={styles.cardBody}>
