@@ -42,6 +42,7 @@ interface ConfigBody {
     minRestSlots?: number;
     finalsOnLastDay?: boolean;
     stageFinals?: boolean;
+    shareProvisional?: boolean;
     blocks?: { court?: unknown; day?: unknown; start?: unknown; end?: unknown; label?: unknown }[];
   };
 }
@@ -103,6 +104,10 @@ function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unkno
   if (typeof c.minRestSlots === 'number') out.minRestSlots = Math.max(0, Math.min(12, Math.trunc(c.minRestSlots)));
   if (typeof c.finalsOnLastDay === 'boolean') out.finalsOnLastDay = c.finalsOnLastDay;
   if (typeof c.stageFinals === 'boolean') out.stageFinals = c.stageFinals;
+  /* Whether the derived pre-draw plan is shown publicly. Config, not a
+     placement, so it saves whatever the draw is doing — the same reason
+     the venue setup is not behind the draw-lock gate. */
+  if (typeof c.shareProvisional === 'boolean') out.shareProvisional = c.shareProvisional;
   if (Array.isArray(c.blocks)) out.blocks = cleanBlocks(c.blocks);
   return out;
 }

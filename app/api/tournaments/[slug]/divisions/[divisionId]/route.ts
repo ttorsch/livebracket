@@ -5,6 +5,7 @@ import { requireTournamentOwner } from '../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../lib/authResponse';
 import { toStoredPrizes } from '../../../../../../lib/prizes';
 import { normalizeCurrency } from '../../../../../../lib/currency';
+import { plannedPools } from '../../../../../../lib/provisionalDraw';
 
 interface DivisionBody {
   name: string;
@@ -43,7 +44,19 @@ const roundLabel = (i: number) => `Round ${i + 1}`;
 const clampMinutes = (v: number | undefined) =>
   typeof v === 'number' && v > 0 ? Math.max(5, Math.min(240, Math.trunc(v))) : 45;
 
-function toSettings(body: DivisionBody) {
+/* The two keys the schedule generator owns, read back off what is stored.
+   Carried rather than defaulted: falling back to a recommendation here would
+   turn "the organizer never touched this division's plan" and "the organizer
+   set it to 4" into the same write. */
+function planFields(settings: Record<string, unknown> | null | undefined) {
+  const s = settings ?? {};
+  return {
+    ...(typeof s.pools === 'number' ? { pools: s.pools } : {}),
+    ...(typeof s.thirdPlace === 'boolean' ? { thirdPlace: s.thirdPlace } : {}),
+  };
+}
+
+function toSettings(body: DivisionBody, existingSettings: Record<string, unknown> | null | undefined) {
   return {
     maxRosterSize: body.maxRosterSize,
     // Display currency for registrationFee. Whitelisted so a hand-made
@@ -71,6 +84,12 @@ function toSettings(body: DivisionBody) {
     // How pool finishers seed into the knockout round. Only the two the draw
     // can actually build are accepted; anything else falls back to FIVB.
     crossing: ['fivb', 'static'].includes(body.crossing) ? body.crossing : 'fivb',
+    /* The plan fields — pool count and the 3rd-place play-off — are owned by
+       the schedule generator, not this route. Settings is written wholesale
+       here, so they are carried over from what is stored rather than taken
+       from the body: without this, editing a division's name would silently
+       reset a pool count set on the generator panel. */
+    ...planFields(existingSettings),
     confirmationMessage: body.confirmationMessage,
     confirmationImage: body.confirmationImage,
   };
@@ -113,7 +132,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   // Preserve the bracket page's draw config — this route owns every other
   // settings key, but sync the advance and crossing if the organizer configured them.
-  const prevDraw = (existing.settings as Record<string, unknown> | null)?.draw as Record<string, unknown> | undefined;
+  const prevSettings = existing.settings as Record<string, unknown> | null;
+  const prevDraw = prevSettings?.draw as Record<string, unknown> | undefined;
   const newAdvance = Math.max(1, Math.min(4, Math.trunc(body.advancePerPool ?? (prevDraw?.advance as number) ?? 2) || 2));
   const newCrossing = ['fivb', 'static'].includes(body.crossing) ? body.crossing : ((prevDraw?.crossing as string) ?? 'fivb');
   const nextDraw = prevDraw
@@ -132,7 +152,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       registration_fee: body.registrationFee,
       division_team_cap: body.divisionTeamCap,
       reg_fields: body.regFields,
-      settings: nextDraw === undefined ? toSettings(body) : { ...toSettings(body), draw: nextDraw },
+      settings: nextDraw === undefined
+        ? toSettings(body, prevSettings)
+        : { ...toSettings(body, prevSettings), draw: nextDraw },
     })
     .eq('id', divisionId)
     .select('id, name, format_type_on_sand, registration_fee, division_team_cap, reg_fields, settings')

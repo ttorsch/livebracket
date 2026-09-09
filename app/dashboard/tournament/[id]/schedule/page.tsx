@@ -37,6 +37,7 @@ import { axisLabels, buildCalendarAxis, placeOnAxis, rowKind, rowStartMin, type 
 import { courtRoster } from '@/lib/schedule/types';
 import { hasPlacement, isOffEventDay } from '@/lib/schedule/placedMatch';
 import { scheduleSaveGate } from '@/lib/scheduleGate';
+import { provisionalSchedule, provisionalAssumptionText } from '@/lib/provisionalSchedule';
 import { type SetScore } from '@/lib/matchScore';
 import {
   readScoringRules, matchScoreProblem, visibleSetCount, type ScoringRules,
@@ -84,11 +85,45 @@ import { labelDivisions, toSchedulableDivisions } from '../../../../../lib/sched
    of them on the way past. */
 const INSERT_PREVIEW_DELAY_MS = 1000;
 
+/** The two per-division numbers the generator needs before a draw exists:
+ *  how many pools the group stage splits into, and whether the knockout ends
+ *  with a play-off for 3rd. Both change the match count, so both change the
+ *  plan the panel is showing. */
+interface DivisionPlan {
+  pools: number;
+  thirdPlace: boolean;
+}
+
+/* "of 4" — what a pool count means at this cap, so the organizer reads the
+   split rather than working it out. Uneven caps say so: 14 in 4 pools is two
+   pools of 4 and two of 3, and rounding that away would make the derived
+   schedule look wrong when it is the arithmetic that is untidy. */
+function poolSplitHint(cap: number, pools: number): string {
+  if (pools < 1 || cap < pools) return 'pools';
+  const base = Math.floor(cap / pools);
+  return cap % pools === 0 ? `pools of ${base}` : `pools of ${base}\u2013${base + 1}`;
+}
+
 interface ScheduleMatch {
   id: string;
   divisionLabel: string;
   divisionId: string;
   roundName: string;
+  /** "Pool A", or null outside pool play. Rides in the card's top row, which
+   *  is only wide enough for something this short. */
+  poolLabel: string | null;
+  /** The division, on its own line, and only on a provisional plan.
+   *
+   *  A real card is identified by its two team names. Placeholder teams say
+   *  nothing — every pool has a Team 1 through Team 4 — so without this,
+   *  five divisions of "Team 1 v Team 4" are indistinguishable. It gets its
+   *  own line rather than joining the top row because that row is already
+   *  four items wide inside a 237px court column, and a division name added
+   *  to it truncates to "Men's Ope…".
+   *
+   *  Set here rather than in the card: the card is a nested draggable that
+   *  would otherwise need the division and the provisional flag as props. */
+  provisionalDivision: string | null;
   matchNo: string;
   court: string;
   time: string;
@@ -703,6 +738,7 @@ function GridMatchCardItem({
           {/* Start time then round on the left, length then number on the
               right: the left pair says when this is and what it belongs to,
               the right pair says how long it runs and which match it is. */}
+          {b.m.poolLabel && <span className={styles.gridMatchPool}>{b.m.poolLabel}</span>}
           {b.m.roundName && <span className={styles.gridMatchRound}>{b.m.roundName}</span>}
         </div>
         <span className={styles.gridMatchTags}>
@@ -741,6 +777,9 @@ function GridMatchCardItem({
         const isLoserB = matchWinner === 'A';
         return (
           <div className={styles.gridMatchTeams}>
+            {b.m.provisionalDivision && (
+              <div className={styles.gridMatchDivision}>{b.m.provisionalDivision}</div>
+            )}
             <div className={styles.gridTeamRow}>
               <span className={`${styles.gridTeamName} ${isWinnerA ? styles.gridTeamNameWinner : ''} ${isLoserA ? styles.gridTeamNameLoser : ''}`}>{b.m.teamA}</span>
               {scoreCells(b.m, 'a')}
@@ -1065,6 +1104,24 @@ export default function TournamentSchedulePage() {
   const slug = (params?.id as string) || '';
 
   const [detail, setDetail] = useState<TournamentDetail | null>(null);
+  /* True when `detail` holds the derived pre-draw plan rather than a real
+     bracket. Tracked rather than re-derived, because once the plan is in
+     `detail` it has matches and would no longer look undrawn. */
+  const [isProvisional, setIsProvisional] = useState(false);
+  const [provisionalNote, setProvisionalNote] = useState('');
+  /* Matches the derived plan could not fit inside the event. Worth saying
+     out loud here rather than only in the Fit panel: this is the number
+     that decides whether the plan is fit to show anyone. */
+  const [provisionalOverflow, setProvisionalOverflow] = useState(0);
+  /* The tournament as it was loaded, before any plan was derived over it.
+     Kept because `detail` holds the derived plan and so no longer looks
+     undrawn — re-deriving from it would return null. */
+  const [rawDetail, setRawDetail] = useState<TournamentDetail | null>(null);
+  /* Pool count and 3rd-place play-off per division, as the panel is editing
+     them. Local so a change redraws the grid at once; persisted behind it. */
+  const [planByDiv, setPlanByDiv] = useState<Record<string, DivisionPlan>>({});
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filters & Controls
@@ -1325,7 +1382,22 @@ export default function TournamentSchedulePage() {
           if (!cancel) setLoading(false);
           return;
         }
-        setDetail(res);
+        /* Nothing drawn yet: work from the plan the division setup implies
+           rather than an empty grid, so "does this fit on four courts in two
+           days?" is answerable before registration has even opened. The plan
+           is derived, never written — see lib/provisionalSchedule — and the
+           save gate below still refuses to commit it, because there are no
+           real matches for placements to belong to. */
+        const plan = provisionalSchedule(res);
+        setRawDetail(res);
+        setPlanByDiv(Object.fromEntries(res.divisions.map(d => [
+          d.id,
+          { pools: d.plannedPools, thirdPlace: d.plannedThirdPlace },
+        ])));
+        setDetail(plan?.detail ?? res);
+        setIsProvisional(!!plan);
+        setProvisionalNote(plan ? provisionalAssumptionText(plan.assumptions) : '');
+        setProvisionalOverflow(plan?.overflowCount ?? 0);
         // Seed the generator config from the load. Court appetite is read
         // off each division's draw, so there is nothing per-division to seed.
         setConfig(res.scheduleConfig);
@@ -1383,6 +1455,55 @@ export default function TournamentSchedulePage() {
   );
 
   // Everything the generator needs, derived from the loaded bracket.
+  /* Change one division's plan: redraw from it at once, then persist.
+   *
+   *  Derived before saved, not after. The plan is a pure function of these
+   *  numbers (lib/provisionalSchedule), so recomputing it locally gives the
+   *  same answer the server would and the grid moves under the organizer's
+   *  hand rather than a request later. The write is the slow half and only
+   *  has to survive the session. */
+  const updateDivisionPlan = async (divisionId: string, patch: Partial<DivisionPlan>) => {
+    const current = planByDiv[divisionId];
+    if (!current || !rawDetail) return;
+
+    const next = { ...planByDiv, [divisionId]: { ...current, ...patch } };
+    setPlanByDiv(next);
+    setPlanError(null);
+
+    const rebuilt = provisionalSchedule({
+      ...rawDetail,
+      divisions: rawDetail.divisions.map(d =>
+        next[d.id]
+          ? { ...d, plannedPools: next[d.id].pools, plannedThirdPlace: next[d.id].thirdPlace }
+          : d,
+      ),
+    });
+    if (rebuilt) {
+      setDetail(rebuilt.detail);
+      setProvisionalNote(provisionalAssumptionText(rebuilt.assumptions));
+      setProvisionalOverflow(rebuilt.overflowCount);
+    }
+
+    setPlanSaving(true);
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/divisions/${divisionId}/plan`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next[divisionId]),
+      });
+      if (!res.ok) {
+        throw new Error((await res.json().catch(() => ({}))).error || 'Failed to save the division plan');
+      }
+    } catch (err) {
+      /* The grid keeps what it is showing: it is what the organizer asked
+         for, and silently snapping it back would look like the control did
+         not work. What is said instead is that it has not been stored. */
+      setPlanError(err instanceof Error ? err.message : 'Failed to save the division plan');
+    } finally {
+      setPlanSaving(false);
+    }
+  };
+
   /* Whether the placements on screen may be committed. Derived from the
      draw locks rather than tracked separately, so it cannot drift from what
      the bracket page did. Generating is untouched — a preview costs nobody
@@ -1591,6 +1712,8 @@ export default function TournamentSchedulePage() {
             divisionLabel: div.label,
             divisionId: div.id,
             roundName: round.round,
+            poolLabel: label?.pool ? `Pool ${label.pool}` : null,
+            provisionalDivision: isProvisional ? div.label : null,
             matchNo: label?.no ?? '',
             court: court || 'Unscheduled',
             time: time || '—',
@@ -3579,7 +3702,99 @@ export default function TournamentSchedulePage() {
                     match is placed on its own.
                   </span>
                 </label>
+
+                {/* Only while there is a plan and no draw. Once a bracket
+                    exists this switch has nothing to publish, and leaving it
+                    on screen would suggest otherwise. */}
+                {isProvisional && (
+                  <label className={styles.genCheckCard}>
+                    <input
+                      type="checkbox"
+                      checked={!!config.shareProvisional}
+                      onChange={e => setConfigField('shareProvisional', e.target.checked)}
+                    />
+                    <span className={styles.genCheckBox} aria-hidden="true"><Check size={13} strokeWidth={3.5} /></span>
+                    <span className={styles.genCheckText}>
+                      <strong>Show this plan on the public page</strong>
+                      Players see the courts and times with placeholder teams, marked provisional. It updates itself
+                      when you change the venue setup, and is replaced by the real schedule once you draw. {provisionalNote}
+                    </span>
+                  </label>
+                )}
+
+                {isProvisional && provisionalOverflow > 0 && (
+                  <p className={styles.genNote}>
+                    {provisionalOverflow} {provisionalOverflow === 1 ? 'match has' : 'matches have'} no room inside the
+                    event at these caps. Add a court or a day before sharing the plan — players would see a schedule
+                    missing {provisionalOverflow === 1 ? 'a match' : 'matches'} that still has to be played.
+                  </p>
+                )}
               </section>
+
+              {/* ── Divisions ─────────────────────────────────
+                  Only before a draw. After one, the pool count and the
+                  play-off are facts of the bracket rather than choices, and
+                  the draw screen is where they are changed. */}
+              {isProvisional && (
+                <section className={styles.genCol}>
+                  <span className={styles.genEyebrow}>Divisions</span>
+
+                  <div className={styles.genCard}>
+                    {(rawDetail?.divisions ?? []).map(div => {
+                      const plan = planByDiv[div.id];
+                      if (!plan) return null;
+                      return (
+                        <div key={div.id} className={styles.genDivisionRow}>
+                          <div className={styles.genDivisionHead}>
+                            <span className={styles.genDivisionName}>{div.label}</span>
+                            <span className={styles.genDivisionCap}>{div.teams} teams</span>
+                          </div>
+
+                          <div className={styles.genDivisionControls}>
+                            <label className={styles.genField}>
+                              <span>Pools</span>
+                              <input
+                                type="number"
+                                min={2}
+                                max={8}
+                                value={plan.pools}
+                                onChange={e => {
+                                  const v = parseInt(e.target.value, 10);
+                                  updateDivisionPlan(div.id, {
+                                    pools: isNaN(v) ? 2 : Math.max(2, Math.min(8, v)),
+                                  });
+                                }}
+                              />
+                            </label>
+                            <span className={styles.genDivisionHint}>
+                              {poolSplitHint(div.teams, plan.pools)}
+                            </span>
+
+                            <label className={styles.genDivisionCheck}>
+                              <input
+                                type="checkbox"
+                                checked={plan.thirdPlace}
+                                onChange={e => updateDivisionPlan(div.id, { thirdPlace: e.target.checked })}
+                              />
+                              <span className={styles.genCheckBox} aria-hidden="true">
+                                <Check size={13} strokeWidth={3.5} />
+                              </span>
+                              <span>Play off for 3rd</span>
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <p className={styles.genNote}>
+                    These decide how many matches each division has, so the plan above redraws as you change them.
+                    The draw screen starts from the same numbers when you come to run it.
+                    {planSaving && ' Saving…'}
+                  </p>
+                  {planError && <p className={styles.genNote}>{planError}</p>}
+                </section>
+              )}
 
               {/* ── Fit ───────────────────────────────────────── */}
               <section className={styles.genCol}>
@@ -3883,6 +4098,7 @@ export default function TournamentSchedulePage() {
                                 division is one colour wherever you meet it and
                                 the card needs no second badge to say so. */}
                             <span className={styles.badgeGroup}>
+                              {m.poolLabel && <span className={styles.gridMatchPool}>{m.poolLabel}</span>}
                               {m.roundName && <span className={styles.roundBadge}>{m.roundName}</span>}
                               <span className={styles.gridMatchNo} title={m.divisionLabel}>{m.matchNo}</span>
                             </span>
@@ -3895,6 +4111,9 @@ export default function TournamentSchedulePage() {
                             const isLoserB = matchWinner === 'A';
                             return (
                               <div className={styles.matchTeams}>
+                                {m.provisionalDivision && (
+                                  <div className={styles.gridMatchDivision}>{m.provisionalDivision}</div>
+                                )}
                                 <div className={styles.teamRow}>
                                   <span className={`${styles.teamRowName} ${isWinnerA ? styles.teamRowNameWinner : ''} ${isLoserA ? styles.teamRowNameLoser : ''}`}>{m.teamA}</span>
                                   {scoreCells(m, 'a', styles.teamScoreList, styles.teamScoreCell)}
@@ -4309,6 +4528,7 @@ export default function TournamentSchedulePage() {
                     <div className={styles.gridMatchTop}>
                       <div className={styles.gridMatchTimeWrap}>
                         <span className={styles.gridMatchTime}>{activeDragMatch.time}</span>
+                        {activeDragMatch.poolLabel && <span className={styles.gridMatchPool}>{activeDragMatch.poolLabel}</span>}
                         {activeDragMatch.roundName && <span className={styles.gridMatchRound}>{activeDragMatch.roundName}</span>}
                       </div>
                       <span className={styles.gridMatchTags}>

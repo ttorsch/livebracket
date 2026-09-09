@@ -763,3 +763,24 @@
   font-size: 13.5px;
   line-height: 1.5;
 }
+
+/* The pool, next to the round. Pool play is where a player looks for
+   themselves, and before a draw it is the only thing distinguishing one
+   placeholder card from another. */
+.poolBadge {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--div-accent, #EB6F43);
+  white-space: nowrap;
+}
+
+/* Only on a provisional card, where the placeholder teams cannot say which
+   division this is and the colour stripe is doing it alone. */
+.provisionalDivision {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--div-accent, #14181E);
+  margin-bottom: 8px;
+}

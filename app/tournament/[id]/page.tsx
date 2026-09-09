@@ -48,6 +48,7 @@ import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
 import PlayerCardModal, { type PlayerCardTarget } from '../../../components/PlayerCardModal';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
 import { hasPrizes, prizeTotal } from '../../../lib/prizes';
+import { provisionalSchedule, provisionalAssumptionText } from '../../../lib/provisionalSchedule';
 import { formatMoney } from '../../../lib/currency';
 
 type NavMode = 'top' | 'shown' | 'hidden';
@@ -568,11 +569,27 @@ export default function TournamentPage() {
     );
   }, [isLive, tournament]);
 
+  /* The pre-draw plan, derived rather than stored — see
+     lib/provisionalSchedule. Only ever present while nothing has been drawn
+     and the organizer has chosen to share it; the moment a real draw exists
+     this is null and the drawn schedule below takes over. */
+  const provisional = useMemo(
+    () => (tournament?.scheduleConfig?.shareProvisional ? provisionalSchedule(tournament) : null),
+    [tournament],
+  );
+
+  /* What the Schedule tab renders: the real bracket once one exists,
+     otherwise the derived plan. One substitution here rather than a
+     provisional branch inside the view, which would be a second schedule
+     renderer to keep in step with the first. */
+  const scheduleTournament = provisional?.detail ?? tournament;
+
   const hasSchedule = useMemo(() => {
+    if (provisional) return true;
     return (tournament?.divisions ?? []).some(d =>
       d.bracket.some(r => r.matches.some(m => Boolean(m.court || m.time))),
     );
-  }, [tournament]);
+  }, [tournament, provisional]);
 
   /* Tab order across mobile and desktop:
      1. Schedule (first tab when schedule exists)
@@ -1337,12 +1354,26 @@ export default function TournamentPage() {
         )}
 
         {/* ── Schedule ────────────────────────────────────────── */}
-        {currentTab === 'Schedule' && tournament && (
-          <CourtScheduleView
-            tournament={tournament}
-            activeDivisionId={activeDiv}
-            onSelectDivision={handleSelectDivision}
-          />
+        {currentTab === 'Schedule' && scheduleTournament && (
+          <>
+            {provisional && (
+              <div className={styles.provisionalBanner} role="status">
+                <span className={styles.provisionalBannerTag}>Provisional</span>
+                <span className={styles.provisionalBannerText}>
+                  Nothing has been drawn yet. Times and courts are a plan, not a
+                  fixture — matchups are placeholders and everything here can move.
+                  {' '}
+                  {provisionalAssumptionText(provisional.assumptions)}
+                </span>
+              </div>
+            )}
+            <CourtScheduleView
+              tournament={scheduleTournament}
+              activeDivisionId={activeDiv}
+              onSelectDivision={handleSelectDivision}
+              provisional={!!provisional}
+            />
+          </>
         )}
 
         {/* ── Vouchers ────────────────────────────────────────── */}

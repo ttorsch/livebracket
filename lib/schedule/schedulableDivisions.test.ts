@@ -72,6 +72,8 @@ function division(patch: {
     configuredRounds: [],
     advancePerPool: 2,
     crossing: 'fivb',
+    plannedPools: 4,
+    plannedThirdPlace: true,
     registrationFee: 0,
     formatTypeOnSand: '2v2',
     rosterSize: 2,

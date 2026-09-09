@@ -391,14 +391,23 @@ export default function OrganizerBracketPage() {
            nothing. Matches do: until they exist, the count the organizer set
            at division setup is the truth. */
         const drawn = d.bracket.some(r => r.matches.length > 0);
-        config[d.id] = d.drawConfig
+        config[d.id] = drawn && d.drawConfig
           ? {
               pools: d.drawConfig.pools,
               advance: d.drawConfig.advance ?? d.advancePerPool ?? 2,
               crossing: d.drawConfig.crossing ?? d.crossing ?? 'fivb',
               thirdPlace: d.drawConfig?.thirdPlace !== undefined ? !!d.drawConfig.thirdPlace : true,
             }
-          : { ...DEFAULT_DRAW, advance: d.advancePerPool ?? 2, crossing: d.crossing ?? 'fivb' };
+          : {
+              ...DEFAULT_DRAW,
+              /* Undrawn: the pool count is the organizer's own, set at division
+                 setup and already used to derive the provisional schedule
+                 players may have seen. Opening on anything else would let the
+                 draw quietly contradict a published plan. */
+              pools: d.plannedPools,
+              advance: d.advancePerPool ?? 2,
+              crossing: d.crossing ?? 'fivb',
+            };
       });
       // Keep whatever top seeds were already picked for a division across a
       // reload (e.g. right after Draw Pool) instead of clearing them. On a

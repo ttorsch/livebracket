@@ -12,6 +12,10 @@ interface ScheduleMatch {
   divisionLabel: string;
   divisionId: string;
   roundName: string;
+  /** Pool this match belongs to ("A", "B", …), or null outside pool play.
+   *  Shown on the card because it is how a player finds their own match — and
+   *  the only way to tell two placeholder cards apart before a draw. */
+  pool: string | null;
   matchNo: string;
   court: string;
   time: string;
@@ -319,12 +323,20 @@ export interface CourtScheduleViewProps {
   tournament: TournamentDetail;
   activeDivisionId?: string;
   onSelectDivision?: (divisionId: string) => void;
+  /** Rendering a derived pre-draw plan rather than a real schedule.
+   *
+   *  The card normally identifies itself by its two team names, with the
+   *  division carried only by the colour stripe. Placeholder teams say
+   *  nothing, so the division has to be named outright or five divisions of
+   *  "Team 1 v Team 4" are indistinguishable. */
+  provisional?: boolean;
 }
 
 export default function CourtScheduleView({
   tournament,
   activeDivisionId,
   onSelectDivision,
+  provisional = false,
 }: CourtScheduleViewProps) {
   const [showAllDivisions, setShowAllDivisions] = useState(true);
   const [activeDay, setActiveDay] = useState<'all' | number>('all');
@@ -385,12 +397,15 @@ export default function CourtScheduleView({
             divisionLabel: div.label,
             divisionId: div.id,
             roundName: round.round,
+            pool: label?.pool ?? null,
             matchNo: label?.no ?? '',
             court: court || 'Court 1',
             time: time || '—',
             teamA,
             teamB,
-            haystack: [teamA, teamB, ...players, court, round.round].join(' ').toLowerCase(),
+            haystack: [teamA, teamB, ...players, court, round.round, div.label, label?.pool ? `pool ${label.pool}` : '']
+              .join(' ')
+              .toLowerCase(),
             scoreA: m.scoreA,
             scoreB: m.scoreB,
             winner: (m as any).winner ?? null,
@@ -748,12 +763,17 @@ export default function CourtScheduleView({
                                 )}
                               </span>
                               <span className={styles.badgeGroup}>
+                                {m.pool && <span className={styles.poolBadge}>Pool {m.pool}</span>}
                                 {m.roundName && <span className={styles.roundBadge}>{m.roundName}</span>}
                                 <span className={styles.gridMatchNo} title={m.divisionLabel}>
                                   {m.matchNo}
                                 </span>
                               </span>
                             </div>
+
+                            {provisional && (
+                              <div className={styles.provisionalDivision}>{m.divisionLabel}</div>
+                            )}
 
                             <div className={styles.matchTeams}>
                               <div className={styles.teamRow}>

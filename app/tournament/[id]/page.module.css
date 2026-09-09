@@ -1809,3 +1809,48 @@
   outline: 2px solid var(--orange, #EE7A4C);
   outline-offset: 1px;
 }
+
+/* ── Provisional schedule banner ─────────────────────────────────────
+   Sits above the grid, and deliberately does not look like a tip. A
+   player is about to screenshot these times; the warning has to survive
+   being read at a glance and carry the reason, not just the word. */
+.provisionalBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-hairline);
+  border-left: 3px solid var(--color-primary, #EF5A24);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card);
+}
+
+.provisionalBannerTag {
+  flex: none;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  background: var(--color-primary, #EF5A24);
+  padding: 4px 9px;
+  border-radius: 999px;
+  margin-top: 1px;
+}
+
+.provisionalBannerText {
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 620px) {
+  .provisionalBanner {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .provisionalBannerTag { align-self: flex-start; }
+}

@@ -61,6 +61,8 @@ function mockTournament(
         configuredRounds: [],
         advancePerPool: 2,
         crossing: 'fivb',
+        plannedPools: 4,
+        plannedThirdPlace: true,
         registrationFee: 0,
         formatTypeOnSand: '2x2',
         rosterSize: 2,

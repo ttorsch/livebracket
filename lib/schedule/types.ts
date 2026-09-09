@@ -74,6 +74,13 @@ export interface ScheduleConfig {
    *  rounds — side by side across courts, one division's round at a time —
    *  instead of placing each of those matches independently. */
   stageFinals: boolean;
+  /** Show the derived pre-draw plan on the public tournament page.
+   *
+   *  Off by default: a provisional schedule is a plan, and publishing one is
+   *  a decision the organizer makes rather than a side effect of having set
+   *  a cap. Only ever consulted while nothing has been drawn — see
+   *  lib/provisionalSchedule. */
+  shareProvisional?: boolean;
   /** Matches the organizer has fixed to a time by hand. A pinned match is
    *  never moved by a drop elsewhere on its court: the rest of the court's
    *  run flows around it. Ids, so a pin survives a re-generate that reshuffles
@@ -82,6 +89,7 @@ export interface ScheduleConfig {
 }
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
+  shareProvisional: false,
   startTime: '09:00',
   endTime: '18:00',
   courtCount: 4,

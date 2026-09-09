@@ -7,6 +7,7 @@ import {
 import { normalizeRegFields, rosterSize, type RegField } from './registrationFields';
 import { normalizeCurrency } from './currency';
 import { readPrizes, prizeTotal, type DivisionPrizes } from './prizes';
+import { plannedPools as readPlannedPools, plannedThirdPlace as readPlannedThirdPlace } from './provisionalDraw';
 
 export type { ScheduleConfig };
 
@@ -799,6 +800,14 @@ export interface DetailDivision {
   /* Seeding out of the pools, as the organizer set it at division setup.
      drawConfig.crossing is what a draw actually ran with. */
   crossing: string;
+  /* Pools the organizer plans to split this division into, set at setup
+     alongside advancePerPool and crossing. drawConfig.pools is what a draw
+     actually ran with; this exists before there is a draw at all, which is
+     what lets the provisional schedule be derived. See lib/provisionalDraw. */
+  plannedPools: number;
+  /* Whether a play-off for 3rd is planned. drawConfig.thirdPlace is what a
+     draw ran with; this is the intention, and exists before there is one. */
+  plannedThirdPlace: boolean;
   registrationFee: number;        // flat, per team; 0 is a legitimate fee
   currency: string;               // prices the fee *and* the prize money
   formatTypeOnSand: string;       // '2v2' … '6v6' — the roster's floor
@@ -1082,7 +1091,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         registrationOpenDate?: unknown; registrationCloseDate?: unknown;
         maxRosterSize?: unknown; waitlistCap?: unknown; rules?: unknown;
         confirmationMessage?: unknown; advancePerPool?: number; crossing?: string;
-        currency?: unknown;
+        currency?: unknown; pools?: unknown; thirdPlace?: unknown;
+        draw?: { thirdPlace?: unknown } | null;
       };
       const divTeamMap = new Map(d.teams.map((t) => [t.id, t]));
       return {
@@ -1154,6 +1164,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           ? Math.max(1, Math.min(4, Math.trunc(settings.advancePerPool)))
           : 2,
         crossing: typeof settings.crossing === 'string' && settings.crossing ? settings.crossing : 'fivb',
+        plannedPools: readPlannedPools(settings, d.division_team_cap),
+        plannedThirdPlace: readPlannedThirdPlace(settings),
         registrationFee: Number(d.registration_fee ?? 0) || 0,
         currency: normalizeCurrency(settings.currency),
         formatTypeOnSand: d.format_type_on_sand,

@@ -4,6 +4,7 @@ import { requireTournamentOwner } from '../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../lib/authResponse';
 import { toStoredPrizes } from '../../../../../lib/prizes';
 import { normalizeCurrency } from '../../../../../lib/currency';
+import { plannedPools } from '../../../../../lib/provisionalDraw';
 
 const roundLabel = (i: number) => `Round ${i + 1}`;
 
@@ -71,6 +72,9 @@ function toSettings(body: DivisionBody) {
     // How pool finishers seed into the knockout round. Only the two the draw
     // can actually build are accepted; anything else falls back to FIVB.
     crossing: ['fivb', 'static'].includes(body.crossing) ? body.crossing : 'fivb',
+    /* A brand new division starts on the recommendation for its cap. From
+       here on the schedule generator owns this — see the PATCH route. */
+    pools: plannedPools({}, body.divisionTeamCap),
     confirmationMessage: body.confirmationMessage,
     confirmationImage: body.confirmationImage,
     // The rounds the organizer configured, recorded separately from the
