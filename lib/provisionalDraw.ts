@@ -28,7 +28,7 @@ import type {
   DetailDivision, DetailMatch, DetailRound, DetailTeam, CrossSlot,
 } from './data';
 import { assignPools } from './divisionMatches.ts';
-import { isGroupFormat, isKnockoutFormat } from './roundFormat.ts';
+import { isGroupFormat, isKnockoutFormat, knockoutStageName } from './roundFormat.ts';
 
 /** Teams per pool the recommendation aims for. Four is the beach default:
  *  three matches each, and a pool finishes in one session. */
@@ -313,7 +313,10 @@ export function provisionalDivision(
         matches.push(m);
       }
       bracket.push({
-        round: count === 1 ? 'Final' : `Round ${bracket.length + 1}`,
+        /* Named by the field still standing, not by position in the list:
+           a plan drawn before the bracket exists has to read the same as the
+           bracket it is predicting — Quarterfinals, Semifinals, Final. */
+        round: knockoutStageName(count * 2),
         format: knockoutRound.format,
         durationMinutes: knockoutRound.durationMinutes,
         scoringRules: knockoutRound.scoring as unknown as Record<string, unknown>,

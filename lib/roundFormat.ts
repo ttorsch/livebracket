@@ -55,6 +55,21 @@ export function isKnockoutFormat(format: string): boolean {
   return format === 'single' || format === 'double';
 }
 
+/* What a knockout stage is called, from the number of teams still in it.
+ *
+ * The ladder every draw uses: the last pairing is the Final, the one before
+ * it the Semifinals, then the Quarterfinals, and anything earlier is named
+ * by its field ("Round of 16", "Round of 32"). It lives here for the same
+ * reason isGroupFormat does — three places used to carry their own copy and
+ * the provisional pre-draw plan's had drifted, so a plan drawn before the
+ * bracket existed said "Round 2" where the real draw said "Quarterfinals". */
+export function knockoutStageName(fieldSize: number): string {
+  if (fieldSize === 2) return 'Final';
+  if (fieldSize === 4) return 'Semifinals';
+  if (fieldSize === 8) return 'Quarterfinals';
+  return `Round of ${fieldSize}`;
+}
+
 /** Points awarded in group/round-robin standings tables. */
 export const STANDING_POINTS = {
   WIN: 2,     // Match won (2–0 or 2–1)

@@ -32,7 +32,7 @@ const cardVariants: Variants = {
 import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch } from '../../../../lib/data';
 import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
-import { isGroupFormat, isKnockoutFormat, roundFormatLabel, isForfeitMatch, STANDING_POINTS } from '../../../../lib/roundFormat';
+import { isGroupFormat, isKnockoutFormat, roundFormatLabel, isForfeitMatch, STANDING_POINTS, knockoutStageName as roundName } from '../../../../lib/roundFormat';
 import { calculatePoolStandings } from '../../../../lib/standings';
 import { isTournamentLiveDate } from '../../../../lib/tournamentLifecycle';
 import { tournamentStatus } from '../../../../lib/tournamentStatus';
@@ -103,13 +103,6 @@ function seedPlacement(size: number): number[] {
     order = next;
   }
   return order;
-}
-
-function roundName(fieldSize: number): string {
-  if (fieldSize === 2) return 'Final';
-  if (fieldSize === 4) return 'Semifinals';
-  if (fieldSize === 8) return 'Quarterfinals';
-  return `Round of ${fieldSize}`;
 }
 
 /* Projection: favorite (lower seed) advances everywhere; used until a

@@ -155,6 +155,21 @@ describe('provisionalDivision', () => {
     assert.equal(countMatches(d) - 24, 8);
   });
 
+  it('names knockout stages by the field still standing, as the draw does', () => {
+    // A plan shown before the bracket exists has to read like the bracket it
+    // predicts. It used to number them "Round 2", "Round 3" while the real
+    // draw called the same stages Quarterfinals and Semifinals.
+    const names = (cap: number, pools: number) =>
+      provisionalDivision(division({ teams: cap }), { pools }).bracket.map(r => r.round);
+
+    assert.deepEqual(names(8, 2), ['Round 1', 'Semifinals', 'Final', '3rd Place']);
+    assert.deepEqual(names(16, 4), ['Round 1', 'Quarterfinals', 'Semifinals', 'Final', '3rd Place']);
+    assert.deepEqual(
+      names(32, 8),
+      ['Round 1', 'Round of 16', 'Quarterfinals', 'Semifinals', 'Final', '3rd Place'],
+    );
+  });
+
   it('numbers placeholder teams within their pool, not globally', () => {
     // "Team 1" must mean the first team in *this* pool. A global seed number
     // is not something a player can find themselves in before the draw.

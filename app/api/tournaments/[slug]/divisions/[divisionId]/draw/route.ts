@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
 import type { CrossSlot } from '../../../../../../../lib/data';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
-import { isGroupFormat, isKnockoutFormat } from '../../../../../../../lib/roundFormat';
+import { isGroupFormat, isKnockoutFormat, knockoutStageName as stageName } from '../../../../../../../lib/roundFormat';
 import { planThirdPlace, type KnockoutRound } from '../../../../../../../lib/thirdPlacePlan';
 import {
   NO_DISCARD_COST,
@@ -70,13 +70,6 @@ async function getDivision(slug: string, divisionId: string) {
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data;
-}
-
-function stageName(fieldSize: number): string {
-  if (fieldSize === 2) return 'Final';
-  if (fieldSize === 4) return 'Semifinals';
-  if (fieldSize === 8) return 'Quarterfinals';
-  return `Round of ${fieldSize}`;
 }
 
 // Serpentine distribution of seed-ordered team ids into `pools` pools.
