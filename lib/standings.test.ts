@@ -304,3 +304,98 @@ describe('calculatePoolStandings - Pool-Wide Fallback & 4-Team Ties', () => {
     assert.equal(standings[0].teamId, 't1');
   });
 });
+
+// ── Pools, and when there are none ────────────────────────────────────────
+//
+// The regression these pin: an undrawn division used to publish a "Pool A"
+// holding every team that had registered. No draw had been run and no team
+// had been seeded, but the public page presented it as the draw — an
+// organizer looking at it reasonably asked how to clear a pool that had never
+// existed.
+
+import { buildPoolStandings, type PoolStandingsDivision } from './standings.ts';
+import { assignPools } from './divisionMatches.ts';
+import { isGroupFormat } from './roundFormat.ts';
+
+const deps = { assignPools, isGroupFormat };
+
+const team = (id: string, seed: number, status = 'confirmed') => ({
+  id, name: `Team ${id}`, seed, status,
+});
+
+function division(over: Partial<PoolStandingsDivision> = {}): PoolStandingsDivision {
+  return {
+    drawConfig: null,
+    teamsList: [team('a', 1), team('b', 2), team('c', 3)],
+    bracket: [{ format: 'round-robin', matches: [] }],
+    ...over,
+  };
+}
+
+describe('buildPoolStandings', () => {
+  it('has no pools for a division nobody has drawn', () => {
+    assert.deepEqual(buildPoolStandings(division(), deps), []);
+  });
+
+  it('has no pools when there are no teams either', () => {
+    assert.deepEqual(buildPoolStandings(division({ teamsList: [] }), deps), []);
+  });
+
+  it('has no pools for a draw stub that never produced matches', () => {
+    /* settings.draw is written as a stub before a draw is run, so its
+       presence proves nothing — the schedule screen draws the same
+       distinction. Matches are the proof. */
+    assert.deepEqual(
+      buildPoolStandings(division({ drawConfig: { pools: 2 } }), deps),
+      [],
+    );
+  });
+
+  it('groups into the pools the draw actually recorded', () => {
+    const played = [
+      { teamAId: 'a', teamBId: 'b', scoreA: [21], scoreB: [15], status: 'done' } as never,
+    ];
+    const groups = buildPoolStandings(
+      division({
+        drawConfig: { pools: 2 },
+        teamsList: [team('a', 1), team('b', 2), team('c', 3), team('d', 4)],
+        bracket: [{ format: 'round-robin', matches: played }],
+      }),
+      deps,
+    );
+    assert.equal(groups.length, 2);
+    assert.deepEqual(groups.map(g => g.name), ['A', 'B']);
+    assert.equal(groups[0].rows.length + groups[1].rows.length, 4);
+  });
+
+  it('keeps the single-pool fallback for a division drawn before the config was recorded', () => {
+    // Matches exist, so it really was drawn — the record is just older than
+    // the field. Returning nothing here would blank a live standings table.
+    const groups = buildPoolStandings(
+      division({
+        bracket: [{
+          format: 'round-robin',
+          matches: [{ teamAId: 'a', teamBId: 'b', scoreA: [21], scoreB: [15], status: 'done' } as never],
+        }],
+      }),
+      deps,
+    );
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].rows.length, 3);
+  });
+
+  it('leaves waitlisted teams out of the pools', () => {
+    const groups = buildPoolStandings(
+      division({
+        drawConfig: { pools: 1 },
+        teamsList: [team('a', 1), team('b', 2), team('c', 3, 'waitlist')],
+        bracket: [{
+          format: 'round-robin',
+          matches: [{ teamAId: 'a', teamBId: 'b', scoreA: [21], scoreB: [15], status: 'done' } as never],
+        }],
+      }),
+      deps,
+    );
+    assert.equal(groups[0].rows.length, 2);
+  });
+});

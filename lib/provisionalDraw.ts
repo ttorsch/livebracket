@@ -139,6 +139,28 @@ function provisionalMatch(id: string): DetailMatch {
   };
 }
 
+/** Bracket order: which seed sits in each slot of a `size` bracket, so that
+ *  the strongest qualifiers meet as late as possible.
+ *
+ *  Not the same as counting 0..size-1. Laying the seeds out in order pairs
+ *  them correctly for the opening round — 1 v 16, 2 v 15 — but puts seeds 1
+ *  and 2 in *adjacent* matches, which feed the same match in the round after,
+ *  so the top two qualifiers meet in the quarter-final. The standard order
+ *  reflects each round: [0,1] becomes [0,3,2,1], then [0,7,4,3,2,5,6,1], and
+ *  so on. */
+export function bracketSeedOrder(size: number): number[] {
+  let order = [0];
+  while (order.length < size) {
+    const round = order.length * 2;
+    const next: number[] = [];
+    for (const seat of order) {
+      next.push(seat, round - 1 - seat);
+    }
+    order = next;
+  }
+  return order;
+}
+
 /** The next power of two at or above `n` — the size of the bracket that
  *  holds `n` qualifiers, with the shortfall played as byes. */
 function bracketSize(n: number): number {
@@ -250,7 +272,25 @@ export function provisionalDivision(
     }
     while (slots.length < size) slots.push(null);
 
-    let previous: DetailMatch[] = [];
+    /* Where each seed sits in the bracket. The shortfall is at the end of
+       `slots`, so the seats holding those indices come out as byes — and
+       they land on the strongest qualifiers, which is what a bye is for. */
+    const seats = bracketSeedOrder(size);
+
+    /* Where a bye's position lands in the round after it.
+     *
+     * A pairing with one qualifier and one empty seat is a bye: nobody plays
+     * it, so the schedule drops it — and the match it feeds must therefore
+     * say *who walked through*, not "Winner of" a match no one can find. Round-1
+     * match i feeds round-2 match ⌊i/2⌋, side A when i is even else side B.
+     *
+     * This is what the real draw does with its own r2Slots, and it has to be
+     * done here for the same reason: without it a 12-team field in a bracket
+     * of 16 published four byes as M13–M16, hid them, and then labelled the
+     * quarter-final above them "Winner of M13 v Winner of M14". */
+    const carried: { a: CrossSlot | null; b: CrossSlot | null }[] =
+      Array.from({ length: Math.max(1, size / 4) }, () => ({ a: null, b: null }));
+
     for (let stage = 0; stage < stages; stage++) {
       const count = size / 2 ** (stage + 1);
       const matches: DetailMatch[] = [];
@@ -259,7 +299,16 @@ export function provisionalDivision(
         if (stage === 0 && poolCount > 0) {
           // Standard bracket seeding: first against last, second against
           // second-last, so the top qualifiers meet as late as possible.
-          crossSlots[m.id] = { a: slots[i] ?? null, b: slots[size - 1 - i] ?? null };
+          const cross = { a: slots[seats[2 * i]] ?? null, b: slots[seats[2 * i + 1]] ?? null };
+          crossSlots[m.id] = cross;
+          if ((cross.a === null) !== (cross.b === null)) {
+            const next = carried[Math.floor(i / 2)];
+            if (next) next[i % 2 === 0 ? 'a' : 'b'] = cross.a ?? cross.b;
+          }
+        } else if (stage === 1) {
+          // Only the round after the byes: a later round cannot contain one.
+          const advanced = carried[i];
+          if (advanced && (advanced.a || advanced.b)) crossSlots[m.id] = advanced;
         }
         matches.push(m);
       }
@@ -270,7 +319,6 @@ export function provisionalDivision(
         scoringRules: knockoutRound.scoring as unknown as Record<string, unknown>,
         matches,
       });
-      previous = matches;
     }
 
     /* The play-off for 3rd, drawn off the two beaten semifinalists. Stated
@@ -288,7 +336,6 @@ export function provisionalDivision(
         matches: [m],
       });
     }
-    void previous;
   }
 
   return {

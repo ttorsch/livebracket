@@ -13,6 +13,7 @@ import { describe, it } from 'node:test';
 import type { DetailDivision, ConfiguredRound } from './data.ts';
 import {
   recommendedPools, plannedPools, plannedThirdPlace, roundRobinRounds, roundRobinPairs,
+  bracketSeedOrder,
   provisionalDivision, isUndrawn,
 } from './provisionalDraw.ts';
 import { labelDivisionMatches } from './divisionMatches.ts';
@@ -178,6 +179,65 @@ describe('provisionalDivision', () => {
     assert.ok(!without.bracket.some(r => r.round === '3rd Place'));
   });
 
+  it('never points a visible match at a match the schedule hides', () => {
+    /* The invariant this file exists to hold. A bye is settled before it
+       starts, so nothing schedules it and no one can look it up — a label
+       that says "Winner of M13" when M13 is a bye is a reference into thin
+       air. Checked across every field size, because whether there are byes
+       at all depends on how the qualifier count sits against the bracket. */
+    for (const [teams, pools, advance] of [
+      [12, 4, 3], [16, 4, 2], [12, 4, 2], [24, 6, 3], [10, 2, 3], [8, 2, 2],
+    ] as [number, number, number][]) {
+      const d = provisionalDivision(division({ teams, advancePerPool: advance }), { pools });
+      const labels = labelDivisionMatches(d);
+
+      const hidden = new Set<string>();
+      for (const label of labels.values()) if (label.bye) hidden.add(label.no);
+
+      for (const label of labels.values()) {
+        if (label.bye) continue;
+        for (const side of [label.teamA, label.teamB]) {
+          const ref = /^(?:Winner|Loser) of (.+)$/.exec(side)?.[1];
+          assert.ok(
+            !ref || !hidden.has(ref),
+            `${teams}/${pools}/${advance}: a visible match points at hidden ${ref} (${side})`,
+          );
+        }
+      }
+    }
+  });
+
+  it('names the qualifier that walked through a bye', () => {
+    /* 4 pools advancing 3 is 12 into a bracket of 16 — four byes, taken by
+       the pool winners. The round above each bye must name the qualifier
+       that walked through it, and meet it against a match anyone can find. */
+    const d = provisionalDivision(division({ teams: 12, advancePerPool: 3 }), { pools: 4 });
+    const labels = labelDivisionMatches(d);
+    const quarterFinals = d.bracket[2].matches.map(m => labels.get(m.id));
+
+    for (const qf of quarterFinals) {
+      assert.match(qf?.teamA ?? '', /^#1 Pool [A-D]$/);
+      assert.match(qf?.teamB ?? '', /^Winner of /);
+    }
+  });
+
+  it('keeps the top qualifiers apart until they have to meet', () => {
+    /* Seeds laid out in plain order pair correctly for the opening round but
+       put seeds 1 and 2 in adjacent matches — which feed the same match next
+       round, so the two pool winners met in the quarter-final. */
+    const d = provisionalDivision(division({ teams: 16, advancePerPool: 2 }), { pools: 4 });
+    const labels = labelDivisionMatches(d);
+    const opening = d.bracket[1].matches.map(m => labels.get(m.id));
+
+    // #1 Pool A and #1 Pool B are the top two qualifiers; they must not be in
+    // adjacent matches, because adjacent matches feed the same one.
+    const seatOf = (name: string) => opening.findIndex(l => l?.teamA === name || l?.teamB === name);
+    const a = seatOf('#1 Pool A');
+    const b = seatOf('#1 Pool B');
+    assert.ok(a >= 0 && b >= 0, 'both top qualifiers appear in the opening round');
+    assert.notEqual(Math.floor(a / 2), Math.floor(b / 2), 'top two must not feed the same match');
+  });
+
   it('reads the 3rd-place play-off off its loser edge', () => {
     const d = provisionalDivision(division(), { pools: 4 });
     const third = d.bracket[d.bracket.length - 1];
@@ -244,6 +304,37 @@ describe('provisionalDivision', () => {
     assert.equal(d.gender, 'Women');
     assert.equal(d.bracket[0].durationMinutes, 30);
     assert.equal(d.bracket[1].durationMinutes, 45);
+  });
+});
+
+describe('bracketSeedOrder', () => {
+  it('reflects each round rather than counting up', () => {
+    // 4: 1v4 and 2v3, winners meet. 8: 1v8 / 4v5 in one half, 2v7 / 3v6 in
+    // the other — so the top two can only meet in the final.
+    assert.deepEqual(bracketSeedOrder(2), [0, 1]);
+    assert.deepEqual(bracketSeedOrder(4), [0, 3, 1, 2]);
+    assert.deepEqual(bracketSeedOrder(8), [0, 7, 3, 4, 1, 6, 2, 5]);
+  });
+
+  it('keeps the top two seeds in opposite halves', () => {
+    for (const size of [4, 8, 16, 32]) {
+      const order = bracketSeedOrder(size);
+      const half = size / 2;
+      assert.ok(order.indexOf(0) < half, `seed 1 in the first half of ${size}`);
+      assert.ok(order.indexOf(1) >= half, `seed 2 in the second half of ${size}`);
+    }
+  });
+
+  it('pairs every seat exactly once', () => {
+    for (const size of [2, 4, 8, 16, 32]) {
+      const order = bracketSeedOrder(size);
+      assert.equal(order.length, size);
+      assert.equal(new Set(order).size, size);
+      // Opening-round pairs always sum to size - 1: 1 v last, 2 v second-last.
+      for (let i = 0; i < size; i += 2) {
+        assert.equal(order[i] + order[i + 1], size - 1);
+      }
+    }
   });
 });
 

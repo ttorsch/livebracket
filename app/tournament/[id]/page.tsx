@@ -30,7 +30,7 @@ const cardVariants: Variants = {
   }),
 };
 import { roundFormatLabel, isGroupFormat, isKnockoutFormat, isForfeitMatch, STANDING_POINTS } from '@/lib/roundFormat';
-import { calculatePoolStandings } from '@/lib/standings';
+import { buildPoolStandings as poolStandingsOf, type PoolStandingGroup } from '@/lib/standings';
 import {
   getTournamentDetail, type TournamentDetail, type DetailMatch,
   type DetailDivision,
@@ -124,39 +124,11 @@ interface StandingRow {
   points: number;
 }
 
-interface PoolStandingGroup {
-  name: string;
-  rows: StandingRow[];
-}
-
+/** The division's pools, or none when nothing has been drawn. The grouping
+ *  itself lives in lib/standings; the two collaborators it needs are passed
+ *  in so that module stays free of the bracket and format imports. */
 function buildPoolStandings(division: DetailDivision): PoolStandingGroup[] {
-  const poolsCount = Math.max(1, division.drawConfig?.pools ?? 1);
-  const confirmedTeams = division.teamsList.filter(t => t.status !== 'waitlist');
-  const pools = assignPools(confirmedTeams, poolsCount);
-
-  // Collect all group matches
-  const groupMatches: DetailMatch[] = [];
-  for (const round of division.bracket) {
-    if (!isGroupFormat(round.format)) continue;
-    groupMatches.push(...round.matches);
-  }
-
-  return pools.map(p => {
-    const poolTeamIds = new Set(p.items.map(t => t.id));
-    const poolTeams = p.items.map((t, idx) => ({
-      id: t.id,
-      name: t.name,
-      seed: t.seed,
-      entryOrder: confirmedTeams.findIndex(ct => ct.id === t.id),
-    }));
-
-    const poolMatches = groupMatches.filter(
-      m => m.teamAId && m.teamBId && poolTeamIds.has(m.teamAId) && poolTeamIds.has(m.teamBId),
-    );
-
-    const rows = calculatePoolStandings(poolTeams, poolMatches);
-    return { name: p.name, rows };
-  });
+  return poolStandingsOf(division, { assignPools, isGroupFormat });
 }
 
 function buildStandings(division: DetailDivision): StandingRow[] {
@@ -1345,10 +1317,21 @@ export default function TournamentPage() {
               })}
             </div>
             ) : (
-              <EmptyCard
-                title="No standings yet"
-                body="Registered teams and standings will appear here once entries are received."
-              />
+              /* Two different nothings. "Once entries are received" is simply
+                 untrue for a division that has teams and no draw — which was
+                 the state showing an invented Pool A — so it says which one
+                 this is. */
+              (activeDivision?.filled ?? 0) > 0 ? (
+                <EmptyCard
+                  title="Pools not drawn yet"
+                  body={`${activeDivision?.filled ?? 0} team${activeDivision?.filled === 1 ? '' : 's'} registered. Pools and standings appear here once the organizer runs the draw.`}
+                />
+              ) : (
+                <EmptyCard
+                  title="No standings yet"
+                  body="Registered teams and standings will appear here once entries are received."
+                />
+              )
             )
           )
         )}

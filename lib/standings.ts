@@ -393,3 +393,73 @@ export function calculatePoolStandings(
 
   return result;
 }
+
+/* ── Pools, and when there are none ───────────────────────────────────
+ *
+ * Grouping a division's teams into its pools and standing them up, from the
+ * seeds — pool membership is never stored on a team, so it is derived here
+ * the same way lib/divisionMatches derives it, and the two agree.
+ *
+ * The important case is the one where there is nothing to group. This used to
+ * fall back to "one pool" whenever a division had no draw, which meant an
+ * undrawn division published a Pool A containing every team that had
+ * registered — a pool nobody had drawn, ordered by an entry order nobody had
+ * seeded. Players read that as the draw.
+ *
+ * A pool exists once a draw has produced matches. Not once `settings.draw`
+ * exists: that key is written as a stub before any draw is run, so it proves
+ * nothing on its own — the schedule screen makes the same distinction, for
+ * the same reason. Matches are the proof.
+ *
+ * The one-pool fallback is kept for a division that has group matches but no
+ * recorded draw config, because those were really drawn — the record of it is
+ * just older than the field.
+ */
+
+export interface PoolStandingGroup {
+  name: string;
+  rows: CalculatedStandingRow[];
+}
+
+export interface PoolStandingsDivision {
+  drawConfig: { pools?: number } | null;
+  teamsList: { id: string; name: string; seed: number; status: string }[];
+  bracket: { format: string; matches: PoolMatchInput[] }[];
+}
+
+export function buildPoolStandings(
+  division: PoolStandingsDivision,
+  deps: {
+    assignPools: <T>(items: T[], poolsCount: number) => { name: string; items: T[] }[];
+    isGroupFormat: (format: string) => boolean;
+  },
+): PoolStandingGroup[] {
+  const groupMatches: PoolMatchInput[] = [];
+  for (const round of division.bracket) {
+    if (!deps.isGroupFormat(round.format)) continue;
+    groupMatches.push(...round.matches);
+  }
+
+  /* No matches means no draw, whatever settings.draw may say. */
+  if (groupMatches.length === 0) return [];
+
+  const poolsCount = Math.max(1, division.drawConfig?.pools ?? 1);
+  const confirmedTeams = division.teamsList.filter(t => t.status !== 'waitlist');
+  const pools = deps.assignPools(confirmedTeams, poolsCount);
+
+  return pools.map(p => {
+    const poolTeamIds = new Set(p.items.map(t => t.id));
+    const poolTeams: PoolTeamInput[] = p.items.map(t => ({
+      id: t.id,
+      name: t.name,
+      seed: t.seed,
+      entryOrder: confirmedTeams.findIndex(ct => ct.id === t.id),
+    }));
+
+    const poolMatches = groupMatches.filter(
+      m => m.teamAId && m.teamBId && poolTeamIds.has(m.teamAId) && poolTeamIds.has(m.teamBId),
+    );
+
+    return { name: p.name, rows: calculatePoolStandings(poolTeams, poolMatches) };
+  });
+}
