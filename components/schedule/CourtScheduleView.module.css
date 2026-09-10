@@ -330,13 +330,22 @@
 }
 
 /* ── Day Section ─────────────────────────────────────────── */
+/* Spaced by margins on the children rather than a flex `gap`: the floating
+   header strip is a child too, and while it is off it has no height — a gap
+   would still reserve room for it. */
 .daySection {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
+/* Holds under the page chrome as the day scrolls, so which day you are
+   reading stays on screen. Plain `position: sticky` is enough here — unlike
+   the court headers, this sits outside .courtsGrid and so is not trapped in
+   that scrollport. Opaque, because the schedule passes underneath it. */
 .dayHeading {
+  position: sticky;
+  top: var(--chrome-h, 0px);
+  z-index: 22;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -344,7 +353,14 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--ink-900, #14181E);
-  padding: 4px 0;
+  margin-bottom: 12px;
+  padding: 8px 0 10px;
+  background: var(--surface-app, #F5F1EA);
+  border-bottom: 1px solid var(--sand-300, #E7E2D9);
+  /* The nav slides in and out as you scroll and --chrome-h moves with it;
+     matching its easing keeps the heading travelling with the bar above it
+     rather than snapping to the new line. */
+  transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dayHeadingMeta {
@@ -443,17 +459,27 @@
 
 .courtHeader {
   display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 6px;
-  padding: 0 4px 10px;
-  border-bottom: 1px solid var(--sand-300, #E7E2D9);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px;
+  min-height: 32px;
+  border-radius: 14px;
+  /* Orange, the same pill the schedule generator uses — the court is the one
+     thing on a schedule you navigate by, so it carries the brand rather than
+     the sand everything else sits on. */
+  background: var(--coral-500, #EB6F43);
+  box-sizing: border-box;
 }
 
 .courtHeader[data-draggable='true'] {
   cursor: grab;
   user-select: none;
   touch-action: pan-y;
+}
+
+.courtHeader[data-draggable='true'] * {
+  cursor: inherit;
 }
 
 .courtHeader[data-draggable='true']:active {
@@ -469,23 +495,27 @@
 
 .courtName {
   font-family: var(--font-heading, 'Space Grotesk', sans-serif);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--ink-900, #14181E);
+  color: #FFFFFF;
+  line-height: 1.2;
 }
 
+/* The pill separates name from count by pushing them apart, so the middot
+   that used to do it has nothing left to do. */
 .courtCountDot {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-400, #9CA3AF);
-  line-height: 1;
+  display: none;
 }
 
 .courtCount {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--ink-500, #7A8294);
+  /* The count is secondary, so it steps back inside the pill rather than
+     matching the name. */
+  color: rgba(255, 255, 255, 0.82);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .courtEnds {
@@ -501,6 +531,91 @@
   flex-direction: column;
   gap: 12px;
 }
+
+/* ── Held headers: sticky when possible, a floating repeat when not ───
+ *
+ * .courtsGrid scrolls sideways, so it is its headers' scrollport on both
+ * axes and `position: sticky` cannot reach the page from inside it.
+ *
+ * A scroller that does not overflow is told to stop being one, and then the
+ * headers inside it can be held by `position: sticky` against the page.
+ * That is the whole point of the switch: sticky is compositor-driven and
+ * perfectly smooth, where the floating strip below runs in JavaScript a
+ * frame behind.
+ *
+ * The component sets --pin-top (the page chrome, plus the sticky day
+ * heading) and toggles data-fits from the same pass.
+ *
+ * Every selector is anchored on a local class: CSS Modules rejects a rule
+ * made only of attribute selectors ("not pure"), and that is a build error
+ * rather than a warning. */
+.courtsGrid[data-fits] {
+  overflow-x: visible;
+}
+
+.courtsGrid[data-fits] .courtHeader {
+  position: sticky;
+  top: var(--pin-top, 0px);
+  z-index: 20;
+  transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── The floating header strip ────────────────────────────────────
+ *
+ * A repeat of the court header row, outside the horizontal scroller so it
+ * can use native `position: sticky`. Only used where the in-grid row cannot
+ * be (a roster that overflows sideways: phones, and wide court lists), and
+ * only while the day is actually under the chrome. The component toggles
+ * data-strip-on and publishes --strip-x from the grid's own scrollLeft. */
+.courtHeadStrip {
+  position: sticky;
+  top: var(--pin-top, 0px);
+  z-index: 24;
+  /* Out of the way until the component says otherwise: no height, nothing
+     drawn, and no pointer target. */
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  /* No band behind the row: the pills float over the schedule, the way the
+     in-grid header does. */
+  background: transparent;
+  transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.courtHeadStrip[data-strip-on] {
+  height: auto;
+  opacity: 1;
+  padding-bottom: 8px;
+}
+
+/* Same geometry as .courtsGrid, so the repeat lines up with the columns it
+   is standing in for. */
+.courtHeadStripInner {
+  display: grid;
+  grid-template-columns: repeat(var(--court-count, 1), minmax(0, 1fr));
+  gap: 14px;
+  transform: translateX(var(--strip-x, 0px));
+  will-change: transform;
+}
+
+.courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
+  grid-template-columns: repeat(var(--court-count, 4), calc((100% - 3 * 14px) / 4));
+}
+
+@media (max-width: 1024px) {
+  .courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
+    grid-template-columns: repeat(var(--court-count, 4), calc((100% - 28px) / 2.3));
+  }
+}
+
+@media (max-width: 640px) {
+  .courtHeadStripInner,
+  .courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
+    grid-template-columns: repeat(var(--court-count, 1), 85vw);
+  }
+}
+
 
 /* ── Match Item Card ─────────────────────────────────────── */
 .matchItem {

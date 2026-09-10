@@ -631,8 +631,14 @@
   justify-content: center;
 }
 
+/* Clips the tab slide sideways without becoming a scrollport. `overflow:
+   hidden` did both, and a scrollport is a sticky-breaker: the schedule's day
+   and court headers stuck to this box — which never scrolls — instead of to
+   the page, so they left with the content. `clip` does not scroll, so
+   `overflow-y` may stay `visible` and sticky reaches the page again. */
 .sliderOverflowWrap {
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   width: 100%;
 }
 

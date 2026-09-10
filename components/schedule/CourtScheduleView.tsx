@@ -154,6 +154,9 @@ interface CourtSectionBlockProps {
 
 function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const headingRef = useRef<HTMLDivElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [scrollRatio, setScrollRatio] = useState(0);
   const [thumbRatio, setThumbRatio] = useState(1);
@@ -261,6 +264,84 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
     } catch {}
   };
 
+  /* ── Holding the day and court headers under the page chrome ──────
+   *
+   * The day heading is an ordinary sticky element — it sits outside the
+   * courts grid, so it can hold itself against the page.
+   *
+   * The court headers cannot, at least not always: .courtsGrid scrolls
+   * sideways, and any box with `overflow-x: auto` is a scrollport on both
+   * axes, so sticky inside it has nothing to stick to and the headers leave
+   * with the page. Two ways out, picked per section:
+   *
+   *   - The roster fits (four courts or fewer, which is most events). The
+   *     grid is told to stop being a scroller — `overflow-x: visible` under
+   *     [data-fits] — and then the in-grid headers can be plain sticky,
+   *     driven by the compositor and perfectly smooth.
+   *   - It does not fit. The in-grid headers scroll away as before, and a
+   *     repeat of the row outside the scroller (the strip below) is faded in
+   *     while the grid is under the chrome, counter-scrolled sideways so it
+   *     stays over the courts it names.
+   *
+   * --pin-top is where both come to rest: the page chrome, plus the sticky
+   * day heading above them. One style write per frame, on a rAF, so a fast
+   * scroll coalesces into a single update. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let frame = 0;
+
+    const apply = () => {
+      frame = 0;
+      const grid = gridRef.current;
+      if (!grid) return;
+
+      const root = sectionRef.current;
+      const chrome = root
+        ? parseFloat(getComputedStyle(root).getPropertyValue('--chrome-h')) || 0
+        : 0;
+      const pinLine = chrome + (headingRef.current?.offsetHeight ?? 0);
+      grid.style.setProperty('--pin-top', `${Math.round(pinLine)}px`);
+
+      const fits = grid.scrollWidth <= grid.clientWidth + 1;
+      grid.toggleAttribute('data-fits', fits);
+
+      const strip = stripRef.current;
+      if (!strip) return;
+      if (fits) {
+        strip.toggleAttribute('data-strip-on', false);
+        return;
+      }
+
+      const headH = grid.querySelector<HTMLElement>('[data-court-head]')?.offsetHeight ?? 0;
+      const rect = grid.getBoundingClientRect();
+      const covered = rect.top < pinLine && rect.bottom > pinLine + headH;
+      strip.style.setProperty('--pin-top', `${Math.round(pinLine)}px`);
+      strip.toggleAttribute('data-strip-on', covered);
+      if (covered) {
+        strip.style.setProperty('--strip-x', `${-Math.round(grid.scrollLeft)}px`);
+      }
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(apply);
+    };
+
+    apply();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    /* The strip has to follow the columns sideways too, and a sideways scroll
+       of the grid does not fire a window scroll event. */
+    const grid = gridRef.current;
+    grid?.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      grid?.removeEventListener('scroll', onScroll);
+    };
+  }, [section]);
+
   const courtHeaderProps = {
     onPointerDown: handleCourtHeaderPointerDown,
     onPointerMove: handleCourtHeaderPointerMove,
@@ -274,9 +355,9 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
   const thumbLeftPct = scrollRatio * (100 - thumbWidthPct);
 
   return (
-    <section key={section.key} className={styles.daySection}>
+    <section key={section.key} className={styles.daySection} ref={sectionRef}>
       {section.title && (
-        <div className={styles.dayHeading}>
+        <div className={styles.dayHeading} ref={headingRef}>
           <Calendar size={16} color="var(--orange, #EE7A4C)" />
           <span>{section.title}</span>
           <span className={styles.dayHeadingMeta}>
@@ -284,6 +365,30 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
           </span>
         </div>
       )}
+
+      {/* The floating header row: a repeat of the court names that lives
+          outside the sideways scroller, so it can be sticky where the in-grid
+          row cannot. Off — no height, nothing drawn — until the effect above
+          says the grid is under the chrome. */}
+      <div
+        ref={stripRef}
+        className={styles.courtHeadStrip}
+        data-multi-court={section.courts.length > 4 ? 'true' : undefined}
+        aria-hidden="true"
+        style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
+      >
+        <div className={styles.courtHeadStripInner}>
+          {section.courts.map(group => (
+            <div key={group.courtName} className={styles.courtHeader}>
+              <span className={styles.courtName}>{group.courtName}</span>
+              <span className={styles.courtCountDot}>·</span>
+              <span className={styles.courtCount}>
+                {group.matches.length} {group.matches.length === 1 ? 'match' : 'matches'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* `canScroll` is measured, so at four courts or fewer — where the grid
           fills the width and nothing overflows — this never appears. The count
@@ -715,6 +820,7 @@ export default function CourtScheduleView({
                   <div key={group.courtName} className={styles.courtCard}>
                     <div
                       className={styles.courtHeader}
+                      data-court-head=""
                       {...courtHeaderProps}
                       title={courtHeaderProps['data-draggable'] ? 'Click and drag to slide courts' : undefined}
                     >

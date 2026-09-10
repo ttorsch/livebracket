@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
@@ -629,6 +629,8 @@ export default function TournamentPage() {
   });
 
   const tabBarInnerRef = useRef<HTMLDivElement | null>(null);
+  const controlRailRef = useRef<HTMLDivElement | null>(null);
+  const tabBarRef = useRef<HTMLDivElement | null>(null);
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
   const snapBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTouchingRef = useRef<boolean>(false);
@@ -748,9 +750,51 @@ export default function TournamentPage() {
     };
   }, []);
 
+  /* ── How much chrome the content has to come to rest under ────────
+     The nav, plus whichever rail is pinned at this width: the tab bar on a
+     wide screen, the whole control rail (division chips + tabs) on a phone,
+     where the 860px block makes the rail sticky and the bar static inside
+     it. Published as --chrome-h so the schedule's own day and court headers
+     can hold themselves below it — see CourtScheduleView. Measured rather
+     than guessed: the rail grows a row when the division list wraps. */
+  const [pinnedChromeH, setPinnedChromeH] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      const rail = controlRailRef.current;
+      const bar = tabBarRef.current;
+      /* On desktop the rail is `display: contents` and has no box of its own,
+         so the bar is the pinned thing; on a phone the rail is the sticky one
+         and the bar rides inside it. Asking which is sticky keeps the two
+         layouts on one code path. */
+      const pinned =
+        rail && getComputedStyle(rail).position === 'sticky' ? rail : bar;
+      setPinnedChromeH(pinned ? pinned.getBoundingClientRect().height : 0);
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    if (typeof ResizeObserver === 'undefined') {
+      return () => window.removeEventListener('resize', measure);
+    }
+    const ro = new ResizeObserver(measure);
+    if (tabBarRef.current) ro.observe(tabBarRef.current);
+    if (controlRailRef.current) ro.observe(controlRailRef.current);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [tournament, currentTab, tabs.length, activeDiv]);
+
+  const navOffsetPx = navMode === 'shown' ? 62 : 0;
+  const chromeVars = {
+    ['--nav-offset' as string]: `${navOffsetPx}px`,
+    ['--chrome-h' as string]: `${Math.round(navOffsetPx + pinnedChromeH)}px`,
+  } as CSSProperties;
+
   if (!tournament) {
     return (
-      <div className={styles.page} style={{ ['--nav-offset' as any]: navMode === 'shown' ? '62px' : '0px' }}>
+      <div className={styles.page} style={chromeVars}>
         <SiteHeader headerRef={headerRef} navMode={navMode} />
         <div className={styles.headerSpacer} aria-hidden="true" />
         <div className={styles.stateWrap}>Loading tournament…</div>
@@ -763,7 +807,7 @@ export default function TournamentPage() {
      event stays up so the teams who registered find out. */
   if (!isPublic(tournament.phase as Phase) || tournament.archived) {
     return (
-      <div className={styles.page} style={{ ['--nav-offset' as any]: navMode === 'shown' ? '62px' : '0px' }}>
+      <div className={styles.page} style={chromeVars}>
         <SiteHeader headerRef={headerRef} navMode={navMode} />
         <div className={styles.headerSpacer} aria-hidden="true" />
         <div className={styles.stateWrap}>
@@ -777,10 +821,7 @@ export default function TournamentPage() {
   const canRegister = regState === 'open';
 
   return (
-    <div
-      className={styles.page}
-      style={{ ['--nav-offset' as any]: navMode === 'shown' ? '62px' : '0px' }}
-    >
+    <div className={styles.page} style={chromeVars}>
       <SiteHeader
         headerRef={headerRef}
         navMode={navMode}
@@ -876,7 +917,7 @@ export default function TournamentPage() {
            On mobile these two ride together in one sticky rail under the
            header; on desktop the wrapper is display:contents so the tab bar
            keeps its own sticky behaviour. */}
-      <div className={styles.controlRail}>
+      <div className={styles.controlRail} ref={controlRailRef}>
       {tournament.divisions.length > 0 && (
         <section className={styles.divisionSection}>
           <div className={styles.segmented}>
@@ -910,7 +951,7 @@ export default function TournamentPage() {
       )}
 
       {/* ── Tabs ──────────────────────────────────────────────── */}
-      <div className={styles.tabBar}>
+      <div className={styles.tabBar} ref={tabBarRef}>
         <div
           ref={tabBarInnerRef}
           className={styles.tabBarInner}
