@@ -15,6 +15,8 @@ import {
   ChevronUp,
   Clock,
   ClipboardList,
+  Eye,
+  EyeOff,
   Grid,
   GripVertical,
   ImagePlus,
@@ -1103,25 +1105,16 @@ export default function TournamentSchedulePage() {
   const params = useParams();
   const slug = (params?.id as string) || '';
 
-  const [detail, setDetail] = useState<TournamentDetail | null>(null);
-  /* True when `detail` holds the derived pre-draw plan rather than a real
-     bracket. Tracked rather than re-derived, because once the plan is in
-     `detail` it has matches and would no longer look undrawn. */
-  const [isProvisional, setIsProvisional] = useState(false);
-  const [provisionalNote, setProvisionalNote] = useState('');
-  /* Matches the derived plan could not fit inside the event. Worth saying
-     out loud here rather than only in the Fit panel: this is the number
-     that decides whether the plan is fit to show anyone. */
-  const [provisionalOverflow, setProvisionalOverflow] = useState(0);
-  /* The tournament as it was loaded, before any plan was derived over it.
-     Kept because `detail` holds the derived plan and so no longer looks
-     undrawn — re-deriving from it would return null. */
-  const [rawDetail, setRawDetail] = useState<TournamentDetail | null>(null);
+  /* The tournament as the database holds it. Before a draw it carries no
+     matches; `detail` below is this with the derived plan laid over it. */
+  const [loadedDetail, setLoadedDetail] = useState<TournamentDetail | null>(null);
   /* Pool count and 3rd-place play-off per division, as the panel is editing
      them. Local so a change redraws the grid at once; persisted behind it. */
   const [planByDiv, setPlanByDiv] = useState<Record<string, DivisionPlan>>({});
   const [planSaving, setPlanSaving] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [shareSaving, setShareSaving] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filters & Controls
@@ -1137,6 +1130,30 @@ export default function TournamentSchedulePage() {
   // Generator: venue config and the unsaved preview.
   const [panelOpen, setPanelOpen] = useState(false);
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
+
+  const provisional = useMemo(() => {
+    if (!loadedDetail || !config) return null;
+    // Null once anything is really drawn — the bracket is the truth then.
+    return provisionalSchedule({
+      ...loadedDetail,
+      scheduleConfig: config,
+      divisions: loadedDetail.divisions.map(d =>
+        planByDiv[d.id]
+          ? { ...d, plannedPools: planByDiv[d.id].pools, plannedThirdPlace: planByDiv[d.id].thirdPlace }
+          : d,
+      ),
+    });
+  }, [loadedDetail, config, planByDiv]);
+
+  /* What every view on this page reads: the real bracket once one exists,
+     otherwise the plan derived over it. Derived rather than kept in state so
+     it cannot fall behind the config being edited — and so the one input the
+     plan follows most closely, the court count, moves the grid as it is
+     typed. */
+  const detail = provisional?.detail ?? loadedDetail;
+  const isProvisional = !!provisional;
+  const provisionalNote = provisional ? provisionalAssumptionText(provisional.assumptions) : '';
+  const provisionalOverflow = provisional?.overflowCount ?? 0;
   const [preview, setPreview] = useState<ScheduleResult | null>(null);
   const [problemListOpen, setProblemListOpen] = useState(false);
   /** Which problem the compact bar is showing, as an index into `problems`. */
@@ -1388,16 +1405,11 @@ export default function TournamentSchedulePage() {
            is derived, never written — see lib/provisionalSchedule — and the
            save gate below still refuses to commit it, because there are no
            real matches for placements to belong to. */
-        const plan = provisionalSchedule(res);
-        setRawDetail(res);
+        setLoadedDetail(res);
         setPlanByDiv(Object.fromEntries(res.divisions.map(d => [
           d.id,
           { pools: d.plannedPools, thirdPlace: d.plannedThirdPlace },
         ])));
-        setDetail(plan?.detail ?? res);
-        setIsProvisional(!!plan);
-        setProvisionalNote(plan ? provisionalAssumptionText(plan.assumptions) : '');
-        setProvisionalOverflow(plan?.overflowCount ?? 0);
         // Seed the generator config from the load. Court appetite is read
         // off each division's draw, so there is nothing per-division to seed.
         setConfig(res.scheduleConfig);
@@ -1455,34 +1467,61 @@ export default function TournamentSchedulePage() {
   );
 
   // Everything the generator needs, derived from the loaded bracket.
-  /* Change one division's plan: redraw from it at once, then persist.
+  /* The pre-draw plan, rederived whenever anything it is a function of
+   * changes — the venue configuration as the organizer is typing it, and the
+   * per-division pool counts and play-off switches.
    *
-   *  Derived before saved, not after. The plan is a pure function of these
-   *  numbers (lib/provisionalSchedule), so recomputing it locally gives the
-   *  same answer the server would and the grid moves under the organizer's
-   *  hand rather than a request later. The write is the slow half and only
-   *  has to survive the session. */
+   * Reactive rather than recomputed at each control, because the config is
+   * one of its inputs: an organizer who takes the event from two courts to
+   * four is asking exactly the question this plan answers, and before this
+   * the grid sat still until they saved and reloaded. Cheap to run — the
+   * generator is pure and this is the same call the public page makes. */
+
+  /* Publish the pre-draw plan, or take it down.
+   *
+   * Writes on its own rather than riding the Save button. Everything else in
+   * this panel is a draft until saved, but this one *is* the publish: an
+   * organizer who ticks "show this to players" and navigates away has said
+   * what they meant, and leaving it unsaved would have shown nobody anything.
+   *
+   * It writes the *stored* configuration plus the flag, not the one being
+   * edited. Venue changes in progress stay unsaved — the public plan is
+   * derived from what is stored, so publishing must not quietly commit a
+   * court count the organizer was only trying out. */
+  const setShareProvisional = async (next: boolean) => {
+    if (!loadedDetail) return;
+    const stored = { ...loadedDetail.scheduleConfig, shareProvisional: next };
+    setConfigField('shareProvisional', next);
+    setShareError(null);
+    setShareSaving(true);
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/schedule`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: stored }),
+      });
+      if (!res.ok) {
+        throw new Error((await res.json().catch(() => ({}))).error || 'Failed to save');
+      }
+      // Keep the loaded copy honest, so a second toggle writes from the truth.
+      setLoadedDetail(prev => (prev ? { ...prev, scheduleConfig: stored } : prev));
+    } catch (err) {
+      setConfigField('shareProvisional', !next);
+      setShareError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  /** Change one division's plan. The effect above redraws from it; this
+   *  persists it. */
   const updateDivisionPlan = async (divisionId: string, patch: Partial<DivisionPlan>) => {
     const current = planByDiv[divisionId];
-    if (!current || !rawDetail) return;
+    if (!current || !loadedDetail) return;
 
     const next = { ...planByDiv, [divisionId]: { ...current, ...patch } };
     setPlanByDiv(next);
     setPlanError(null);
-
-    const rebuilt = provisionalSchedule({
-      ...rawDetail,
-      divisions: rawDetail.divisions.map(d =>
-        next[d.id]
-          ? { ...d, plannedPools: next[d.id].pools, plannedThirdPlace: next[d.id].thirdPlace }
-          : d,
-      ),
-    });
-    if (rebuilt) {
-      setDetail(rebuilt.detail);
-      setProvisionalNote(provisionalAssumptionText(rebuilt.assumptions));
-      setProvisionalOverflow(rebuilt.overflowCount);
-    }
 
     setPlanSaving(true);
     try {
@@ -1791,7 +1830,7 @@ export default function TournamentSchedulePage() {
       if (!putRes.ok) throw new Error((await putRes.json().catch(() => ({}))).error || 'Failed to save schedule');
 
       const fresh = await getTournamentDetail(slug);
-      setDetail(fresh);
+      setLoadedDetail(fresh);
       if (fresh?.scheduleConfig) {
         setConfig(fresh.scheduleConfig);
       }
@@ -3229,7 +3268,7 @@ export default function TournamentSchedulePage() {
     matchId: string,
     patch: { scoreA?: number[]; scoreB?: number[]; winner?: 'A' | 'B'; status: 'upcoming' | 'live' | 'done' },
   ) => {
-    setDetail(prev =>
+    setLoadedDetail(prev =>
       prev
         ? {
             ...prev,
@@ -3465,8 +3504,52 @@ export default function TournamentSchedulePage() {
                 >
                   <Printer size={14} /> Print Schedule
                 </button>
+                {/* Publishing the pre-draw plan is a decision about the event,
+                    not a generator setting, so it belongs out here with the
+                    other things an organizer does to a schedule rather than
+                    inside the panel they only open to regenerate one. */}
+                {isProvisional && (
+                  <button
+                    type="button"
+                    className={`${styles.heroGhostBtn} ${config?.shareProvisional ? styles.shareOnBtn : ''}`}
+                    onClick={() => setShareProvisional(!config?.shareProvisional)}
+                    disabled={shareSaving}
+                    aria-pressed={!!config?.shareProvisional}
+                  >
+                    {config?.shareProvisional ? <Eye size={14} /> : <EyeOff size={14} />}
+                    {shareSaving
+                      ? 'Saving…'
+                      : config?.shareProvisional
+                        ? 'Plan is public'
+                        : 'Share plan publicly'}
+                  </button>
+                )}
               </div>
             </div>
+
+            {isProvisional && (config?.shareProvisional || shareError) && (
+              <div className={styles.shareStrip}>
+                {shareError ? (
+                  <span className={styles.shareStripError}>{shareError}</span>
+                ) : (
+                  <>
+                    <span className={styles.shareStripDot} aria-hidden="true" />
+                    <span>
+                      Players can see this plan on the event page, marked provisional. It follows the venue setup and
+                      is replaced by the real schedule once you draw.
+                    </span>
+                    <Link
+                      href={`/tournament/${slug}`}
+                      className={styles.shareStripLink}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View public page
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -3711,13 +3794,14 @@ export default function TournamentSchedulePage() {
                     <input
                       type="checkbox"
                       checked={!!config.shareProvisional}
-                      onChange={e => setConfigField('shareProvisional', e.target.checked)}
+                      onChange={e => setShareProvisional(e.target.checked)}
                     />
                     <span className={styles.genCheckBox} aria-hidden="true"><Check size={13} strokeWidth={3.5} /></span>
                     <span className={styles.genCheckText}>
                       <strong>Show this plan on the public page</strong>
                       Players see the courts and times with placeholder teams, marked provisional. It updates itself
-                      when you change the venue setup, and is replaced by the real schedule once you draw. {provisionalNote}
+                      when you change the venue setup, and is replaced by the real schedule once you draw. Saves as soon
+                      as you tick it — you do not have to generate or save first. {provisionalNote}
                     </span>
                   </label>
                 )}
@@ -3740,7 +3824,7 @@ export default function TournamentSchedulePage() {
                   <span className={styles.genEyebrow}>Divisions</span>
 
                   <div className={styles.genCard}>
-                    {(rawDetail?.divisions ?? []).map(div => {
+                    {(loadedDetail?.divisions ?? []).map(div => {
                       const plan = planByDiv[div.id];
                       if (!plan) return null;
                       return (

@@ -4467,3 +4467,56 @@
 @media (max-width: 560px) {
   .genDivisionCheck { margin-left: 0; }
 }
+
+/* ── Publishing the pre-draw plan ─────────────────────────────────────
+   The button reads as on rather than as an action once the plan is live:
+   an organizer glancing at this row needs to know whether players are
+   currently looking at something, not what clicking would do. */
+.shareOnBtn {
+  background: var(--color-primary, #EB6F43);
+  border-color: var(--color-primary, #EB6F43);
+  color: #FFFFFF;
+}
+.shareOnBtn:hover {
+  background: var(--coral-600, #D65B31);
+  border-color: var(--coral-600, #D65B31);
+}
+.heroGhostBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.shareStrip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary, #3A414D);
+}
+
+.shareStripDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary, #EB6F43);
+}
+
+.shareStripLink {
+  font-weight: 600;
+  color: var(--color-primary, #EB6F43);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.shareStripLink:hover { text-decoration: underline; }
+
+.shareStripError {
+  color: var(--color-danger, #C0392B);
+  font-weight: 600;
+}
