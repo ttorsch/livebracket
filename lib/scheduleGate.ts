@@ -29,6 +29,20 @@
  * to make, and inventing one by proxy — "divisions with matches drawn" —
  * would quietly let an undrawn division fall out of a saved schedule.
  *
+ * The one state that is neither open nor a refusal is *nothing drawn at all*.
+ * A tournament with no matches anywhere has no placements to write, so
+ * refusing them is vacuous — and saying "the draw is not locked, lock it on
+ * the bracket page" is worse than vacuous, because there is no draw there to
+ * lock. That reads as a job the organizer has failed to do when in fact the
+ * only thing left to save is the venue setup, which saves anyway. This is the
+ * same reasoning the empty-division case below already applies; it just also
+ * holds when the divisions exist and none of them has been drawn.
+ *
+ * Note this is deliberately *not* keyed on the tournament's phase. An
+ * organizer may draw pools while registration is still open, and those
+ * placements can be orphaned exactly like any other — so "registration is
+ * open" is not a safe proxy for "there is nothing to lose".
+ *
  * See .scratch/schedule-generator/issues/09-schedule-generation-preconditions.md
  */
 
@@ -38,6 +52,9 @@ export interface GateDivision {
   label: string;
   /** settings.draw.isLocked — the draw is final, not merely generated. */
   drawLocked: boolean;
+  /** Whether a draw has actually produced matches. The settings key can exist
+   *  as a stub before one has run, so it proves nothing on its own. */
+  hasMatches: boolean;
 }
 
 export interface UnlockedDivision {
@@ -50,8 +67,13 @@ export interface ScheduleSaveGate {
   open: boolean;
   /** The divisions standing in the way, in the order they were given. */
   unlocked: UnlockedDivision[];
-  /** Organizer-facing reason. Null exactly when the gate is open. */
+  /** Organizer-facing reason. Null when the gate is open, and also when
+   *  there is nothing to place — that is not a refusal to explain. */
   reason: string | null;
+  /** Nothing has been drawn anywhere, so there are no placements to write.
+   *  Closed, but with nothing to report: callers should say what *did* save
+   *  rather than warn about a lock the organizer cannot yet apply. */
+  nothingToPlace: boolean;
 }
 
 /** "A", "A and B", "A, B and C" — names read as a sentence, because this
@@ -66,17 +88,27 @@ function nameList(labels: string[]): string {
  *  question, so a disabled button and a refused request can never disagree
  *  about the reason. */
 export function scheduleSaveGate(divisions: GateDivision[]): ScheduleSaveGate {
+  /* Nothing drawn anywhere: no placements exist to be written or lost.
+     Checked before the lock test so an undrawn tournament is never told to
+     go and lock a draw that has not been run. */
+  if (!divisions.some(d => d.hasMatches)) {
+    return { open: false, unlocked: [], reason: null, nothingToPlace: true };
+  }
+
   const unlocked = divisions
     .filter(d => !d.drawLocked)
     .map(d => ({ id: d.id, label: d.label }));
 
   // No divisions means no matches, so there is nothing to refuse. The gate
   // is vacuously open rather than reporting "0 divisions unlocked".
-  if (unlocked.length === 0) return { open: true, unlocked: [], reason: null };
+  if (unlocked.length === 0) {
+    return { open: true, unlocked: [], reason: null, nothingToPlace: false };
+  }
 
   return {
     open: false,
     unlocked,
     reason: `The draw is not locked in ${nameList(unlocked.map(d => d.label))}.`,
+    nothingToPlace: false,
   };
 }

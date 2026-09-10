@@ -1169,6 +1169,10 @@ export default function TournamentSchedulePage() {
 
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  /* Whether the last message is a confirmation or a failure. The message
+     was written in fourteen places and rendered in none, so a save — and a
+     failed save — told the organizer nothing at all. */
+  const [saveFailed, setSaveFailed] = useState(false);
 
   /* Hand edits, layered over whatever the schedule currently is — the unsaved
      preview if there is one, otherwise what is saved. They are deliberately
@@ -1549,12 +1553,16 @@ export default function TournamentSchedulePage() {
      anything — and so is the venue configuration, which is exactly what an
      organizer is testing when they generate one before the draw is settled. */
   const saveGate = useMemo(
-    () => scheduleSaveGate((detail?.divisions ?? []).map(d => ({
+    /* Read off `loadedDetail`, not `detail`. Before a draw, `detail` is the
+       derived plan and its synthetic matches would read as a real bracket —
+       which is exactly the thing the gate exists to tell apart. */
+    () => scheduleSaveGate((loadedDetail?.divisions ?? []).map(d => ({
       id: d.id,
       label: d.label,
       drawLocked: !!d.drawConfig?.isLocked,
+      hasMatches: d.bracket.some(r => r.matches.length > 0),
     }))),
-    [detail],
+    [loadedDetail],
   );
 
   /* The whole handover to the generator, in lib/schedule/schedulableDivisions
@@ -1797,9 +1805,14 @@ export default function TournamentSchedulePage() {
       // draw that can still be regenerated out from under it.
       if (!saveGate.open) {
         setDirty(false);
+        setSaveFailed(false);
         setSaveMsg(
-          `Courts and day settings saved. The schedule itself was not: ${saveGate.reason} ` +
-          `Lock the draw in every division to save it.`,
+          saveGate.nothingToPlace
+            // Nothing is drawn, so there were never any placements to write.
+            // Reporting them as "not saved" would invent a loss.
+            ? 'Courts and day settings saved. The plan above follows them — it is worked out from your setup each time, so there is nothing else to save until you draw.'
+            : `Courts and day settings saved. The schedule itself was not: ${saveGate.reason} ` +
+              `Lock the draw in every division to save it.`,
         );
         return;
       }
@@ -1837,6 +1850,8 @@ export default function TournamentSchedulePage() {
       setPreview(null);
       clearEdits();
       setDirty(false);
+      setSaveFailed(false);
+      setSaveMsg('Schedule saved.');
       /* Saving is the end of an edit, so the page comes out of the working
          mode rather than sitting in it with nothing left to save — every card
          still a drag away from moving. Grid is the reading state, and the
@@ -1844,10 +1859,21 @@ export default function TournamentSchedulePage() {
       selectBarMode('grid');
     } catch (e) {
       console.error('Save failed:', e);
+      setSaveFailed(true);
+      setSaveMsg(e instanceof Error ? e.message : 'Save failed.');
     } finally {
       setSaving(false);
     }
   }
+
+  /* Messages are transient. Cleared on a timer rather than left on screen,
+     where a stale "Schedule saved." next to fresh edits reads as if those
+     were saved too. */
+  useEffect(() => {
+    if (!saveMsg) return;
+    const t = setTimeout(() => setSaveMsg(null), 9000);
+    return () => clearTimeout(t);
+  }, [saveMsg]);
 
   const dayCount = detail?.dayCount ?? 1;
 
@@ -2966,7 +2992,10 @@ export default function TournamentSchedulePage() {
      beside the Save button rather than hidden in a disabled button's
      tooltip: a dead control with no reason is worse than no gate, and the
      lock lives on another page, so the reason has to carry the route. */
-  const gateNotice = !saveGate.open && (
+  /* Nothing drawn: there is no lock to apply and nothing being refused, so
+     the bar says nothing at all. The button beside it already reads "Save
+     settings", which is the whole truth of what pressing it does. */
+  const gateNotice = !saveGate.open && !saveGate.nothingToPlace && (
     <span className={styles.gateNotice}>
       <AlertTriangle size={13} />
       {saveGate.reason}{' '}
@@ -3526,6 +3555,16 @@ export default function TournamentSchedulePage() {
                 )}
               </div>
             </div>
+
+            {saveMsg && (
+              <div
+                className={`${styles.saveMsgStrip} ${saveFailed ? styles.saveMsgStripBad : ''}`}
+                role="status"
+              >
+                {saveFailed ? <AlertTriangle size={14} /> : <Check size={14} />}
+                <span>{saveMsg}</span>
+              </div>
+            )}
 
             {isProvisional && (config?.shareProvisional || shareError) && (
               <div className={styles.shareStrip}>

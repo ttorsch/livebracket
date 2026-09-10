@@ -4520,3 +4520,30 @@
   color: var(--color-danger, #C0392B);
   font-weight: 600;
 }
+
+/* What just happened to the schedule. Lives in the header rather than in
+   the edit bar because that bar unmounts the moment `dirty` clears — which
+   is the same moment a save succeeds, so a confirmation there would flash
+   and vanish. */
+.saveMsgStrip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--sand-100, #F5F1EA);
+  border: 1px solid var(--border-hairline, rgba(20, 31, 46, 0.08));
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary, #3A414D);
+}
+.saveMsgStrip svg { flex: none; margin-top: 1px; color: var(--color-success, #2E7D5B); }
+
+.saveMsgStripBad {
+  background: rgba(192, 57, 43, 0.06);
+  border-color: rgba(192, 57, 43, 0.25);
+  color: var(--color-danger, #C0392B);
+}
+.saveMsgStripBad svg { color: var(--color-danger, #C0392B); }

@@ -16,10 +16,44 @@ const div = (over: Partial<GateDivision> = {}): GateDivision => ({
   id: 'd1',
   label: 'Open',
   drawLocked: true,
+  hasMatches: true,
   ...over,
 });
 
 describe('scheduleSaveGate', () => {
+  it('has nothing to refuse when nothing has been drawn', () => {
+    /* An undrawn tournament has no placements to write, so telling the
+       organizer to "lock the draw on the bracket page" points them at a draw
+       that does not exist. Closed, but with nothing to report. */
+    const gate = scheduleSaveGate([
+      div({ id: 'a', label: `Men's Open`, drawLocked: false, hasMatches: false }),
+      div({ id: 'b', label: `Women's Open`, drawLocked: false, hasMatches: false }),
+    ]);
+    assert.equal(gate.open, false);
+    assert.equal(gate.nothingToPlace, true);
+    assert.equal(gate.reason, null);
+    assert.deepEqual(gate.unlocked, []);
+  });
+
+  it('still refuses once any division has been drawn', () => {
+    /* Deliberately not keyed on the tournament's phase: an organizer can draw
+       pools while registration is still open, and those placements orphan
+       exactly like any others. One drawn division is enough. */
+    const gate = scheduleSaveGate([
+      div({ id: 'a', label: `Men's Open`, drawLocked: false, hasMatches: true }),
+      div({ id: 'b', label: `Women's Open`, drawLocked: false, hasMatches: false }),
+    ]);
+    assert.equal(gate.nothingToPlace, false);
+    assert.equal(gate.open, false);
+    assert.equal(gate.reason, `The draw is not locked in Men's Open and Women's Open.`);
+  });
+
+  it('reports nothing to place for a tournament with no divisions', () => {
+    const gate = scheduleSaveGate([]);
+    assert.equal(gate.nothingToPlace, true);
+    assert.equal(gate.reason, null);
+  });
+
   it('opens when every division is locked', () => {
     const gate = scheduleSaveGate([
       div({ id: 'a', label: `Men's Open` }),
@@ -80,12 +114,6 @@ describe('scheduleSaveGate', () => {
   // A tournament with no divisions has no matches, so there is nothing to
   // refuse. Reporting "0 divisions unlocked" would be a refusal with no
   // action behind it.
-  it('is vacuously open with no divisions at all', () => {
-    const gate = scheduleSaveGate([]);
-    assert.equal(gate.open, true);
-    assert.equal(gate.reason, null);
-  });
-
   // An undrawn division is not exempt: letting it fall out is exactly how a
   // whole division goes missing from a saved schedule.
   it('does not exempt a division whose draw was never generated', () => {

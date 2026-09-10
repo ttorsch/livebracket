@@ -159,13 +159,23 @@ function addDaysUTC(dateStr: string, n: number): string {
 async function readGateDivisions(slug: string): Promise<GateDivision[] | { error: string }> {
   const { data, error } = await supabaseAdmin
     .from('divisions')
-    .select('id, name, settings, tournaments!inner(slug)')
+    // rounds(matches(id)) rather than settings.draw alone: the draw key can
+    // exist as a stub before a draw has run, so only matches prove one has.
+    .select('id, name, settings, rounds(matches(id)), tournaments!inner(slug)')
     .eq('tournaments.slug', slug);
   if (error) return { error: error.message };
   return (data ?? []).map((d) => {
-    const row = d as { id: string; name: string; settings: unknown };
+    const row = d as {
+      id: string; name: string; settings: unknown;
+      rounds?: { matches?: { id: string }[] }[];
+    };
     const settings = row.settings as { draw?: { isLocked?: boolean } } | null;
-    return { id: row.id, label: row.name, drawLocked: !!settings?.draw?.isLocked };
+    return {
+      id: row.id,
+      label: row.name,
+      drawLocked: !!settings?.draw?.isLocked,
+      hasMatches: (row.rounds ?? []).some(r => (r.matches ?? []).length > 0),
+    };
   });
 }
 
@@ -175,6 +185,19 @@ async function readGateDivisions(slug: string): Promise<GateDivision[] | { error
  * organizer's way through is to lock the draw — so the unlocked divisions
  * ride along for the message to name, not for a retry to quote back. */
 function gateRefusal(gate: ReturnType<typeof scheduleSaveGate>) {
+  /* Nothing drawn: there is no lock to point at, and `reason` is null
+     because there is nothing being refused on the organizer's account.
+     Interpolating it would have produced a literal "null" in the message. */
+  if (gate.nothingToPlace) {
+    return NextResponse.json(
+      {
+        error: 'There are no matches to schedule yet. Run the draw first — until then the plan is worked out from the division setup and is not stored.',
+        drawUnlocked: false,
+        unlocked: [],
+      },
+      { status: 409 },
+    );
+  }
   return NextResponse.json(
     {
       error: `${gate.reason} A schedule can only be saved once every division's draw is locked.`,
