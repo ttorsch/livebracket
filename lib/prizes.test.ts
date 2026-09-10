@@ -13,7 +13,7 @@ import { describe, it } from 'node:test';
 
 import {
   readPrizes, toStoredPrizes, prizeTotal, hasPrizes, prizeSummary,
-  tournamentPrizeLabel, defaultPlacings, emptyPrizes,
+  tournamentPrizeLabel, defaultPlacings, emptyPrizes, placeLabel, placingIsMeaningful,
 } from './prizes.ts';
 
 describe('readPrizes', () => {
@@ -90,6 +90,24 @@ describe('toStoredPrizes', () => {
     assert.equal(stored.prizeNote, 'Cash only.');
   });
 
+  it('drops a row carrying money when it has no name', () => {
+    /* The reason the form refuses to save one. This is where an added 3rd
+       place went: the organizer typed an amount, left the name blank, and the
+       row was thrown away between the form and the database with no error.
+       The storage rule stays — a nameless row cannot be rendered — so the
+       form has to catch it first. */
+    const stored = toStoredPrizes({
+      placings: [
+        { place: '1st', amount: 8000, note: '' },
+        { place: '2nd', amount: 4000, note: '' },
+        { place: '', amount: 1500, note: '' },
+      ],
+      note: '',
+    });
+    assert.equal(stored.prizes.length, 2);
+    assert.ok(!stored.prizes.some(p => p.amount === 1500));
+  });
+
   it('round-trips through readPrizes unchanged', () => {
     const written = toStoredPrizes({
       placings: [{ place: '1st', amount: 5000, note: '' }],
@@ -105,6 +123,28 @@ describe('toStoredPrizes', () => {
     // must not advertise a ฿0 first place.
     const stored = toStoredPrizes({ placings: defaultPlacings(), note: '' });
     assert.equal(prizeTotal(readPrizes(stored as unknown as Record<string, unknown>)), 0);
+  });
+});
+
+describe('placeLabel', () => {
+  it('names a row by its position', () => {
+    assert.deepEqual([0, 1, 2, 3, 4].map(placeLabel), ['1st', '2nd', '3rd', '4th', '5th']);
+  });
+
+  it('gets the teens right', () => {
+    assert.deepEqual([10, 11, 12].map(placeLabel), ['11th', '12th', '13th']);
+    assert.deepEqual([20, 21, 22].map(placeLabel), ['21st', '22nd', '23rd']);
+  });
+});
+
+describe('placingIsMeaningful', () => {
+  it('is true once the organizer has put something in the row', () => {
+    assert.equal(placingIsMeaningful({ place: '', amount: 1500, note: '' }), true);
+    assert.equal(placingIsMeaningful({ place: '', amount: 0, note: 'Trophy' }), true);
+  });
+
+  it('is false for a row that is genuinely empty', () => {
+    assert.equal(placingIsMeaningful({ place: '', amount: 0, note: '   ' }), false);
   });
 });
 

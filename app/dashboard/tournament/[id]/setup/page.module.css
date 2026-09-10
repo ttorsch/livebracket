@@ -2454,6 +2454,41 @@
   color: var(--ink-1, #14181E);
   line-height: 1.15;
 }
+/* The payout under the Prize Money figure. Deliberately quieter than the
+   fee above it: the total is the headline, the split is reference. */
+.prizeSummaryList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prizeSummaryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  color: var(--ink-2, #7A8294);
+}
+.prizeSummaryAmount {
+  font-family: var(--font-heading, 'DM Sans', sans-serif);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1, #14181E);
+  text-align: right;
+}
+.prizeSummaryNote {
+  margin: 8px 0 0;
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-2, #7A8294);
+  white-space: pre-wrap;
+}
+
 .summaryChips {
   display: flex;
   flex-wrap: wrap;

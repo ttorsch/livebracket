@@ -89,7 +89,8 @@ import {
 } from '../../../../../lib/registrationFields';
 import { ROUND_FORMAT_LABEL, type RoundFormat } from '../../../../../lib/roundFormat';
 import {
-  readPrizes, defaultPlacings, prizeTotal, type DivisionPrizes, type PrizePlacing,
+  readPrizes, defaultPlacings, prizeTotal, hasPrizes, placeLabel, placingIsMeaningful,
+  type DivisionPrizes, type PrizePlacing,
 } from '../../../../../lib/prizes';
 import { CURRENCIES, CURRENCY_SYMBOLS, normalizeCurrency, formatMoney } from '../../../../../lib/currency';
 
@@ -1104,7 +1105,7 @@ export default function OrganizerSetup() {
     setPrizePlacings(rows => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   const addPlacing = () =>
-    setPrizePlacings(rows => [...rows, { place: '', amount: 0, note: '' }]);
+    setPrizePlacings(rows => [...rows, { place: placeLabel(rows.length), amount: 0, note: '' }]);
 
   /* Removing every row is allowed — a division with no prize money is a
      normal division, and the public page has an empty state for it. */
@@ -1534,6 +1535,15 @@ export default function OrganizerSetup() {
     // Custom questions must be labelled before they can be saved.
     if (regFields.some(f => !f.core && !f.label.trim())) {
       setFormError('Every custom registration question needs a label.');
+      return;
+    }
+    /* A placing carrying money but no name would be dropped on the way to
+       the database — see readPlacing — so it is refused here instead. Losing
+       an amount the organizer typed, silently, is the worst thing this form
+       can do. Step 1 is where the row is, so the modal goes back to it. */
+    if (prizePlacings.some(p => !p.place.trim() && placingIsMeaningful(p))) {
+      setModalStep(0);
+      setFormError('Every prize placing needs a name. Name the blank one, or clear its amount to drop it.');
       return;
     }
 
@@ -2202,7 +2212,7 @@ export default function OrganizerSetup() {
       id: d.id,
       name: d.name,
       count: `${confirmed}/${d.divisionTeamCap}`,
-      meta: `${d.formatTypeOnSand} · ${d.registrationFee === 0 ? 'Free' : `${d.registrationFee} THB`}`,
+      meta: `${d.formatTypeOnSand} · ${d.registrationFee === 0 ? 'Free' : formatMoney(d.registrationFee, d.currency)}`,
       stateLabel: seatsOpen === 0 ? 'Full' : `${seatsOpen} seat${seatsOpen === 1 ? '' : 's'} open`,
       stateFull: seatsOpen === 0,
       waitLabel: waitlisted > 0 ? `${waitlisted} on waiting list` : 'No waiting list',
@@ -2766,9 +2776,43 @@ export default function OrganizerSetup() {
                           <div className={styles.feeHighlight}>
                             <span className={styles.feeHighlightLabel}>Registration Fee</span>
                             <span className={styles.feeHighlightValue}>
-                              {activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}
+                              {activeDivision.registrationFee === 0
+                                ? 'Free'
+                                : formatMoney(activeDivision.registrationFee, activeDivision.currency)}
                             </span>
                           </div>
+
+                          {/* Prize money, beside the fee that funds it.
+                              This panel showed no sign of it at all, so an organizer who had just
+                              set a payout came back to a summary that never mentioned one — which
+                              reads exactly like it was not saved. */}
+                          <div className={styles.feeHighlight}>
+                            <span className={styles.feeHighlightLabel}>Prize Money</span>
+                            <span className={styles.feeHighlightValue}>
+                              {prizeTotal(activeDivision.prizes) > 0
+                                ? formatMoney(prizeTotal(activeDivision.prizes), activeDivision.currency)
+                                : hasPrizes(activeDivision.prizes)
+                                  ? 'Awarded'
+                                  : 'None set'}
+                            </span>
+                          </div>
+                          {activeDivision.prizes.placings.length > 0 && (
+                            <ul className={styles.prizeSummaryList}>
+                              {activeDivision.prizes.placings.map((p, i) => (
+                                <li key={i} className={styles.prizeSummaryRow}>
+                                  <span>{p.place}</span>
+                                  <span className={styles.prizeSummaryAmount}>
+                                    {p.amount > 0
+                                      ? formatMoney(p.amount, activeDivision.currency)
+                                      : p.note || 'Trophy'}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {activeDivision.prizes.note && (
+                            <p className={styles.prizeSummaryNote}>{activeDivision.prizes.note}</p>
+                          )}
 
                           <hr className={styles.divider} />
 
@@ -3025,9 +3069,43 @@ export default function OrganizerSetup() {
                             <div className={styles.feeHighlight}>
                               <span className={styles.feeHighlightLabel}>Registration Fee</span>
                               <span className={styles.feeHighlightValue}>
-                                {activeDivision.registrationFee === 0 ? 'Free' : `${activeDivision.registrationFee} THB`}
+                                {activeDivision.registrationFee === 0
+                                  ? 'Free'
+                                  : formatMoney(activeDivision.registrationFee, activeDivision.currency)}
                               </span>
                             </div>
+
+                            {/* Prize money, beside the fee that funds it.
+                                This panel showed no sign of it at all, so an organizer who had just
+                                set a payout came back to a summary that never mentioned one — which
+                                reads exactly like it was not saved. */}
+                            <div className={styles.feeHighlight}>
+                              <span className={styles.feeHighlightLabel}>Prize Money</span>
+                              <span className={styles.feeHighlightValue}>
+                                {prizeTotal(activeDivision.prizes) > 0
+                                  ? formatMoney(prizeTotal(activeDivision.prizes), activeDivision.currency)
+                                  : hasPrizes(activeDivision.prizes)
+                                    ? 'Awarded'
+                                    : 'None set'}
+                              </span>
+                            </div>
+                            {activeDivision.prizes.placings.length > 0 && (
+                              <ul className={styles.prizeSummaryList}>
+                                {activeDivision.prizes.placings.map((p, i) => (
+                                  <li key={i} className={styles.prizeSummaryRow}>
+                                    <span>{p.place}</span>
+                                    <span className={styles.prizeSummaryAmount}>
+                                      {p.amount > 0
+                                        ? formatMoney(p.amount, activeDivision.currency)
+                                        : p.note || 'Trophy'}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {activeDivision.prizes.note && (
+                              <p className={styles.prizeSummaryNote}>{activeDivision.prizes.note}</p>
+                            )}
 
                             <hr className={styles.divider} />
 
@@ -3491,7 +3569,7 @@ export default function OrganizerSetup() {
                 <p className={styles.prizeHint}>
                   What each placing takes home, priced in {currency} like the entry fee.
                   Leave an amount at 0 for a trophy-only placing and say what it wins beside it.
-                  Blank rows are dropped on save.
+                  A row with nothing in it at all is dropped on save.
                 </p>
 
                 <div className={styles.prizeRows}>

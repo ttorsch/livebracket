@@ -29,6 +29,32 @@ export interface DivisionPrizes {
 /** What a division starts with when the organizer first opens the editor. */
 export const DEFAULT_PLACES = ['1st', '2nd', '3rd'];
 
+/** "1st", "2nd", "3rd", "4th", … for a 0-based row index.
+ *
+ *  A new row arrives already named. It used to arrive blank, and a blank name
+ *  is the one thing `readPlacing` throws a row away for — so an organizer who
+ *  added a placing, typed an amount into it and saved watched the money
+ *  disappear without a word. The label is still theirs to overwrite; it just
+ *  is not empty to begin with. */
+export function placeLabel(index: number): string {
+  const n = index + 1;
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
+/** A placing the organizer has put something into — money, or a description
+ *  of what else is won. Such a row must not be quietly discarded for want of
+ *  a name; the form asks for one instead. See the setup page's save. */
+export function placingIsMeaningful(p: PrizePlacing): boolean {
+  return p.amount > 0 || p.note.trim().length > 0;
+}
+
 /* An organizer paying out more than this is not using a form field, and an
  * unbounded array is a jsonb blob a hand-made request can grow forever. */
 const MAX_PLACINGS = 12;
