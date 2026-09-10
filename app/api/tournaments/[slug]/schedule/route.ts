@@ -43,6 +43,7 @@ interface ConfigBody {
     finalsOnLastDay?: boolean;
     stageFinals?: boolean;
     shareProvisional?: boolean;
+    provisionalPlacements?: Record<string, unknown>;
     blocks?: { court?: unknown; day?: unknown; start?: unknown; end?: unknown; label?: unknown }[];
   };
 }
@@ -87,6 +88,26 @@ function cleanBlocks(raw: unknown[]): Record<string, unknown>[] {
     .filter((b): b is Record<string, unknown> => b !== null);
 }
 
+/* One entry per moved match: a court, a day offset and an "HH:MM". Capped,
+   because this is a jsonb blob a hand-made request could otherwise grow
+   without limit — no real event hand-places a thousand matches. */
+const MAX_PROVISIONAL_PLACEMENTS = 500;
+
+function cleanProvisionalPlacements(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [matchId, value] of Object.entries(raw)) {
+    if (Object.keys(out).length >= MAX_PROVISIONAL_PLACEMENTS) break;
+    if (!value || typeof value !== 'object') continue;
+    const at = value as { court?: unknown; day?: unknown; time?: unknown };
+    if (typeof at.court !== 'string' || !at.court) continue;
+    if (typeof at.time !== 'string' || !HHMM.test(at.time)) continue;
+    const day = typeof at.day === 'number' && Number.isFinite(at.day) ? Math.trunc(at.day) : 0;
+    if (day < 0 || day > 3650) continue;
+    out[matchId] = { court: at.court, day, time: at.time };
+  }
+  return out;
+}
+
 function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (typeof c.startTime === 'string' && HHMM.test(c.startTime)) out.startTime = c.startTime;
@@ -108,6 +129,13 @@ function cleanConfig(c: NonNullable<ConfigBody['config']>): Record<string, unkno
      placement, so it saves whatever the draw is doing — the same reason
      the venue setup is not behind the draw-lock gate. */
   if (typeof c.shareProvisional === 'boolean') out.shareProvisional = c.shareProvisional;
+  /* Hand moves on the pre-draw plan. Config rather than placements: there are
+     no match rows to place against, and this saves whatever the draw is doing
+     for the same reason the venue setup does. Cleaned to shape so a hand-made
+     request cannot store something the generator would choke on. */
+  if (c.provisionalPlacements && typeof c.provisionalPlacements === 'object') {
+    out.provisionalPlacements = cleanProvisionalPlacements(c.provisionalPlacements);
+  }
   if (Array.isArray(c.blocks)) out.blocks = cleanBlocks(c.blocks);
   return out;
 }

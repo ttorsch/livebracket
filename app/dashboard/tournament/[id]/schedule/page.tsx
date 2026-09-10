@@ -1154,6 +1154,7 @@ export default function TournamentSchedulePage() {
   const isProvisional = !!provisional;
   const provisionalNote = provisional ? provisionalAssumptionText(provisional.assumptions) : '';
   const provisionalOverflow = provisional?.overflowCount ?? 0;
+  const provisionalDropped = provisional?.droppedPlacements ?? 0;
   const [preview, setPreview] = useState<ScheduleResult | null>(null);
   const [problemListOpen, setProblemListOpen] = useState(false);
   /** Which problem the compact bar is showing, as an index into `problems`. */
@@ -1792,12 +1793,30 @@ export default function TournamentSchedulePage() {
     setSaving(true);
     setSaveMsg(null);
     try {
+      /* On a pre-draw plan a hand move has no match row to be written to, so
+         it rides in the configuration instead and is replayed as a pin when
+         the plan is next derived. Merged over what is already stored rather
+         than replacing it: `edits` holds this session's moves, not every move
+         ever made. */
+      const nextConfig = isProvisional
+        ? {
+            ...config,
+            provisionalPlacements: {
+              ...(config.provisionalPlacements ?? {}),
+              ...Object.fromEntries(
+                [...edits].map(([matchId, at]) => [matchId, { court: at.court, day: at.day, time: at.time }]),
+              ),
+            },
+          }
+        : config;
+
       const patchRes = await fetch(`/api/tournaments/${slug}/schedule`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config }),
+        body: JSON.stringify({ config: nextConfig }),
       });
       if (!patchRes.ok) throw new Error((await patchRes.json().catch(() => ({}))).error || 'Failed to save config');
+      if (isProvisional) setConfig(nextConfig);
 
       // The venue configuration is saved either way; the placements are not.
       // Stopping here leaves an organizer who is still testing capacity with
@@ -1806,14 +1825,21 @@ export default function TournamentSchedulePage() {
       if (!saveGate.open) {
         setDirty(false);
         setSaveFailed(false);
+        const moved = edits.size;
         setSaveMsg(
           saveGate.nothingToPlace
-            // Nothing is drawn, so there were never any placements to write.
-            // Reporting them as "not saved" would invent a loss.
-            ? 'Courts and day settings saved. The plan above follows them — it is worked out from your setup each time, so there is nothing else to save until you draw.'
+            /* Nothing is drawn, so there were never any match placements to
+               write — but hand moves were, into the plan itself. Saying
+               "the schedule was not saved" here would invent a loss. */
+            ? moved > 0
+              ? `Saved. ${moved} hand ${moved === 1 ? 'move is' : 'moves are'} held on the plan, and players see them.`
+              : 'Courts and day settings saved. The plan above follows them — it is worked out from your setup each time.'
             : `Courts and day settings saved. The schedule itself was not: ${saveGate.reason} ` +
               `Lock the draw in every division to save it.`,
         );
+        // The moves are stored now, so they belong to the plan rather than to
+        // this session — leaving them in `edits` would double-apply them.
+        if (saveGate.nothingToPlace) clearEdits();
         return;
       }
 
@@ -3563,6 +3589,18 @@ export default function TournamentSchedulePage() {
               >
                 {saveFailed ? <AlertTriangle size={14} /> : <Check size={14} />}
                 <span>{saveMsg}</span>
+              </div>
+            )}
+
+            {provisionalDropped > 0 && (
+              <div className={`${styles.saveMsgStrip} ${styles.saveMsgStripBad}`} role="status">
+                <AlertTriangle size={14} />
+                <span>
+                  {provisionalDropped} hand {provisionalDropped === 1 ? 'move' : 'moves'} could not be applied — the
+                  {provisionalDropped === 1 ? ' match it was' : ' matches they were'} attached to no longer
+                  {provisionalDropped === 1 ? ' exists' : ' exist'}, because a cap, a pool count or an advance rule
+                  changed since. Place {provisionalDropped === 1 ? 'it' : 'them'} again and save.
+                </span>
               </div>
             )}
 

@@ -113,6 +113,71 @@ describe('provisionalSchedule', () => {
   });
 });
 
+describe('provisionalSchedule hand placements', () => {
+  /* A hand move is the one part of the plan no setup implies, so it is the
+     one part that is stored. Replayed as a pin, so the rest of the plan is
+     dealt around it rather than over it. */
+  function planned(placements: Record<string, { court: string; day: number; time: string }>) {
+    const t = tournament([division('d1', "Men's Open")]);
+    return provisionalSchedule({
+      ...t,
+      scheduleConfig: { ...t.scheduleConfig, provisionalPlacements: placements },
+    });
+  }
+
+  const firstMatchId = () => {
+    const plan = provisionalSchedule(tournament([division('d1', "Men's Open")]));
+    return allMatches(plan!.detail).find(m => m.court)!.id;
+  };
+
+  it('puts a moved match where it was put', () => {
+    const id = firstMatchId();
+    const plan = planned({ [id]: { court: 'Court 3', day: 1, time: '14:00' } });
+    const moved = allMatches(plan!.detail).find(m => m.id === id);
+    assert.equal(moved?.court, 'Court 3');
+    assert.equal(moved?.time, '14:00');
+    assert.equal(moved?.scheduledDate, '2026-09-20');
+    assert.equal(plan!.pinnedCount, 1);
+    assert.equal(plan!.droppedPlacements, 0);
+  });
+
+  it('deals the rest of the plan around it, not over it', () => {
+    const id = firstMatchId();
+    const plan = planned({ [id]: { court: 'Court 3', day: 1, time: '14:00' } });
+    const clash = allMatches(plan!.detail).filter(
+      m => m.id !== id && m.court === 'Court 3' && m.time === '14:00' && m.scheduledDate === '2026-09-20',
+    );
+    assert.deepEqual(clash, [], 'nothing else may be given the pinned slot');
+  });
+
+  it('drops a move whose match no longer exists, and says how many', () => {
+    /* The ids encode the division's shape, so changing a pool count or a cap
+       can leave a stored move pointing at nothing. Dropped, never silently
+       applied to whichever match happens to hold that id now. */
+    const plan = planned({ 'prov:d1:g99:9:9': { court: 'Court 1', day: 0, time: '09:00' } });
+    assert.equal(plan!.pinnedCount, 0);
+    assert.equal(plan!.droppedPlacements, 1);
+  });
+
+  it('ignores a move that is not a time or has no court', () => {
+    const id = firstMatchId();
+    const plan = planned({
+      [id]: { court: '', day: 0, time: '09:00' },
+      'prov:d1:k0:0': { court: 'Court 1', day: 0, time: 'lunchtime' },
+    });
+    assert.equal(plan!.pinnedCount, 0);
+    assert.equal(plan!.droppedPlacements, 2);
+  });
+
+  it('is still deterministic with moves stored', () => {
+    const id = firstMatchId();
+    const key = (p: ReturnType<typeof planned>) =>
+      allMatches(p!.detail).map(m => `${m.id}@${m.scheduledDate} ${m.time} ${m.court}`).join('|');
+    const placements = { [id]: { court: 'Court 2', day: 0, time: '11:00' } };
+    assert.equal(key(planned(placements)), key(planned(placements)));
+  });
+});
+
 describe('provisionalAssumptionText', () => {
   it('names every division rather than summarising them', () => {
     const text = provisionalAssumptionText([

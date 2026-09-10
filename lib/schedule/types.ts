@@ -74,6 +74,18 @@ export interface ScheduleConfig {
    *  rounds — side by side across courts, one division's round at a time —
    *  instead of placing each of those matches independently. */
   stageFinals: boolean;
+  /** Hand placements made on the pre-draw plan, keyed by its generated match
+   *  id (see lib/provisionalDraw for how those are built).
+   *
+   *  The plan itself is never stored — it is derived from the setup each time
+   *  — but a move the organizer made by hand is not derivable from anything,
+   *  so it is the one part that has to be. Applied as pins, so the rest of
+   *  the plan is dealt around a moved match rather than over it.
+   *
+   *  The ids encode the division's shape, so changing a cap, a pool count or
+   *  an advance rule can leave a placement pointing at a match that no longer
+   *  exists. Those are dropped on read and reported, never silently kept. */
+  provisionalPlacements?: Record<string, { court: string; day: number; time: string }>;
   /** Show the derived pre-draw plan on the public tournament page.
    *
    *  Off by default: a provisional schedule is a plan, and publishing one is
@@ -90,6 +102,7 @@ export interface ScheduleConfig {
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   shareProvisional: false,
+  provisionalPlacements: {},
   startTime: '09:00',
   endTime: '18:00',
   courtCount: 4,
