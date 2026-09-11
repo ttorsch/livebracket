@@ -1279,78 +1279,30 @@
 }
 
 /* ── Registration detail modal: deck, stack & pager ───────────── */
-.detailDeck {
-  position: relative;
+/* Just a width bound for the card. It once held a pager column beside it
+   and ghost cards behind it; the pager moved into the header and the deck
+   is gone, so nothing is positioned against this any more. */
+.detailShell {
   display: flex;
   align-items: center;
-  gap: 14px;
   width: 100%;
-  /* card (520) + gap (14) + pager column (44) */
-  max-width: 578px;
+  max-width: 560px;
 }
-.detailDeck > .modalContent {
+.detailShell > .modalContent {
   flex: 1;
   min-width: 0;
   margin: 0;
 }
 
-/* Ghost cards peeking out below the live one, so the modal reads as the
-   top of a stack you can page through. */
-.detailStackCard {
-  position: absolute;
-  left: 0;
-  right: 58px;
-  bottom: 0;
-  height: 90px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  pointer-events: none;
-}
-.detailStackCard1 {
-  transform: translateY(11px) scale(0.965);
-  opacity: 0.75;
-  z-index: 1;
-  box-shadow: 0 18px 34px -18px rgba(20, 31, 46, 0.3);
-}
-.detailStackCard2 {
-  transform: translateY(21px) scale(0.93);
-  opacity: 0.45;
-  z-index: 0;
-  box-shadow: 0 18px 34px -18px rgba(20, 31, 46, 0.25);
+
+
+@media (max-width: 640px) {
+  /* Half a phone's width shows about a dozen characters — not enough for a
+     phone number or an email — so paired fields take a row each. */
+  .twoCol { grid-template-columns: 1fr; }
 }
 
-.detailNav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex-shrink: 0;
-  z-index: 3;
-}
-.detailNavBtn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  transition: background 0.15s, color 0.15s, transform 0.15s, opacity 0.15s;
-}
-.detailNavBtn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
-  transform: translateY(-1px);
-}
-.detailNavBtn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
+/* Still used by this modal's edit mode, which keeps the plain header. */
 .detailCounter {
   display: block;
   margin-top: 2px;
@@ -1360,85 +1312,305 @@
   color: var(--ink-2, #7A8294);
 }
 
-@media (max-width: 640px) {
-  /* Half a phone's width shows about a dozen characters — not enough for a
-     phone number or an email — so paired fields take a row each. */
-  .twoCol { grid-template-columns: 1fr; }
-  .detailDeck {
-    gap: 8px;
-  }
-  .detailStackCard {
-    right: 46px;
-  }
-  .detailNavBtn {
-    width: 38px;
-    height: 38px;
-  }
-}
-
 /* ── Registration detail modal ────────────────────────────────── */
-.detailTeamName {
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 20px;
-  color: var(--ink-1, #14181E);
+
+/* The applied design. Token names are the app's own — --ink-1/--ink-2/
+   --muted/--line/--orange/--bg-cream carry the same values the design
+   system calls --text-primary/--text-secondary/--text-muted/
+   --border-hairline/--color-primary/--surface-app, so there is no reason
+   to introduce a second set of names for one modal. */
+.detailHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 24px 20px;
 }
-.detailBadgeRow {
+.detailHeadMain {
+  flex: 1;
+  min-width: 0;
+}
+.detailKicker {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8294);
+}
+.detailTitle {
+  margin: 4px 0 0;
+  font-family: var(--font-heading);
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink-1, #14181E);
+  overflow-wrap: anywhere;
+}
+.detailHeadActions {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
+  flex-shrink: 0;
 }
-.detailSeed {
-  display: inline-flex;
+
+/* Prev / count / next as one pill, so the control and the number it moves
+   read as a single thing rather than arrows hunting for their label. */
+.detailPager {
+  display: flex;
   align-items: center;
-  padding: 4px 10px;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-cream, #F7F3EC);
   border-radius: 999px;
-  background: rgba(20, 31, 46, 0.06);
+}
+.detailPagerBtn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   color: var(--ink-2, #3A414D);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.detailPagerBtn:hover:not(:disabled) {
+  background: var(--card-bg, #FFFFFF);
+  color: var(--ink-1, #14181E);
+}
+.detailPagerBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.detailPagerCount {
+  min-width: 44px;
+  text-align: center;
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2, #3A414D);
+  font-variant-numeric: tabular-nums;
+}
+.detailCloseBtn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted, #7A8294);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.detailCloseBtn:hover {
+  background: var(--bg-cream, #F7F3EC);
+  color: var(--ink-1, #14181E);
+}
+
+.detailMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 24px 20px;
+  border-bottom: 1px solid rgba(23, 33, 54, 0.08);
+}
+.detailMetaCaption {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted, #7A8294);
+}
+
+/* White here, cream on the cards inside it — the reverse of the other
+   modals on this page, which is what gives the sections their edges. */
+.detailBody {
+  display: grid;
+  gap: 28px;
+  padding: 24px;
+  background: var(--card-bg, #FFFFFF);
+  overflow-y: auto;
+  flex: 1;
+}
+.detailSection {
+  display: grid;
+  gap: 12px;
+}
+.detailSectionLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 10px;
+  line-height: 12px;
   font-weight: 700;
-}
-.detailPlayerCard {
-  margin-top: 16px;
-  padding: 14px 16px;
-  border: 1.5px solid rgba(20, 31, 46, 0.08);
-  border-radius: 12px;
-  background: rgba(20, 31, 46, 0.02);
-}
-.detailPlayerHeading {
-  font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 11px;
-  font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--orange, #EE7A4C);
-  margin-bottom: 10px;
 }
-.detailRow {
+
+/* Contact reads as a short list of facts, so it keeps full-width rows
+   with hairlines rather than sitting in a card of its own. */
+.detailContactRows {
+  display: grid;
+  gap: 2px;
+}
+.detailContactRow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  padding: 6px 0;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(23, 33, 54, 0.06);
+}
+.detailContactRow:last-child {
+  border-bottom: 0;
+}
+.detailContactLabel {
   font-family: var(--font-ui, 'Inter', sans-serif);
-  font-size: 13.5px;
-}
-.detailRow + .detailRow {
-  border-top: 1px solid rgba(20, 31, 46, 0.06);
-}
-.detailRow span {
-  color: var(--ink-2, #7A8294);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink-2, #3A414D);
   flex-shrink: 0;
 }
-.detailRow strong {
-  color: var(--ink-1, #14181E);
+.detailContactValue {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 16px;
+  line-height: 24px;
   font-weight: 600;
+  color: var(--ink-1, #14181E);
   text-align: right;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
+.detailValueEmpty {
+  color: var(--muted, #7A8294);
+}
+
+/* auto-fit rather than a fixed two columns: a doubles team sits side by
+   side, a six-player roster wraps, and neither needs a breakpoint. */
+.detailPlayerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.detailPlayerTile {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-cream, #F7F3EC);
+  border-radius: 12px;
+  align-content: start;
+}
+.detailPlayerTileHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.detailPlayerTileName {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--ink-1, #14181E);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.detailPlayerTileRows {
+  display: grid;
+  gap: 6px;
+}
+.detailPlayerTileRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.detailTileLabel {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted, #7A8294);
+  flex-shrink: 0;
+}
+.detailTileValue {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--ink-1, #14181E);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.detailFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 24px;
+  background: var(--bg-cream, #F7F3EC);
+}
+.detailFooterLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.detailDeleteBtn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(23, 33, 54, 0.12);
+  border-radius: 999px;
+  background: var(--card-bg, #FFFFFF);
+  color: var(--ink-2, #3A414D);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.detailDeleteBtn:hover {
+  border-color: var(--status-live, #F16767);
+  color: var(--status-live, #F16767);
+}
+
+/* Removing a team is confirmed from inside this modal, so its dialog has
+   to sit above it — the detail modal renders later in the tree and would
+   otherwise cover an equally-stacked overlay. */
+.confirmOverlayAbove {
+  z-index: 1100;
+}
+
+/* Must come after the rules above: same specificity, so source order is
+   what decides. */
+@media (max-width: 640px) {
+  /* The pager and the title were splitting one line between them, so even
+     a two-word team name broke across rows. The controls take their own
+     line and the name gets the full width under them. */
+  .detailHead {
+    flex-wrap: wrap;
+  }
+  .detailHeadActions {
+    order: 1;
+    margin-left: auto;
+  }
+  .detailHeadMain {
+    order: 2;
+    flex: 1 1 100%;
+  }
+  .detailTitle {
+    font-size: 22px;
+  }
+  .detailHead,
+  .detailBody,
+  .detailMeta,
+  .detailFooter {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
 
 /* ── Detail Modal: Edit Mode ──────────────────────────────────── */
 .modalHeaderActions {
@@ -1475,6 +1647,22 @@
   flex-direction: column;
   gap: 10px;
 }
+/* The edit modal's roster fields, laid out from the division's own form
+   rather than a fixed four. Two columns because most answers are short —
+   phone beside email, the way the old fixed layout had them — with names
+   and paragraphs spanning both instead of being squeezed into half of a
+   540px modal. */
+.editFieldGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.editFieldGrid > * { min-width: 0; }
+.editFieldWide { grid-column: 1 / -1; }
+@media (max-width: 560px) {
+  .editFieldGrid { grid-template-columns: 1fr; }
+}
+
 .editPlayerHeading {
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 11px;

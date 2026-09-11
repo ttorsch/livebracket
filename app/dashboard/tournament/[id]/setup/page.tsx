@@ -31,6 +31,7 @@ const cardVariants: Variants = {
 import { 
   Check, 
   ChevronRight, 
+  ChevronLeft,
   Plus, 
   Trash2, 
   Settings, 
@@ -85,7 +86,9 @@ import PlayerCardModal, { type PlayerCardTarget } from '@/components/PlayerCardM
 import RosterFields, { type RosterPlayer } from '@/components/registration/RosterFields';
 import { SKILL_LEVELS } from '@/lib/registrationFields';
 import {
-  BASE_REG_FIELDS, FORMAT_PLAYERS, targetFor, type RegField, type RegFieldType, type PresetKey,
+  BASE_REG_FIELDS, FORMAT_PLAYERS, targetFor, isTeamContactField,
+  answerFor, contactAnswerFor, optionsFor, summaryAnswerFor,
+  type RegField, type RegFieldType, type PresetKey,
 } from '../../../../../lib/registrationFields';
 import { ROUND_FORMAT_LABEL, type RoundFormat } from '../../../../../lib/roundFormat';
 import {
@@ -281,25 +284,35 @@ const MODAL_STEPS = ['Basics, Fee & Prizes', 'Format & Rules', 'Registration'];
 const TEAM_FILTERS = ['All', 'Paid', 'Unpaid', 'Waitlist'] as const;
 type TeamFilter = (typeof TEAM_FILTERS)[number];
 
-function getPlayerClubOrHometown(player?: RegisteredPlayerRow, regFields?: RegField[]): string | null {
-  if (!player?.customFields) return null;
-  if (regFields) {
-    const clubField = regFields.find(f => f.preset === 'hometown' || /club|hometown|team/i.test(f.label));
-    if (clubField && player.customFields[clubField.id]) {
-      return String(player.customFields[clubField.id]);
-    }
-  }
-  for (const [k, v] of Object.entries(player.customFields)) {
-    if (/club|hometown|team/i.test(k) && v) return String(v);
-  }
-  return null;
+/* The two core contact questions, answered once per entry and stored on
+ * the team. A phone or email the organizer wrote as a *custom* question is
+ * not one of these — targetFor sends it to the jsonb bag, so it stays with
+ * the player who answered it. */
+function contactRegFields(regFields?: RegField[]): RegField[] {
+  return (regFields ?? BASE_REG_FIELDS).filter(isTeamContactField);
+}
+
+/** The questions that stay on a player's own card. */
+function rosterRegFields(regFields?: RegField[]): RegField[] {
+  return (regFields ?? BASE_REG_FIELDS).filter(f => !isTeamContactField(f));
+}
+
+/* The questions a division asks beyond the player's name and the team's
+ * contact. These are what the table subtitle shows, and the reason it can
+ * no longer be a fixed list: a division that never added the apparel
+ * question has no shirt size to report, and one that added a question of
+ * its own was having the answer thrown away. */
+function extraRegFields(regFields?: RegField[]): RegField[] {
+  return (regFields ?? []).filter(f => targetFor(f) !== 'name' && !isTeamContactField(f));
 }
 
 function renderPlayerSub(player?: RegisteredPlayerRow, regFields?: RegField[]) {
   if (!player) return null;
-  const club = getPlayerClubOrHometown(player, regFields);
-  const size = player.shirtSize ? `Size ${player.shirtSize}` : null;
-  const details = [size, club].filter(Boolean);
+  /* Answers to this division's own questions, in the order it asks them
+   * — not a guess at which custom key might mean "club". */
+  const details = extraRegFields(regFields)
+    .map(f => summaryAnswerFor(f, player))
+    .filter(Boolean);
   if (details.length === 0) return null;
   return (
     <div className={styles.teamPlayerMeta}>
@@ -308,7 +321,7 @@ function renderPlayerSub(player?: RegisteredPlayerRow, regFields?: RegField[]) {
   );
 }
 
-function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
+function PlayerAvatar({ name, avatarUrl, size }: { name: string; avatarUrl?: string; size?: number }) {
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
@@ -320,19 +333,26 @@ function PlayerAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string })
     ? (words[0][0] + words[1][0]).toUpperCase()
     : (name.trim()[0]?.toUpperCase() || '?');
 
+  /* The table's 28px is the default; the detail modal's player tiles ask
+     for 40, so initials scale with the circle rather than rattling in it. */
+  const sized = size
+    ? { width: size, height: size, fontSize: Math.round(size * 0.39) }
+    : undefined;
+
   if (avatarUrl && !imgError) {
     return (
       <img
         src={avatarUrl}
         alt={name}
         className={styles.playerAvatarImg}
+        style={sized}
         onError={() => setImgError(true)}
       />
     );
   }
 
   return (
-    <div className={styles.playerAvatar} aria-hidden="true">
+    <div className={styles.playerAvatar} style={sized} aria-hidden="true">
       <span>{initial}</span>
     </div>
   );
@@ -473,7 +493,7 @@ function TeamRow({
           </td>
         </>
       )}
-      <td style={{ fontWeight: 500 }}>{team.players[0]?.phone || '—'}</td>
+      <td style={{ fontWeight: 500 }}>{team.contactPhone || '—'}</td>
       <td>
         {onTogglePayment ? (
           <button
@@ -683,8 +703,8 @@ const formatDateRange = (start?: string, end?: string): string => {
 // ── Team CSV import/export ────────────────────────────────────────
 // One row per team; every player gets a Name/Phone/Email column triple
 // (Player 1 Name, Player 1 Phone, Player 1 Email, Player 2 Name, ...).
-interface ImportPlayerRow { name: string; phone: string; email: string }
-interface ImportTeamRow { players: ImportPlayerRow[] }
+interface ImportPlayerRow { name: string }
+interface ImportTeamRow { players: ImportPlayerRow[]; contact?: { email: string; phone: string } }
 
 const parseCsvLine = (line: string): string[] => {
   const out: string[] = [];
@@ -714,10 +734,13 @@ const parseCsvLine = (line: string): string[] => {
 
 const csvField = (value: string): string => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
+/* Contact leads the row because it is the entry's, asked once — the
+   template used to repeat a Phone and Email column per player, which
+   invited six copies of one address and let them disagree. */
 const buildTeamTemplateCsv = (rosterSize: number): string => {
-  const headers: string[] = [];
+  const headers: string[] = ['Team Email', 'Team Phone'];
   for (let i = 1; i <= rosterSize; i++) {
-    headers.push(`Player ${i} Name`, `Player ${i} Phone`, `Player ${i} Email`);
+    headers.push(`Player ${i} Name`);
   }
   return headers.map(csvField).join(',') + '\r\n';
 };
@@ -728,13 +751,14 @@ const parseTeamsCsv = (text: string): ImportTeamRow[] => {
   const teams: ImportTeamRow[] = [];
   for (const line of lines.slice(1)) {
     const cells = parseCsvLine(line);
+    // Columns 1-2 are the team's contact; every column after is a name.
+    const contact = { email: (cells[0] ?? '').trim(), phone: (cells[1] ?? '').trim() };
     const players: ImportPlayerRow[] = [];
-    for (let i = 0; i < cells.length; i += 3) {
+    for (let i = 2; i < cells.length; i++) {
       const name = (cells[i] ?? '').trim();
-      if (!name) continue;
-      players.push({ name, phone: (cells[i + 1] ?? '').trim(), email: (cells[i + 2] ?? '').trim() });
+      if (name) players.push({ name });
     }
-    if (players.length > 0) teams.push({ players });
+    if (players.length > 0) teams.push({ players, contact });
   }
   return teams;
 };
@@ -753,11 +777,14 @@ const parseTeamsCsv = (text: string): ImportTeamRow[] => {
  * row either way. */
 type AddTeamPlayer = RosterPlayer;
 
-const ADD_TEAM_DEFAULT_SIZES = ['S', 'M', 'L', 'XL'];
-
+/* The sizes this division offers — or none at all, when it never added
+ * the apparel question. The empty case is the whole point: the old
+ * fallback handed back S-XL for every division alike, so the Add Team
+ * modal seeded a size onto divisions that had never asked for one and
+ * the API dutifully stored it. */
 function divisionApparelSizes(regFields: RegField[] | undefined): string[] {
   const field = regFields?.find(f => f.preset === 'apparel');
-  return field?.options?.length ? field.options : ADD_TEAM_DEFAULT_SIZES;
+  return field ? optionsFor(field) : [];
 }
 
 function divisionCustomKey(regFields: RegField[] | undefined, preset: PresetKey, fallback: string): string {
@@ -939,13 +966,18 @@ export default function OrganizerSetup() {
   const [editTeamSeed, setEditTeamSeed] = useState<string>('');
   const [editTeamPayment, setEditTeamPayment] = useState<boolean>(false);
   const [editTeamStatus, setEditTeamStatus] = useState<'confirmed' | 'unpaid' | 'waitlist'>('confirmed');
+  /* The edit draft mirrors what a player row stores, custom answers
+     included — the form over it is built from the division's reg_fields,
+     so anything the organizer asked has somewhere to live. */
   const [editTeamPlayers, setEditTeamPlayers] = useState<Array<{
     id: string;
     name: string;
-    phone: string;
-    email: string;
     shirtSize: string;
+    customFields: Record<string, string>;
   }>>([]);
+  /* The entry's one contact pair, held by field id so the form can be
+     built from the division's own questions. */
+  const [editTeamContact, setEditTeamContact] = useState<Record<string, string>>({});
   const [teamEditSaving, setTeamEditSaving] = useState(false);
   const [teamEditError, setTeamEditError] = useState('');
 
@@ -1675,8 +1707,9 @@ export default function OrganizerSetup() {
     const size = activeDivision.maxRosterSize || FORMAT_PLAYERS[activeDivision.formatTypeOnSand] || 2;
     const sizes = divisionApparelSizes(activeDivision.regFields);
     // Same default the registration form picks: M when the division
-    // offers it, otherwise whatever comes first.
-    const defaultSize = sizes.includes('M') ? 'M' : sizes[0];
+    // offers it, otherwise whatever comes first — and nothing at all
+    // when the division never asked, so no size is invented.
+    const defaultSize = sizes.includes('M') ? 'M' : sizes[0] ?? '';
     setAddTeamPlayers(
       Array.from({ length: size }, () => ({
         name: '', shirtSize: defaultSize, skill: '', nationality: '', club: '', userId: null,
@@ -1707,12 +1740,10 @@ export default function OrganizerSetup() {
     const natKey = divisionCustomKey(activeDivision.regFields, 'nationality', 'nationality');
     const clubKey = divisionCustomKey(activeDivision.regFields, 'hometown', 'hometown');
     const skillKey = divisionCustomKey(activeDivision.regFields, 'skill', 'skill');
-    /* The one contact goes onto every player row, exactly as public
+    /* One contact for the entry, sent once, exactly as public
        registration sends it. */
     const players = addTeamPlayers.map(p => ({
       name: p.name.trim(),
-      phone: addTeamContact.phone.trim(),
-      email: addTeamContact.email.trim(),
       shirtSize: p.shirtSize,
       userId: p.userId ?? undefined,
       custom: {
@@ -1729,7 +1760,13 @@ export default function OrganizerSetup() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // 'manual' relaxes the per-player name rule the CSV importer keeps.
-        body: JSON.stringify({ mode: 'manual', teams: [{ players }] }),
+        body: JSON.stringify({
+          mode: 'manual',
+          teams: [{
+            players,
+            contact: { email: addTeamContact.email.trim(), phone: addTeamContact.phone.trim() },
+          }],
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed to add team');
@@ -1763,9 +1800,15 @@ export default function OrganizerSetup() {
     if (!activeDivision || registeredTeams.length === 0) return;
     const maxPlayers = registeredTeams.reduce((m, t) => Math.max(m, t.players.length), 0);
 
-    const headers = ['No.', 'Players', 'Seed', 'Status', 'Payment'];
+    /* Every stored field, which now means the entry's one contact plus
+       each player's answers to the questions this division actually asks
+       — it used to print a Phone, Email and Shirt Size column per player
+       regardless, so it repeated the contact and invented an apparel
+       column for divisions that never asked for one. */
+    const rosterFields = rosterRegFields(activeDivision.regFields).filter(f => targetFor(f) !== 'name');
+    const headers = ['No.', 'Players', 'Seed', 'Status', 'Payment', 'Team Email', 'Team Phone'];
     for (let i = 1; i <= maxPlayers; i++) {
-      headers.push(`Player ${i} Name`, `Player ${i} Phone`, `Player ${i} Email`, `Player ${i} Shirt Size`);
+      headers.push(`Player ${i} Name`, ...rosterFields.map(f => `Player ${i} ${f.label}`));
     }
 
     const confirmedRows = registeredTeams.filter(t => t.status !== 'waitlist');
@@ -1780,10 +1823,15 @@ export default function OrganizerSetup() {
         t.seed == null ? '' : String(t.seed),
         t.status,
         t.paymentCleared ? 'Paid' : 'Unpaid',
+        t.contactEmail ?? '',
+        t.contactPhone ?? '',
       ];
       for (let i = 0; i < maxPlayers; i++) {
         const p = t.players[i];
-        cells.push(p?.name ?? '', p?.phone ?? '', p?.email ?? '', p?.shirtSize ?? '');
+        cells.push(
+          p?.name ?? '',
+          ...rosterFields.map(f => (p ? answerFor(f, p) : '')),
+        );
       }
       return cells;
     });
@@ -1906,6 +1954,11 @@ export default function OrganizerSetup() {
       if (json.warning) setRowError(json.warning);
       setConfirmRemove(null);
       setSwipedTeamId(null);
+      /* The detail modal can be what opened this, and the team it was
+         showing no longer exists — leaving it up would render the next
+         team's data under the deleted one's heading. */
+      setTeamDetailIdx(null);
+      setIsEditingTeam(false);
     });
 
   /** The division as the divisions API expects it back — used to push a
@@ -2023,13 +2076,47 @@ export default function OrganizerSetup() {
       team.players.map(p => ({
         id: p.id,
         name: p.name || '',
-        phone: p.phone || '',
-        email: p.email || '',
         shirtSize: p.shirtSize || '',
+        /* Carried whole rather than picked over: an answer to a question
+           the division has since removed is still that team's answer, and
+           dropping it here would delete it on the next save. */
+        customFields: Object.fromEntries(
+          Object.entries(p.customFields ?? {})
+            .filter(([, v]) => typeof v === 'string')
+            .map(([k, v]) => [k, v as string]),
+        ),
       }))
+    );
+    setEditTeamContact(
+      Object.fromEntries(
+        contactRegFields(activeDivision?.regFields).map(
+          field => [field.id, contactAnswerFor(field, team)],
+        ),
+      ),
     );
     setTeamEditError('');
     setIsEditingTeam(true);
+  };
+
+  const updateEditTeamContact = (field: RegField, value: string) => {
+    setEditTeamContact(prev => ({ ...prev, [field.id]: value }));
+  };
+
+  /* One writer for every question on the edit form. Where an answer goes
+     is decided by what the question is, which is `targetFor`'s job — so
+     the form does not need to know that apparel lives in its own column
+     while a home town lives in the jsonb bag. */
+  const updateEditTeamPlayer = (idx: number, field: RegField, value: string) => {
+    setEditTeamPlayers(prev => prev.map((pl, i) => {
+      if (i !== idx) return pl;
+      switch (targetFor(field)) {
+        case 'name': return { ...pl, name: value };
+        case 'shirtSize': return { ...pl, shirtSize: value };
+        case 'custom': return { ...pl, customFields: { ...pl.customFields, [field.id]: value } };
+        // Contact is the team's; updateEditTeamContact owns it.
+        default: return pl;
+      }
+    }));
   };
 
   const openTeamDetail = (team: RegisteredTeamRow) => {
@@ -2065,6 +2152,14 @@ export default function OrganizerSetup() {
       return;
     }
 
+    /* The division names its own contact questions, so the value is looked
+       up by what the question targets rather than by a fixed key. A division
+       that dropped one of them sends null and the column is cleared. */
+    const contactValueFor = (target: 'email' | 'phone') => {
+      const field = contactRegFields(activeDivision.regFields).find(f => targetFor(f) === target);
+      return field ? (editTeamContact[field.id] ?? '').trim() : null;
+    };
+
     setTeamEditSaving(true);
     setTeamEditError('');
     try {
@@ -2075,12 +2170,13 @@ export default function OrganizerSetup() {
           paymentCleared: editTeamPayment,
           status: editTeamStatus,
           seed: teamDetail.seed ?? null,
+          contactEmail: contactValueFor('email') ?? null,
+          contactPhone: contactValueFor('phone') ?? null,
           players: editTeamPlayers.map(p => ({
             id: p.id,
             name: p.name.trim(),
-            phone: p.phone.trim() || null,
-            email: p.email.trim() || null,
             shirtSize: p.shirtSize.trim() || null,
+            custom: p.customFields,
           })),
         }),
       });
@@ -2245,15 +2341,16 @@ export default function OrganizerSetup() {
     }
   }, [activeDivision?.id, divisionCards.length]);
 
-  // Search matches a player's name or phone; the segmented control narrows
-  // by payment or waiting-list status. Both apply to the loaded division.
+  // Search matches a player's name or the entry's contact; the segmented
+  // control narrows by payment or waiting-list status. Both apply to the
+  // loaded division.
   const matchesTeamQuery = (t: RegisteredTeamRow) => {
     const q = teamQuery.trim().toLowerCase();
     if (!q) return true;
     if (t.name.toLowerCase().includes(q)) return true;
-    return t.players.some(
-      p => p.name.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q),
-    );
+    if ((t.contactPhone ?? '').toLowerCase().includes(q)) return true;
+    if ((t.contactEmail ?? '').toLowerCase().includes(q)) return true;
+    return t.players.some(p => p.name.toLowerCase().includes(q));
   };
   const matchesTeamFilter = (t: RegisteredTeamRow) => {
     if (teamFilter === 'All') return true;
@@ -3189,8 +3286,8 @@ export default function OrganizerSetup() {
                                   <span className={styles.mobileTeamName}>
                                     {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
                                   </span>
-                                  {t.players[0]?.phone && (
-                                    <span className={styles.mobileTeamPhone}>{t.players[0].phone}</span>
+                                  {t.contactPhone && (
+                                    <span className={styles.mobileTeamPhone}>{t.contactPhone}</span>
                                   )}
                                 </span>
                                 <button
@@ -3245,8 +3342,8 @@ export default function OrganizerSetup() {
                                       <span className={styles.mobileTeamName}>
                                         {t.players.length > 0 ? joinTeamName(t.players.map(p => p.name)) : t.name}
                                       </span>
-                                      {t.players[0]?.phone && (
-                                        <span className={styles.mobileTeamPhone}>{t.players[0].phone}</span>
+                                      {t.contactPhone && (
+                                        <span className={styles.mobileTeamPhone}>{t.contactPhone}</span>
                                       )}
                                     </span>
                                     <button
@@ -3324,7 +3421,7 @@ export default function OrganizerSetup() {
           moves the first waitlisted team into it — both worth saying out
           loud before it happens. */}
       {confirmRemove && (
-        <div className={styles.modalOverlay}>
+        <div className={`${styles.modalOverlay} ${styles.confirmOverlayAbove}`}>
           <div className={styles.confirmDialog}>
             <h3 className={styles.confirmTitle}>Remove this team?</h3>
             <p className={styles.confirmBody}>
@@ -4418,80 +4515,153 @@ export default function OrganizerSetup() {
             }
           }}
         >
-          <div className={styles.detailDeck} onClick={e => e.stopPropagation()}>
-            {/* Cards still ahead in the list, peeking out behind the current one. */}
-            {!isEditingTeam && hasNextTeam && (
-              <div className={`${styles.detailStackCard} ${styles.detailStackCard2}`} aria-hidden="true" />
-            )}
-            {!isEditingTeam && hasNextTeam && (
-              <div className={`${styles.detailStackCard} ${styles.detailStackCard1}`} aria-hidden="true" />
-            )}
-
-            <div className={styles.modalContent} style={{ maxWidth: 540, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 2 }}>
-              <div className={styles.modalHeader}>
-                <div>
-                  <h3>{isEditingTeam ? 'Edit Team Details' : 'Registration Details'}</h3>
-                  <span className={styles.detailCounter}>
-                    {(teamDetailIdx ?? 0) + 1} of {registeredTeams.length}
-                  </span>
-                </div>
-                <div className={styles.modalHeaderActions}>
-                  {!isEditingTeam && (
-                    <button
-                      type="button"
-                      className={styles.headerEditBtn}
-                      onClick={() => startEditTeam(teamDetail)}
-                      title="Edit team details"
-                    >
-                      <Pencil size={12} />
-                      Edit
-                    </button>
-                  )}
-                  <button
-                    className={styles.modalCloseBtn}
-                    onClick={() => {
-                      if (!teamEditSaving) {
-                        setTeamDetailIdx(null);
-                        setIsEditingTeam(false);
-                      }
-                    }}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              </div>
-
+          <div className={styles.detailShell} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalContent} style={{ maxWidth: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 2 }}>
               {!isEditingTeam ? (
                 <>
-                  <div className={styles.modalBody}>
-                    <div className={styles.detailTeamName}>
-                      {formatPlayerNames(teamDetail.players, teamDetail.name, teamDetail.seed)}
+                  {/* The team's name *is* the title — "Registration Details"
+                      became the kicker above it, and the pager moved in beside
+                      it from its old float outside the card. */}
+                  <div className={styles.detailHead}>
+                    <div className={styles.detailHeadMain}>
+                      <div className={styles.detailKicker}>Registration</div>
+                      <h2 className={styles.detailTitle}>
+                        {formatPlayerNames(teamDetail.players, teamDetail.name, teamDetail.seed)}
+                      </h2>
                     </div>
-                    <div className={styles.detailBadgeRow}>
-                      <span className={`${styles.statusBadge} ${teamDetail.status === 'confirmed' ? styles.statusConfirmed : teamDetail.status === 'waitlist' ? styles.statusWaitlist : styles.statusUnpaid}`}>
-                        {teamDetail.status}
-                      </span>
-                      <span className={teamDetail.paymentCleared ? styles.badgePaid : styles.badgeUnpaid}>
-                        {teamDetail.paymentCleared ? 'Paid' : 'Unpaid'}
-                      </span>
+                    <div className={styles.detailHeadActions}>
+                      <div className={styles.detailPager}>
+                        <button
+                          type="button"
+                          className={styles.detailPagerBtn}
+                          onClick={() => stepTeamDetail(-1)}
+                          disabled={!hasPrevTeam}
+                          aria-label="Previous team"
+                          title="Previous team (↑)"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className={styles.detailPagerCount}>
+                          {(teamDetailIdx ?? 0) + 1} of {registeredTeams.length}
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.detailPagerBtn}
+                          onClick={() => stepTeamDetail(1)}
+                          disabled={!hasNextTeam}
+                          aria-label="Next team"
+                          title="Next team (↓)"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.detailCloseBtn}
+                        onClick={() => setTeamDetailIdx(null)}
+                        aria-label="Close"
+                      >
+                        <X size={18} />
+                      </button>
                     </div>
+                  </div>
 
-                    {teamDetail.players.length === 0 ? (
-                      <p className={styles.summaryText} style={{ marginTop: 16 }}>No player details recorded for this team.</p>
-                    ) : (
-                      teamDetail.players.map((p, idx) => (
-                        <div key={p.id} className={styles.detailPlayerCard}>
-                          <div className={styles.detailPlayerHeading}>Player {idx + 1}</div>
-                          <div className={styles.detailRow}><span>Name</span><strong>{p.name || '—'}</strong></div>
-                          <div className={styles.detailRow}><span>Contact number</span><strong>{p.phone || '—'}</strong></div>
-                          <div className={styles.detailRow}><span>Email</span><strong>{p.email || '—'}</strong></div>
-                          <div className={styles.detailRow}><span>Shirt size</span><strong>{p.shirtSize || '—'}</strong></div>
-                        </div>
-                      ))
+                  <div className={styles.detailMeta}>
+                    <Badge variant={teamDetail.paymentCleared ? 'highlight' : 'live'}>
+                      {teamDetail.paymentCleared ? 'Paid' : 'Payment Due'}
+                    </Badge>
+                    {/* Payment is the state to act on, so it leads. Waitlist is
+                        kept because it changes what the team should expect and
+                        appears nowhere else in this modal. */}
+                    {teamDetail.status === 'waitlist' && <Badge variant="status">Waitlist</Badge>}
+                    {activeDivision && (
+                      <span className={styles.detailMetaCaption}>
+                        {activeDivision.genderEligibility} · {activeDivision.formatTypeOnSand}
+                      </span>
                     )}
                   </div>
-                  <div className={styles.modalFooter}>
-                    <button className={styles.btnGhost} onClick={() => setTeamDetailIdx(null)}>Close</button>
+
+                  <div className={styles.detailBody}>
+                    {teamDetail.players.length === 0 && contactRegFields(activeDivision?.regFields).length === 0 ? (
+                      <p className={styles.summaryText}>No registration details recorded for this team.</p>
+                    ) : (
+                      /* One row per question this division asks, under the
+                         organizer's own labels, split the way the form
+                         collects them: the team's contact once at the top,
+                         then each player's own answers. */
+                      <>
+                        {contactRegFields(activeDivision?.regFields).length > 0 && (
+                          <section className={styles.detailSection}>
+                            <div className={styles.detailSectionLabel}>Contact</div>
+                            <div className={styles.detailContactRows}>
+                              {contactRegFields(activeDivision?.regFields).map(field => {
+                                const value = contactAnswerFor(field, teamDetail);
+                                return (
+                                  <div key={field.id} className={styles.detailContactRow}>
+                                    <span className={styles.detailContactLabel}>{field.label}</span>
+                                    <span className={`${styles.detailContactValue} ${value ? '' : styles.detailValueEmpty}`}>
+                                      {value || '—'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        )}
+
+                        {teamDetail.players.length > 0 && (
+                          <section className={styles.detailSection}>
+                            <div className={styles.detailSectionLabel}>Players</div>
+                            <div className={styles.detailPlayerGrid}>
+                              {teamDetail.players.map((p, idx) => {
+                                const displayName = p.name?.trim() || `Player ${idx + 1}`;
+                                const avatarUrl = p.userId && playerAvatars ? playerAvatars[p.userId] : undefined;
+                                const tileFields = rosterRegFields(activeDivision?.regFields)
+                                  .filter(f => targetFor(f) !== 'name');
+                                return (
+                                  <div key={p.id} className={styles.detailPlayerTile}>
+                                    <div className={styles.detailPlayerTileHead}>
+                                      <PlayerAvatar name={displayName} avatarUrl={avatarUrl} size={40} />
+                                      <div className={styles.detailPlayerTileName}>{displayName}</div>
+                                    </div>
+                                    {tileFields.length > 0 && (
+                                      <div className={styles.detailPlayerTileRows}>
+                                        {tileFields.map(field => {
+                                          const value = answerFor(field, p);
+                                          return (
+                                            <div key={field.id} className={styles.detailPlayerTileRow}>
+                                              <span className={styles.detailTileLabel}>{field.label}</span>
+                                              <span className={`${styles.detailTileValue} ${value ? '' : styles.detailValueEmpty}`}>
+                                                {value || '—'}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className={styles.detailFooter}>
+                    <div className={styles.detailFooterLeft}>
+                      <button
+                        type="button"
+                        className={styles.detailDeleteBtn}
+                        onClick={() => setConfirmRemove(teamDetail)}
+                        aria-label="Delete registration"
+                        title="Delete registration"
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                      <button className={styles.btnGhost} onClick={() => setTeamDetailIdx(null)}>Close</button>
+                    </div>
                     <button className={styles.btnActionPrimary} onClick={() => startEditTeam(teamDetail)}>
                       <Pencil size={14} /> Edit Team
                     </button>
@@ -4499,6 +4669,27 @@ export default function OrganizerSetup() {
                 </>
               ) : (
                 <>
+                  <div className={styles.modalHeader}>
+                    <div>
+                      <h3>Edit Team Details</h3>
+                      <span className={styles.detailCounter}>
+                        {(teamDetailIdx ?? 0) + 1} of {registeredTeams.length}
+                      </span>
+                    </div>
+                    <div className={styles.modalHeaderActions}>
+                      <button
+                        className={styles.modalCloseBtn}
+                        onClick={() => {
+                          if (!teamEditSaving) {
+                            setTeamDetailIdx(null);
+                            setIsEditingTeam(false);
+                          }
+                        }}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  </div>
                   <div className={styles.modalBody} style={{ overflowY: 'auto' }}>
                     {teamEditError && (
                       <div className={styles.editErrorBanner}>{teamEditError}</div>
@@ -4540,69 +4731,100 @@ export default function OrganizerSetup() {
                       </div>
                     </div>
 
+                    {/* The entry's contact, asked once and stored once, the way
+                        the public form asks it. */}
+                    {contactRegFields(activeDivision?.regFields).length > 0 && (
+                      <>
+                        <div className={styles.modalSectionTitle} style={{ marginTop: 18, marginBottom: 2 }}>
+                          Contact
+                        </div>
+                        <div className={styles.editPlayerCard}>
+                          <div className={styles.editFieldGrid}>
+                            {contactRegFields(activeDivision?.regFields).map(field => (
+                              <div key={field.id} className={styles.fieldGroup}>
+                                <label className={styles.fieldLabel}>
+                                  {field.label}{field.required ? ' *' : ''}
+                                </label>
+                                <input
+                                  type={targetFor(field) === 'phone' ? 'tel' : 'email'}
+                                  className={styles.input}
+                                  placeholder={targetFor(field) === 'phone' ? '+66...' : 'captain@email.com'}
+                                  value={editTeamContact[field.id] ?? ''}
+                                  onChange={e => updateEditTeamContact(field, e.target.value)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
                     <div className={styles.modalSectionTitle} style={{ marginTop: 18, marginBottom: 2 }}>
                       Player Roster ({editTeamPlayers.length})
                     </div>
 
+                    {/* The division's own form, not a fixed four. An organizer
+                        editing a team by hand now answers exactly the questions
+                        their registrants were asked — including their own custom
+                        ones, which used to be invisible here and were silently
+                        preserved at best. */}
                     {editTeamPlayers.map((p, idx) => (
                       <div key={p.id || idx} className={styles.editPlayerCard}>
                         <div className={styles.editPlayerHeading}>Player {idx + 1}</div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel}>Player Name *</label>
-                          <input
-                            type="text"
-                            className={styles.input}
-                            placeholder="Full name"
-                            value={p.name}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, name: val } : pl)));
-                            }}
-                          />
-                        </div>
-                        <div className={styles.twoCol}>
-                          <div className={styles.fieldGroup}>
-                            <label className={styles.fieldLabel}>Phone</label>
-                            <input
-                              type="tel"
-                              className={styles.input}
-                              placeholder="+66..."
-                              value={p.phone}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, phone: val } : pl)));
-                              }}
-                            />
-                          </div>
-                          <div className={styles.fieldGroup}>
-                            <label className={styles.fieldLabel}>Email</label>
-                            <input
-                              type="email"
-                              className={styles.input}
-                              placeholder="player@email.com"
-                              value={p.email}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, email: val } : pl)));
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label className={styles.fieldLabel}>Shirt Size</label>
-                          <select
-                            className={styles.select}
-                            value={p.shirtSize}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setEditTeamPlayers(prev => prev.map((pl, i) => (i === idx ? { ...pl, shirtSize: val } : pl)));
-                            }}
-                          >
-                            <option value="">Select size (optional)</option>
-                            {divisionApparelSizes(activeDivision?.regFields).map(sz => (
-                              <option key={sz} value={sz}>{sz}</option>
-                            ))}
-                          </select>
+                        <div className={styles.editFieldGrid}>
+                          {rosterRegFields(activeDivision?.regFields).map(field => {
+                            const choices = optionsFor(field);
+                            const value = answerFor(field, p);
+                            /* A name or a paragraph gets the full width; short
+                               answers pair up, which is how phone and email sat
+                               before and how everything else reads best. */
+                            const wide = targetFor(field) === 'name' || field.type === 'paragraph';
+                            return (
+                              <div
+                                key={field.id}
+                                className={`${styles.fieldGroup} ${wide ? styles.editFieldWide : ''}`}
+                              >
+                                <label className={styles.fieldLabel}>
+                                  {field.label}{field.required ? ' *' : ''}
+                                </label>
+                                {choices.length > 0 ? (
+                                  <select
+                                    className={styles.select}
+                                    value={value}
+                                    onChange={e => updateEditTeamPlayer(idx, field, e.target.value)}
+                                  >
+                                    <option value="">Select{field.required ? '' : ' (optional)'}</option>
+                                    {/* An answer the division has since dropped from
+                                        its list is still what this player said, so it
+                                        stays selectable rather than silently resetting. */}
+                                    {(choices.includes(value) || !value ? choices : [...choices, value]).map(choice => (
+                                      <option key={choice} value={choice}>{choice}</option>
+                                    ))}
+                                  </select>
+                                ) : field.type === 'paragraph' ? (
+                                  <textarea
+                                    className={styles.textarea}
+                                    rows={3}
+                                    value={value}
+                                    onChange={e => updateEditTeamPlayer(idx, field, e.target.value)}
+                                  />
+                                ) : (
+                                  <input
+                                    type={field.type === 'phone' ? 'tel' : field.type === 'email' ? 'email' : 'text'}
+                                    className={styles.input}
+                                    placeholder={
+                                      targetFor(field) === 'name' ? 'Full name'
+                                      : field.type === 'phone' ? '+66...'
+                                      : field.type === 'email' ? 'player@email.com'
+                                      : ''
+                                    }
+                                    value={value}
+                                    onChange={e => updateEditTeamPlayer(idx, field, e.target.value)}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -4630,31 +4852,6 @@ export default function OrganizerSetup() {
               )}
             </div>
 
-            {/* Up/down pager, sitting outside the card on the right (hidden in edit mode). */}
-            {!isEditingTeam && (
-              <div className={styles.detailNav}>
-                <button
-                  type="button"
-                  className={styles.detailNavBtn}
-                  onClick={() => stepTeamDetail(-1)}
-                  disabled={!hasPrevTeam}
-                  aria-label="Previous team"
-                  title="Previous team (↑)"
-                >
-                  <ChevronUp size={20} />
-                </button>
-                <button
-                  type="button"
-                  className={styles.detailNavBtn}
-                  onClick={() => stepTeamDetail(1)}
-                  disabled={!hasNextTeam}
-                  aria-label="Next team"
-                  title="Next team (↓)"
-                >
-                  <ChevronDown size={20} />
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

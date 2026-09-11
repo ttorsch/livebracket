@@ -74,13 +74,21 @@ export async function teamIdsForUser(userId: string, email?: string | null): Pro
     .eq('registered_by', userId);
   registered?.forEach(t => ids.add(t.id as string));
 
-  let playerQuery = supabaseAdmin.from('players').select('team_id');
-  playerQuery = email
-    ? playerQuery.or(`user_id.eq.${userId},email.eq.${email.toLowerCase()}`)
-    : playerQuery.eq('user_id', userId);
-
-  const { data: rows } = await playerQuery;
+  const { data: rows } = await supabaseAdmin
+    .from('players')
+    .select('team_id')
+    .eq('user_id', userId);
   rows?.forEach(r => { if (r.team_id) ids.add(r.team_id as string); });
+
+  /* The contact address belongs to the entry, so a team registered under
+     this account's email is theirs even with no player row linked. */
+  if (email) {
+    const { data: byContact } = await supabaseAdmin
+      .from('teams')
+      .select('id')
+      .ilike('contact_email', email);
+    byContact?.forEach(t => ids.add(t.id as string));
+  }
 
   return Array.from(ids);
 }

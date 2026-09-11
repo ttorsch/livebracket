@@ -48,22 +48,26 @@ export async function GET() {
     regTeams.forEach((t) => userTeamIds.add(t.id));
   }
 
-  // B. Teams from players table by user_id or exact verified email
-  let playerQuery = supabaseAdmin
+  // B. Teams this account is on a roster of.
+  const { data: playerRows } = await supabaseAdmin
     .from('players')
-    .select('team_id, user_id, email, name');
-
-  if (user.email) {
-    playerQuery = playerQuery.or(`user_id.eq.${user.id},email.eq.${user.email.toLowerCase()}`);
-  } else {
-    playerQuery = playerQuery.eq('user_id', user.id);
-  }
-
-  const { data: playerRows } = await playerQuery;
+    .select('team_id, user_id, name')
+    .eq('user_id', user.id);
   if (playerRows) {
     playerRows.forEach((p) => {
       if (p.team_id) userTeamIds.add(p.team_id);
     });
+  }
+
+  /* C. Teams registered under this account's verified email. The address
+     is the team's contact, not a player attribute, so the match moved with
+     it when contact became one pair per entry. */
+  if (user.email) {
+    const { data: contactTeams } = await supabaseAdmin
+      .from('teams')
+      .select('id')
+      .ilike('contact_email', user.email);
+    contactTeams?.forEach((t) => userTeamIds.add(t.id));
   }
 
   const teamIdList = Array.from(userTeamIds);

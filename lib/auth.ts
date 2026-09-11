@@ -322,20 +322,22 @@ export async function claimTeamsForUser(user: User): Promise<number> {
    * arrives with the provider's verification already recorded. */
   if (!user.email_confirmed_at && !user.confirmed_at) return 0;
 
-  const { data: playerRows, error: playerError } = await supabaseAdmin
-    .from('players')
-    .select('team_id, email')
-    .ilike('email', email);
-  if (playerError) throw new Error(`Failed to match registrations: ${playerError.message}`);
+  /* The contact address is the entry's, not a player's — it moved to the
+   * team when it stopped being copied onto every roster row. */
+  const { data: teamRows, error: teamError } = await supabaseAdmin
+    .from('teams')
+    .select('id, contact_email')
+    .ilike('contact_email', email);
+  if (teamError) throw new Error(`Failed to match registrations: ${teamError.message}`);
 
   /* ilike has no wildcards here so it is a plain case-insensitive equality,
    * but the address is re-checked rather than trusted: a stray % or _ in an
    * email would otherwise turn the filter into a pattern. */
   const teamIds = [
     ...new Set(
-      (playerRows ?? [])
-        .filter((r) => (r.email as string | null)?.trim().toLowerCase() === email)
-        .map((r) => r.team_id as string)
+      (teamRows ?? [])
+        .filter((r) => (r.contact_email as string | null)?.trim().toLowerCase() === email)
+        .map((r) => r.id as string)
     ),
   ];
   if (teamIds.length === 0) return 0;

@@ -14,10 +14,15 @@
  * its position in the list:
  *
  *   core text   → players.name
- *   core phone  → players.phone
- *   core email  → players.email
+ *   core phone  → teams.contact_phone
+ *   core email  → teams.contact_email
  *   apparel     → players.shirt_size
  *   everything else → players.custom_fields, keyed by field id
+ *
+ * The two core contact questions are answered once for the whole team, not
+ * once per player: that is how the form asks them and how an organizer
+ * reaches an entry. They used to be copied onto every player row, which
+ * stored one fact N times and let the copies drift apart.
  *
  * Core fields are matched by type rather than by id because the ids
  * ('base-player', …) are only what the setup page happens to mint; a
@@ -113,3 +118,82 @@ export const SKILL_LEVELS = [
   'Professional',
   'Olympic medal',
 ] as const;
+
+/* ── Reading a stored answer back ─────────────────────────────────
+ *
+ * `targetFor` says where an answer is written; these say how to read it
+ * back out and what control it was answered with.
+ *
+ * The organizer's team views need this because they show the division's
+ * own questions rather than a fixed four. A division that never asked
+ * for a shirt size should not be shown one — and, worse, should never
+ * have one written for it, which is what a hardcoded control did.
+ *
+ * Structural on purpose: RegisteredPlayerRow and the edit form's own
+ * draft both satisfy it without either having to import the other.
+ */
+export interface StoredPlayerAnswers {
+  name?: string | null;
+  shirtSize?: string | null;
+  customFields?: Record<string, unknown> | null;
+}
+
+/** The team-level half: one contact pair per entry. */
+export interface StoredTeamContact {
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+}
+
+/** True for the two core questions the team answers once. Everything else —
+ *  including a phone or email the organizer wrote as a *custom* question,
+ *  which targets the jsonb bag — belongs to a player. */
+export function isTeamContactField(field: RegField): boolean {
+  const target = targetFor(field);
+  return target === 'phone' || target === 'email';
+}
+
+/** The answer this question holds for this player, or '' if unanswered.
+ *  Contact is not a player's to give: read it with contactAnswerFor. */
+export function answerFor(field: RegField, player: StoredPlayerAnswers): string {
+  switch (targetFor(field)) {
+    case 'name': return player.name?.trim() ?? '';
+    case 'shirtSize': return player.shirtSize?.trim() ?? '';
+    case 'phone':
+    case 'email': return '';
+    case 'custom': {
+      const value = player.customFields?.[field.id];
+      return typeof value === 'string' ? value.trim() : '';
+    }
+  }
+}
+
+/** The answer a core contact question holds for this team. */
+export function contactAnswerFor(field: RegField, team: StoredTeamContact): string {
+  switch (targetFor(field)) {
+    case 'phone': return team.contactPhone?.trim() ?? '';
+    case 'email': return team.contactEmail?.trim() ?? '';
+    default: return '';
+  }
+}
+
+/** Where a division offers no apparel list of its own. */
+export const DEFAULT_APPAREL_SIZES = ['S', 'M', 'L', 'XL'];
+
+/** The choices a question offers, with the preset ladders standing in
+ *  where the organizer left the list empty. `[]` for a question that is
+ *  not a choice at all — which is also the test for "render an input". */
+export function optionsFor(field: RegField): string[] {
+  if (field.options?.length) return field.options;
+  if (field.preset === 'apparel') return [...DEFAULT_APPAREL_SIZES];
+  if (field.preset === 'skill') return [...SKILL_LEVELS];
+  return [];
+}
+
+/** How an answer reads in the one-line summary under a player's name.
+ *  Apparel is the one preset whose value says nothing alone: "L" is
+ *  noise, "Size L" is the answer. */
+export function summaryAnswerFor(field: RegField, player: StoredPlayerAnswers): string {
+  const value = answerFor(field, player);
+  if (!value) return '';
+  return field.preset === 'apparel' ? `Size ${value}` : value;
+}

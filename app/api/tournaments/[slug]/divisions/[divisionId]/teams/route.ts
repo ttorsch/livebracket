@@ -6,8 +6,6 @@ import { authErrorResponse } from '../../../../../../../lib/authResponse';
 
 interface ImportPlayer {
   name: string;
-  phone?: string;
-  email?: string;
   shirtSize?: string;
   /* The division's non-core questions (nationality, club/hometown, and
    * anything the organizer wrote), keyed by reg_field id — the same bag
@@ -18,6 +16,8 @@ interface ImportPlayer {
 
 interface ImportTeam {
   players: ImportPlayer[];
+  /* One pair for the entry, the way registration collects it. */
+  contact?: { email?: string; phone?: string };
 }
 
 /* Which caller this is, because they do not deserve the same benefit of
@@ -41,8 +41,6 @@ type AddTeamMode = 'manual' | 'import';
 function isBlankPlayer(p: ImportPlayer): boolean {
   return (
     !p.name?.trim() &&
-    !p.phone?.trim() &&
-    !p.email?.trim() &&
     !p.shirtSize?.trim() &&
     !Object.values(p.custom ?? {}).some((v) => typeof v === 'string' && v.trim())
   );
@@ -102,7 +100,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         { status: 400 }
       );
     }
-    teamsIn.push({ players });
+    teamsIn.push({ players, contact: t.contact });
   }
 
   let division;
@@ -145,7 +143,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const teamName = joinTeamName(t.players.map((p) => p.name));
     const { data: teamRow, error: teamError } = await supabaseAdmin
       .from('teams')
-      .insert({ division_id: divisionId, name: teamName, status, payment_cleared: paymentCleared })
+      .insert({
+        division_id: divisionId,
+        name: teamName,
+        status,
+        payment_cleared: paymentCleared,
+        contact_email: t.contact?.email?.trim() || null,
+        contact_phone: t.contact?.phone?.trim() || null,
+      })
       .select('id')
       .single();
     if (teamError) return NextResponse.json({ error: teamError.message }, { status: 500 });
@@ -153,8 +158,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const playerRows = t.players.map((p) => ({
       team_id: teamRow.id,
       name: (p.name ?? '').trim(),
-      phone: p.phone?.trim() || null,
-      email: p.email?.trim() || null,
       shirt_size: p.shirtSize?.trim() || null,
       custom_fields: Object.fromEntries(
         Object.entries(p.custom ?? {}).filter(([, v]) => typeof v === 'string' && v.trim())
@@ -168,7 +171,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data: created, error: fetchError } = await supabaseAdmin
     .from('teams')
-    .select('id, name, seed, payment_cleared, status, players(id, name, phone, email, shirt_size)')
+    .select('id, name, seed, payment_cleared, status, contact_email, contact_phone, players(id, name, shirt_size)')
     .in('id', createdIds);
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
 
@@ -178,11 +181,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     seed: t.seed,
     paymentCleared: t.payment_cleared,
     status: t.status,
+    contactEmail: t.contact_email ?? null,
+    contactPhone: t.contact_phone ?? null,
     players: (t.players ?? []).map((p: any) => ({
       id: p.id,
       name: p.name,
-      phone: p.phone,
-      email: p.email,
       shirtSize: p.shirt_size,
     })),
   }));

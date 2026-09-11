@@ -1190,8 +1190,6 @@ export interface RegisteredPlayerRow {
   id: string;
   userId?: string | null;
   name: string;
-  phone: string | null;
-  email: string | null;
   shirtSize: string | null;
   customFields?: Record<string, any>;
 }
@@ -1203,6 +1201,9 @@ export interface RegisteredTeamRow {
   paymentCleared: boolean;
   status: 'confirmed' | 'unpaid' | 'waitlist';
   registeredBy?: string | null;
+  /* One pair for the entry, which is how the form asks for it. */
+  contactEmail: string | null;
+  contactPhone: string | null;
   players: RegisteredPlayerRow[];
 }
 
@@ -1215,7 +1216,7 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
 
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, seed, payment_cleared, status, registered_by, players(id, name, phone, email, shirt_size, custom_fields, user_id)')
+    .select('id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, players(id, name, shirt_size, custom_fields, user_id)')
     .eq('division_id', divisionId)
     .order('seed', { ascending: true, nullsFirst: false });
 
@@ -1229,12 +1230,12 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
     paymentCleared: t.payment_cleared,
     status: t.status,
     registeredBy: t.registered_by ?? null,
+    contactEmail: t.contact_email ?? null,
+    contactPhone: t.contact_phone ?? null,
     players: (t.players ?? []).map((p: any) => ({
       id: p.id,
       userId: p.user_id ?? null,
       name: p.name,
-      phone: p.phone,
-      email: p.email,
       shirtSize: p.shirt_size,
       customFields: p.custom_fields ?? {},
     })),

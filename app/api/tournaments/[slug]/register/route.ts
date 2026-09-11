@@ -4,7 +4,7 @@ import { notifyMany } from '../../../../../lib/notifications';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { publicProfilesByIds } from '../../../../../lib/profiles';
 import { joinTeamName } from '../../../../../lib/teamName';
-import { normalizeRegFields, rosterSize, targetFor, FORMAT_PLAYERS } from '../../../../../lib/registrationFields';
+import { normalizeRegFields, rosterSize, targetFor, isTeamContactField, FORMAT_PLAYERS } from '../../../../../lib/registrationFields';
 import { divisionRegistrationState, PHASE } from '../../../../../lib/tournamentLifecycle';
 
 /* ── Public registration ──────────────────────────────────────────
@@ -30,8 +30,6 @@ import { divisionRegistrationState, PHASE } from '../../../../../lib/tournamentL
 
 interface PlayerBody {
   name?: string;
-  phone?: string;
-  email?: string;
   shirtSize?: string;
   custom?: Record<string, string>;
   /* Set when this slot was filled by player-ID search. It names an
@@ -43,6 +41,9 @@ interface PlayerBody {
 interface RegisterBody {
   divisionId?: string;
   players?: PlayerBody[];
+  /* One pair for the entry. The form has always asked once; it used to
+   * send the answer back on every player. */
+  contact?: { email?: string; phone?: string };
 }
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -95,15 +96,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     for (const field of fields) {
       if (!field.required) continue;
       const target = targetFor(field);
+      /* Contact is the team's answer, so it is checked once below rather
+       * than blamed on whichever player happens to be first. */
+      if (target === 'phone' || target === 'email') continue;
       const value =
         target === 'name' ? p.name
-        : target === 'phone' ? p.phone
-        : target === 'email' ? p.email
         : target === 'shirtSize' ? p.shirtSize
         : p.custom?.[field.id];
       if (!value?.trim()) return bad(`Player ${i + 1}: ${field.label} is required`);
     }
     if (!p.name?.trim()) return bad(`Player ${i + 1} needs a name`);
+  }
+
+  const contactEmail = body.contact?.email?.trim() || null;
+  const contactPhone = body.contact?.phone?.trim() || null;
+  for (const field of fields) {
+    if (!field.required || !isTeamContactField(field)) continue;
+    const given = targetFor(field) === 'email' ? contactEmail : contactPhone;
+    if (!given) return bad(`${field.label} is required`);
   }
 
   // ── Cap, then waitlist ────────────────────────────────────────
@@ -173,6 +183,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       status,
       payment_cleared: false,
       registered_by: user?.id ?? null,
+      contact_email: contactEmail,
+      contact_phone: contactPhone,
     })
     .select('id')
     .single();
@@ -187,8 +199,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return {
       team_id: team.id,
       name: (p.name ?? '').trim(),
-      phone: p.phone?.trim() || null,
-      email: p.email?.trim() || null,
       shirt_size: p.shirtSize?.trim() || null,
       custom_fields: Object.fromEntries(
         Object.entries(p.custom ?? {}).filter(([, v]) => typeof v === 'string' && v.trim()),

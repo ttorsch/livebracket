@@ -16,7 +16,13 @@ import { authErrorResponse } from '../../../../../../../../lib/authResponse';
  * banner rather than refusing the click.
  */
 
-const TEAM_COLS = 'id, name, seed, payment_cleared, status, players(id, name, phone, email, shirt_size)';
+/* The same shape getDivisionTeams reads, deliberately: the setup page
+ * drops this straight into the row it already has, so anything missing
+ * here goes missing from the page until the next full reload. It used to
+ * omit custom_fields, user_id and registered_by — so saving an edit blanked
+ * the custom answers and the player avatars along with them. */
+const TEAM_COLS =
+  'id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, players(id, name, shirt_size, custom_fields, user_id)';
 
 interface TeamRow {
   id: string;
@@ -24,7 +30,16 @@ interface TeamRow {
   seed: number | null;
   payment_cleared: boolean;
   status: string;
-  players?: { id: string; name: string; phone: string | null; email: string | null; shirt_size: string | null }[];
+  registered_by?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  players?: {
+    id: string;
+    name: string;
+    shirt_size: string | null;
+    custom_fields: Record<string, unknown> | null;
+    user_id: string | null;
+  }[];
 }
 
 const toTeam = (t: TeamRow) => ({
@@ -33,12 +48,15 @@ const toTeam = (t: TeamRow) => ({
   seed: t.seed,
   paymentCleared: t.payment_cleared,
   status: t.status,
+  registeredBy: t.registered_by ?? null,
+  contactEmail: t.contact_email ?? null,
+  contactPhone: t.contact_phone ?? null,
   players: (t.players ?? []).map((p) => ({
     id: p.id,
+    userId: p.user_id ?? null,
     name: p.name,
-    phone: p.phone,
-    email: p.email,
     shirtSize: p.shirt_size,
+    customFields: p.custom_fields ?? {},
   })),
 });
 
@@ -76,9 +94,12 @@ async function firstWaitlisted(divisionId: string) {
 interface PlayerPatchItem {
   id?: string;
   name: string;
-  phone?: string | null;
-  email?: string | null;
   shirtSize?: string | null;
+  /* Answers to the division's own questions, keyed by field id — the same
+   * bag public registration posts. Absent means "not edited"; the column
+   * is only rewritten when the key is present, so a caller that knows
+   * nothing about custom questions cannot erase them. */
+  custom?: Record<string, unknown>;
 }
 
 interface TeamPatchBody {
@@ -88,6 +109,9 @@ interface TeamPatchBody {
   seed?: number | null;
   status?: 'confirmed' | 'unpaid' | 'waitlist';
   players?: PlayerPatchItem[];
+  /* Undefined leaves the stored contact alone; null or '' clears it. */
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 }
 
 export async function PATCH(
@@ -119,6 +143,8 @@ export async function PATCH(
   if (body.status && ['confirmed', 'unpaid', 'waitlist'].includes(body.status)) {
     patch.status = body.status;
   }
+  if (body.contactEmail !== undefined) patch.contact_email = body.contactEmail?.trim() || null;
+  if (body.contactPhone !== undefined) patch.contact_phone = body.contactPhone?.trim() || null;
 
   // Promotion only ever moves a team off the waiting list. It does not mark
   // them paid — nobody has handed over any money by being moved up.
@@ -134,9 +160,14 @@ export async function PATCH(
     const cleanedPlayers = body.players.map((p) => ({
       id: p.id,
       name: (p.name ?? '').trim(),
-      phone: p.phone?.trim() || null,
-      email: p.email?.trim() || null,
       shirt_size: p.shirtSize?.trim() || null,
+      // Blank answers are dropped rather than stored as '', matching how
+      // the registration route writes the same bag.
+      custom_fields: p.custom
+        ? Object.fromEntries(
+            Object.entries(p.custom).filter(([, v]) => typeof v === 'string' && v.trim()),
+          )
+        : undefined,
     }));
 
     // Teams are always named by their players — custom names are never allowed
@@ -149,9 +180,8 @@ export async function PATCH(
           .from('players')
           .update({
             name: p.name,
-            phone: p.phone,
-            email: p.email,
             shirt_size: p.shirt_size,
+            ...(p.custom_fields ? { custom_fields: p.custom_fields } : {}),
           })
           .eq('id', p.id)
           .eq('team_id', teamId);
@@ -162,9 +192,8 @@ export async function PATCH(
           .insert({
             team_id: teamId,
             name: p.name,
-            phone: p.phone,
-            email: p.email,
             shirt_size: p.shirt_size,
+            custom_fields: p.custom_fields ?? {},
           });
         if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
       }

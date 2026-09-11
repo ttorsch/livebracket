@@ -9,7 +9,7 @@ import { Badge, Button, Icon, Logo } from '@/components/livebracket-ds';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
 import { joinTeamName } from '../../../../lib/teamName';
-import type { PresetKey } from '../../../../lib/registrationFields';
+import { optionsFor, type PresetKey } from '../../../../lib/registrationFields';
 import { divisionRegistrationState } from '../../../../lib/tournamentLifecycle';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../../components/auth/useSignInHref';
 import { useSession } from '../../../../components/auth/AuthProvider';
@@ -33,13 +33,13 @@ interface PlayerAnswers {
   userId?: string | null;
 }
 
-const DEFAULT_SIZES = ['S', 'M', 'L', 'XL'];
-
 /* Apparel sizes come from the division's own question when it has one, so a
-   division offering XS–XXL isn't quietly forced onto the default four. */
+   division offering XS–XXL isn't quietly forced onto the default four — and
+   none at all when the division never asked, so nothing is seeded and
+   nothing is posted for a question the form doesn't show. */
 function apparelSizes(div: DetailDivision | undefined): string[] {
   const field = div?.regFields.find(f => f.preset === 'apparel');
-  return field?.options?.length ? field.options : DEFAULT_SIZES;
+  return field ? optionsFor(field) : [];
 }
 
 /* Nationality and club land in the player's custom_fields bag, keyed by the
@@ -136,7 +136,7 @@ export default function TournamentRegister() {
      roster over rather than carrying rows the new division has no seat for. */
   const chooseDivision = (div: DetailDivision) => {
     const size = apparelSizes(div);
-    const initial = size.includes('M') ? 'M' : size[0];
+    const initial = size.includes('M') ? 'M' : size[0] ?? '';
     setDivisionId(div.id);
     setPlayers(
       Array.from({ length: div.rosterSize }, (_, i) => {
@@ -175,9 +175,9 @@ export default function TournamentRegister() {
       (!skillRequired || p.skill.trim()));
   const canStep3 = rules && pdpa;
 
-  /* The one contact goes onto every player row: the division's base form
-     asks each player for a phone and an email, and the API enforces that
-     independently of this page. */
+  /* The one contact is sent once and stored once, on the team. It used to
+     be copied onto every player row, which stored a single fact N times
+     and let the copies drift apart. */
   const submit = async () => {
     if (!selectedDiv || submitting) return;
     setSubmitting(true);
@@ -191,11 +191,10 @@ export default function TournamentRegister() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           divisionId: selectedDiv.id,
+          contact: { email: contact.email.trim(), phone: contact.phone.trim() },
           players: players.map((p, idx) => ({
             name: p.name.trim(),
             userId: p.userId ?? (idx === 0 && session.signedIn ? session.userId : null),
-            email: contact.email.trim(),
-            phone: contact.phone.trim(),
             shirtSize: p.shirtSize,
             custom: {
               ...(p.nationality.trim() ? { [natKey]: p.nationality.trim() } : {}),
@@ -473,8 +472,14 @@ export default function TournamentRegister() {
                   <div className={styles.reviewRows}>
                     {players.map((p, i) => {
                       const name = p.name.trim();
-                      const meta = [p.nationality.trim(), p.club.trim(), `Size ${p.shirtSize}`]
-                        .filter(Boolean).join(' · ');
+                      /* Only what this division actually asked. The size used
+                         to be listed unconditionally, so a division with no
+                         apparel question reviewed back a size nobody chose. */
+                      const meta = [
+                        p.nationality.trim(),
+                        p.club.trim(),
+                        p.shirtSize.trim() ? `Size ${p.shirtSize.trim()}` : '',
+                      ].filter(Boolean).join(' · ');
                       return (
                         <div key={i} className={styles.reviewRow}>
                           <span className={styles.reviewNum}>{i + 1}</span>

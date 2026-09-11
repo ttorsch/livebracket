@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { Avatar, SegmentedControl } from '@/components/livebracket-ds';
 import { useSignInHref } from '@/components/auth/useSignInHref';
-import { type RegField, SKILL_LEVELS } from '@/lib/registrationFields';
+import { optionsFor, type RegField } from '@/lib/registrationFields';
 import CountrySelect from './CountrySelect';
 import styles from './RosterFields.module.css';
 
@@ -30,9 +30,6 @@ export interface RosterPlayer {
    * does not speak for one — the invite does that. */
   userId?: string | null;
 }
-
-/* Where a division offers no apparel question of its own. */
-const DEFAULT_SIZES = ['S', 'M', 'L', 'XL'];
 
 export interface RosterContact {
   email: string;
@@ -90,8 +87,11 @@ export default function RosterFields({
   const nationality = preset('nationality');
   const hometown = preset('hometown');
 
-  const apparelOptions = apparel?.options?.length ? apparel.options : DEFAULT_SIZES;
-  const skillOptions = skill?.options?.length ? skill.options : [...SKILL_LEVELS];
+  /* Both controls only render when the division added the question, so
+     these are read behind that check — optionsFor supplies the standard
+     ladder where the organizer left the list empty. */
+  const apparelOptions = apparel ? optionsFor(apparel) : [];
+  const skillOptions = skill ? optionsFor(skill) : [];
   /* Search state is per card and lives here rather than in either page,
    * which is most of why this is a component at all. */
   const [openIdx, setOpenIdx] = useState<number | null>(null);
