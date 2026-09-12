@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
 import { joinTeamName, formatPlayerNames } from '../../../../../../../lib/teamName';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
+import { rosterSlotIsBlank } from '../../../../../../../lib/registrationFields';
 
 interface ImportPlayer {
   name: string;
@@ -16,8 +17,11 @@ interface ImportPlayer {
 
 interface ImportTeam {
   players: ImportPlayer[];
-  /* One pair for the entry, the way registration collects it. */
+  /* The team half of the form: the contact pair, the optional Team name,
+     and any other question the organizer scoped to the team. */
   contact?: { email?: string; phone?: string };
+  teamName?: string;
+  teamCustom?: Record<string, string>;
 }
 
 /* Which caller this is, because they do not deserve the same benefit of
@@ -39,11 +43,11 @@ type AddTeamMode = 'manual' | 'import';
  * rather than stored, so an empty slot does not become a nameless player
  * on the roster. */
 function isBlankPlayer(p: ImportPlayer): boolean {
-  return (
-    !p.name?.trim() &&
-    !p.shirtSize?.trim() &&
-    !Object.values(p.custom ?? {}).some((v) => typeof v === 'string' && v.trim())
-  );
+  /* The same rule public registration uses, so the two paths agree on what
+     an untouched slot is. Apparel is not part of the test: the roster form
+     pre-selects a size, so counting it would make every empty slot on a
+     division that asks for shirts look filled in. */
+  return rosterSlotIsBlank(p.name, Object.values(p.custom ?? {}).map(v => (typeof v === 'string' ? v : null)));
 }
 
 async function findDivision(slug: string, divisionId: string) {
@@ -100,7 +104,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         { status: 400 }
       );
     }
-    teamsIn.push({ players, contact: t.contact });
+    teamsIn.push({ players, contact: t.contact, teamName: t.teamName, teamCustom: t.teamCustom });
   }
 
   let division;
@@ -150,6 +154,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         payment_cleared: paymentCleared,
         contact_email: t.contact?.email?.trim() || null,
         contact_phone: t.contact?.phone?.trim() || null,
+        team_name: t.teamName?.trim() || null,
+        custom_fields: Object.fromEntries(
+          Object.entries(t.teamCustom ?? {}).filter(([, v]) => typeof v === 'string' && v.trim()),
+        ),
       })
       .select('id')
       .single();
@@ -171,7 +179,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data: created, error: fetchError } = await supabaseAdmin
     .from('teams')
-    .select('id, name, seed, payment_cleared, status, contact_email, contact_phone, players(id, name, shirt_size)')
+    .select('id, name, seed, payment_cleared, status, contact_email, contact_phone, team_name, custom_fields, players(id, name, shirt_size)')
     .in('id', createdIds);
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
 
@@ -183,6 +191,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     status: t.status,
     contactEmail: t.contact_email ?? null,
     contactPhone: t.contact_phone ?? null,
+    teamName: t.team_name ?? null,
+    customFields: t.custom_fields ?? {},
     players: (t.players ?? []).map((p: any) => ({
       id: p.id,
       name: p.name,

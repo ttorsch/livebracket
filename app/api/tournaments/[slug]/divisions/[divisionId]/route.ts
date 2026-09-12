@@ -298,7 +298,7 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from('teams')
-    .select('id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, players(id, name, shirt_size, custom_fields, user_id)')
+    .select('id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, team_name, custom_fields, players(id, name, shirt_size, custom_fields, user_id)')
     .eq('division_id', divisionId)
     .order('seed', { ascending: true, nullsFirst: false });
 
@@ -315,6 +315,8 @@ export async function GET(
     registeredBy: t.registered_by ?? null,
     contactEmail: t.contact_email ?? null,
     contactPhone: t.contact_phone ?? null,
+    teamName: t.team_name ?? null,
+    customFields: t.custom_fields ?? {},
     players: (t.players ?? []).map((p: any) => ({
       id: p.id,
       userId: p.user_id ?? null,

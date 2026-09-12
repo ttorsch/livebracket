@@ -1237,6 +1237,19 @@
 }
 .teamCardMuted { opacity: 0.68; }
 
+/* A team's own name, when its division asked for one. Sits above the
+   roster as the card's heading rather than replacing it — the players are
+   still what a spectator is looking for. */
+.teamCardName {
+  font-family: var(--font-heading, 'DM Sans', sans-serif);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--ink-1, #14181E);
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+
 .teamCardHeader {
   display: flex;
   align-items: flex-start;

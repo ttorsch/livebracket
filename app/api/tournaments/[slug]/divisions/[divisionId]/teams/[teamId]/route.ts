@@ -22,7 +22,7 @@ import { authErrorResponse } from '../../../../../../../../lib/authResponse';
  * omit custom_fields, user_id and registered_by — so saving an edit blanked
  * the custom answers and the player avatars along with them. */
 const TEAM_COLS =
-  'id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, players(id, name, shirt_size, custom_fields, user_id)';
+  'id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, team_name, custom_fields, players(id, name, shirt_size, custom_fields, user_id)';
 
 interface TeamRow {
   id: string;
@@ -33,6 +33,8 @@ interface TeamRow {
   registered_by?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
+  team_name?: string | null;
+  custom_fields?: Record<string, unknown> | null;
   players?: {
     id: string;
     name: string;
@@ -51,6 +53,8 @@ const toTeam = (t: TeamRow) => ({
   registeredBy: t.registered_by ?? null,
   contactEmail: t.contact_email ?? null,
   contactPhone: t.contact_phone ?? null,
+  teamName: t.team_name ?? null,
+  customFields: t.custom_fields ?? {},
   players: (t.players ?? []).map((p) => ({
     id: p.id,
     userId: p.user_id ?? null,
@@ -109,9 +113,12 @@ interface TeamPatchBody {
   seed?: number | null;
   status?: 'confirmed' | 'unpaid' | 'waitlist';
   players?: PlayerPatchItem[];
-  /* Undefined leaves the stored contact alone; null or '' clears it. */
+  /* Undefined leaves the stored value alone; null or '' clears it. */
   contactEmail?: string | null;
   contactPhone?: string | null;
+  teamName?: string | null;
+  /* Answers to team-scoped questions, keyed by reg_field id. */
+  teamCustom?: Record<string, unknown>;
 }
 
 export async function PATCH(
@@ -145,6 +152,12 @@ export async function PATCH(
   }
   if (body.contactEmail !== undefined) patch.contact_email = body.contactEmail?.trim() || null;
   if (body.contactPhone !== undefined) patch.contact_phone = body.contactPhone?.trim() || null;
+  if (body.teamName !== undefined) patch.team_name = body.teamName?.trim() || null;
+  if (body.teamCustom) {
+    patch.custom_fields = Object.fromEntries(
+      Object.entries(body.teamCustom).filter(([, v]) => typeof v === 'string' && v.trim()),
+    );
+  }
 
   // Promotion only ever moves a team off the waiting list. It does not mark
   // them paid — nobody has handed over any money by being moved up.

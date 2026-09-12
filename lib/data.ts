@@ -977,6 +977,10 @@ function readRoundMinutes(blob: Record<string, unknown> | null | undefined): num
 export interface DetailTeam {
   id: string;
   name: string;
+  /* The Team name question's answer, when the division asks it. Kept
+     separate from `name` so a card can head itself with the team's own
+     name and still list who is on it. */
+  teamName?: string | null;
   seed: number;
   status: string;
   registeredBy?: string | null;
@@ -986,6 +990,7 @@ export interface DetailTeam {
 interface TeamRow {
   id: string;
   name: string;
+  team_name?: string | null;
   seed: number;
   status: string;
   registered_by?: string | null;
@@ -1038,7 +1043,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
   const rest = `
       divisions (
         id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings, created_at,
-        teams ( id, name, seed, status, registered_by, players ( id, name, user_id ) ),
+        teams ( id, name, team_name, seed, status, registered_by, players ( id, name, user_id ) ),
         rounds (
           id, sequence, format, name, scoring_rules,
           matches (
@@ -1105,6 +1110,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           .map((team) => ({
             id: team.id,
             name: formatPlayerNames(team.players, team.name, team.seed),
+            teamName: team.team_name ?? null,
             seed: team.seed,
             status: team.status,
             registeredBy: (team as any).registered_by ?? null,
@@ -1201,9 +1207,13 @@ export interface RegisteredTeamRow {
   paymentCleared: boolean;
   status: 'confirmed' | 'unpaid' | 'waitlist';
   registeredBy?: string | null;
-  /* One pair for the entry, which is how the form asks for it. */
+  /* The team half of the form's answers. Contact is one pair for the
+     entry; teamName is the optional Team name question, and customFields
+     holds any other question the organizer scoped to the team. */
   contactEmail: string | null;
   contactPhone: string | null;
+  teamName: string | null;
+  customFields?: Record<string, unknown>;
   players: RegisteredPlayerRow[];
 }
 
@@ -1216,7 +1226,7 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
 
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, players(id, name, shirt_size, custom_fields, user_id)')
+    .select('id, name, seed, payment_cleared, status, registered_by, contact_email, contact_phone, team_name, custom_fields, players(id, name, shirt_size, custom_fields, user_id)')
     .eq('division_id', divisionId)
     .order('seed', { ascending: true, nullsFirst: false });
 
@@ -1232,6 +1242,8 @@ export async function getDivisionTeams(slug: string, divisionId: string): Promis
     registeredBy: t.registered_by ?? null,
     contactEmail: t.contact_email ?? null,
     contactPhone: t.contact_phone ?? null,
+    teamName: t.team_name ?? null,
+    customFields: t.custom_fields ?? {},
     players: (t.players ?? []).map((p: any) => ({
       id: p.id,
       userId: p.user_id ?? null,

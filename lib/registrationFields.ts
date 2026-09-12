@@ -1,9 +1,10 @@
 /* ── The registration form an organizer builds ────────────────────
  *
  * Each division owns its own form. `divisions.reg_fields` is an ordered
- * list of questions asked of every player on the roster: three
- * non-deletable core fields, any of four quick-add presets, and whatever
- * else the organizer wrote themselves.
+ * list of questions, and every question belongs to one of two halves:
+ *
+ *   Team info   — asked once for the whole entry
+ *   Player info — asked of each player on the roster
  *
  * The setup page authors that list and the public registration page
  * renders it, so the shape — and the rule mapping a question onto a
@@ -13,16 +14,24 @@
  * Where an answer is stored is decided by what the question *is*, not by
  * its position in the list:
  *
- *   core text   → players.name
- *   core phone  → teams.contact_phone
- *   core email  → teams.contact_email
- *   apparel     → players.shirt_size
- *   everything else → players.custom_fields, keyed by field id
+ *   core text      → players.name
+ *   core phone     → teams.contact_phone
+ *   core email     → teams.contact_email
+ *   teamName       → teams.team_name
+ *   apparel        → players.shirt_size
+ *   other team question   → teams.custom_fields, keyed by field id
+ *   other player question → players.custom_fields, keyed by field id
  *
- * The two core contact questions are answered once for the whole team, not
- * once per player: that is how the form asks them and how an organizer
- * reaches an entry. They used to be copied onto every player row, which
- * stored one fact N times and let the copies drift apart.
+ * Scope is fixed for everything the platform names and chosen for
+ * everything the organizer writes:
+ *
+ *   core contact, teamName        always team
+ *   apparel, skill, hometown,
+ *     nationality, core name      always player
+ *   custom question               field.scope, defaulting to player
+ *
+ * The default matters: every custom question written before scope existed
+ * was a per-player one, so an absent scope has to keep meaning that.
  *
  * Core fields are matched by type rather than by id because the ids
  * ('base-player', …) are only what the setup page happens to mint; a
@@ -30,7 +39,14 @@
  */
 
 export type RegFieldType = 'text' | 'phone' | 'email' | 'paragraph' | 'select';
+
+/* Per-player quick-adds. `teamName` is deliberately not one of them — it is
+   offered in the team half and lands in its own column. */
 export type PresetKey = 'apparel' | 'skill' | 'hometown' | 'nationality';
+export type TeamPresetKey = 'teamName';
+
+/** Which half of the form a question belongs to. */
+export type RegFieldScope = 'team' | 'player';
 
 export interface RegField {
   id: string;
@@ -38,12 +54,17 @@ export interface RegField {
   type: RegFieldType;
   options?: string[];
   required: boolean;
-  core?: boolean;       // part of the non-deletable Base Form block
-  preset?: PresetKey;   // appended by a Quick-Add toggle chip
+  core?: boolean;              // part of the non-deletable Base Form block
+  preset?: PresetKey;          // appended by a per-player Quick-Add chip
+  teamPreset?: TeamPresetKey;  // appended by a Team info Quick-Add chip
+  /* Only read for a question the organizer wrote; everything else has a
+     scope the platform fixes. Absent means per-player. */
+  scope?: RegFieldScope;
 }
 
-/** Which player column an answer lands in. 'custom' means the jsonb bag. */
-export type RegFieldTarget = 'name' | 'phone' | 'email' | 'shirtSize' | 'custom';
+/** Which column an answer lands in. 'custom' means a jsonb bag — which of
+ *  the two is decided by scopeFor, not by this. */
+export type RegFieldTarget = 'name' | 'phone' | 'email' | 'teamName' | 'shirtSize' | 'custom';
 
 export function targetFor(field: RegField): RegFieldTarget {
   if (field.core) {
@@ -51,16 +72,37 @@ export function targetFor(field: RegField): RegFieldTarget {
     if (field.type === 'email') return 'email';
     return 'name';
   }
+  if (field.teamPreset === 'teamName') return 'teamName';
   if (field.preset === 'apparel') return 'shirtSize';
   return 'custom';
 }
+
+/** Which half of the form this question is asked in. */
+export function scopeFor(field: RegField): RegFieldScope {
+  switch (targetFor(field)) {
+    case 'phone':
+    case 'email':
+    case 'teamName':
+      return 'team';
+    case 'name':
+    case 'shirtSize':
+      return 'player';
+    case 'custom':
+      // A preset the platform defines is per-player by definition; only the
+      // organizer's own questions carry a choice.
+      return field.preset ? 'player' : field.scope === 'team' ? 'team' : 'player';
+  }
+}
+
+export const isTeamField = (field: RegField) => scopeFor(field) === 'team';
+export const isPlayerField = (field: RegField) => scopeFor(field) === 'player';
 
 /** The three core questions, injected into every new division. Kept here so
  *  a division whose reg_fields never got saved still renders a usable form. */
 export const BASE_REG_FIELDS: RegField[] = [
   { id: 'base-player', label: "Player's Name", type: 'text', required: true, core: true },
-  { id: 'base-phone', label: "Player's Phone Number", type: 'phone', required: true, core: true },
-  { id: 'base-email', label: 'Captain Email', type: 'email', required: true, core: true },
+  { id: 'base-phone', label: 'Team contact no.', type: 'phone', required: true, core: true },
+  { id: 'base-email', label: 'Team email', type: 'email', required: true, core: true },
 ];
 
 const FIELD_TYPES: RegFieldType[] = ['text', 'phone', 'email', 'paragraph', 'select'];
@@ -86,6 +128,8 @@ export function normalizeRegFields(raw: unknown): RegField[] {
       required: f.required === true,
       ...(f.core === true ? { core: true as const } : {}),
       ...(typeof f.preset === 'string' ? { preset: f.preset as PresetKey } : {}),
+      ...(f.teamPreset === 'teamName' ? { teamPreset: 'teamName' as const } : {}),
+      ...(f.scope === 'team' || f.scope === 'player' ? { scope: f.scope as RegFieldScope } : {}),
     }];
   });
 
@@ -102,6 +146,29 @@ export function rosterSize(format: string, maxRosterSize: unknown): number {
   const min = FORMAT_PLAYERS[format] ?? 2;
   const max = typeof maxRosterSize === 'number' && Number.isFinite(maxRosterSize) ? Math.trunc(maxRosterSize) : min;
   return Math.max(min, Math.min(max, 12));
+}
+
+/** How many names a team actually has to give: the players it puts on the
+ *  sand. rosterSize is how many slots the form *offers* — the difference is
+ *  alternates, which a team may carry but cannot be made to name. A 4v4
+ *  division with a roster of 6 needs four names, not six. */
+export function minRosterNames(format: string): number {
+  return FORMAT_PLAYERS[format] ?? 2;
+}
+
+/** Whether a roster slot was left alone, and so can be dropped rather than
+ *  rejected for having no name.
+ *
+ *  Apparel is deliberately not among the answers callers pass in: the form
+ *  pre-selects a size, so every untouched slot carries one and would look
+ *  answered. Name and the division's own questions are what a person has
+ *  to have typed. */
+export function rosterSlotIsBlank(
+  name: string | null | undefined,
+  answers: (string | null | undefined)[],
+): boolean {
+  if (name?.trim()) return false;
+  return !answers.some(answer => answer?.trim());
 }
 
 /* The skill ladder offered by the Skill Level preset.
@@ -138,40 +205,40 @@ export interface StoredPlayerAnswers {
   customFields?: Record<string, unknown> | null;
 }
 
-/** The team-level half: one contact pair per entry. */
-export interface StoredTeamContact {
+/** The team-level half of an entry's answers. */
+export interface StoredTeamAnswers {
   contactEmail?: string | null;
   contactPhone?: string | null;
-}
-
-/** True for the two core questions the team answers once. Everything else —
- *  including a phone or email the organizer wrote as a *custom* question,
- *  which targets the jsonb bag — belongs to a player. */
-export function isTeamContactField(field: RegField): boolean {
-  const target = targetFor(field);
-  return target === 'phone' || target === 'email';
+  teamName?: string | null;
+  customFields?: Record<string, unknown> | null;
 }
 
 /** The answer this question holds for this player, or '' if unanswered.
- *  Contact is not a player's to give: read it with contactAnswerFor. */
+ *  A team question is not a player's to give: read it with teamAnswerFor. */
 export function answerFor(field: RegField, player: StoredPlayerAnswers): string {
+  if (isTeamField(field)) return '';
   switch (targetFor(field)) {
     case 'name': return player.name?.trim() ?? '';
     case 'shirtSize': return player.shirtSize?.trim() ?? '';
-    case 'phone':
-    case 'email': return '';
     case 'custom': {
       const value = player.customFields?.[field.id];
       return typeof value === 'string' ? value.trim() : '';
     }
+    default: return '';
   }
 }
 
-/** The answer a core contact question holds for this team. */
-export function contactAnswerFor(field: RegField, team: StoredTeamContact): string {
+/** The answer a team question holds for this entry, or '' if unanswered. */
+export function teamAnswerFor(field: RegField, team: StoredTeamAnswers): string {
   switch (targetFor(field)) {
     case 'phone': return team.contactPhone?.trim() ?? '';
     case 'email': return team.contactEmail?.trim() ?? '';
+    case 'teamName': return team.teamName?.trim() ?? '';
+    case 'custom': {
+      if (!isTeamField(field)) return '';
+      const value = team.customFields?.[field.id];
+      return typeof value === 'string' ? value.trim() : '';
+    }
     default: return '';
   }
 }

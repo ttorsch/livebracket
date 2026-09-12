@@ -1207,6 +1207,12 @@ export default function TournamentPage() {
                     key={team.id}
                     className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardMuted : ''}`}
                   >
+                    {/* The team's own name heads the card when the division
+                        collected one; the roster stays below it, because who
+                        is playing is what a spectator came for. */}
+                    {team.teamName?.trim() && (
+                      <div className={styles.teamCardName}>{team.teamName.trim()}</div>
+                    )}
                     <div className={styles.teamCardHeader}>
                       <div className={styles.teamPlayersList}>
                         {playerItems.map((player, idx) => {

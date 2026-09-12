@@ -4,7 +4,7 @@ import { notifyMany } from '../../../../../lib/notifications';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { publicProfilesByIds } from '../../../../../lib/profiles';
 import { joinTeamName } from '../../../../../lib/teamName';
-import { normalizeRegFields, rosterSize, targetFor, isTeamContactField, FORMAT_PLAYERS } from '../../../../../lib/registrationFields';
+import { normalizeRegFields, rosterSize, minRosterNames, rosterSlotIsBlank, targetFor, isTeamField } from '../../../../../lib/registrationFields';
 import { divisionRegistrationState, PHASE } from '../../../../../lib/tournamentLifecycle';
 
 /* ── Public registration ──────────────────────────────────────────
@@ -44,6 +44,10 @@ interface RegisterBody {
   /* One pair for the entry. The form has always asked once; it used to
    * send the answer back on every player. */
   contact?: { email?: string; phone?: string };
+  /* The rest of the Team info half: the optional Team name question and
+   * any other question the organizer scoped to the team. */
+  teamName?: string;
+  teamCustom?: Record<string, string>;
 }
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -84,35 +88,56 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // ── The roster the division actually asked for ────────────────
   const format = division.format_type_on_sand as string;
-  const minPlayers = FORMAT_PLAYERS[format] ?? 2;
+  const minPlayers = minRosterNames(format);
   const maxPlayers = rosterSize(format, settings.maxRosterSize);
-  if (playersIn.length < minPlayers || playersIn.length > maxPlayers) {
+
+  /* Alternate slots nobody filled in are dropped rather than rejected. The
+   * form offers a slot per roster place — six for a 4v4 carrying two
+   * alternates — but a team only has to name the players it fields, so the
+   * minimum below is the format, not the roster. Done here and not only in
+   * the page because the page is not what decides this. */
+  const roster = playersIn
+    .map((p, idx) => ({ player: p, slot: idx + 1 }))
+    .filter(({ player }) => !rosterSlotIsBlank(player.name, Object.values(player.custom ?? {})));
+
+  if (roster.length < minPlayers || roster.length > maxPlayers) {
     return bad(`A ${format} team needs between ${minPlayers} and ${maxPlayers} players`);
   }
 
   const fields = normalizeRegFields(division.reg_fields);
-  for (let i = 0; i < playersIn.length; i++) {
-    const p = playersIn[i];
+  for (const { player: p, slot } of roster) {
     for (const field of fields) {
       if (!field.required) continue;
       const target = targetFor(field);
-      /* Contact is the team's answer, so it is checked once below rather
-       * than blamed on whichever player happens to be first. */
-      if (target === 'phone' || target === 'email') continue;
+      /* A team question is the entry's answer, so it is checked once below
+       * rather than blamed on whichever player happens to be first. */
+      if (isTeamField(field)) continue;
       const value =
         target === 'name' ? p.name
         : target === 'shirtSize' ? p.shirtSize
         : p.custom?.[field.id];
-      if (!value?.trim()) return bad(`Player ${i + 1}: ${field.label} is required`);
+      if (!value?.trim()) return bad(`Player ${slot}: ${field.label} is required`);
     }
-    if (!p.name?.trim()) return bad(`Player ${i + 1} needs a name`);
+    // A slot somebody typed into has to carry a name; see rosterSlotIsBlank.
+    if (!p.name?.trim()) return bad(`Player ${slot} needs a name`);
   }
 
   const contactEmail = body.contact?.email?.trim() || null;
   const contactPhone = body.contact?.phone?.trim() || null;
+  const teamName = body.teamName?.trim() || null;
+  const teamCustom = Object.fromEntries(
+    Object.entries(body.teamCustom ?? {}).filter(([, v]) => typeof v === 'string' && v.trim()),
+  );
+
+  /* The team half, answered once for the entry. */
   for (const field of fields) {
-    if (!field.required || !isTeamContactField(field)) continue;
-    const given = targetFor(field) === 'email' ? contactEmail : contactPhone;
+    if (!field.required || !isTeamField(field)) continue;
+    const target = targetFor(field);
+    const given =
+      target === 'email' ? contactEmail
+      : target === 'phone' ? contactPhone
+      : target === 'teamName' ? teamName
+      : teamCustom[field.id] ?? null;
     if (!given) return bad(`${field.label} is required`);
   }
 
@@ -146,7 +171,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     status = 'waitlist';
   }
 
-  const names = playersIn.map(p => (p.name ?? '').trim());
+  /* Everything from here on works off the filled slots — an empty
+     alternate must not become a nameless player row. */
+  const rosterPlayers = roster.map(({ player }) => player);
+  const names = rosterPlayers.map(p => (p.name ?? '').trim());
 
   /* Read from the session, never from the body: an owner the client could
    * name is an owner the client could forge onto someone else's account. */
@@ -162,7 +190,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
    *
    * The one exception is the registrant themselves: you do not invite
    * yourself, so your own slot is accepted outright. */
-  const invitedIds = playersIn
+  const invitedIds = rosterPlayers
     .map(p => (typeof p.userId === 'string' ? p.userId.trim() : ''))
     .filter(Boolean);
 
@@ -185,13 +213,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       registered_by: user?.id ?? null,
       contact_email: contactEmail,
       contact_phone: contactPhone,
+      team_name: teamName,
+      custom_fields: teamCustom,
     })
     .select('id')
     .single();
   if (teamError) return bad(teamError.message, 500);
 
   const now = new Date().toISOString();
-  const playerRows = playersIn.map((p, idx) => {
+  const playerRows = rosterPlayers.map((p, idx) => {
     const rawUserId = typeof p.userId === 'string' && p.userId.trim() ? p.userId.trim() : null;
     const userId = rawUserId ?? (idx === 0 && user ? user.id : null);
     const isRegistrant = Boolean(userId && user && userId === user.id);
@@ -240,7 +270,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         kind: 'team_invite' as const,
         playerRowId: p.id as string,
         payload: {
-          teamName: joinTeamName(names),
+          teamName: teamName || joinTeamName(names),
           tournamentTitle: tournament.title,
           tournamentSlug: slug,
           divisionName: division.name,
@@ -259,7 +289,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   return NextResponse.json({
     teamId: team.id,
-    teamName: joinTeamName(names),
+    teamName: teamName || joinTeamName(names),
     status,
     fee,
     divisionName: division.name,

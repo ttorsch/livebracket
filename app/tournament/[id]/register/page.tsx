@@ -9,11 +9,11 @@ import { Badge, Button, Icon, Logo } from '@/components/livebracket-ds';
 import styles from './page.module.css';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision } from '../../../../lib/data';
 import { joinTeamName } from '../../../../lib/teamName';
-import { optionsFor, type PresetKey } from '../../../../lib/registrationFields';
+import { optionsFor, minRosterNames, rosterSlotIsBlank, scopeFor, targetFor, type PresetKey } from '../../../../lib/registrationFields';
 import { divisionRegistrationState } from '../../../../lib/tournamentLifecycle';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '../../../../components/auth/useSignInHref';
 import { useSession } from '../../../../components/auth/AuthProvider';
-import RosterFields from '../../../../components/registration/RosterFields';
+import RosterFields, { type RosterTeamAnswers } from '../../../../components/registration/RosterFields';
 import AccountButton from '../../../../components/auth/AccountButton';
 import { prizeSummary, prizeTotal } from '../../../../lib/prizes';
 
@@ -88,6 +88,9 @@ export default function TournamentRegister() {
   const [step, setStep] = useState(0);
   const [divisionId, setDivisionId] = useState('');
   const [contact, setContact] = useState({ email: '', phone: '' });
+  /* The Team info half beyond contact: the Team name question and any
+     other question the organizer put in that section. */
+  const [teamAnswers, setTeamAnswers] = useState<RosterTeamAnswers>({ teamName: '', custom: {} });
   /* Signed in, the form already knows who is filling it in. The API reads
    * the session itself and links the team there — this only saves the
    * typing, so it stays an ordinary editable default: someone registering
@@ -138,6 +141,8 @@ export default function TournamentRegister() {
     const size = apparelSizes(div);
     const initial = size.includes('M') ? 'M' : size[0] ?? '';
     setDivisionId(div.id);
+    // Each division owns its own questions, so its answers start over too.
+    setTeamAnswers({ teamName: '', custom: {} });
     setPlayers(
       Array.from({ length: div.rosterSize }, (_, i) => {
         const player = emptyPlayer(initial);
@@ -163,16 +168,43 @@ export default function TournamentRegister() {
   const clubRequired = isPresetRequired(selectedDiv, 'hometown');
   const skillRequired = isPresetRequired(selectedDiv, 'skill');
 
+  /* A slot nobody typed in. The roster offers alternates above the format
+   * — a 4v4 with a roster of 6 shows six slots — and those spare ones are
+   * dropped rather than blocking the step. */
+  const slotIsBlank = (p: PlayerAnswers) =>
+    rosterSlotIsBlank(p.name, [p.nationality, p.club, p.skill]);
+
+  /* Once a slot has been typed in at all it has to be finished, so nobody
+   * ends up registered as a nameless player carrying a shirt size. */
+  const slotIsComplete = (p: PlayerAnswers) =>
+    !!p.name.trim() &&
+    (!natRequired || !!p.nationality.trim()) &&
+    (!clubRequired || !!p.club.trim()) &&
+    (!skillRequired || !!p.skill.trim());
+
+  /* The names a team must give is what it fields on the sand, not how many
+   * slots the form offers. */
+  const minNames = selectedDiv ? minRosterNames(selectedDiv.formatTypeOnSand) : 2;
+  const namedPlayers = players.filter(p => !slotIsBlank(p));
+
+  /* Required questions in the Team info half, beyond the contact pair the
+     two checks below already cover. */
+  const teamQuestionsAnswered = (selectedDiv?.regFields ?? [])
+    .filter(f => scopeFor(f) === 'team' && f.required)
+    .every(f => {
+      const target = targetFor(f);
+      if (target === 'email' || target === 'phone') return true;
+      if (target === 'teamName') return !!teamAnswers.teamName.trim();
+      return !!(teamAnswers.custom[f.id] ?? '').trim();
+    });
+
   const canStep1 = !!selectedDiv;
   const canStep2 =
-    players.length > 0 &&
     !!contact.email.trim() &&
     !!contact.phone.trim() &&
-    players.every(p =>
-      p.name.trim() &&
-      (!natRequired || p.nationality.trim()) &&
-      (!clubRequired || p.club.trim()) &&
-      (!skillRequired || p.skill.trim()));
+    teamQuestionsAnswered &&
+    namedPlayers.length >= minNames &&
+    namedPlayers.every(slotIsComplete);
   const canStep3 = rules && pdpa;
 
   /* The one contact is sent once and stored once, on the team. It used to
@@ -192,7 +224,10 @@ export default function TournamentRegister() {
         body: JSON.stringify({
           divisionId: selectedDiv.id,
           contact: { email: contact.email.trim(), phone: contact.phone.trim() },
-          players: players.map((p, idx) => ({
+          teamName: teamAnswers.teamName.trim(),
+          teamCustom: teamAnswers.custom,
+          // Untouched alternate slots are not sent at all.
+          players: namedPlayers.map((p, idx) => ({
             name: p.name.trim(),
             userId: p.userId ?? (idx === 0 && session.signedIn ? session.userId : null),
             shirtSize: p.shirtSize,
@@ -433,6 +468,8 @@ export default function TournamentRegister() {
                 onPlayerChange={updatePlayer}
                 contact={contact}
                 onContactChange={patch => setContact(c => ({ ...c, ...patch }))}
+                team={teamAnswers}
+                onTeamChange={patch => setTeamAnswers(t => ({ ...t, ...patch }))}
                 fields={selectedDiv.regFields}
                 required={{ name: true, contact: true, nationality: natRequired, club: clubRequired }}
                 /* The search panel explains itself when signed out rather
@@ -470,7 +507,10 @@ export default function TournamentRegister() {
                       the step before, which frees the full width for the name
                       and keeps long values off a second line. */}
                   <div className={styles.reviewRows}>
-                    {players.map((p, i) => {
+                    {/* What will actually be sent — an alternate slot nobody
+                        filled is not part of the entry, so it is not part of
+                        the review either. */}
+                    {namedPlayers.map((p, i) => {
                       const name = p.name.trim();
                       /* Only what this division actually asked. The size used
                          to be listed unconditionally, so a division with no
@@ -501,6 +541,26 @@ export default function TournamentRegister() {
                         <span className={styles.reviewMeta}>{contact.phone.trim() || 'No phone given'}</span>
                       </span>
                     </div>
+                    {/* The rest of the Team info half, so the review really is
+                        everything the organizer will see. */}
+                    {(selectedDiv?.regFields ?? [])
+                      .filter(f => scopeFor(f) === 'team')
+                      .filter(f => targetFor(f) !== 'email' && targetFor(f) !== 'phone')
+                      .map(f => {
+                        const value = targetFor(f) === 'teamName'
+                          ? teamAnswers.teamName.trim()
+                          : (teamAnswers.custom[f.id] ?? '').trim();
+                        return (
+                          <div key={f.id} className={styles.reviewContact}>
+                            <span className={styles.reviewContactLabel}>{f.label}</span>
+                            <span className={styles.reviewRowValue}>
+                              <span className={`${styles.reviewValue} ${value ? '' : styles.reviewValueEmpty}`}>
+                                {value || 'Not given'}
+                              </span>
+                            </span>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
 

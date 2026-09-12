@@ -2803,6 +2803,21 @@
   font-size: 11px;
   user-select: none;
 }
+/* The team's own name, when the division collects one. Reads as a label
+   for the row rather than competing with the player names beside it. */
+.teamOwnName {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-1, #14181E);
+  overflow-wrap: anywhere;
+}
+.teamOwnNameEmpty {
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-size: 13.5px;
+  color: var(--muted, #7A8294);
+}
+
 .teamPlayerName {
   font-family: var(--font-body, 'DM Sans', sans-serif);
   font-weight: 600;

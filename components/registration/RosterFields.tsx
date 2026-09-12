@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { Avatar, SegmentedControl } from '@/components/livebracket-ds';
 import { useSignInHref } from '@/components/auth/useSignInHref';
-import { optionsFor, type RegField } from '@/lib/registrationFields';
+import { optionsFor, scopeFor, targetFor, type RegField } from '@/lib/registrationFields';
 import CountrySelect from './CountrySelect';
 import styles from './RosterFields.module.css';
 
@@ -36,11 +36,22 @@ export interface RosterContact {
   phone: string;
 }
 
+/** The team half's answers beyond the contact pair: the Team name question
+ *  and anything else the organizer scoped to the team, keyed by field id. */
+export interface RosterTeamAnswers {
+  teamName: string;
+  custom: Record<string, string>;
+}
+
 interface RosterFieldsProps {
   players: RosterPlayer[];
   onPlayerChange: (index: number, patch: Partial<RosterPlayer>) => void;
   contact: RosterContact;
   onContactChange: (patch: Partial<RosterContact>) => void;
+  /* The team half beyond contact. Optional so a caller that predates the
+     Team info section keeps working with contact alone. */
+  team?: RosterTeamAnswers;
+  onTeamChange?: (patch: Partial<RosterTeamAnswers>) => void;
   /* The division's own questions. The form renders the presets this
    * division actually added and nothing else — it used to hardcode
    * apparel, nationality and club regardless, so a division that never
@@ -72,6 +83,8 @@ export default function RosterFields({
   onPlayerChange,
   contact,
   onContactChange,
+  team,
+  onTeamChange,
   fields,
   required = {},
   signedIn = true,
@@ -92,6 +105,16 @@ export default function RosterFields({
      ladder where the organizer left the list empty. */
   const apparelOptions = apparel ? optionsFor(apparel) : [];
   const skillOptions = skill ? optionsFor(skill) : [];
+
+  /* The contact pair is labelled by the division rather than hardcoded, so
+     the form says what the organizer's own step 3 says. */
+  const teamFields = fields.filter(f => scopeFor(f) === 'team');
+  const emailLabel = teamFields.find(f => targetFor(f) === 'email')?.label ?? 'Team email';
+  const phoneLabel = teamFields.find(f => targetFor(f) === 'phone')?.label ?? 'Team contact no.';
+  /* Everything the organizer added to Team info beyond that pair. */
+  const extraTeamFields = teamFields.filter(
+    f => targetFor(f) !== 'email' && targetFor(f) !== 'phone',
+  );
   /* Search state is per card and lives here rather than in either page,
    * which is most of why this is a component at all. */
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -148,12 +171,15 @@ export default function RosterFields({
        width, so the same component lays out correctly in a wide
        registration card and in a narrower modal. */
     <div className={styles.root}>
+      {/* Team info — the half asked once for the whole entry. The contact
+          pair is always collected; anything else here is a question the
+          organizer put in this section, under their own label. */}
       <div className={styles.fieldSet}>
-        <span className={styles.sectionLabel}>Team contact</span>
+        <span className={styles.sectionLabel}>Team info</span>
         <div className={styles.contactGrid}>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>
-              Email {required.contact && <span className={styles.req}>*</span>}
+              {emailLabel} {required.contact && <span className={styles.req}>*</span>}
             </span>
             <input
               className={styles.input}
@@ -166,7 +192,7 @@ export default function RosterFields({
           </label>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>
-              Phone / WhatsApp {required.contact && <span className={styles.req}>*</span>}
+              {phoneLabel} {required.contact && <span className={styles.req}>*</span>}
             </span>
             <input
               className={styles.input}
@@ -178,6 +204,57 @@ export default function RosterFields({
             />
           </label>
         </div>
+
+        {team && onTeamChange && extraTeamFields.length > 0 && (
+          <div className={styles.contactGrid}>
+            {extraTeamFields.map(field => {
+              const isTeamName = targetFor(field) === 'teamName';
+              const value = isTeamName ? team.teamName : (team.custom[field.id] ?? '');
+              const write = (val: string) =>
+                onTeamChange(isTeamName
+                  ? { teamName: val }
+                  : { custom: { ...team.custom, [field.id]: val } });
+              const choices = optionsFor(field);
+              return (
+                <label key={field.id} className={styles.field}>
+                  <span className={styles.fieldLabel}>
+                    {field.label} {field.required && <span className={styles.req}>*</span>}
+                  </span>
+                  {choices.length > 0 ? (
+                    <div className={styles.selectWrap}>
+                      <select
+                        className={styles.select}
+                        value={value}
+                        onChange={e => write(e.target.value)}
+                      >
+                        <option value="">Select an option</option>
+                        {choices.map(choice => (
+                          <option key={choice} value={choice}>{choice}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={15} className={styles.selectChevron} aria-hidden="true" />
+                    </div>
+                  ) : field.type === 'paragraph' ? (
+                    <textarea
+                      className={styles.input}
+                      rows={3}
+                      value={value}
+                      onChange={e => write(e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      className={styles.input}
+                      type={field.type === 'phone' ? 'tel' : field.type === 'email' ? 'email' : 'text'}
+                      placeholder={isTeamName ? 'e.g. Sandstorm' : ''}
+                      value={value}
+                      onChange={e => write(e.target.value)}
+                    />
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className={styles.playerGrid}>

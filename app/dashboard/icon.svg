@@ -1,0 +1,17 @@
+<!-- Organizer-surface favicon: the bracket mark in brand orange
+     (coral-500, #EB6F43) on the design system's darkest ink
+     (ink-900, #14181E). Same geometry as app/icon.svg, scaled up 1.25x
+     to fill the space the orange circle used to occupy. -->
+<svg width="687" height="687" viewBox="0 0 687 687" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="687" height="687" rx="120" fill="#14181E"/>
+<g transform="translate(343.5 342.5) scale(1.25) translate(-343.5 -342.5)">
+<rect x="132" y="161" width="165.327" height="35.9406" rx="15" fill="#EB6F43"/>
+<rect x="132" y="488.059" width="165.327" height="35.9406" rx="15" fill="#EB6F43"/>
+<rect x="297.327" y="235.277" width="165.327" height="35.9406" rx="15" fill="#EB6F43"/>
+<rect x="426.713" y="389.822" width="129.386" height="35.9406" rx="15" fill="#EB6F43"/>
+<rect x="297.327" y="416.178" width="129.386" height="35.9406" rx="15" fill="#EB6F43"/>
+<rect x="261.386" y="343.099" width="182.099" height="35.9406" rx="15" transform="rotate(-90 261.386 343.099)" fill="#EB6F43"/>
+<rect x="426.713" y="425.762" width="190.485" height="35.9406" rx="15.5" transform="rotate(-90 426.713 425.762)" fill="#EB6F43"/>
+<rect x="261.386" y="524" width="180.901" height="35.9406" rx="15" transform="rotate(-90 261.386 524)" fill="#EB6F43"/>
+</g>
+</svg>
