@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { X, Pencil, Mail, MessageCircle, ShieldCheck, Lock } from 'lucide-react';
+import { X, Pencil, Mail, MessageCircle, ShieldCheck, Lock, UserPlus, LogIn } from 'lucide-react';
 import styles from './TeamCardModal.module.css';
 import { Button } from './livebracket-ds';
+import { supabase } from '@/lib/supabase';
 import RosterFields, {
   type RosterPlayer, type RosterContact, type RosterTeamAnswers,
 } from './registration/RosterFields';
@@ -41,7 +42,7 @@ export interface TeamCardTarget {
   status: string;
 }
 
-type Stage = 'view' | 'gate' | 'code' | 'edit' | 'newEmail';
+type Stage = 'view' | 'gate' | 'code' | 'offer' | 'signIn' | 'edit' | 'newEmail';
 
 interface ChannelOption { channel: 'email' | 'whatsapp'; hint: string }
 
@@ -52,7 +53,10 @@ interface EditableTeam {
   contactEmail: string | null;
   contactPhone: string | null;
   customFields: Record<string, unknown>;
-  players: { id: string; name: string; shirtSize: string | null; customFields: Record<string, unknown> }[];
+  players: {
+    id: string; name: string; shirtSize: string | null;
+    customFields: Record<string, unknown>; userId: string | null;
+  }[];
   division: {
     id: string; name: string; formatTypeOnSand: string;
     regFields: RegField[]; drawLocked: boolean;
@@ -65,6 +69,10 @@ interface AccessResponse {
   via: 'account' | 'verified' | 'organizer' | null;
   rosterLocked?: boolean;
   channels: ChannelOption[];
+  /* Present only for a visitor who got in with an emailed code and has no
+     session — the one case where offering an account is both useful and
+     free of a second confirmation email. */
+  accountOffer?: { email: string } | null;
   contactless?: boolean;
   team?: EditableTeam;
 }
@@ -208,12 +216,37 @@ function Dialog({ target, onClose, onSaved }: {
               if (!res.ok) throw new Error(data?.error ?? 'That code is not right');
               const fresh = await loadAccess();
               if (!fresh?.canEdit) throw new Error('Confirmed, but this team still cannot be edited');
-              setStage('edit');
+              setStage(fresh.accountOffer ? 'offer' : 'edit');
             }}
             busy={busy}
             setBusy={setBusy}
             setError={setError}
             onBack={() => { setError(null); setStage('gate'); }}
+          />
+        )}
+
+        {stage === 'offer' && access?.accountOffer && access.team && (
+          <OfferStage
+            teamId={target.teamId}
+            email={access.accountOffer.email}
+            players={access.team.players}
+            busy={busy}
+            setBusy={setBusy}
+            setError={setError}
+            onExists={() => { setError(null); setStage('signIn'); }}
+            onDone={async () => { await loadAccess(); onSaved?.(); setError(null); setStage('edit'); }}
+            onSkip={() => { setError(null); setStage('edit'); }}
+          />
+        )}
+
+        {stage === 'signIn' && access?.accountOffer && (
+          <SignInStage
+            email={access.accountOffer.email}
+            busy={busy}
+            setBusy={setBusy}
+            setError={setError}
+            onDone={async () => { await loadAccess(); onSaved?.(); setError(null); setStage('edit'); }}
+            onSkip={() => { setError(null); setStage('edit'); }}
           />
         )}
 
@@ -423,6 +456,167 @@ function CodeStage({ title, blurb, submit, busy, setBusy, setError, onBack, back
         Confirm
       </Button>
       <Button variant="general" fullWidth onClick={onBack} disabled={busy}>{backLabel}</Button>
+    </div>
+  );
+}
+
+/* ── offer an account ─────────────────────────────────────────── */
+
+/* Signing in, then claiming, exactly as the login form does it. The
+   account is already confirmed by the time this runs, so there is no
+   inbox round trip between creating it and using it. */
+async function signInAndClaim(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+  /* Best-effort, like the login page: the session is real either way, and
+     a failed claim only means the team shows up on the next sign-in. */
+  await fetch('/api/auth/claim', { method: 'POST' }).catch(() => {});
+}
+
+function OfferStage({ teamId, email, players, busy, setBusy, setError, onExists, onDone, onSkip }: {
+  teamId: string;
+  email: string;
+  players: EditableTeam['players'];
+  busy: boolean;
+  setBusy: (v: boolean) => void;
+  setError: (v: string | null) => void;
+  onExists: () => void;
+  onDone: () => void | Promise<void>;
+  onSkip: () => void;
+}) {
+  const [password, setPassword] = useState('');
+  const [playerId, setPlayerId] = useState<string | null>(null);
+  /* A slot already linked to an account belongs to that person; claiming
+     it is what the invite flow is for, so it is shown and not offered. */
+  const free = players.filter((p) => !p.userId);
+
+  const create = async () => {
+    if (busy || password.length < 6) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/teams/${teamId}/account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, playerId }),
+      });
+      const data = await res.json();
+      if (res.status === 409 && data?.exists) { onExists(); return; }
+      if (!res.ok) throw new Error(data?.error ?? 'Could not create the account');
+      await signInAndClaim(email, password);
+      await onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create the account');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={styles.stage}>
+      <h3 className={styles.stageTitle}>Want an account?</h3>
+      <p className={styles.blurb}>
+        You&rsquo;ve confirmed <strong>{email}</strong>. Set a password and this team joins your
+        profile &mdash; next time you can edit it without waiting for a code.
+      </p>
+
+      {free.length > 0 && (
+        <>
+          <p className={styles.pickerLabel}>Which one is you?</p>
+          <div className={styles.picker}>
+            {free.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`${styles.pick} ${playerId === p.id ? styles.pickOn : ''}`}
+                onClick={() => setPlayerId(playerId === p.id ? null : p.id)}
+                disabled={busy}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <input
+        className={styles.password}
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') void create(); }}
+        placeholder="Choose a password"
+        autoComplete="new-password"
+        aria-label="Choose a password"
+      />
+
+      <Button
+        variant="primary"
+        fullWidth
+        iconLeft={<UserPlus size={16} />}
+        onClick={() => void create()}
+        disabled={password.length < 6}
+        loading={busy}
+      >
+        Create account
+      </Button>
+      {/* Equal weight on purpose. Editing without an account is the whole
+          point of this flow, not the consolation prize. */}
+      <Button variant="general" fullWidth onClick={onSkip} disabled={busy}>
+        No thanks, just edit
+      </Button>
+    </div>
+  );
+}
+
+function SignInStage({ email, busy, setBusy, setError, onDone, onSkip }: {
+  email: string;
+  busy: boolean;
+  setBusy: (v: boolean) => void;
+  setError: (v: string | null) => void;
+  onDone: () => void | Promise<void>;
+  onSkip: () => void;
+}) {
+  const [password, setPassword] = useState('');
+
+  const go = async () => {
+    if (busy || !password) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await signInAndClaim(email, password);
+      await onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not sign in');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={styles.stage}>
+      <h3 className={styles.stageTitle}>You already have an account</h3>
+      <p className={styles.blurb}>
+        <strong>{email}</strong> is already registered. Sign in and this team joins your profile.
+      </p>
+      <input
+        className={styles.password}
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') void go(); }}
+        placeholder="Your password"
+        autoComplete="current-password"
+        aria-label="Your password"
+        autoFocus
+      />
+      <Button variant="primary" fullWidth iconLeft={<LogIn size={16} />} onClick={() => void go()} disabled={!password} loading={busy}>
+        Sign in
+      </Button>
+      <a className={styles.forgot} href="/forgot-password">Forgotten your password?</a>
+      <Button variant="general" fullWidth onClick={onSkip} disabled={busy}>
+        No thanks, just edit
+      </Button>
     </div>
   );
 }

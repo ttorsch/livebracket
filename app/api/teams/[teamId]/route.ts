@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
-import { resolveTeamEditAccess, type TeamEditTarget } from '../../../../lib/teamEditAccess';
+import { resolveTeamEditAccess, readTeamEditSession, type TeamEditTarget } from '../../../../lib/teamEditAccess';
 import { maskEmail, maskPhone } from '../../../../lib/verification/mask';
 import { availableChannels } from '../../../../lib/verification/channels';
 import { startContactEmailChange } from '../../../../lib/teamEditContact';
@@ -61,11 +61,22 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     });
   }
 
+  /* Someone who got in with an emailed code has, in the last few
+   * minutes, proved an address — which makes this the cheapest moment in
+   * the product to offer them an account, and the only one where we can
+   * skip asking them to confirm the same inbox twice. Offered only on
+   * that path: a signed-in caller has one already, and an organizer is
+   * not the person the address belongs to. */
+  const session = via === 'verified' ? await readTeamEditSession(teamId) : null;
+  const accountOffer =
+    session && session.channel === 'email' ? { email: session.destination } : null;
+
   return NextResponse.json({
     canEdit: true,
     via,
     rosterLocked,
     channels,
+    accountOffer,
     team: editableTeam(team),
   });
 }

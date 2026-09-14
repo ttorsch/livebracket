@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { supabaseAdmin } from './supabaseAdmin';
 import { getCurrentUser } from './auth';
 import { getOrganizerForUser } from './auth';
-import { readVerifiedSession } from './verification/code';
+import { readVerifiedSession, type VerifiedSession } from './verification/code';
 import { normalizeRegFields, type RegField } from './registrationFields';
 import type { DrawConfig } from './data';
 
@@ -51,7 +51,7 @@ export interface TeamEditTarget {
   contactEmail: string | null;
   contactPhone: string | null;
   customFields: Record<string, unknown>;
-  players: { id: string; name: string; shirtSize: string | null; customFields: Record<string, unknown> }[];
+  players: { id: string; name: string; shirtSize: string | null; customFields: Record<string, unknown>; userId: string | null }[];
   division: {
     id: string;
     name: string;
@@ -73,7 +73,7 @@ export interface TeamEditAccess {
 
 const TEAM_SELECT = `
   id, name, team_name, status, contact_email, contact_phone, custom_fields, registered_by,
-  players(id, name, shirt_size, custom_fields),
+  players(id, name, shirt_size, custom_fields, user_id),
   divisions!inner(
     id, name, format_type_on_sand, reg_fields, settings,
     tournaments!inner(slug, title, cancelled_at, deleted_at)
@@ -101,6 +101,7 @@ function shape(row: any): TeamEditTarget | null {
       name: p.name,
       shirtSize: p.shirt_size ?? null,
       customFields: (p.custom_fields ?? {}) as Record<string, unknown>,
+      userId: p.user_id ?? null,
     })),
     division: {
       id: division.id,
@@ -133,6 +134,20 @@ export async function loadTeamForEdit(teamId: string): Promise<{ target: TeamEdi
   const target = shape(data);
   if (!target) return null;
   return { target, registeredBy: (data as { registered_by?: string | null }).registered_by ?? null };
+}
+
+/* The verified session behind this request, if it is for this team.
+ *
+ * `resolveTeamEditAccess` answers may-they-edit and deliberately says no
+ * more. Minting an account needs two further facts that only the session
+ * holds: the exact address a code was delivered to, and the channel it
+ * went by. Neither can come from the team row — a contact address can
+ * have changed since — and neither may ever come from the request body. */
+export async function readTeamEditSession(teamId: string): Promise<VerifiedSession | null> {
+  const jar = await cookies();
+  const session = await readVerifiedSession(jar.get(TEAM_EDIT_COOKIE)?.value);
+  if (!session || session.purpose !== 'team_edit' || session.subjectId !== teamId) return null;
+  return session;
 }
 
 export async function resolveTeamEditAccess(teamId: string): Promise<TeamEditAccess | null> {
