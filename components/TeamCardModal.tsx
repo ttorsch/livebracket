@@ -5,6 +5,7 @@ import { X, Pencil, Mail, MessageCircle, ShieldCheck, Lock, UserPlus, LogIn } fr
 import styles from './TeamCardModal.module.css';
 import { Button } from './livebracket-ds';
 import { supabase } from '@/lib/supabase';
+import { stashRosterLink } from '../lib/rosterLinkStash';
 import RosterFields, {
   type RosterPlayer, type RosterContact, type RosterTeamAnswers,
 } from './registration/RosterFields';
@@ -42,7 +43,7 @@ export interface TeamCardTarget {
   status: string;
 }
 
-type Stage = 'view' | 'gate' | 'code' | 'offer' | 'signIn' | 'edit' | 'newEmail';
+type Stage = 'view' | 'gate' | 'code' | 'offer' | 'edit' | 'newEmail';
 
 interface ChannelOption { channel: 'email' | 'whatsapp'; hint: string }
 
@@ -72,7 +73,12 @@ interface AccessResponse {
   /* Present only for a visitor who got in with an emailed code and has no
      session — the one case where offering an account is both useful and
      free of a second confirmation email. */
-  accountOffer?: { email: string } | null;
+  accountOffer?: {
+    email: string;
+    /* Settled before the screen is drawn, so nobody is asked to choose a
+       password only to be told they already have an account. */
+    account: { exists: boolean; providers: string[] };
+  } | null;
   contactless?: boolean;
   team?: EditableTeam;
 }
@@ -226,22 +232,11 @@ function Dialog({ target, onClose, onSaved }: {
         )}
 
         {stage === 'offer' && access?.accountOffer && access.team && (
-          <OfferStage
+          <AccountStage
             teamId={target.teamId}
-            email={access.accountOffer.email}
+            offer={access.accountOffer}
             players={access.team.players}
-            busy={busy}
-            setBusy={setBusy}
-            setError={setError}
-            onExists={() => { setError(null); setStage('signIn'); }}
-            onDone={async () => { await loadAccess(); onSaved?.(); setError(null); setStage('edit'); }}
-            onSkip={() => { setError(null); setStage('edit'); }}
-          />
-        )}
-
-        {stage === 'signIn' && access?.accountOffer && (
-          <SignInStage
-            email={access.accountOffer.email}
+            tournamentSlug={access.team.tournament.slug}
             busy={busy}
             setBusy={setBusy}
             setError={setError}
@@ -460,11 +455,11 @@ function CodeStage({ title, blurb, submit, busy, setBusy, setError, onBack, back
   );
 }
 
-/* ── offer an account ─────────────────────────────────────────── */
+/* ── the account step ─────────────────────────────────────────── */
 
 /* Signing in, then claiming, exactly as the login form does it. The
-   account is already confirmed by the time this runs, so there is no
-   inbox round trip between creating it and using it. */
+   account is confirmed by the time this runs, so there is no inbox round
+   trip between creating it and using it. */
 async function signInAndClaim(email: string, password: string) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(error.message);
@@ -473,51 +468,142 @@ async function signInAndClaim(email: string, password: string) {
   await fetch('/api/auth/claim', { method: 'POST' }).catch(() => {});
 }
 
-function OfferStage({ teamId, email, players, busy, setBusy, setError, onExists, onDone, onSkip }: {
+/* Best-effort: being signed in and having the team claimed is the win,
+   and a slot that fails to link can still be claimed later. Never allowed
+   to turn a successful sign-in into a visible failure. */
+async function linkRosterSlot(teamId: string, playerId: string) {
+  try {
+    await fetch(`/api/teams/${teamId}/roster-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId }),
+    });
+  } catch {
+    /* Ignored by design — see above. */
+  }
+}
+
+const PROVIDER_LABEL: Record<string, string> = { facebook: 'Facebook', google: 'Google' };
+const prettyProvider = (p: string) => PROVIDER_LABEL[p] ?? p.charAt(0).toUpperCase() + p.slice(1);
+
+/* One step with three faces, chosen by what the server already found out:
+ *
+ *   no account          — offer one
+ *   account, password   — offer to sign in
+ *   account, OAuth only — offer the provider they actually used
+ *
+ * The third case is why this is decided server-side. A Facebook account
+ * has no password, so a password box is a dead end with a misleading
+ * error at the bottom of it.
+ */
+function AccountStage({
+  teamId, offer, players, tournamentSlug, busy, setBusy, setError, onDone, onSkip,
+}: {
   teamId: string;
-  email: string;
+  offer: { email: string; account: { exists: boolean; providers: string[] } };
   players: EditableTeam['players'];
+  tournamentSlug: string;
   busy: boolean;
   setBusy: (v: boolean) => void;
   setError: (v: string | null) => void;
-  onExists: () => void;
   onDone: () => void | Promise<void>;
   onSkip: () => void;
 }) {
+  const { email, account } = offer;
   const [password, setPassword] = useState('');
   const [playerId, setPlayerId] = useState<string | null>(null);
+
+  /* An empty provider list means the lookup could not find out, not that
+     there are none — so it must fall back to the password field rather
+     than guessing a provider. Guessing sent password and Google users to
+     "Continue with Facebook", which is a dead end they cannot argue with. */
+  const knownProviders = account.providers.length > 0;
+  const oauthProviders = account.providers.filter((p) => p !== 'email');
+  const oauthOnly = account.exists && knownProviders && !account.providers.includes('email');
+  const hasPassword = !account.exists || !oauthOnly;
+
   /* A slot already linked to an account belongs to that person; claiming
      it is what the invite flow is for, so it is shown and not offered. */
   const free = players.filter((p) => !p.userId);
 
-  const create = async () => {
-    if (busy || password.length < 6) return;
+  const submit = async () => {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/teams/${teamId}/account`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, playerId }),
-      });
-      const data = await res.json();
-      if (res.status === 409 && data?.exists) { onExists(); return; }
-      if (!res.ok) throw new Error(data?.error ?? 'Could not create the account');
+      if (!account.exists) {
+        const res = await fetch(`/api/teams/${teamId}/account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, playerId }),
+        });
+        const data = await res.json();
+        /* Still handled, though the screen above should have prevented it:
+           an account could appear between the lookup and this click. */
+        if (res.status === 409 && data?.exists) {
+          throw new Error('You already have an account for this address — sign in instead');
+        }
+        if (!res.ok) throw new Error(data?.error ?? 'Could not create the account');
+        /* The account route already linked the slot, with the new user id
+           it had in hand. Nothing more to do here. */
+      }
       await signInAndClaim(email, password);
+      /* Signing in to an account that already existed: the slot could not
+         be linked before, because there was no session to link it to. */
+      if (account.exists && playerId) await linkRosterSlot(teamId, playerId);
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the account');
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
+      setBusy(false);
+    }
+  };
+
+  /* OAuth leaves the page entirely, so the callback is told where to come
+     back to. The modal does not survive the round trip — but the team is
+     claimed by then (the callback claims on sign-in), so reopening the
+     card edits straight away with no code. */
+  const continueWithProvider = async (provider: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      /* Written down before the browser leaves, and applied when the
+         tournament page loads again with a session. */
+      if (playerId) stashRosterLink(teamId, playerId);
+      const callback = new URL('/auth/callback', window.location.origin);
+      callback.searchParams.set('role', 'player');
+      callback.searchParams.set('next', `/tournament/${tournamentSlug}`);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider as 'google' | 'facebook',
+        options: { redirectTo: callback.toString(), queryParams: { prompt: 'select_account' } },
+      });
+      if (error) throw new Error(error.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start sign-in');
       setBusy(false);
     }
   };
 
   return (
     <div className={styles.stage}>
-      <h3 className={styles.stageTitle}>Want an account?</h3>
+      <h3 className={styles.stageTitle}>
+        {account.exists ? 'You already have an account' : 'Want an account?'}
+      </h3>
+
       <p className={styles.blurb}>
-        You&rsquo;ve confirmed <strong>{email}</strong>. Set a password and this team joins your
-        profile &mdash; next time you can edit it without waiting for a code.
+        {account.exists ? (
+          <>
+            <strong>{email}</strong> is already registered
+            {oauthOnly ? <> with {oauthProviders.map(prettyProvider).join(' or ')}</> : null}. Sign in and this team
+            joins your profile.
+          </>
+        ) : (
+          <>
+            You&rsquo;ve confirmed <strong>{email}</strong>. Set a password and this team joins your
+            profile &mdash; next time you can edit it without waiting for a code.
+          </>
+        )}
       </p>
 
       {free.length > 0 && (
@@ -539,81 +625,51 @@ function OfferStage({ teamId, email, players, busy, setBusy, setError, onExists,
         </>
       )}
 
-      <input
-        className={styles.password}
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') void create(); }}
-        placeholder="Choose a password"
-        autoComplete="new-password"
-        aria-label="Choose a password"
-      />
+      {hasPassword && (
+        <input
+          className={styles.password}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+          placeholder={account.exists ? 'Your password' : 'Choose a password'}
+          autoComplete={account.exists ? 'current-password' : 'new-password'}
+          aria-label={account.exists ? 'Your password' : 'Choose a password'}
+        />
+      )}
 
-      <Button
-        variant="primary"
-        fullWidth
-        iconLeft={<UserPlus size={16} />}
-        onClick={() => void create()}
-        disabled={password.length < 6}
-        loading={busy}
-      >
-        Create account
-      </Button>
+      {oauthOnly ? (
+        oauthProviders.map((provider) => (
+          <Button
+            key={provider}
+            variant="primary"
+            fullWidth
+            iconLeft={<LogIn size={16} />}
+            onClick={() => void continueWithProvider(provider)}
+            loading={busy}
+          >
+            Continue with {prettyProvider(provider)}
+          </Button>
+        ))
+      ) : (
+        <Button
+          variant="primary"
+          fullWidth
+          iconLeft={account.exists ? <LogIn size={16} /> : <UserPlus size={16} />}
+          onClick={() => void submit()}
+          disabled={password.length < 6}
+          loading={busy}
+        >
+          {account.exists ? 'Sign in' : 'Create account'}
+        </Button>
+      )}
+
+      {account.exists && !oauthOnly && (
+        <a className={styles.forgot} href="/forgot-password">Forgotten your password?</a>
+      )}
+
       {/* Equal weight on purpose. Editing without an account is the whole
           point of this flow, not the consolation prize. */}
-      <Button variant="general" fullWidth onClick={onSkip} disabled={busy}>
-        No thanks, just edit
-      </Button>
-    </div>
-  );
-}
-
-function SignInStage({ email, busy, setBusy, setError, onDone, onSkip }: {
-  email: string;
-  busy: boolean;
-  setBusy: (v: boolean) => void;
-  setError: (v: string | null) => void;
-  onDone: () => void | Promise<void>;
-  onSkip: () => void;
-}) {
-  const [password, setPassword] = useState('');
-
-  const go = async () => {
-    if (busy || !password) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await signInAndClaim(email, password);
-      await onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className={styles.stage}>
-      <h3 className={styles.stageTitle}>You already have an account</h3>
-      <p className={styles.blurb}>
-        <strong>{email}</strong> is already registered. Sign in and this team joins your profile.
-      </p>
-      <input
-        className={styles.password}
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') void go(); }}
-        placeholder="Your password"
-        autoComplete="current-password"
-        aria-label="Your password"
-        autoFocus
-      />
-      <Button variant="primary" fullWidth iconLeft={<LogIn size={16} />} onClick={() => void go()} disabled={!password} loading={busy}>
-        Sign in
-      </Button>
-      <a className={styles.forgot} href="/forgot-password">Forgotten your password?</a>
       <Button variant="general" fullWidth onClick={onSkip} disabled={busy}>
         No thanks, just edit
       </Button>

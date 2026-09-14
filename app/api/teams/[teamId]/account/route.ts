@@ -112,9 +112,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   if (player) {
+    /* 'accepted', not the column's 'none' default: the register route
+     * writes 'accepted' whenever the person filling the form is the
+     * account on the slot, and this is that same assertion. Leaving it
+     * 'none' made a linked slot look like a hand-typed name. */
     const { error } = await supabaseAdmin
       .from('players')
-      .update({ user_id: user.id })
+      .update({ user_id: user.id, invite_status: 'accepted', responded_at: new Date().toISOString() })
       .eq('id', player.id)
       .eq('team_id', teamId)
       .is('user_id', null); // Lost race: someone else linked it first.

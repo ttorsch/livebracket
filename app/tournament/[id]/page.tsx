@@ -47,6 +47,7 @@ import AccountButton from '../../../components/auth/AccountButton';
 import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
 import PlayerCardModal, { type PlayerCardTarget } from '../../../components/PlayerCardModal';
 import TeamCardModal, { type TeamCardTarget } from '../../../components/TeamCardModal';
+import { readRosterLink, clearRosterLink } from '../../../lib/rosterLinkStash';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
 import { hasPrizes, prizeTotal } from '../../../lib/prizes';
 import { provisionalSchedule, provisionalAssumptionText } from '../../../lib/provisionalSchedule';
@@ -263,6 +264,9 @@ interface DivisionRoundTab {
 export default function TournamentPage() {
   const params = useParams();
   const slug = String(params.id);
+  /* Only read to finish an OAuth sign-in started from the team modal —
+     nothing on this page is gated on it. */
+  const { signedIn } = useSession();
 
   const [baseTournament, setBaseTournament] = useState<TournamentDetail | null>(null);
   const [liveScores, setLiveScores] = useState<LiveScoreMap>({});
@@ -292,6 +296,31 @@ export default function TournamentPage() {
   }, [slug]);
 
   useEffect(() => { void loadTournament(); }, [loadTournament]);
+
+  /* Coming back from an OAuth sign-in started in the team modal.
+   *
+   * The modal asked which of the roster this person is, then the browser
+   * left for the provider and the modal went with it. The answer was
+   * written down (lib/rosterLinkStash) and is spent here, once — the
+   * stash is cleared before the request so a failure cannot leave it to
+   * be retried on every render.
+   *
+   * Deliberately quiet. Nobody is waiting on this, the API re-checks that
+   * this account may touch the team at all, and a slot that does not get
+   * linked is simply still claimable. */
+  useEffect(() => {
+    if (!signedIn) return;
+    const pending = readRosterLink();
+    if (!pending) return;
+    clearRosterLink();
+    fetch(`/api/teams/${pending.teamId}/roster-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId: pending.playerId }),
+    })
+      .then(res => { if (res.ok) void loadTournament(); })
+      .catch(() => {});
+  }, [signedIn, loadTournament]);
 
   const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
   /* The player whose card is open. Null closes it. */

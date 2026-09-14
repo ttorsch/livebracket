@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { resolveTeamEditAccess, readTeamEditSession, type TeamEditTarget } from '../../../../lib/teamEditAccess';
 import { maskEmail, maskPhone } from '../../../../lib/verification/mask';
 import { availableChannels } from '../../../../lib/verification/channels';
+import { findAccountByEmail } from '../../../../lib/accountLookup';
 import { startContactEmailChange } from '../../../../lib/teamEditContact';
 import {
   normalizeRegFields, rosterSize, minRosterNames, rosterSlotIsBlank, targetFor, isTeamField,
@@ -68,8 +69,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
    * that path: a signed-in caller has one already, and an organizer is
    * not the person the address belongs to. */
   const session = via === 'verified' ? await readTeamEditSession(teamId) : null;
+  /* Whether they already have one is settled *here*, not by making them
+   * choose a password and press Create to find out. Safe to answer only
+   * because reaching this line required proving the address. */
   const accountOffer =
-    session && session.channel === 'email' ? { email: session.destination } : null;
+    session && session.channel === 'email'
+      ? { email: session.destination, account: await findAccountByEmail(session.destination) }
+      : null;
 
   return NextResponse.json({
     canEdit: true,
