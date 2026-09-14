@@ -264,3 +264,52 @@ export function summaryAnswerFor(field: RegField, player: StoredPlayerAnswers): 
   if (!value) return '';
   return field.preset === 'apparel' ? `Size ${value}` : value;
 }
+
+/* ── The preset answers that live in the custom bag ───────────────
+ *
+ * Nationality, hometown and skill have their own boxes on the roster form
+ * but no column of their own — they land in `players.custom_fields` keyed
+ * by the id of the division's matching question, so the organizer reads
+ * them back beside every other answer. A division that never added the
+ * question still needs a stable key, hence the fallback.
+ *
+ * Both directions live here because there are now three callers — the
+ * public registration form, the organizer's Add Team modal, and the
+ * player's own edit modal — and a mapping written once per caller is a
+ * mapping that drifts. It has drifted before: see 0021_team_contact.sql.
+ */
+
+export const PRESET_FALLBACK_KEYS: Record<PresetKey, string> = {
+  apparel: 'apparel',
+  skill: 'skill',
+  hometown: 'hometown',
+  nationality: 'nationality',
+};
+
+/** The key a preset's answer is stored under for this division. */
+export function presetKey(fields: RegField[], preset: PresetKey): string {
+  return fields.find((f) => f.preset === preset)?.id ?? PRESET_FALLBACK_KEYS[preset];
+}
+
+/** The three preset boxes, read out of a stored custom bag. */
+export function presetAnswers(fields: RegField[], custom: Record<string, unknown> | null | undefined) {
+  const read = (preset: PresetKey) => {
+    const value = custom?.[presetKey(fields, preset)];
+    return typeof value === 'string' ? value : '';
+  };
+  return { skill: read('skill'), nationality: read('nationality'), club: read('hometown') };
+}
+
+/** The same three, written back into a bag for storage. Empty answers are
+ *  omitted rather than stored blank — an unanswered optional question has
+ *  no key, which is what the organizer's table already assumes. */
+export function presetCustomBag(
+  fields: RegField[],
+  answers: { skill?: string; nationality?: string; club?: string },
+): Record<string, string> {
+  return {
+    ...(answers.nationality?.trim() ? { [presetKey(fields, 'nationality')]: answers.nationality.trim() } : {}),
+    ...(answers.club?.trim() ? { [presetKey(fields, 'hometown')]: answers.club.trim() } : {}),
+    ...(answers.skill?.trim() ? { [presetKey(fields, 'skill')]: answers.skill.trim() } : {}),
+  };
+}

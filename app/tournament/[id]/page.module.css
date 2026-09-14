@@ -1873,3 +1873,27 @@
   }
   .provisionalBannerTag { align-self: flex-start; }
 }
+
+/* A team card is a way in to that team's own details, so it says so —
+   the same lift the rest of the page's tappable cards use. */
+.teamCardOpens {
+  cursor: pointer;
+  text-align: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.teamCardOpens:hover {
+  transform: translateY(-2px);
+  border-color: var(--coral-400, #FF6B5A);
+  box-shadow: 0 8px 20px rgba(18, 22, 31, 0.1);
+}
+
+.teamCardOpens:focus-visible {
+  outline: 2px solid var(--coral-400, #FF6B5A);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teamCardOpens { transition: none; }
+  .teamCardOpens:hover { transform: none; }
+}

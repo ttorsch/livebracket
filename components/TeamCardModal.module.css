@@ -1,0 +1,262 @@
+/* The team card's dialog. Shares the app's modal language with
+   PlayerCardModal — dim, blur, a sand dialog on a soft shadow — so the
+   two read as one family when a player taps through from one to the
+   other. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(14, 18, 24, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: teamFadeIn 0.15s ease-out;
+}
+
+@keyframes teamFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: var(--sand-50, #FFFFFF);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-radius: var(--radius-xl, 24px);
+  padding: 28px 24px 20px;
+  box-shadow: 0 20px 48px rgba(18, 22, 31, 0.18);
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  color: var(--ink-900, #14181E);
+  animation: teamSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes teamSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .dialog { animation: none; }
+}
+
+.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--sand-200, #EFEAE0);
+  background: var(--sand-100, #F7F5F0);
+  color: var(--text-secondary, #3A414D);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.close:hover { background: var(--sand-200, #EFEAE0); }
+
+/* ── Head: the team's own name, centred, with the roster under it ── */
+
+.header {
+  text-align: center;
+  padding: 4px 28px 0;
+  margin-bottom: 18px;
+}
+
+.teamName {
+  margin: 0;
+  font-family: var(--font-display, 'Bricolage Grotesque', sans-serif);
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.division {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary, #5A6472);
+}
+
+.waitlist {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--sand-200, #EFEAE0);
+  color: var(--text-secondary, #5A6472);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Roster ─────────────────────────────────────────────────── */
+
+.players {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.player {
+  padding: 11px 14px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--sand-100, #F7F5F0);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ── Footer + stages ────────────────────────────────────────── */
+
+.footer,
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stageTitle {
+  margin: 0;
+  font-family: var(--font-display, 'Bricolage Grotesque', sans-serif);
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.blurb {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-secondary, #5A6472);
+  text-align: center;
+}
+
+.note {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary, #5A6472);
+  text-align: center;
+}
+
+.error {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 12px);
+  background: rgba(219, 68, 55, 0.08);
+  border: 1px solid rgba(219, 68, 55, 0.2);
+  color: #A32B21;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.locked {
+  margin: 0 0 6px;
+  padding: 11px 13px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--sand-100, #F7F5F0);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  color: var(--text-secondary, #5A6472);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.locked svg {
+  vertical-align: -2px;
+  margin-right: 5px;
+}
+
+/* ── Choosing a channel ─────────────────────────────────────── */
+
+.channels {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.channel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 15px;
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  background: var(--sand-50, #FFFFFF);
+  color: var(--ink-900, #14181E);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.channel:hover:not(:disabled) {
+  border-color: var(--coral-400, #FF6B5A);
+  background: var(--sand-100, #F7F5F0);
+}
+
+.channel:disabled { opacity: 0.55; cursor: default; }
+
+.channelText { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.channelLabel { font-size: 14.5px; font-weight: 600; }
+
+.channelHint {
+  font-size: 12.5px;
+  color: var(--text-secondary, #5A6472);
+  overflow-wrap: anywhere;
+}
+
+/* ── The six digits ─────────────────────────────────────────── */
+
+.codeInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  background: var(--sand-100, #F7F5F0);
+  font-family: var(--font-display, 'Bricolage Grotesque', sans-serif);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-align: center;
+  /* The letter-spacing pushes the visual centre left by half a space. */
+  text-indent: 0.3em;
+  color: var(--ink-900, #14181E);
+}
+
+.codeInput:focus {
+  outline: none;
+  border-color: var(--coral-400, #FF6B5A);
+  background: var(--sand-50, #FFFFFF);
+}
+
+.codeInput::placeholder { color: var(--sand-400, #D6CFC2); }
+
+/* The registration form, dropped into a dialog. It was built for a full
+   page, so it gets the width back here rather than being restyled. */
+.form {
+  margin: 0 -4px 6px;
+}

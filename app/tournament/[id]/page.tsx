@@ -46,6 +46,7 @@ import { useSession } from '../../../components/auth/AuthProvider';
 import AccountButton from '../../../components/auth/AccountButton';
 import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
 import PlayerCardModal, { type PlayerCardTarget } from '../../../components/PlayerCardModal';
+import TeamCardModal, { type TeamCardTarget } from '../../../components/TeamCardModal';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
 import { hasPrizes, prizeTotal } from '../../../lib/prizes';
 import { provisionalSchedule, provisionalAssumptionText } from '../../../lib/provisionalSchedule';
@@ -278,8 +279,11 @@ export default function TournamentPage() {
      and dates before anything else. */
   useRestoreScrollPosition(Boolean(baseTournament), handleRestoreState, { restoreScroll: false });
 
-  useEffect(() => {
-    getTournamentDetail(slug).then((data) => {
+  /* Pulled out of the effect so a team editing its own details can ask for
+     the roster again — the card behind the modal has to show the new
+     spelling the moment it is saved. */
+  const loadTournament = useCallback(() => {
+    return getTournamentDetail(slug).then((data) => {
       setBaseTournament(data);
       if (data && data.divisions.length > 0) {
         setActiveDiv((prev) => prev || data.divisions[0].id);
@@ -287,9 +291,13 @@ export default function TournamentPage() {
     }).catch(console.error);
   }, [slug]);
 
+  useEffect(() => { void loadTournament(); }, [loadTournament]);
+
   const [playerAvatars, setPlayerAvatars] = useState<Record<string, string>>({});
   /* The player whose card is open. Null closes it. */
   const [playerCard, setPlayerCard] = useState<PlayerCardTarget | null>(null);
+  /* The team whose card is open — where a player gets to their own entry. */
+  const [teamCard, setTeamCard] = useState<TeamCardTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1202,10 +1210,28 @@ export default function TournamentPage() {
                       userId: null,
                     }));
 
+                /* The whole card is the way in to a team's own details.
+                   The player rows inside it are already buttons of their
+                   own, so each stops the click travelling up rather than
+                   opening both cards at once. */
+                const openTeam = () => setTeamCard({
+                  teamId: team.id,
+                  teamName: team.teamName ?? null,
+                  players: playerItems.map(p => ({ id: p.id, name: p.name })),
+                  status: team.status,
+                });
+
                 return (
                   <div
                     key={team.id}
-                    className={`${styles.teamCard} ${team.status === 'waitlist' ? styles.teamCardMuted : ''}`}
+                    className={`${styles.teamCard} ${styles.teamCardOpens} ${team.status === 'waitlist' ? styles.teamCardMuted : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${team.teamName?.trim() || team.name} — team details`}
+                    onClick={openTeam}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTeam(); }
+                    }}
                   >
                     {/* The team's own name heads the card when the division
                         collected one; the roster stays below it, because who
@@ -1229,11 +1255,14 @@ export default function TournamentPage() {
                                 type="button"
                                 key={player.id || idx}
                                 className={`${styles.teamPlayerRow} ${styles.teamPlayerRowBtn}`}
-                                onClick={() => setPlayerCard({
-                                  userId: avatarKey ?? null,
-                                  name: player.name,
-                                  avatarUrl,
-                                })}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setPlayerCard({
+                                    userId: avatarKey ?? null,
+                                    name: player.name,
+                                    avatarUrl,
+                                  });
+                                }}
                                 title={`About ${player.name}`}
                               >
                                 <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
@@ -1424,6 +1453,11 @@ export default function TournamentPage() {
       </main>
 
       <PlayerCardModal target={playerCard} onClose={() => setPlayerCard(null)} />
+      <TeamCardModal
+        target={teamCard}
+        onClose={() => setTeamCard(null)}
+        onSaved={() => { void loadTournament(); }}
+      />
     </div>
   );
 }
