@@ -10,7 +10,7 @@ import RosterFields, {
   type RosterPlayer, type RosterContact, type RosterTeamAnswers,
 } from './registration/RosterFields';
 import {
-  isTeamField, presetAnswers, presetCustomBag, type RegField,
+  presetAnswers, presetCustomBag, rosterSize, type RegField,
 } from '../lib/registrationFields';
 
 /* ── A registered team, opened from its card ──────────────────────
@@ -60,6 +60,7 @@ interface EditableTeam {
   }[];
   division: {
     id: string; name: string; formatTypeOnSand: string;
+    maxRosterSize: unknown;
     regFields: RegField[]; drawLocked: boolean;
   };
   tournament: { slug: string; title: string; cancelled: boolean };
@@ -486,15 +487,22 @@ async function linkRosterSlot(teamId: string, playerId: string) {
 const PROVIDER_LABEL: Record<string, string> = { facebook: 'Facebook', google: 'Google' };
 const prettyProvider = (p: string) => PROVIDER_LABEL[p] ?? p.charAt(0).toUpperCase() + p.slice(1);
 
-/* One step with three faces, chosen by what the server already found out:
+/* The account step, in two parts.
  *
- *   no account          — offer one
+ *   choose   who you are on this roster, and which way in you want
+ *   details  the signup form itself, for someone creating an account
+ *
+ * The first part is the same question however you get signed in, so it is
+ * asked once and up front. Which way in is offered depends on what the
+ * server already found out about the address:
+ *
+ *   no account          — offer to create one
  *   account, password   — offer to sign in
- *   account, OAuth only — offer the provider they actually used
+ *   account, OAuth only — offer the provider(s) they actually used
  *
- * The third case is why this is decided server-side. A Facebook account
- * has no password, so a password box is a dead end with a misleading
- * error at the bottom of it.
+ * That last case is why it is decided server-side. A Google account has
+ * no password, so a password box is a dead end with a misleading error at
+ * the bottom of it.
  */
 function AccountStage({
   teamId, offer, players, tournamentSlug, busy, setBusy, setError, onDone, onSkip,
@@ -510,8 +518,15 @@ function AccountStage({
   onSkip: () => void;
 }) {
   const { email, account } = offer;
+  const [step, setStep] = useState<'choose' | 'details'>('choose');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [surname, setSurname] = useState('');
+  /* Three states, not two: unanswered, a roster slot, or explicitly nobody
+     on it. The last is a real answer and has to be told apart from not
+     having answered yet, which is what the separate flag is for. */
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const [notPlaying, setNotPlaying] = useState(false);
 
   /* An empty provider list means the lookup could not find out, not that
      there are none — so it must fall back to the password field rather
@@ -525,35 +540,55 @@ function AccountStage({
   /* A slot already linked to an account belongs to that person; claiming
      it is what the invite flow is for, so it is shown and not offered. */
   const free = players.filter((p) => !p.userId);
+  /* Required — but a roster with nothing free cannot be answered, so it
+     is not asked. */
+  const answered = free.length === 0 || notPlaying || playerId !== null;
 
-  const submit = async () => {
+  const pick = (id: string) => {
+    setNotPlaying(false);
+    setPlayerId(playerId === id ? null : id);
+  };
+
+  const create = async () => {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      if (!account.exists) {
-        const res = await fetch(`/api/teams/${teamId}/account`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password, playerId }),
-        });
-        const data = await res.json();
-        /* Still handled, though the screen above should have prevented it:
-           an account could appear between the lookup and this click. */
-        if (res.status === 409 && data?.exists) {
-          throw new Error('You already have an account for this address — sign in instead');
-        }
-        if (!res.ok) throw new Error(data?.error ?? 'Could not create the account');
-        /* The account route already linked the slot, with the new user id
-           it had in hand. Nothing more to do here. */
+      const res = await fetch(`/api/teams/${teamId}/account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, playerId, firstName, surname }),
+      });
+      const data = await res.json();
+      /* Still handled, though the screen before should have prevented it:
+         an account could appear between the lookup and this click. */
+      if (res.status === 409 && data?.exists) {
+        throw new Error('You already have an account for this address — sign in instead');
       }
+      if (!res.ok) throw new Error(data?.error ?? 'Could not create the account');
+      /* The account route already linked the slot, with the new user id it
+         had in hand. Nothing more to do here. */
+      await signInAndClaim(email, password);
+      await onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create the account');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const signIn = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
       await signInAndClaim(email, password);
       /* Signing in to an account that already existed: the slot could not
          be linked before, because there was no session to link it to. */
-      if (account.exists && playerId) await linkRosterSlot(teamId, playerId);
+      if (playerId) await linkRosterSlot(teamId, playerId);
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : 'Could not sign in');
     } finally {
       setBusy(false);
     }
@@ -585,26 +620,76 @@ function AccountStage({
     }
   };
 
+  // ── The signup form ───────────────────────────────────────────
+  if (step === 'details') {
+    const ready = firstName.trim().length > 0 && password.length >= 6;
+    return (
+      <div className={styles.stage}>
+        <h3 className={styles.stageTitle}>Create your account</h3>
+        {/* Shown, not editable: it is the address the code was sent to, and
+            changing it here would throw away the only thing we have proved. */}
+        <p className={styles.lockedEmail}>{email}</p>
+
+        <div className={styles.nameRow}>
+          <input
+            className={styles.field}
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="First name"
+            autoComplete="given-name"
+            aria-label="First name"
+            autoFocus
+          />
+          <input
+            className={styles.field}
+            value={surname}
+            onChange={(e) => setSurname(e.target.value)}
+            placeholder="Surname"
+            autoComplete="family-name"
+            aria-label="Surname"
+          />
+        </div>
+
+        <input
+          className={styles.field}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && ready) void create(); }}
+          placeholder="Choose a password"
+          autoComplete="new-password"
+          aria-label="Choose a password"
+        />
+
+        <Button
+          variant="primary"
+          fullWidth
+          iconLeft={<UserPlus size={16} />}
+          onClick={() => void create()}
+          disabled={!ready}
+          loading={busy}
+        >
+          Create account
+        </Button>
+        <Button variant="general" fullWidth onClick={() => { setError(null); setStep('choose'); }} disabled={busy}>
+          Back
+        </Button>
+      </div>
+    );
+  }
+
+  // ── Who are you, and which way in ─────────────────────────────
   return (
     <div className={styles.stage}>
-      <h3 className={styles.stageTitle}>
-        {account.exists ? 'You already have an account' : 'Want an account?'}
-      </h3>
+      <h3 className={styles.stageTitle}>You&rsquo;ve confirmed {email}</h3>
 
-      <p className={styles.blurb}>
-        {account.exists ? (
-          <>
-            <strong>{email}</strong> is already registered
-            {oauthOnly ? <> with {oauthProviders.map(prettyProvider).join(' or ')}</> : null}. Sign in and this team
-            joins your profile.
-          </>
-        ) : (
-          <>
-            You&rsquo;ve confirmed <strong>{email}</strong>. Set a password and this team joins your
-            profile &mdash; next time you can edit it without waiting for a code.
-          </>
-        )}
-      </p>
+      {account.exists && (
+        <p className={styles.blurb}>
+          This address already has an account
+          {oauthOnly ? <> with {oauthProviders.map(prettyProvider).join(' or ')}</> : null}. Sign in
+          and this team joins your profile.
+        </p>
+      )}
 
       {free.length > 0 && (
         <>
@@ -615,27 +700,44 @@ function AccountStage({
                 key={p.id}
                 type="button"
                 className={`${styles.pick} ${playerId === p.id ? styles.pickOn : ''}`}
-                onClick={() => setPlayerId(playerId === p.id ? null : p.id)}
+                onClick={() => pick(p.id)}
                 disabled={busy}
               >
                 {p.name}
               </button>
             ))}
+            {/* Not everyone who registers a team plays in it. Without this
+                the honest answer is unavailable and people pick a name that
+                is not theirs, which is worse than no answer at all. */}
+            <button
+              type="button"
+              className={`${styles.pick} ${notPlaying ? styles.pickOn : ''}`}
+              onClick={() => { setPlayerId(null); setNotPlaying(!notPlaying); }}
+              disabled={busy}
+            >
+              I&rsquo;m not playing
+            </button>
           </div>
         </>
       )}
 
-      {hasPassword && (
+      {account.exists && hasPassword && (
         <input
-          className={styles.password}
+          className={styles.field}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
-          placeholder={account.exists ? 'Your password' : 'Choose a password'}
-          autoComplete={account.exists ? 'current-password' : 'new-password'}
-          aria-label={account.exists ? 'Your password' : 'Choose a password'}
+          onKeyDown={(e) => { if (e.key === 'Enter' && answered && password) void signIn(); }}
+          placeholder="Your password"
+          autoComplete="current-password"
+          aria-label="Your password"
         />
+      )}
+
+      {!account.exists && (
+        <p className={styles.why}>
+          Keeps this team in your profile, so you can edit it any time without a code.
+        </p>
       )}
 
       {oauthOnly ? (
@@ -646,21 +748,43 @@ function AccountStage({
             fullWidth
             iconLeft={<LogIn size={16} />}
             onClick={() => void continueWithProvider(provider)}
+            disabled={!answered}
             loading={busy}
           >
             Continue with {prettyProvider(provider)}
           </Button>
         ))
+      ) : account.exists ? (
+        <Button
+          variant="primary"
+          fullWidth
+          iconLeft={<LogIn size={16} />}
+          onClick={() => void signIn()}
+          disabled={!answered || !password}
+          loading={busy}
+        >
+          Sign in
+        </Button>
       ) : (
         <Button
           variant="primary"
           fullWidth
-          iconLeft={account.exists ? <LogIn size={16} /> : <UserPlus size={16} />}
-          onClick={() => void submit()}
-          disabled={password.length < 6}
-          loading={busy}
+          iconLeft={<UserPlus size={16} />}
+          onClick={() => {
+            setError(null);
+            /* The roster name is a good first guess at what they would type
+               anyway, and it is theirs to change. */
+            const picked = free.find((p) => p.id === playerId);
+            if (picked && !firstName && !surname) {
+              const parts = picked.name.trim().split(/\s+/);
+              setFirstName(parts[0] ?? '');
+              setSurname(parts.slice(1).join(' '));
+            }
+            setStep('details');
+          }}
+          disabled={!answered}
         >
-          {account.exists ? 'Sign in' : 'Create account'}
+          Create account
         </Button>
       )}
 
@@ -671,7 +795,7 @@ function AccountStage({
       {/* Equal weight on purpose. Editing without an account is the whole
           point of this flow, not the consolation prize. */}
       <Button variant="general" fullWidth onClick={onSkip} disabled={busy}>
-        No thanks, just edit
+        Just edit
       </Button>
     </div>
   );
@@ -692,13 +816,22 @@ function EditStage({ team, rosterLocked, via, busy, setBusy, setError, onCancel,
   const fields = team.division.regFields;
   const frozen = rosterLocked && via !== 'organizer';
 
+  /* Every roster place the division offers, not just the ones with a row.
+     A 4v4 carrying two alternates has six slots; a team that named four
+     should see the two it never filled, and be able to fill them. */
+  const slots = rosterSize(team.division.formatTypeOnSand, team.division.maxRosterSize);
   const [players, setPlayers] = useState<RosterPlayer[]>(() =>
-    team.players.map((p) => ({
-      name: p.name,
-      shirtSize: p.shirtSize ?? '',
-      ...presetAnswers(fields, p.customFields),
-      userId: null,
-    })),
+    Array.from({ length: Math.max(slots, team.players.length) }, (_, i) => {
+      const existing = team.players[i];
+      return existing
+        ? {
+            name: existing.name,
+            shirtSize: existing.shirtSize ?? '',
+            ...presetAnswers(fields, existing.customFields),
+            userId: null,
+          }
+        : { name: '', shirtSize: '', skill: '', nationality: '', club: '', userId: null };
+    }),
   );
   const [contact, setContact] = useState<RosterContact>({
     email: team.contactEmail ?? '',
@@ -725,19 +858,25 @@ function EditStage({ team, rosterLocked, via, busy, setBusy, setError, onCancel,
           contactEmail: contact.email.trim(),
           contactPhone: contact.phone.trim(),
           /* Omitted entirely when frozen, so a locked draw's roster is not
-             even offered back to the server. */
-          players: frozen ? undefined : players.map((p, i) => ({
-            id: team.players[i].id,
-            name: p.name.trim(),
-            shirtSize: p.shirtSize || null,
-            /* The stored bag wins for any key this form does not render,
-               so an organizer's own question is not erased by a player
-               fixing a spelling. */
-            custom: {
-              ...stringsOnly(team.players[i].customFields),
-              ...presetCustomBag(fields, p),
-            },
-          })),
+             even offered back to the server. Otherwise every slot goes,
+             blank ones included: a slot with an id and no name is how a
+             player is taken off, and one with a name and no id is how a
+             player is added. */
+          players: frozen ? undefined : players.map((p, i) => {
+            const existing = team.players[i];
+            return {
+              id: existing?.id,
+              name: p.name.trim(),
+              shirtSize: p.shirtSize || null,
+              /* The stored bag wins for any key this form does not render,
+                 so an organizer's own question is not erased by a player
+                 fixing a spelling. */
+              custom: {
+                ...stringsOnly(existing?.customFields ?? {}),
+                ...presetCustomBag(fields, p),
+              },
+            };
+          }),
         }),
       });
       const data = await res.json();
@@ -770,7 +909,8 @@ function EditStage({ team, rosterLocked, via, busy, setBusy, setError, onCancel,
           onContactChange={(patch) => setContact((prev) => ({ ...prev, ...patch }))}
           team={answers}
           onTeamChange={(patch) => setAnswers((prev) => ({ ...prev, ...patch }))}
-          fields={frozen ? fields.filter(isTeamField) : fields}
+          fields={fields}
+          playersLocked={frozen}
           required={{ name: true, contact: true }}
           signedIn={via === 'account' || via === 'organizer'}
         />

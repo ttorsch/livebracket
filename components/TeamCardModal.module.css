@@ -304,6 +304,7 @@
 
 .pick:disabled { opacity: 0.55; cursor: default; }
 
+.field,
 .password {
   width: 100%;
   box-sizing: border-box;
@@ -316,13 +317,54 @@
   color: var(--ink-900, #14181E);
 }
 
+.field:focus,
 .password:focus {
   outline: none;
   border-color: var(--coral-400, #FF6B5A);
   background: var(--sand-50, #FFFFFF);
 }
 
+.field::placeholder,
 .password::placeholder { color: var(--sand-400, #A8A296); }
+
+/* First name and surname sit together; they wrap on a narrow phone rather
+   than squeezing two unreadable boxes onto one line. */
+.nameRow {
+  display: flex;
+  gap: 8px;
+}
+
+.nameRow .field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+@media (max-width: 380px) {
+  .nameRow { flex-direction: column; }
+}
+
+/* The confirmed address, shown so they can see what the account will be
+   and not offered as something to change. */
+.lockedEmail {
+  margin: -2px 0 2px;
+  padding: 11px 15px;
+  border-radius: var(--radius-lg, 16px);
+  background: var(--sand-100, #F7F5F0);
+  border: 1px solid var(--sand-200, #EFEAE0);
+  color: var(--text-secondary, #5A6472);
+  font-size: 14px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* The one line of reason, sitting directly above the button it argues for. */
+.why {
+  margin: 2px 0 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary, #5A6472);
+  text-align: center;
+}
 
 .forgot {
   display: block;

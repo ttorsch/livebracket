@@ -142,26 +142,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return bad('The draw is locked — ask the organizer to change the roster', 409);
   }
 
-  const roster: { id: string; name: string; shirtSize: string | null; custom: Record<string, string> }[] = [];
+  const roster: { id?: string; name: string; shirtSize: string | null; custom: Record<string, string> | undefined }[] = [];
+  let removeIds: string[] = [];
   if (rosterGiven) {
     const incoming = body.players ?? [];
     const known = new Map(team.players.map((p) => [p.id, p]));
 
-    /* Rows are matched by id and never created or destroyed here. Adding
-     * a player is joining a division's roster, which is registration's
-     * job and carries a cap; this route only corrects what is there. */
+    /* An id that is not this team's is refused outright. An id-less slot is
+     * not an error: it is one of the roster places the form offers and
+     * nobody had filled in yet. */
     for (const p of incoming) {
-      if (!p.id || !known.has(p.id)) return bad('That player is not on this team', 400);
+      if (p.id && !known.has(p.id)) return bad('That player is not on this team', 400);
     }
 
-    const filled = incoming.filter((p) => !rosterSlotIsBlank(p.name, Object.values(p.custom ?? {})));
+    const blank = (p: PlayerPatch) => rosterSlotIsBlank(p.name, Object.values(p.custom ?? {}));
+    const filled = incoming.filter((p) => !blank(p));
     const min = minRosterNames(team.division.formatTypeOnSand);
     const max = rosterSize(team.division.formatTypeOnSand, team.division.maxRosterSize);
     if (filled.length < min || filled.length > max) {
       return bad(`A ${team.division.formatTypeOnSand} team needs between ${min} and ${max} players`);
     }
 
-    for (const p of incoming) {
+    for (const p of filled) {
       if (!p.name?.trim()) return bad('Every player needs a name');
       for (const field of fields) {
         if (!field.required || isTeamField(field)) continue;
@@ -170,12 +172,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (!value?.trim()) return bad(`${field.label} is required for ${p.name.trim()}`);
       }
       roster.push({
-        id: p.id!,
+        id: p.id,
         name: p.name.trim(),
         shirtSize: p.shirtSize?.trim() || null,
-        custom: cleanCustom(p.custom),
+        custom: p.custom === undefined ? undefined : cleanCustom(p.custom),
       });
     }
+
+    /* Emptied on purpose: the slot was sent, carries a row, and has no name
+     * left on it. A row nobody mentioned is left alone, so a caller that
+     * knows about fewer players than exist cannot delete the rest. The
+     * min/max check above is what stops a roster being emptied below the
+     * number its format puts on the sand. */
+    removeIds = incoming
+      .filter((p) => p.id && blank(p))
+      .map((p) => p.id as string)
+      /* A slot naming an account is that person's, and taking them off is
+       * the organizer's call rather than a teammate's. */
+      .filter((id) => !known.get(id)?.userId);
   }
 
   /* ── The team half ────────────────────────────────────────────*/
@@ -231,16 +245,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   for (const p of roster) {
-    const update: Record<string, unknown> = { name: p.name, shirt_size: p.shirtSize };
-    if (body.players?.find((b) => b.id === p.id)?.custom !== undefined) update.custom_fields = p.custom;
-    const { error } = await supabaseAdmin.from('players').update(update).eq('id', p.id).eq('team_id', teamId);
+    if (p.id) {
+      const update: Record<string, unknown> = { name: p.name, shirt_size: p.shirtSize };
+      if (p.custom !== undefined) update.custom_fields = p.custom;
+      const { error } = await supabaseAdmin.from('players').update(update).eq('id', p.id).eq('team_id', teamId);
+      if (error) return bad(error.message, 500);
+    } else {
+      /* A name typed into a slot that had no row. invite_status stays at
+       * its 'none' default: a hand-typed name is not an invitation, and
+       * naming somebody's account belongs to registration, where the
+       * invitation it raises can actually be answered. */
+      const { error } = await supabaseAdmin.from('players').insert({
+        team_id: teamId,
+        name: p.name,
+        shirt_size: p.shirtSize,
+        custom_fields: p.custom ?? {},
+      });
+      if (error) return bad(error.message, 500);
+    }
+  }
+
+  if (removeIds.length > 0) {
+    const { error } = await supabaseAdmin
+      .from('players').delete().in('id', removeIds).eq('team_id', teamId).is('user_id', null);
     if (error) return bad(error.message, 500);
   }
 
   /* teams.name is the denormalised display string the brackets read. It is
    * derived from the roster, so a renamed player has to be written through
    * to it or the bracket keeps the old spelling. */
-  if (roster.length > 0) {
+  if (rosterGiven) {
     const { data: fresh } = await supabaseAdmin
       .from('teams').select('id, name, seed, players(id, name)').eq('id', teamId).maybeSingle();
     if (fresh) {

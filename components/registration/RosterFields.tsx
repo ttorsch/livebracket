@@ -69,6 +69,12 @@ interface RosterFieldsProps {
    * been removed; now it explains itself and links to sign-in. An
    * organizer is signed in by definition, hence the default. */
   signedIn?: boolean;
+  /* Show the roster but refuse to let it be changed — the state a team is
+   * in once its division's draw is locked. Shown rather than hidden: the
+   * names vanishing from the form reads as the form having lost them, at
+   * exactly the moment a player is most anxious about their team. Only
+   * the player half locks; contact details stay editable. */
+  playersLocked?: boolean;
 }
 
 interface FoundPlayer {
@@ -88,6 +94,7 @@ export default function RosterFields({
   fields,
   required = {},
   signedIn = true,
+  playersLocked = false,
 }: RosterFieldsProps) {
   const signInHref = useSignInHref('player');
 
@@ -257,7 +264,14 @@ export default function RosterFields({
         )}
       </div>
 
-      <div className={styles.playerGrid}>
+      {/* `inert` rather than disabling each input: it takes the whole
+          subtree out of focus order and off the accessibility tree in one
+          go, so nothing inside can be typed into, tabbed to, or read as
+          editable. */}
+      <div
+        className={`${styles.playerGrid} ${playersLocked ? styles.playerGridLocked : ''}`}
+        inert={playersLocked || undefined}
+      >
         {players.map((player, i) => (
           <div key={i} className={styles.playerCard}>
             <div className={styles.playerHead}>

@@ -38,8 +38,15 @@ const MIN_PASSWORD = 6;
 
 interface Body {
   password?: string;
-  /** Which roster slot is them, so the account links to the player row. */
+  /** Which roster slot is them, so the account links to the player row.
+   *  Null is a real answer — a manager or parent who registered a team
+   *  they are not playing in. */
   playerId?: string | null;
+  /* The name is asked for rather than taken from the roster: the roster
+   * holds the name they play under, which is not always the name they
+   * want on an account, and a slot may not have been picked at all. */
+  firstName?: string;
+  surname?: string;
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ teamId: string }> }) {
@@ -76,12 +83,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     player = { id: match.id, name: match.name };
   }
 
+  /* Falls back to the picked slot's name so an older client that sends no
+   * name still produces a usable profile. */
+  const fullName =
+    [body.firstName?.trim(), body.surname?.trim()].filter(Boolean).join(' ') || player?.name || '';
+
   const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: {
-      ...(player ? { full_name: player.name } : {}),
+      ...(fullName ? { full_name: fullName } : {}),
       /* An intent, read once by ensureOrganizerForUser — the same field
        * the signup form sets, and authorising nothing on its own. */
       role: 'player',

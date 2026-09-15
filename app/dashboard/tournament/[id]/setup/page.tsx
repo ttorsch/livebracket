@@ -87,7 +87,7 @@ import RosterFields, { type RosterPlayer, type RosterTeamAnswers } from '@/compo
 import { SKILL_LEVELS } from '@/lib/registrationFields';
 import {
   BASE_REG_FIELDS, FORMAT_PLAYERS, targetFor, isTeamField, scopeFor,
-  answerFor, teamAnswerFor, optionsFor, summaryAnswerFor,
+  answerFor, teamAnswerFor, optionsFor, summaryAnswerFor, rosterSize,
   type RegField, type RegFieldType, type PresetKey, type TeamPresetKey, type RegFieldScope,
 } from '../../../../../lib/registrationFields';
 import { ROUND_FORMAT_LABEL, type RoundFormat } from '../../../../../lib/roundFormat';
@@ -2116,20 +2116,29 @@ export default function OrganizerSetup() {
     setEditTeamSeed(team.seed != null ? String(team.seed) : '');
     setEditTeamPayment(team.paymentCleared);
     setEditTeamStatus(team.status);
+    /* Every roster place the division offers, not just the rows that
+       exist. A 4v4 carrying two alternates has six slots, and an organizer
+       adding a late substitute should not have to send the team back to
+       the registration form to do it. A slot with no id is a new player;
+       the route inserts those and ignores the ones left blank. */
+    const slots = rosterSize(activeDivision?.formatTypeOnSand ?? '', activeDivision?.maxRosterSize);
+    const existing = team.players.map(p => ({
+      id: p.id,
+      name: p.name || '',
+      shirtSize: p.shirtSize || '',
+      /* Carried whole rather than picked over: an answer to a question
+         the division has since removed is still that team's answer, and
+         dropping it here would delete it on the next save. */
+      customFields: Object.fromEntries(
+        Object.entries(p.customFields ?? {})
+          .filter(([, v]) => typeof v === 'string')
+          .map(([k, v]) => [k, v as string]),
+      ),
+    }));
     setEditTeamPlayers(
-      team.players.map(p => ({
-        id: p.id,
-        name: p.name || '',
-        shirtSize: p.shirtSize || '',
-        /* Carried whole rather than picked over: an answer to a question
-           the division has since removed is still that team's answer, and
-           dropping it here would delete it on the next save. */
-        customFields: Object.fromEntries(
-          Object.entries(p.customFields ?? {})
-            .filter(([, v]) => typeof v === 'string')
-            .map(([k, v]) => [k, v as string]),
-        ),
-      }))
+      Array.from({ length: Math.max(slots, existing.length) }, (_, i) =>
+        existing[i] ?? { id: '', name: '', shirtSize: '', customFields: {} },
+      )
     );
     setEditTeamContact(
       Object.fromEntries(
@@ -2235,8 +2244,10 @@ export default function OrganizerSetup() {
           contactPhone: teamValueFor('phone') ?? null,
           teamName: teamValueFor('teamName') ?? null,
           teamCustom,
+          /* A slot that never had a row sends no id, which is how the
+             route tells an edit from an addition. Blank ones it ignores. */
           players: editTeamPlayers.map(p => ({
-            id: p.id,
+            id: p.id || undefined,
             name: p.name.trim(),
             shirtSize: p.shirtSize.trim() || null,
             custom: p.customFields,
@@ -4898,7 +4909,7 @@ export default function OrganizerSetup() {
                     )}
 
                     <div className={styles.modalSectionTitle} style={{ marginTop: 18, marginBottom: 2 }}>
-                      Player Roster ({editTeamPlayers.length})
+                      Player Roster ({editTeamPlayers.filter(p => p.name.trim()).length} of {editTeamPlayers.length})
                     </div>
 
                     {/* The division's own form, not a fixed four. An organizer

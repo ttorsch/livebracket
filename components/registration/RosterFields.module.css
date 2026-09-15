@@ -338,3 +338,10 @@
   color: var(--text-muted);
   pointer-events: none;
 }
+
+/* A roster that can be read but not changed — a division whose draw is
+   locked. Dimmed rather than hidden; `inert` on the element is what
+   actually stops interaction. */
+.playerGridLocked {
+  opacity: 0.62;
+}
