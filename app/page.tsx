@@ -19,10 +19,12 @@ import {
   UserPlus,
   CalendarPlus,
   Shield,
-  Trophy
+  Trophy,
+  MessageSquare
 } from 'lucide-react';
 import styles from './page.module.css';
 import { DateChip, Badge } from '@/components/livebracket-ds';
+import OrganizerCardModal, { type OrganizerCardTarget } from '@/components/OrganizerCardModal';
 import {
   getPublicTournaments,
   getRecentlyCompletedDivisions,
@@ -34,6 +36,7 @@ import {
 } from '@/lib/data';
 import { useSignInHref, saveScrollPosition, useRestoreScrollPosition } from '@/components/auth/useSignInHref';
 import { useSession } from '@/components/auth/AuthProvider';
+import NotificationBell from '@/components/NotificationBell';
 import AccountButton from '@/components/auth/AccountButton';
 import { tournamentStatus } from '@/lib/tournamentStatus';
 import { tournamentPrizeLabel } from '@/lib/prizes';
@@ -83,6 +86,10 @@ interface Tournament {
   image: string;
   timeLabel: string;
   registrations?: RegistrationInfo[];
+  /** Set when the event has a real organizer row behind it. Its absence
+   *  is what makes the footer a label rather than a button — the sample
+   *  cards below have a name but nobody to open. */
+  organizerId?: string;
   organizerName?: string;
   organizerInitials?: string;
   organizerAvatarUrl?: string;
@@ -434,6 +441,7 @@ function toEventCard(
     image: t.imageUrl || '/images/Hero.jpg',
     timeLabel: '',
     registrations: t.divisions.map(d => ({ division: d.name, filled: d.filled, total: d.cap })),
+    organizerId: t.organizerId ?? undefined,
     organizerName: name,
     organizerInitials: initials,
     organizerAvatarUrl: organizerAvatarUrl ?? t.organizerAvatarUrl ?? undefined,
@@ -457,10 +465,12 @@ function TournamentCard({
   t,
   styles,
   saveScrollPosition,
+  onOpenOrganizer,
 }: {
   t: Tournament;
   styles: Record<string, string>;
   saveScrollPosition: (path: string) => void;
+  onOpenOrganizer: (target: OrganizerCardTarget) => void;
 }) {
   const status = cardStatus(t);
   const isRegisterable = status.key === 'open' || status.key === 'waitlist';
@@ -577,27 +587,60 @@ function TournamentCard({
       </Link>
 
       <div className={styles.cardFooter}>
-        <div className={styles.organizerRow}>
-          <div className={styles.organizerAvatar}>
-            {t.organizerAvatarUrl ? (
-              <img
-                src={t.organizerAvatarUrl}
-                alt={t.organizerName || 'Organizer'}
-                className={styles.organizerAvatarImg}
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-            ) : null}
-            <span>{t.organizerInitials || 'LB'}</span>
-          </div>
-          <div className={styles.organizerMeta}>
-            <span className={styles.organizerLabel}>Organizer</span>
-            <span className={styles.organizerName}>
-              {t.organizerName || 'Live Bracket'}
-            </span>
-          </div>
-        </div>
+        {/* Photo and name together are the target — both are the same
+            question ("who is running this?"), so both answer it. Sits
+            outside the card's own link on purpose: the whole card already
+            goes to the event, and a link inside a link is neither.
+
+            Rendered as a plain div when there is no organizer row behind
+            the name, which is the case for the sample cards. Something
+            that looks pressable and is not is worse than a label. */}
+        {(() => {
+          const organizerFace = (
+            <>
+              <div className={styles.organizerAvatar}>
+                {t.organizerAvatarUrl ? (
+                  <img
+                    src={t.organizerAvatarUrl}
+                    alt={t.organizerName || 'Organizer'}
+                    className={styles.organizerAvatarImg}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : null}
+                <span>{t.organizerInitials || 'LB'}</span>
+              </div>
+              <div className={styles.organizerMeta}>
+                <span className={styles.organizerLabel}>Organizer</span>
+                <span className={styles.organizerName}>
+                  {t.organizerName || 'Live Bracket'}
+                </span>
+              </div>
+            </>
+          );
+
+          if (!t.organizerId) {
+            return <div className={styles.organizerRow}>{organizerFace}</div>;
+          }
+
+          return (
+            <button
+              type="button"
+              className={`${styles.organizerRow} ${styles.organizerRowButton}`}
+              onClick={() =>
+                onOpenOrganizer({
+                  id: t.organizerId as string,
+                  name: t.organizerName || 'Organizer',
+                  avatarUrl: t.organizerAvatarUrl,
+                })
+              }
+              aria-label={`About ${t.organizerName || 'this organizer'}`}
+            >
+              {organizerFace}
+            </button>
+          );
+        })()}
         <Link
           href={href}
           className={styles.cardRegisterBtn}
@@ -986,6 +1029,10 @@ function CompletedSlideshow({ slides, styles }: { slides: CompletedDivisionSlide
 }
 
 export default function LiveBracketHome() {
+  /* One dialog for the whole grid rather than one per card: only ever one
+   * is open, and mounting forty of them to keep thirty-nine closed is
+   * forty subscriptions to the Escape key. */
+  const [organizerTarget, setOrganizerTarget] = useState<OrganizerCardTarget | null>(null);
   // "Sign in" returns the visitor to this page, not to /profile.
   const signInHref = useSignInHref('player');
   const signUpHref = useSignInHref('player', 'signup');
@@ -995,7 +1042,7 @@ export default function LiveBracketHome() {
    * settled — and "Sign In" was worse than useless: middleware bounced it
    * straight back here, so the page reloaded and still said Sign In. They
    * give way to the account button. */
-  const { signedIn } = useSession();
+  const { signedIn, userId } = useSession();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   /* Soonest by default: this list is what is coming up, so the event
    * nearest to now is the one a visitor is most likely to be looking for. */
@@ -1684,9 +1731,25 @@ export default function LiveBracketHome() {
               </>
             )}
 
-            {/* Signed-in Profile Button */}
+            {/* Signed-in Profile Button, with the two controls that only
+                mean anything to an account: what has happened to it, and
+                the way to talk to somebody. Same bell as the profile and
+                the dashboard — one component, one panel, `personal` here
+                because this is the player's side of the product. */}
             {signedIn && (
-              <AccountButton onNavigate={() => saveScrollPosition()} />
+              <>
+                <NotificationBell userId={userId} buttonClassName={styles.navIconBtn} />
+                <button
+                  type="button"
+                  className={styles.navIconBtn}
+                  aria-label="Chat"
+                  title="Chat"
+                  onClick={() => {}}
+                >
+                  <MessageSquare size={18} />
+                </button>
+                <AccountButton onNavigate={() => saveScrollPosition()} />
+              </>
             )}
           </div>
         </div>
@@ -2017,6 +2080,7 @@ export default function LiveBracketHome() {
                         t={t}
                         styles={styles}
                         saveScrollPosition={saveScrollPosition}
+                        onOpenOrganizer={setOrganizerTarget}
                       />
                     </motion.div>
                   ))}
@@ -2042,6 +2106,11 @@ export default function LiveBracketHome() {
 
 
       </div>
+
+      <OrganizerCardModal
+        target={organizerTarget}
+        onClose={() => setOrganizerTarget(null)}
+      />
     </div>
   );
 }

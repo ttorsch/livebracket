@@ -141,7 +141,11 @@
   gap: 14px;
   flex-shrink: 0;
 }
-.navSearchBtn {
+/* The bar's icon controls: search, and — once signed in — the bell and
+   chat. One rule so they stay the same size and pick up the same hover,
+   whichever of them the bar is showing. */
+.navSearchBtn,
+.navIconBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -155,10 +159,12 @@
   transition: color 0.15s ease;
   flex-shrink: 0;
 }
-.navSearchBtn:hover {
+.navSearchBtn:hover,
+.navIconBtn:hover {
   color: var(--color-primary, #EB6F43);
 }
-.navSearchBtn:focus-visible {
+.navSearchBtn:focus-visible,
+.navIconBtn:focus-visible {
   outline: 2px solid var(--color-primary, #EB6F43);
   outline-offset: 2px;
   border-radius: 8px;
@@ -2290,6 +2296,31 @@
   min-width: 0;
 }
 
+/* The same row, when there is an organizer card behind it. Stripped of
+   the button defaults and given back only what says "press me": a cursor,
+   a hover wash and a focus ring. Deliberately quiet — the orange Register
+   button beside it is the card's call to action, and two competing
+   targets in one footer would be one too many. */
+.organizerRowButton {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.organizerRowButton:hover { background: rgba(20, 31, 46, 0.05); }
+.organizerRowButton:hover .organizerName { color: var(--coral-600, #D8542A); }
+.organizerRowButton:focus-visible {
+  outline: 2px solid var(--coral-500, #EB6F43);
+  outline-offset: 2px;
+}
+
 .organizerAvatar {
   position: relative;
   width: 36px;
@@ -2938,6 +2969,15 @@
 }
 
 @media (max-width: 640px) {
+  /* Five controls on a phone-width bar: the mark, search, the bell, chat
+     and the account. They fit by giving up a little size and air rather
+     than by dropping one of them — and under 380px the wordmark goes,
+     since the mark alone still says whose product this is. */
+  .navRightActions { gap: 8px; }
+  .navSearchBtn,
+  .navIconBtn { width: 32px; height: 32px; }
+  .brandText { font-size: 15px; }
+
   .hero { padding: 0; }
   .heroGrid { padding: 76px 0 48px; }
 
@@ -3451,3 +3491,7 @@
   transform: translateX(3px);
 }
 
+@media (max-width: 380px) {
+  .brandText { display: none; }
+  .navRightActions { gap: 6px; }
+}

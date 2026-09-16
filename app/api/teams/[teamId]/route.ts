@@ -9,6 +9,9 @@ import {
   normalizeRegFields, rosterSize, minRosterNames, rosterSlotIsBlank, targetFor, isTeamField,
 } from '../../../../lib/registrationFields';
 import { formatPlayerNames } from '../../../../lib/teamName';
+import { getCurrentUser } from '../../../../lib/auth';
+import { notify, organizerUserIdForTournament } from '../../../../lib/notifications';
+import { describeTeamChanges } from '../../../../lib/teamChanges';
 
 /* ── A team, as the people on it may see and change it ────────────
  *
@@ -287,6 +290,46 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const after = await resolveTeamEditAccess(teamId);
+
+  /* ── Tell the organizer what the team changed ─────────────────
+   *
+   * Only when the team changed it. An organizer editing a roster does
+   * not need a notification about their own keystrokes, and `via` is
+   * already the answer to who this was.
+   *
+   * What moved is worked out by diffing the stored team either side of
+   * the write rather than by reading the body — a PATCH carries every
+   * field the form holds, so trusting it would report every save as a
+   * change to everything. An empty diff sends nothing at all: a form
+   * opened and saved untouched is not news.
+   *
+   * Best-effort and last, like every other notification: the edit is
+   * saved by this point, and a failure to announce it must not turn a
+   * successful save into an error the team sees. */
+  if (via !== 'organizer' && after) {
+    const changed = describeTeamChanges(team, after.team, { emailPending: !!pendingEmail });
+    if (changed.length > 0) {
+      const organizerUserId = await organizerUserIdForTournament(team.tournament.slug);
+      if (organizerUserId) {
+        const actor = await getCurrentUser();
+        await notify({
+          recipientId: organizerUserId,
+          actorId: actor?.id ?? null,
+          kind: 'team_updated',
+          payload: {
+            teamDisplay: formatPlayerNames(after.team.players, after.team.name),
+            teamName: after.team.teamName ?? '',
+            tournamentTitle: team.tournament.title,
+            tournamentSlug: team.tournament.slug,
+            divisionName: team.division.name,
+            teamId,
+            changed,
+          },
+        });
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     pendingEmail,

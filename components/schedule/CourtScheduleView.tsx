@@ -374,6 +374,7 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
         ref={stripRef}
         className={styles.courtHeadStrip}
         data-multi-court={section.courts.length > 4 ? 'true' : undefined}
+        data-single-court={section.courts.length === 1 ? 'true' : undefined}
         aria-hidden="true"
         style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
       >
@@ -814,6 +815,7 @@ export default function CourtScheduleView({
                 onScroll={onScroll}
                 className={`${styles.courtsGrid} ${isGrabbing ? styles.gridGrabbing : ''}`}
                 data-multi-court={section.courts.length > 4 ? 'true' : undefined}
+                data-single-court={section.courts.length === 1 ? 'true' : undefined}
                 style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
               >
                 {section.courts.map(group => (

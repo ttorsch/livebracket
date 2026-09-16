@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { NotificationItem } from '../lib/notifications';
+import type { NotificationAudience, NotificationItem } from '../lib/notificationKinds';
 
 /* ── The list, and the badge that keeps up with it ────────────────
  *
@@ -34,7 +34,11 @@ interface State {
   error: string | null;
 }
 
-export function useNotifications(userId: string | null) {
+/* `audience` picks which of the two lists this is. The profile asks for
+ * `personal`, the organizer dashboard for `organizer`; the same account
+ * can hold both, and they are separate screens with separate badges.
+ * Omitting it returns everything. */
+export function useNotifications(userId: string | null, audience?: NotificationAudience) {
   const [state, setState] = useState<State>({
     items: [],
     unread: 0,
@@ -51,7 +55,9 @@ export function useNotifications(userId: string | null) {
       return;
     }
     try {
-      const res = await fetch('/api/me/notifications');
+      const res = await fetch(
+        audience ? `/api/me/notifications?audience=${audience}` : '/api/me/notifications',
+      );
       if (!res.ok) throw new Error('Could not load notifications');
       const body = await res.json();
       if (!alive.current) return;
@@ -69,7 +75,7 @@ export function useNotifications(userId: string | null) {
         error: err instanceof Error ? err.message : 'Could not load notifications',
       }));
     }
-  }, [userId]);
+  }, [userId, audience]);
 
   useEffect(() => {
     alive.current = true;
@@ -105,6 +111,11 @@ export function useNotifications(userId: string | null) {
             table: 'notifications',
             filter: `recipient_id=eq.${userId}`,
           },
+          /* The filter can only carry one expression, so this fires for
+           * every kind — a personal notification nudges the dashboard to
+           * re-read a list it is not in. That costs one request and
+           * changes nothing on screen, which is a better trade than a
+           * second channel per account. */
           () => { refresh(); },
         )
         .subscribe();
@@ -134,12 +145,12 @@ export function useNotifications(userId: string | null) {
       await fetch('/api/me/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: unreadIds }),
+        body: JSON.stringify({ ids: unreadIds, audience }),
       });
     } catch {
       /* The rows are still unread server-side; the next load says so. */
     }
-  }, [userId, state.items]);
+  }, [userId, audience, state.items]);
 
   /** Answer an invitation from the list itself. */
   const answerInvite = useCallback(

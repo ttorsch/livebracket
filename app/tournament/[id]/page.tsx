@@ -50,7 +50,7 @@ import TeamCardModal, { type TeamCardTarget } from '../../../components/TeamCard
 import { readRosterLink, clearRosterLink } from '../../../lib/rosterLinkStash';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
 import { hasPrizes, prizeTotal } from '../../../lib/prizes';
-import { provisionalSchedule, provisionalAssumptionText } from '../../../lib/provisionalSchedule';
+import { provisionalSchedule } from '../../../lib/provisionalSchedule';
 import { formatMoney } from '../../../lib/currency';
 
 type NavMode = 'top' | 'shown' | 'hidden';
@@ -1449,9 +1449,7 @@ export default function TournamentPage() {
                 <span className={styles.provisionalBannerTag}>Provisional</span>
                 <span className={styles.provisionalBannerText}>
                   Nothing has been drawn yet. Times and courts are a plan, not a
-                  fixture — matchups are placeholders and everything here can move.
-                  {' '}
-                  {provisionalAssumptionText(provisional.assumptions)}
+                  fixture
                 </span>
               </div>
             )}

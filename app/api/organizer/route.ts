@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOrganizer, getSessionInfo } from '../../../lib/auth';
 import { authErrorResponse } from '../../../lib/authResponse';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { parseWhatsappNumber, storedWhatsappNumber } from '../../../lib/whatsappNumber';
 
 /* The organizer profile — the identity printed on a public event page.
  *
@@ -13,7 +14,7 @@ import { supabaseAdmin } from '../../../lib/supabaseAdmin';
  * Both handlers go through requireOrganizer, so they can only ever read or
  * write the caller's own row — there is no id in the request to forge. */
 
-const COLUMNS = 'id, name, club, hometown, avatar_url';
+const COLUMNS = 'id, name, club, hometown, avatar_url, whatsapp';
 
 export async function GET() {
   try {
@@ -42,7 +43,7 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
 
-  /* Only the three display fields. Notably not email or auth_user_id —
+  /* Only the display fields. Notably not email or auth_user_id —
    * migration 0013 narrowed the column grant for exactly this reason, and
    * an id the owner can rewrite is an id that orphans their tournaments. */
   const patch: Record<string, string | null> = {};
@@ -55,6 +56,23 @@ export async function PATCH(request: NextRequest) {
   }
   if (typeof body.hometown === 'string') patch.hometown = body.hometown.trim() || null;
   if (typeof body.avatarUrl === 'string') patch.avatar_url = body.avatarUrl.trim() || null;
+
+  /* The number is normalised here rather than trusted, because what
+   * reaches the database is what a wa.me link is built from — a stored
+   * "081 234 5678" is a button that opens WhatsApp on nobody. Emptying
+   * the box removes it, which is the only way an organizer has to take
+   * the number back down. A number that cannot be made sense of is
+   * refused with the reason, rather than saved and quietly broken. The
+   * visibility marker is added only after the digits have passed parsing. */
+  if (typeof body.whatsapp === 'string') {
+    if (!body.whatsapp.trim()) {
+      patch.whatsapp = null;
+    } else {
+      const parsed = parseWhatsappNumber(body.whatsapp);
+      if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: 400 });
+      patch.whatsapp = storedWhatsappNumber(parsed.value, body.whatsappPublic !== false);
+    }
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });

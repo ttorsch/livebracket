@@ -201,6 +201,70 @@
 
 .required { color: var(--color-primary); }
 
+/* Sits under the WhatsApp box. Says the number goes on a public page,
+   which is the one thing an organizer should not discover afterwards. */
+.hint {
+  font-family: var(--font-text);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.phoneRow {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.phonePartCode,
+.phonePartNumber {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.phonePartLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.visibilityChoice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--sand-100);
+  cursor: pointer;
+}
+
+.visibilityChoice input {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  flex: none;
+  accent-color: var(--color-primary);
+}
+
+.visibilityChoice > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.visibilityChoice strong {
+  font-size: 12.5px;
+  color: var(--text-primary);
+}
+
+.visibilityChoice small {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 .input {
   height: 46px;
   box-sizing: border-box;

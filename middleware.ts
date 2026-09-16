@@ -6,7 +6,7 @@ import { signInDestination } from './lib/authRedirect';
  * public — the tournament pages, the score-keeper screens (which carry
  * their own token) and the homepage must keep working for anonymous
  * visitors. */
-const PROTECTED_PREFIXES = ['/dashboard', '/profile'];
+const PROTECTED_PREFIXES = ['/dashboard', '/profile', '/notifications'];
 
 /* Routes that make no sense once you are already signed in. */
 const AUTH_ONLY_PREFIXES = ['/login', '/forgot-password'];
@@ -60,9 +60,10 @@ export async function middleware(request: NextRequest) {
     loginUrl.search = '';
     // Remember where they were headed so the login can finish the journey,
     // and open the tab that matches it — someone bounced off /dashboard is
-    // an organizer, someone bounced off /profile is a player.
+    // an organizer, someone bounced off /profile or /notifications is
+    // a player.
     loginUrl.searchParams.set('next', `${pathname}${search}`);
-    loginUrl.searchParams.set('role', pathname.startsWith('/profile') ? 'player' : 'organizer');
+    loginUrl.searchParams.set('role', pathname.startsWith('/dashboard') ? 'organizer' : 'player');
     return NextResponse.redirect(loginUrl);
   }
 

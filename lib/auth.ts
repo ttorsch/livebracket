@@ -5,6 +5,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { type Role, type SessionInfo, SIGNED_OUT } from './session';
 import { getProfile } from './profiles';
 import { getSandboxInfoForUser } from './sandbox';
+import { isWhatsappPublic, whatsappDigits } from './whatsappNumber';
 
 export interface Organizer {
   id: string;
@@ -14,6 +15,8 @@ export interface Organizer {
   club: string | null;
   hometown?: string | null;
   avatar_url: string | null;
+  /** Stored as international digits, optionally carrying the private marker. */
+  whatsapp?: string | null;
 }
 
 /* Roles are additive, not exclusive. Every account is a player — that is
@@ -48,7 +51,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function getOrganizerForUser(userId: string): Promise<Organizer | null> {
   const { data, error } = await supabaseAdmin
     .from('organizers')
-    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
+    .select('id, auth_user_id, email, name, club, hometown, avatar_url, whatsapp')
     .eq('auth_user_id', userId)
     .maybeSingle();
 
@@ -140,6 +143,8 @@ export async function getSessionInfo(): Promise<SessionInfo> {
             hometown: organizer.hometown ?? null,
             club: organizer.club ?? null,
             avatarUrl: organizer.avatar_url ?? null,
+            whatsapp: whatsappDigits(organizer.whatsapp),
+            whatsappPublic: isWhatsappPublic(organizer.whatsapp),
           }
         : null,
     };
@@ -187,7 +192,7 @@ async function provisionOrganizer(
 
   const { data: byEmail } = await supabaseAdmin
     .from('organizers')
-    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
+    .select('id, auth_user_id, email, name, club, hometown, avatar_url, whatsapp')
     .eq('email', email)
     .maybeSingle();
 
@@ -202,7 +207,7 @@ async function provisionOrganizer(
       .from('organizers')
       .update({ auth_user_id: user.id, ...(opts.club?.trim() ? { club: opts.club.trim() } : {}) })
       .eq('id', row.id)
-      .select('id, auth_user_id, email, name, club, hometown, avatar_url')
+      .select('id, auth_user_id, email, name, club, hometown, avatar_url, whatsapp')
       .single();
     if (adoptError) throw new Error(`Failed to link organizer: ${adoptError.message}`);
     return adopted as Organizer;
@@ -211,7 +216,7 @@ async function provisionOrganizer(
   const { data, error } = await supabaseAdmin
     .from('organizers')
     .insert({ auth_user_id: user.id, email, name, club })
-    .select('id, auth_user_id, email, name, club, hometown, avatar_url')
+    .select('id, auth_user_id, email, name, club, hometown, avatar_url, whatsapp')
     .single();
 
   if (error) {

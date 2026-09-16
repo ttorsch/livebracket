@@ -1,0 +1,296 @@
+/* The organizer card. Same modal language as the player card — dim,
+   blur, a sand dialog on a soft shadow — so the two read as one family.
+   Wider than that one, because every row here carries a title, a date, a
+   place and a count, and squeezing those into 400px wraps all four. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(14, 18, 24, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: cardFadeIn 0.15s ease-out;
+}
+
+@keyframes cardFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: var(--sand-50, #FFFFFF);
+  border: 1px solid var(--sand-300, #E7E2D9);
+  border-radius: var(--radius-xl, 24px);
+  padding: 28px 24px 20px;
+  box-shadow: 0 20px 48px rgba(18, 22, 31, 0.18);
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  color: var(--ink-900, #14181E);
+  animation: cardSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .dialog { animation: none; }
+}
+
+.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--sand-200, #EFEAE0);
+  background: var(--sand-100, #F7F5F0);
+  color: var(--text-secondary, #3A414D);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.close:hover { background: var(--sand-200, #EFEAE0); }
+
+/* ── Identity ──────────────────────────────────────────────────
+   Photo beside the name rather than above it: the organizer footer this
+   opens from is a horizontal row, so keeping that arrangement makes the
+   dialog feel like the same object enlarged. */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-right: 40px;
+}
+
+.identityText {
+  min-width: 0;
+}
+
+.label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #6B7280);
+}
+
+.name {
+  margin: 2px 0 0;
+  font-family: var(--font-display, 'Bricolage Grotesque', sans-serif);
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+  overflow-wrap: anywhere;
+}
+
+.hometown {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--text-secondary, #3A414D);
+}
+.hometown svg { color: var(--coral-500, #EB6F43); flex-shrink: 0; }
+
+/* ── Reaching them ─────────────────────────────────────────────
+   WhatsApp green rather than the app's coral: this button leaves Live
+   Bracket, and borrowing the destination's colour is the shortest way to
+   say so before it is pressed. Full width because it is the only thing
+   between the name and the events, and a small button floating there
+   reads as an afterthought. */
+.whatsapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: #25D366;
+  color: #05321A;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.whatsapp:hover { background: #1EBE5A; }
+.whatsapp:focus-visible {
+  outline: 2px solid #05321A;
+  outline-offset: 2px;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────
+   Underlined rather than pill-shaped, matching the profile page's tab
+   strip. The count rides in the tab so the choice between them is
+   informed before either is opened. */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 20px 0 4px;
+  border-bottom: 1px solid var(--sand-200, #EFEAE0);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary, #6B7280);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tab:hover { color: var(--text-primary, #14181E); }
+
+.tabActive {
+  color: var(--text-primary, #14181E);
+  border-bottom-color: var(--coral-500, #EB6F43);
+}
+
+.tabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--sand-200, #EFEAE0);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #3A414D);
+}
+.tabActive .tabCount {
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+}
+
+/* ── The events ────────────────────────────────────────────────
+   Title, date and place stacked on the left; the team count alone on the
+   right, which is the one number being compared down the column. */
+.list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 10px;
+  margin: 0 -10px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+.row:hover { background: var(--sand-100, #F7F5F0); }
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rowTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+  overflow-wrap: anywhere;
+}
+
+.liveTag,
+.cancelledTag {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.liveTag { background: #1F9D5B; color: #fff; }
+.cancelledTag { background: var(--sand-200, #EFEAE0); color: var(--text-secondary, #6B7280); }
+
+.rowMeta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--text-secondary, #6B7280);
+}
+.rowMeta svg { flex-shrink: 0; opacity: 0.75; }
+
+.rowCount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  line-height: 1.1;
+}
+
+.rowCountNum {
+  font-family: var(--font-display, 'Bricolage Grotesque', sans-serif);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+}
+
+.rowCountLabel {
+  font-size: 11px;
+  color: var(--text-secondary, #6B7280);
+}
+
+/* ── Nothing to show ───────────────────────────────────────────*/
+.note {
+  margin: 20px 0;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-secondary, #6B7280);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 0 24px;
+  color: var(--text-secondary, #6B7280);
+  font-size: 13.5px;
+}
+.empty svg { opacity: 0.4; }
+
+@media (max-width: 520px) {
+  .dialog { padding: 24px 18px 16px; border-radius: 20px; }
+  .name { font-size: 21px; }
+  .rowCountNum { font-size: 17px; }
+}

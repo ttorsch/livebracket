@@ -41,6 +41,9 @@ export interface DashboardTournament {
   imageUrl: string | null;
   cancelled: boolean;
   archived: boolean;
+  /** Which organizer, so a card can open their profile. Null only for the
+   *  handful of legacy rows with no organizer row behind them. */
+  organizerId: string | null;
   organizerName: string | null;
   organizerAvatarUrl: string | null;
   divisions: DashboardDivision[];
@@ -338,7 +341,7 @@ export async function getSetupOverview(slug: string): Promise<SetupOverview> {
   };
 }
 
-function formatDateRange(startDate: string, endDate: string | null, isOneDay: boolean): string {
+export function formatDateRange(startDate: string, endDate: string | null, isOneDay: boolean): string {
   const start = new Date(`${startDate}T00:00:00`);
   const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   if (isOneDay || !endDate || endDate === startDate) return startLabel;
@@ -374,12 +377,12 @@ interface TournamentRow {
   cancelled_at: string | null;
   archived_at: string | null;
   divisions: DivisionRow[];
-  organizers: { name: string; avatar_url: string | null } | null;
+  organizers: { id: string; name: string; avatar_url: string | null } | null;
 }
 
 const TOURNAMENT_CARD_SELECT =
   'slug, title, location, start_date, end_date, is_one_day, phase, image_url, cancelled_at, archived_at, ' +
-  'organizers(name, avatar_url), divisions(name, division_team_cap, settings, created_at, teams(status))';
+  'organizers(id, name, avatar_url), divisions(name, division_team_cap, settings, created_at, teams(status))';
 
 function toDashboardTournament(t: TournamentRow): DashboardTournament {
   return {
@@ -393,6 +396,7 @@ function toDashboardTournament(t: TournamentRow): DashboardTournament {
     imageUrl: t.image_url,
     cancelled: !!t.cancelled_at,
     archived: !!t.archived_at,
+    organizerId: t.organizers?.id ?? null,
     organizerName: t.organizers?.name ?? null,
     organizerAvatarUrl: t.organizers?.avatar_url ?? null,
     divisions: byCreation(t.divisions ?? []).map((d) => {

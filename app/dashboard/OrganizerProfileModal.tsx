@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, X } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
+import CountryCodeSelect from '@/components/registration/CountryCodeSelect';
 import type { OrganizerIdentity } from '@/lib/session';
 import styles from './OrganizerProfileModal.module.css';
+import { splitInternationalNumber, whatsappDigits } from '@/lib/whatsappNumber';
 
-/* Editing the organizer profile — the name, location and photo that
- * appear on this organizer's public event pages.
+/* Editing the organizer profile — the name, location, photo and WhatsApp
+ * number that appear on this organizer's public event pages.
  *
  * Deliberately not the player profile at /profile. The same account can
  * hold both, and they are kept apart: this writes only the organizers
@@ -47,6 +49,12 @@ function OrganizerProfileForm({
 
   const [name, setName] = useState(organizer?.name ?? '');
   const [hometown, setHometown] = useState(organizer?.hometown ?? '');
+  const initialPhone = splitInternationalNumber(organizer?.whatsapp);
+  const [countryCode, setCountryCode] = useState(initialPhone.countryCode);
+  const [phoneNumber, setPhoneNumber] = useState(initialPhone.number);
+  const [whatsappPublic, setWhatsappPublic] = useState(
+    organizer?.whatsappPublic ?? true,
+  );
   /* The chosen file is held until Save so closing without saving leaves
    * nothing behind — and so a failed name validation does not strand an
    * uploaded image on the account. */
@@ -84,6 +92,12 @@ function OrganizerProfileForm({
       setError('An organizer name is required.');
       return;
     }
+    const countryDigits = countryCode.replace(/\D/g, '');
+    const localDigits = phoneNumber.replace(/\D/g, '').replace(/^0+/, '');
+    if (phoneNumber.trim() && !countryDigits) {
+      setError('Enter a country code for the phone number.');
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -110,6 +124,8 @@ function OrganizerProfileForm({
         body: JSON.stringify({
           name: name.trim(),
           hometown: hometown.trim(),
+          whatsapp: localDigits ? `+${countryDigits}${localDigits}` : '',
+          whatsappPublic,
           ...(avatarUrl !== undefined ? { avatarUrl } : {}),
         }),
       });
@@ -123,6 +139,8 @@ function OrganizerProfileForm({
         hometown: saved.hometown ?? null,
         club: saved.club ?? null,
         avatarUrl: saved.avatar_url ?? null,
+        whatsapp: whatsappDigits(saved.whatsapp),
+        whatsappPublic,
       });
       /* The header reads the session, so it has to hear about this too. */
       await refresh();
@@ -219,6 +237,42 @@ function OrganizerProfileForm({
               placeholder="e.g. Khao Lak, Thailand"
             />
           </label>
+
+          <div className={styles.field}>
+            <span className={styles.label}>Phone number</span>
+            <div className={styles.phoneRow}>
+              <label className={styles.phonePartCode}>
+                <span className={styles.phonePartLabel}>Country code</span>
+                <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+              </label>
+              <label className={styles.phonePartNumber}>
+                <span className={styles.phonePartLabel}>Number</span>
+                <input
+                  className={styles.input}
+                  type="tel"
+                  inputMode="tel"
+                  value={phoneNumber}
+                  onChange={e => setPhoneNumber(e.target.value)}
+                  aria-label="Phone number"
+                  placeholder="81 234 5678"
+                />
+              </label>
+            </div>
+            <label className={styles.visibilityChoice}>
+              <input
+                type="checkbox"
+                checked={whatsappPublic}
+                onChange={e => setWhatsappPublic(e.target.checked)}
+              />
+              <span>
+                <strong>Show contact button publicly</strong>
+                <small>
+                  Anyone can use the &ldquo;Chat on WhatsApp&rdquo; button to contact this number.
+                </small>
+              </span>
+            </label>
+            <span className={styles.hint}>Leave the number empty to remove it.</span>
+          </div>
         </div>
 
         {error && <span className={styles.error}>{error}</span>}

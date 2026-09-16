@@ -1,0 +1,152 @@
+/* The bell and its panel. The button keeps the top bar's own icon
+   styling — this file owns only what the popover adds. */
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The badge hangs off the button, so a caller-styled one still needs to
+   be the positioned box — and needs nothing else from here. */
+.bellBare {
+  position: relative;
+}
+
+.bellButton {
+  /* The unread badge hangs off this. */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 6px;
+  color: var(--text-primary, #14181e);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: opacity 0.15s ease, transform 0.1s ease, color 0.15s ease;
+}
+.bellButton:hover { opacity: 0.65; transform: translateY(-1px); }
+.bellButton:active { transform: scale(0.95); }
+.bellButton[aria-expanded='true'],
+.bellBare[aria-expanded='true'] { color: var(--coral-500, #EB6F43); opacity: 1; }
+
+/* The count on the bell. Ringed in the page colour so it reads as a badge
+   sitting on the icon rather than as part of it. */
+.bellBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--coral-500, #EB6F43);
+  border: 2px solid var(--sand-100, #F5F1EA);
+  color: #fff;
+  font-family: var(--font-ui, Inter, sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+}
+
+/* ── Panel ───────────────────────────────────────────────────────── */
+
+.panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 60;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card, #FFFFFF);
+  border: 1px solid var(--sand-200, #EFEAE0);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card, 0 8px 40px rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+  animation: panelIn 140ms var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--sand-200, #EFEAE0);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #14181E);
+}
+
+.markReadBtn {
+  border: none;
+  background: transparent;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #3A414D);
+  cursor: pointer;
+}
+.markReadBtn:hover { background: var(--sand-200, #EFEAE0); color: var(--text-primary, #14181E); }
+
+/* The list scrolls inside the panel rather than the panel growing —
+   six rows of invitations is already taller than most phones. */
+.body {
+  padding: 4px 16px;
+  max-height: min(58vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.seeAll {
+  display: block;
+  padding: 13px 16px;
+  border-top: 1px solid var(--sand-200, #EFEAE0);
+  background: var(--sand-100, #F5F1EA);
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--coral-600, #D75A2F);
+  text-align: center;
+  text-decoration: none;
+}
+.seeAll:hover { background: var(--sand-200, #EFEAE0); }
+
+/* On a phone the panel spans the screen under the top bar instead of
+   hanging off the bell — 380px of popover beside a 375px viewport is a
+   panel with nowhere to go. Hanging it off the button is no use either:
+   the bell is the first of four icons, not the last, so a box that wide
+   anchored to its right edge runs off the left of the screen. It is
+   pinned to the viewport instead, at the height the component measures
+   the bell at. */
+@media (max-width: 640px) {
+  .panel {
+    position: fixed;
+    top: var(--bell-bottom, 72px);
+    left: 10px;
+    right: 10px;
+    width: auto;
+    border-radius: 16px;
+  }
+  .body { max-height: 62vh; }
+}

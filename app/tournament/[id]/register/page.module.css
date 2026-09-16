@@ -395,12 +395,16 @@
 .divProgressWrap { display: flex; flex-direction: column; gap: 7px; }
 
 .divTrack {
+  display: block;
   height: 5px;
   border-radius: 999px;
   background: var(--sand-300);
   overflow: hidden;
 }
+/* Both of these are spans — without display:block the fill is an inline box
+   and its width/height are ignored, so the bar never renders. */
 .divBar {
+  display: block;
   height: 100%;
   border-radius: 999px;
   background: var(--color-primary);

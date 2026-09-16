@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Camera, Shield, MapPin, Copy, Check, Bell, MessageSquare, Settings, LogOut, Pencil } from 'lucide-react';
+import { Camera, Shield, MapPin, Copy, Check, MessageSquare, Settings, LogOut, Pencil } from 'lucide-react';
 import {
   Avatar,
   Badge,
@@ -19,8 +19,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { isOrganizer as hasOrganizerRole } from '@/lib/session';
 import type { MyRegistration } from '@/app/api/me/registrations/route';
 import { useTabSwipe } from '@/hooks/useTabSwipe';
-import { useNotifications } from '@/hooks/useNotifications';
-import NotificationList from '@/components/NotificationList';
+import NotificationBell from '@/components/NotificationBell';
 
 /* Built to Profile.dc.html from the Live Bracket design project, using the
  * vendored design system rather than a port of the artboard's markup —
@@ -64,9 +63,9 @@ export interface PlayerStats {
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
-type Tab = 'overview' | 'events' | 'notifications' | 'starred';
+type Tab = 'overview' | 'events' | 'starred';
 
-const PROFILE_TAB_KEYS: readonly Tab[] = ['overview', 'events', 'notifications', 'starred'];
+const PROFILE_TAB_KEYS: readonly Tab[] = ['overview', 'events', 'starred'];
 
 /* "Oct 3 – Oct 4, 2026", collapsing a one-day event to a single date and a
    same-month range to one month name. Read in UTC to match the rest of the
@@ -129,25 +128,9 @@ export default function PlayerProfile() {
    * app/layout.tsx and handed down by AuthProvider. */
   const { session, refresh: refreshAuth } = useAuth();
 
-  /* Notifications: the list is re-read from the server, the badge moves
-   * over Realtime. See hooks/useNotifications.ts for why those are two
-   * different mechanisms. */
-  const {
-    items: notifications,
-    unread,
-    loading: notificationsLoading,
-    error: notificationsError,
-    markAllRead,
-    answerInvite,
-  } = useNotifications(session.userId);
-
-  /* The count rides in the tab's own label — this control has no room
-   * for a badge, and a number in parentheses is what the dashboard's
-   * menu already does with the same thing. */
   const tabs = [
     { label: 'Overview', value: 'overview' },
     { label: 'My Events', value: 'events' },
-    { label: unread > 0 ? `Notifications (${unread})` : 'Notifications', value: 'notifications' },
     { label: 'Starred', value: 'starred' },
   ];
   const isOrganizer = hasOrganizerRole(session);
@@ -348,20 +331,13 @@ export default function PlayerProfile() {
           <Logo variant="lockup" size={30} />
         </Link>
         <div className={styles.topbarActions}>
-          {/* The bell was a dead control; it is the badge now — and the
-              shortest way to the list it counts. */}
-          <button
-            type="button"
-            className={styles.topbarIconButton}
-            title={unread > 0 ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'Notifications'}
-            aria-label="Notifications"
-            onClick={() => setTab('notifications')}
-          >
-            <Bell size={21} strokeWidth={1.8} />
-            {unread > 0 && (
-              <span className={styles.bellBadge}>{unread > 9 ? '9+' : unread}</span>
-            )}
-          </button>
+          {/* The bell was a dead control; it is the badge now — and it
+              opens the list it counts over the page rather than sending
+              you to a tab for it. `personal` on purpose: an organizer's
+              registrations and team edits reach the same account but
+              belong on the dashboard — this page is about the person,
+              not the events they run. */}
+          <NotificationBell userId={session.userId} audience="personal" />
           <button
             type="button"
             className={styles.topbarIconButton}
@@ -765,25 +741,6 @@ export default function PlayerProfile() {
         )}
 
         {/* ── Starred ─────────────────────────────────────────────── */}
-        {tab === 'notifications' && (
-          <Card radius="xl" padding={24}>
-            <div className={styles.notificationsHead}>
-              <h2 className={styles.notificationsTitle}>Notifications</h2>
-              {unread > 0 && (
-                <button type="button" className={styles.markReadBtn} onClick={markAllRead}>
-                  Mark all read
-                </button>
-              )}
-            </div>
-            <NotificationList
-              items={notifications}
-              loading={notificationsLoading}
-              error={notificationsError}
-              onAnswer={answerInvite}
-            />
-          </Card>
-        )}
-
         {tab === 'starred' && (
           <Card radius="xl" padding={32}>
             <div className={styles.emptyState}>

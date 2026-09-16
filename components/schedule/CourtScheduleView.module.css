@@ -439,11 +439,21 @@
   }
 }
 
+/* ── Phone: one court and a fifth of the next ─────────────────────
+   Sized off the container, not the viewport. The grid sits inside the
+   page's 20px gutters, so the old 85vw column left about 20px of the
+   next court showing — a sliver that read as a border, and an event
+   with four courts looked like an event with one. A fifth of a column
+   is unmistakably a column. */
 @media (max-width: 640px) {
   .courtsGrid,
   .courtsGrid[data-multi-court='true'] {
-    grid-template-columns: repeat(var(--court-count, 1), 85vw);
+    grid-template-columns: repeat(var(--court-count, 1), calc((100% - 14px) / 1.2));
     scroll-snap-type: x mandatory;
+  }
+  /* Nothing to peek at with one court, so it takes the width it has. */
+  .courtsGrid[data-single-court='true'] {
+    grid-template-columns: minmax(0, 1fr);
   }
   .courtCard {
     scroll-snap-align: start;
@@ -612,7 +622,10 @@
 @media (max-width: 640px) {
   .courtHeadStripInner,
   .courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
-    grid-template-columns: repeat(var(--court-count, 1), 85vw);
+    grid-template-columns: repeat(var(--court-count, 1), calc((100% - 14px) / 1.2));
+  }
+  .courtHeadStrip[data-single-court='true'] .courtHeadStripInner {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

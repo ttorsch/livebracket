@@ -68,8 +68,6 @@
 
 /* ── More menu ──────────────────────────────────────────────────── */
 .moreWrap { position: relative; }
-/* Only the mobile bar drops items into the menu; the rail shows them. */
-.moreItemMobileOnly { display: none; }
 .morePopup {
   position: absolute;
   bottom: 58px;
@@ -117,6 +115,10 @@
   padding-top: 0;
   border-top: none;
 }
+
+/* Holds the bell on the mobile corner bar. Nothing at desktop width —
+   .sidebar itself is hidden there, and the bell is on the top bar. */
+.sideBell { display: none; }
 
 /* ── Top bar (desktop) ───────────────────────────────────────────
    Part of the page rather than a band bolted over it: sticky, so at rest
@@ -226,20 +228,6 @@
   border-radius: 2px;
   background: var(--coral-500, #EB6F43);
 }
-.topTabBadge {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--coral-500, #EB6F43);
-  color: #fff;
-  font-family: var(--font-ui, Inter, sans-serif);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 18px;
-  text-align: center;
-}
-
 .topAvatarBtn {
   display: inline-flex;
   align-items: center;
@@ -1639,10 +1627,11 @@
      back on. */
   .sidebar { display: flex; background: var(--sand-100, #F5F1EA); }
 
-  /* Menu in the top right. Profile avatar moved in front of organizer name. */
+  /* Menu in the top right, with the bell beside it. Order puts the bell
+     first so the pair reads bell-then-menu, left to right. */
   .moreWrap { display: flex; order: 1; }
+  .sideBell { display: flex; align-items: center; order: 0; }
 
-  .moreItemMobileOnly { display: block; }
   .moreGroupMobileOnly { display: flex; }
   .moreGroupMobileOnly + .moreGroup {
     margin-top: 7px;

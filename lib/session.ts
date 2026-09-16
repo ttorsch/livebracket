@@ -27,6 +27,11 @@ export interface OrganizerIdentity {
   hometown: string | null;
   club: string | null;
   avatarUrl: string | null;
+  /** International digits, no plus — see lib/whatsappNumber.ts. Null when
+   *  the organizer has not given one, which is most of them. */
+  whatsapp: string | null;
+  /** Whether the public organizer card shows the WhatsApp contact button. */
+  whatsappPublic: boolean;
 }
 
 export interface SandboxSession {

@@ -51,6 +51,11 @@
 }
 .markThumb { background: var(--coral-500, #EB6F43); }
 .markInvite { background: #3A7BD5; }
+/* The organizer's two. Green for a team arriving, slate for a team
+   changing something — a registration is news, an edit is bookkeeping,
+   and the colours should not compete for the same attention. */
+.markTeam { background: #1F9D5B; }
+.markEdit { background: #6B7280; }
 
 .body {
   flex: 1;

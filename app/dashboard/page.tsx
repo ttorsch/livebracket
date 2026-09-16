@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  Plus, QrCode, Trophy, Settings, Calendar, MapPin, Bell, ChevronDown, Clock,
+  Plus, QrCode, Trophy, Settings, Calendar, MapPin, ChevronDown, Clock,
   Menu, Users, Globe,
 } from 'lucide-react';
 import styles from './page.module.css';
@@ -27,8 +27,9 @@ import { buildCourtRows } from '../../lib/courtRows';
 import { elapsedSeconds, formatClock } from '../../lib/matchClock';
 import { tournamentStatus, type TournamentStatus } from '../../lib/tournamentStatus';
 import { useTabSwipe } from '../../hooks/useTabSwipe';
+import NotificationBell from '../../components/NotificationBell';
 
-const DASHBOARD_TABS = ['tournament', 'history', 'notifications'] as const;
+const DASHBOARD_TABS = ['tournament', 'history'] as const;
 
 interface Organizer {
   name: string;
@@ -129,7 +130,7 @@ function matchesQuery(t: CardTournament, q: string): boolean {
 /* ── Live courts model is in lib/courtRows ───────────────────────── */
 
 export default function OrganizerDashboard() {
-  const [activeTab, setActiveTab] = useState<'tournament' | 'history' | 'notifications'>('tournament');
+  const [activeTab, setActiveTab] = useState<'tournament' | 'history'>('tournament');
   const tabSwipeHandlers = useTabSwipe({
     tabs: DASHBOARD_TABS,
     activeTab,
@@ -142,7 +143,7 @@ export default function OrganizerDashboard() {
    * this one id on every mount. `organizer` here is the ORGANIZER
    * identity, which is a different profile from the player one the site
    * header shows; see lib/session.ts. */
-  const { organizerId, organizer: organizerIdentity } = useSession();
+  const { userId, organizerId, organizer: organizerIdentity } = useSession();
   const [profileOpen, setProfileOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
@@ -155,18 +156,22 @@ export default function OrganizerDashboard() {
    * different items and one state could only ever confuse them. */
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
-  /* No notifications exist yet, so the badge stays off rather than showing
-   * a decorative number. Point this at the real count when they land. */
-  const notificationCount = 0;
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
 
   const [isMobile, setIsMobile] = useState(false);
+  /* 960 is where the top bar gives way to the corner menu (see the
+   * responsive block in page.module.css). The bell rides whichever of
+   * those two is on screen, and is rendered once rather than twice with
+   * one hidden: a second copy would open a second Realtime channel and
+   * re-fetch the same list to draw nothing. */
+  const [narrowNav, setNarrowNav] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
+      setNarrowNav(window.innerWidth <= 960);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -454,22 +459,22 @@ export default function OrganizerDashboard() {
             >
               Tournament History
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('notifications')}
-              className={`${styles.topTab} ${activeTab === 'notifications' ? styles.topTabActive : ''}`}
-              aria-current={activeTab === 'notifications' ? 'page' : undefined}
-            >
-              Notifications
-              {/* Reads off the real count, which is zero until notifications
-                  exist — so no badge rather than a decorative one. */}
-              {notificationCount > 0 && (
-                <span className={styles.topTabBadge}>{notificationCount}</span>
-              )}
-            </button>
           </nav>
 
           <div className={styles.topAccount} ref={accountRef}>
+            {/* Notifications used to be a third tab on this bar. It is the
+                bell now: the count and the list it counts are one control,
+                and the list opens over the dashboard instead of replacing
+                it. `organizer` is what keeps it about the events — the
+                same account's invitations and thumbs are addressed here
+                too and belong on /notifications. */}
+            {!narrowNav && (
+              <NotificationBell
+                userId={userId}
+                audience="organizer"
+                seeAllHref="/dashboard/notifications"
+              />
+            )}
             <button
               type="button"
               className={styles.topAvatarBtn}
@@ -532,14 +537,26 @@ export default function OrganizerDashboard() {
           page's top-right corner, holding the views the top bar shows
           directly. Hidden above that width. */}
       <aside className={styles.sidebar}>
+        {/* At this width the top bar is gone, so the bell comes here —
+            still a bell, still the same panel, just on the only bar
+            there is. */}
+        {narrowNav && (
+          <div className={styles.sideBell}>
+            <NotificationBell
+              userId={userId}
+              audience="organizer"
+              seeAllHref="/dashboard/notifications"
+            />
+          </div>
+        )}
         <div className={styles.moreWrap} ref={moreRef}>
           {moreOpen && (
             <div className={styles.morePopup} role="menu">
               {/* Three groups: the tournaments, the person, the way out.
                   Everything the phone bar cannot hold lives here — the first
-                  group and Notifications are hidden on desktop, where the
-                  rail shows them directly, which leaves the menu there as
-                  Profile and Log out. */}
+                  group is hidden on desktop, where the top bar shows those
+                  views directly, which leaves the menu there as Profile and
+                  Log out. */}
               <div className={`${styles.moreGroup} ${styles.moreGroupMobileOnly}`}>
                 <button
                   type="button"
@@ -560,16 +577,8 @@ export default function OrganizerDashboard() {
               </div>
 
               <div className={styles.moreGroup}>
-                <button
-                  type="button"
-                  className={`${styles.moreItem} ${styles.moreItemMobileOnly}`}
-                  role="menuitem"
-                  onClick={() => { setActiveTab('notifications'); setMoreOpen(false); }}
-                >
-                  {/* The count comes along, since the badge it used to wear
-                      on the bar is not there to carry it any more. */}
-                  Notifications{notificationCount > 0 ? ` (${notificationCount})` : ''}
-                </button>
+                {/* Notifications are not in here any more — the bell sits
+                    beside this menu, wearing its own count. */}
                 <Link href="/profile" className={styles.moreItem} role="menuitem">
                   Profile
                 </Link>
@@ -828,14 +837,6 @@ export default function OrganizerDashboard() {
           </section>
         )}
 
-        {activeTab === 'notifications' && (
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Notifications</h2>
-            </div>
-            <p className={styles.filterEmpty}>No new notifications.</p>
-          </section>
-        )}
       </main>
 
       <CreateTournamentModal open={createOpen} onClose={() => setCreateOpen(false)} />

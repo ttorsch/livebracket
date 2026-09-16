@@ -14,38 +14,19 @@ import { supabaseAdmin } from './supabaseAdmin';
  * that caused it.
  */
 
-export type NotificationKind = 'thumb_up' | 'team_invite' | 'invite_accepted' | 'invite_declined';
-
-/* What travels in the payload, per kind. Denormalised on purpose: a
- * notification should still read correctly after the team is renamed or
- * the tournament is gone, and drawing a list should not mean four joins
- * per row. */
-export interface NotificationPayload {
-  teamName?: string;
-  tournamentTitle?: string;
-  tournamentSlug?: string;
-  divisionName?: string;
-  /** The name on the roster slot, for the reply kinds. */
-  playerName?: string;
-}
-
-export interface NotificationActor {
-  userId: string | null;
-  name: string | null;
-  avatarUrl: string | null;
-}
-
-export interface NotificationItem {
-  id: string;
-  kind: NotificationKind;
-  payload: NotificationPayload;
-  /** Present on team_invite, and only while it can still be answered. */
-  playerRowId: string | null;
-  inviteStatus: 'pending' | 'accepted' | 'declined' | null;
-  actor: NotificationActor;
-  readAt: string | null;
-  createdAt: string;
-}
+/* The vocabulary — kinds, audiences, payload and item shapes — lives in
+ * ./notificationKinds so client components can import it without
+ * dragging `server-only` into the browser bundle. Re-exported here so
+ * server code still has one place to read from. */
+export * from './notificationKinds';
+import {
+  KINDS_FOR,
+  type NotificationAudience,
+  type NotificationActor,
+  type NotificationItem,
+  type NotificationKind,
+  type NotificationPayload,
+} from './notificationKinds';
 
 interface NotifyInput {
   recipientId: string;
@@ -132,12 +113,20 @@ interface NotificationRow {
  * after the notification is written. */
 export async function listNotifications(
   userId: string,
-  limit = 50,
+  opts: { audience?: NotificationAudience; limit?: number } = {},
 ): Promise<{ items: NotificationItem[]; unread: number }> {
-  const { data, error } = await supabaseAdmin
+  const limit = opts.limit ?? 50;
+
+  let query = supabaseAdmin
     .from('notifications')
     .select('id, kind, payload, player_row_id, actor_id, read_at, created_at')
-    .eq('recipient_id', userId)
+    .eq('recipient_id', userId);
+
+  /* Asking for one audience is asking for its kinds. Omitting it returns
+   * everything, which is what a caller that is not a screen wants. */
+  if (opts.audience) query = query.in('kind', KINDS_FOR[opts.audience]);
+
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -192,16 +181,61 @@ export async function listNotifications(
 /* Mark them read. Scoped by recipient rather than trusting the ids: the
  * list is the only place they come from, but an id in a request body is
  * an id anyone can type. */
-export async function markRead(userId: string, ids?: string[]): Promise<number> {
+export async function markRead(
+  userId: string,
+  ids?: string[],
+  audience?: NotificationAudience,
+): Promise<number> {
   let query = supabaseAdmin
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
     .eq('recipient_id', userId)
     .is('read_at', null);
 
+  /* "Mark all read" means all of *this list*. Without the audience the
+   * dashboard's button would silently clear the profile's badge too —
+   * the two screens share a table, not a meaning. */
+  if (audience) query = query.in('kind', KINDS_FOR[audience]);
   if (ids && ids.length > 0) query = query.in('id', ids.slice(0, 200));
 
   const { data, error } = await query.select('id');
   if (error) throw new Error(`Failed to mark read: ${error.message}`);
   return (data ?? []).length;
+}
+
+/* ── Who to tell about a tournament ───────────────────────────────
+ *
+ * Two hops, and deliberately not one embedded select: `organizer_id`
+ * names a row in `organizers`, but a notification is addressed to an
+ * auth user, and the two are only joined by `organizers.auth_user_id`.
+ *
+ * Null is an ordinary answer, not a failure. An organizer account made
+ * before sign-in existed has no auth user behind it, and a tournament
+ * whose organizer row has gone has nobody to tell — in both cases the
+ * caller should carry on and skip the announcement. Errors are swallowed
+ * for the same reason every write in this file is best-effort: the
+ * registration has already happened.
+ */
+export async function organizerUserIdForTournament(slug: string): Promise<string | null> {
+  try {
+    const { data: tournament } = await supabaseAdmin
+      .from('tournaments')
+      .select('organizer_id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    const organizerId = (tournament as { organizer_id?: string | null } | null)?.organizer_id;
+    if (!organizerId) return null;
+
+    const { data: organizer } = await supabaseAdmin
+      .from('organizers')
+      .select('auth_user_id')
+      .eq('id', organizerId)
+      .maybeSingle();
+
+    return (organizer as { auth_user_id?: string | null } | null)?.auth_user_id ?? null;
+  } catch (err) {
+    console.error('organizerUserIdForTournament failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
 }

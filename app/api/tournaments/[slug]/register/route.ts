@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
-import { notifyMany } from '../../../../../lib/notifications';
+import { notify, notifyMany, organizerUserIdForTournament } from '../../../../../lib/notifications';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { publicProfilesByIds } from '../../../../../lib/profiles';
-import { joinTeamName } from '../../../../../lib/teamName';
+import { formatPlayerNames, joinTeamName } from '../../../../../lib/teamName';
 import { normalizeRegFields, rosterSize, minRosterNames, rosterSlotIsBlank, targetFor, isTeamField } from '../../../../../lib/registrationFields';
 import { divisionRegistrationState, PHASE } from '../../../../../lib/tournamentLifecycle';
 
@@ -278,6 +278,33 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
       })),
   );
+
+  /* ── And tell the organizer a team has entered ────────────────
+   *
+   * The one notification whose subject is not a person. It leads with
+   * the roster — "Ananda / Mali registered for Men's Doubles" — because
+   * a team is what an organizer is counting, and because a registration
+   * needs no account at all: naming the actor would make "Someone
+   * registered" the most common line on the dashboard.
+   *
+   * Best-effort on the same terms as the invitations above, and silently
+   * skipped when the tournament's organizer has no account behind it. */
+  const organizerUserId = await organizerUserIdForTournament(slug);
+  if (organizerUserId) {
+    await notify({
+      recipientId: organizerUserId,
+      actorId: user?.id ?? null,
+      kind: 'team_registered',
+      payload: {
+        teamDisplay: formatPlayerNames(insertedPlayers ?? [], joinTeamName(names)),
+        teamName: teamName || joinTeamName(names),
+        tournamentTitle: tournament.title,
+        tournamentSlug: slug,
+        divisionName: division.name,
+        teamId: team.id,
+      },
+    });
+  }
 
   const fee = Number(division.registration_fee ?? 0) || 0;
   // The money side of the same event. Nothing has been paid yet — this row is

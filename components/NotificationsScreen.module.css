@@ -1,0 +1,137 @@
+/* The notifications screen, worn by both surfaces: the player's at
+   /notifications and the organizer's at /dashboard/notifications.
+   Deliberately the profile's shell — same sand page, same top bar, same
+   gutters — so it reads as part of the app rather than a screen borrowed
+   from somewhere else. */
+
+.page {
+  min-height: 100vh;
+  background: var(--sand-100, #F5F1EA);
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  color: var(--text-primary, #14181E);
+  display: flex;
+  flex-direction: column;
+}
+
+.shell {
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: clamp(20px, 3.5vw, 56px);
+  padding-right: clamp(20px, 3.5vw, 56px);
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Whatever the surface puts in the top bar's right side is styled from
+   here: the pages hand over plain buttons and links, since a class in
+   this module is not theirs to name. */
+.topbarActions > button,
+.topbarActions > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 6px;
+  color: var(--text-primary, #14181e);
+  cursor: pointer;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: opacity 0.15s ease, transform 0.1s ease, color 0.15s ease;
+}
+.topbarActions > button:hover,
+.topbarActions > a:hover { opacity: 0.65; transform: translateY(-1px); }
+.topbarActions > button:active,
+.topbarActions > a:active { transform: scale(0.95); }
+
+/* ── Content ─────────────────────────────────────────────────────── */
+
+.content {
+  padding-top: 18px;
+  padding-bottom: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary, #3A414D);
+  text-decoration: none;
+}
+.back:hover { color: var(--coral-500, #EB6F43); }
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #14181E);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted, #6B7280);
+}
+
+.markReadBtn {
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-family: var(--font-text, 'DM Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #3A414D);
+  cursor: pointer;
+}
+.markReadBtn:hover { background: var(--sand-200, #EFEAE0); color: var(--text-primary, #14181E); }
+
+@media (max-width: 640px) {
+  .topbarActions { gap: 12px; }
+  .head { align-items: flex-start; }
+}
