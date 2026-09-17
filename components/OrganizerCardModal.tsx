@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, MapPin, Calendar, Users, MessageCircle } from 'lucide-react';
+import { X, MapPin, Calendar, Users, MessageCircle, MessageSquare, LogIn } from 'lucide-react';
 import styles from './OrganizerCardModal.module.css';
 import { Avatar } from './livebracket-ds';
+import { useSession } from './auth/AuthProvider';
 import type { OrganizerCard, OrganizerEvent } from '../lib/organizerCard';
 
 /* ── Who is running this? ─────────────────────────────────────────
@@ -21,12 +22,21 @@ import type { OrganizerCard, OrganizerEvent } from '../lib/organizerCard';
  * Every row is a link. Someone who spots an event they like will try to
  * tap it whether or not it does anything, so it does.
  *
- * The WhatsApp button is shown to everyone, signed in or not — it hands
- * the conversation to WhatsApp rather than starting one here, so there is
- * no account for it to need. It is absent, not disabled, when the
- * organizer has given no number: a greyed button invites a second press
- * and explains nothing, while its absence is simply the truth that this
- * organizer cannot be reached that way.
+ * ── The two ways to reach them ───────────────────────────────────
+ *
+ * WhatsApp is shown to everyone, signed in or not: it hands the
+ * conversation to WhatsApp rather than starting one here, so there is no
+ * account for it to need. It is *absent*, not disabled, when the
+ * organizer has given no number — absence is simply the truth that this
+ * organizer cannot be reached that way, while a greyed button there would
+ * invite a second press and explain nothing.
+ *
+ * In-app chat is the opposite case, and so gets the opposite treatment.
+ * It exists for everyone but only works signed in, so a signed-out
+ * visitor sees it greyed and reading "Sign in to chat" — visible on
+ * purpose, because a feature nobody can see is a feature nobody asks for.
+ * Pressing it is still the way in: it carries them to sign-in and back to
+ * this same card, rather than being a dead control that says no.
  */
 
 export interface OrganizerCardTarget {
@@ -91,6 +101,8 @@ function Card({ target, onClose }: { target: OrganizerCardTarget; onClose: () =>
   const [card, setCard] = useState<OrganizerCard | null>(null);
   const [state, setState] = useState<'loading' | 'idle' | 'error'>('loading');
   const [tab, setTab] = useState<Tab>('upcoming');
+  const [chatOpen, setChatOpen] = useState(false);
+  const { signedIn } = useSession();
 
   const organizerId = target.id;
 
@@ -147,16 +159,53 @@ function Card({ target, onClose }: { target: OrganizerCardTarget; onClose: () =>
           </div>
         </div>
 
-        {card?.whatsappUrl && (
-          <a
-            className={styles.whatsapp}
-            href={card.whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <MessageCircle size={16} aria-hidden="true" />
-            Chat on WhatsApp
-          </a>
+        <div className={styles.actions}>
+          {signedIn ? (
+            <button
+              type="button"
+              className={styles.chat}
+              onClick={() => setChatOpen(true)}
+            >
+              <MessageSquare size={16} aria-hidden="true" />
+              Chat with organizer
+            </button>
+          ) : (
+            /* Greyed, but never inert. `next` brings them back to this
+             * card rather than to a homepage with the dialog shut — see
+             * the organizer parameter in app/page.tsx. */
+            <Link
+              href={`/login?next=${encodeURIComponent(`/?organizer=${organizerId}`)}`}
+              className={`${styles.chat} ${styles.chatLocked}`}
+              title="Sign in to chat with this organizer"
+            >
+              <LogIn size={16} aria-hidden="true" />
+              Sign in to chat
+            </Link>
+          )}
+
+          {card?.whatsappUrl && (
+            <a
+              className={styles.whatsapp}
+              href={card.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MessageCircle size={16} aria-hidden="true" />
+              WhatsApp
+            </a>
+          )}
+        </div>
+
+        {/* Said plainly rather than dressed up as a chat window with
+            nothing behind it. Points at WhatsApp when there is one,
+            because an honest alternative beats an apology. */}
+        {chatOpen && (
+          <p className={styles.soon}>
+            Messaging here is on its way.
+            {card?.whatsappUrl
+              ? ' For now, WhatsApp is the quickest way to reach them.'
+              : ' For now, the event page has the organizer\u2019s details.'}
+          </p>
         )}
 
         <div className={styles.tabs} role="tablist">

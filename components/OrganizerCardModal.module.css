@@ -110,30 +110,79 @@
 .hometown svg { color: var(--coral-500, #EB6F43); flex-shrink: 0; }
 
 /* ── Reaching them ─────────────────────────────────────────────
-   WhatsApp green rather than the app's coral: this button leaves Live
-   Bracket, and borrowing the destination's colour is the shortest way to
-   say so before it is pressed. Full width because it is the only thing
-   between the name and the events, and a small button floating there
-   reads as an afterthought. */
+   Two ways out of this card, side by side because they are the same
+   kind of act and the choice between them is the point. They stack on a
+   narrow screen rather than shrinking into two unreadable stubs. */
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.chat,
 .whatsapp {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 16px;
-  padding: 11px 16px;
+  padding: 11px 14px;
+  border: none;
   border-radius: 999px;
-  background: #25D366;
-  color: #05321A;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 700;
+  text-align: center;
   text-decoration: none;
-  transition: background 0.15s ease;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* The app's own action, in the app's own colour. */
+.chat {
+  background: var(--coral-500, #EB6F43);
+  color: #fff;
+}
+.chat:hover { background: var(--coral-600, #D8542A); }
+.chat:focus-visible {
+  outline: 2px solid var(--coral-600, #D8542A);
+  outline-offset: 2px;
+}
+
+/* Signed out. Grey enough to read as unavailable, but it is a link and
+   behaves like one — the cursor and the hover say so, because pressing it
+   is how you stop it being unavailable. */
+.chatLocked {
+  background: var(--sand-200, #EFEAE0);
+  color: var(--text-secondary, #6B7280);
+}
+.chatLocked:hover {
+  background: var(--sand-300, #E7E2D9);
+  color: var(--text-primary, #14181E);
+}
+
+/* WhatsApp green rather than the app's coral: this button leaves Live
+   Bracket, and borrowing the destination's colour is the shortest way to
+   say so before it is pressed. */
+.whatsapp {
+  background: #25D366;
+  color: #05321A;
 }
 .whatsapp:hover { background: #1EBE5A; }
 .whatsapp:focus-visible {
   outline: 2px solid #05321A;
   outline-offset: 2px;
+}
+
+/* What the chat button has to say until there is a chat behind it. */
+.soon {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--sand-100, #F7F5F0);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary, #3A414D);
 }
 
 /* ── Tabs ──────────────────────────────────────────────────────
@@ -291,6 +340,9 @@
 
 @media (max-width: 520px) {
   .dialog { padding: 24px 18px 16px; border-radius: 20px; }
+  /* Two pill buttons side by side below ~520px leaves each too narrow for
+     its own label, so they take a line each. */
+  .actions { flex-direction: column; }
   .name { font-size: 21px; }
   .rowCountNum { font-size: 17px; }
 }

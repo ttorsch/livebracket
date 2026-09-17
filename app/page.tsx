@@ -1033,6 +1033,34 @@ export default function LiveBracketHome() {
    * is open, and mounting forty of them to keep thirty-nine closed is
    * forty subscriptions to the Escape key. */
   const [organizerTarget, setOrganizerTarget] = useState<OrganizerCardTarget | null>(null);
+
+  /* ?organizer=<id> reopens a card.
+   *
+   * It exists so that signing in from inside the organizer card comes
+   * back to the card. Without it the trip is: press "Sign in to chat",
+   * sign in, land on the homepage with the dialog shut and no idea what
+   * you were doing — which reads as the button having failed.
+   *
+   * Read from the URL rather than through useSearchParams so this page
+   * needs no Suspense boundary to stay statically rendered; it only has
+   * to be true once, after mount, in the browser. The parameter is then
+   * cleared so a reload or a shared link does not keep prising the dialog
+   * open. The name arrives with the card's own fetch — the target only
+   * has to be enough to open it. */
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('organizer');
+    if (!id) return;
+    /* The URL is an external system and this reads it once on mount,
+     * which is the case the rule cannot tell apart from a render loop.
+     * A lazy initialiser is not an option here: the server has no
+     * `window`, so it would render a closed dialog against the client's
+     * open one and fail hydration. */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrganizerTarget({ id, name: 'Organizer' });
+    const url = new URL(window.location.href);
+    url.searchParams.delete('organizer');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  }, []);
   // "Sign in" returns the visitor to this page, not to /profile.
   const signInHref = useSignInHref('player');
   const signUpHref = useSignInHref('player', 'signup');
