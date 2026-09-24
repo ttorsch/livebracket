@@ -433,9 +433,14 @@
   grid-template-columns: repeat(var(--court-count, 4), calc((100% - 3 * 14px) / 4));
 }
 
+/* Phone and tablet: one measured column width (--court-col, from the
+   component) — every court shares the width when they all fit at 300px or
+   wider, otherwise as many whole courts as fit plus 20px of the next. The
+   fallback is only for the first paint, before it is measured. */
 @media (max-width: 1024px) {
+  .courtsGrid,
   .courtsGrid[data-multi-court='true'] {
-    grid-template-columns: repeat(var(--court-count, 4), calc((100% - 28px) / 2.3));
+    grid-template-columns: repeat(var(--court-count, 1), var(--court-col, calc((100% - 28px) / 2.3)));
   }
 }
 
@@ -448,7 +453,7 @@
 @media (max-width: 640px) {
   .courtsGrid,
   .courtsGrid[data-multi-court='true'] {
-    grid-template-columns: repeat(var(--court-count, 1), calc((100% - 14px) / 1.2));
+    grid-template-columns: repeat(var(--court-count, 1), var(--court-col, calc((100% - 14px) / 1.2)));
     scroll-snap-type: x mandatory;
   }
   /* Nothing to peek at with one court, so it takes the width it has. */
@@ -553,8 +558,9 @@
  * perfectly smooth, where the floating strip below runs in JavaScript a
  * frame behind.
  *
- * The component sets --pin-top (the page chrome, plus the sticky day
- * heading) and toggles data-fits from the same pass.
+ * The headers pin at --chrome-h plus --day-head-h (the sticky day
+ * heading, whose height the component publishes); the component also
+ * toggles data-fits.
  *
  * Every selector is anchored on a local class: CSS Modules rejects a rule
  * made only of attribute selectors ("not pure"), and that is a build error
@@ -565,7 +571,7 @@
 
 .courtsGrid[data-fits] .courtHeader {
   position: sticky;
-  top: var(--pin-top, 0px);
+  top: calc(var(--chrome-h, 0px) + var(--day-head-h, 0px));
   z-index: 20;
   transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -579,7 +585,7 @@
  * data-strip-on and publishes --strip-x from the grid's own scrollLeft. */
 .courtHeadStrip {
   position: sticky;
-  top: var(--pin-top, 0px);
+  top: calc(var(--chrome-h, 0px) + var(--day-head-h, 0px));
   z-index: 24;
   /* Out of the way until the component says otherwise: no height, nothing
      drawn, and no pointer target. */
@@ -605,6 +611,12 @@
   opacity: 1;
 }
 
+/* The strip stands in for the in-grid row while it is on. Opacity rather than
+   visibility, so the headers underneath still take a drag to slide courts. */
+.courtHeadStrip[data-strip-on] ~ .courtsGrid .courtHeader {
+  opacity: 0;
+}
+
 /* Same geometry as .courtsGrid, so the repeat lines up with the columns it
    is standing in for. */
 .courtHeadStripInner {
@@ -620,15 +632,16 @@
 }
 
 @media (max-width: 1024px) {
+  .courtHeadStripInner,
   .courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
-    grid-template-columns: repeat(var(--court-count, 4), calc((100% - 28px) / 2.3));
+    grid-template-columns: repeat(var(--court-count, 1), var(--court-col, calc((100% - 28px) / 2.3)));
   }
 }
 
 @media (max-width: 640px) {
   .courtHeadStripInner,
   .courtHeadStrip[data-multi-court='true'] .courtHeadStripInner {
-    grid-template-columns: repeat(var(--court-count, 1), calc((100% - 14px) / 1.2));
+    grid-template-columns: repeat(var(--court-count, 1), var(--court-col, calc((100% - 14px) / 1.2)));
   }
   .courtHeadStrip[data-single-court='true'] .courtHeadStripInner {
     grid-template-columns: minmax(0, 1fr);
@@ -667,7 +680,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-width: 0;
+  /* Never shrinks: at min-width 0 a narrow card squeezed this box below its
+     nowrap content and "30 m" spilled over the pool badge. The badges give
+     way instead (see .badgeGroup). */
+  flex: none;
   white-space: nowrap;
 }
 .matchTime svg { flex: none; }
@@ -728,7 +744,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .roundBadge {

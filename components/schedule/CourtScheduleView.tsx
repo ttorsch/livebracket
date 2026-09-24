@@ -7,6 +7,12 @@ import styles from './CourtScheduleView.module.css';
 import type { TournamentDetail, DetailDivision } from '../../lib/data';
 import { labelDivisions } from '../../lib/schedule/schedulableDivisions';
 
+/* Phone/tablet court columns: at least this wide, this far apart, and this
+   much of the next court left showing when they do not all fit. */
+const COURT_MIN = 300;
+const COURT_GAP = 14;
+const COURT_PEEK = 20;
+
 interface ScheduleMatch {
   id: string;
   divisionLabel: string;
@@ -283,8 +289,8 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
    *     while the grid is under the chrome, counter-scrolled sideways so it
    *     stays over the courts it names.
    *
-   * --pin-top is where both come to rest: the page chrome, plus the sticky
-   * day heading above them. One style write per frame, on a rAF, so a fast
+   * Both come to rest at the page chrome (--chrome-h) plus the sticky day
+   * heading above them (--day-head-h). One style write per frame, on a rAF, so a fast
    * scroll coalesces into a single update. */
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -295,12 +301,28 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
       const grid = gridRef.current;
       if (!grid) return;
 
-      const root = sectionRef.current;
-      const chrome = root
-        ? parseFloat(getComputedStyle(root).getPropertyValue('--chrome-h')) || 0
-        : 0;
-      const pinLine = chrome + (headingRef.current?.offsetHeight ?? 0);
-      grid.style.setProperty('--pin-top', `${Math.round(pinLine)}px`);
+      /* Only the day heading's height is published. The headers' `top` adds
+         it to --chrome-h in CSS, so they follow the nav as it slides — the
+         way the day heading does — instead of waiting for a scroll event to
+         recompute a pixel value (the nav can move without one, which left
+         the row stranded below the heading with a gap). */
+      sectionRef.current?.style.setProperty('--day-head-h', `${headingRef.current?.offsetHeight ?? 0}px`);
+
+      /* Phone and tablet column width (the CSS only reads it at 1024px and
+         below). Every court at 300px or wider fits → they share the width.
+         Otherwise as many whole courts as fit at 300px or wider, stretched so
+         exactly 20px of the next one shows. Written before the fits check
+         below so that measures the new layout. */
+      const courts = section.courts.length || 1;
+      const width = grid.clientWidth;
+      let col: number;
+      if (courts * COURT_MIN + (courts - 1) * COURT_GAP <= width) {
+        col = (width - (courts - 1) * COURT_GAP) / courts;
+      } else {
+        const whole = Math.max(1, Math.floor((width - COURT_PEEK) / (COURT_MIN + COURT_GAP)));
+        col = (width - COURT_PEEK - whole * COURT_GAP) / whole;
+      }
+      sectionRef.current?.style.setProperty('--court-col', `${Math.floor(col)}px`);
 
       const fits = grid.scrollWidth <= grid.clientWidth + 1;
       grid.toggleAttribute('data-fits', fits);
@@ -312,14 +334,15 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
         return;
       }
 
-      const headH = grid.querySelector<HTMLElement>('[data-court-head]')?.offsetHeight ?? 0;
-      const rect = grid.getBoundingClientRect();
-      const covered = rect.top < pinLine && rect.bottom > pinLine + headH;
-      strip.style.setProperty('--pin-top', `${Math.round(pinLine)}px`);
-      strip.toggleAttribute('data-strip-on', covered);
-      if (covered) {
-        strip.style.setProperty('--strip-x', `${-Math.round(grid.scrollLeft)}px`);
-      }
+      /* On for as long as the roster overflows — not switched by scroll
+         position. The strip is zero-height and sits directly above the grid,
+         so until it sticks it draws exactly over the in-grid headers (which
+         hide under it), and once it sticks the browser holds it natively.
+         Toggling it on a scroll handler meant a frame or more, on iOS Safari
+         during momentum scrolling, with the in-grid header gone and the strip
+         not yet on: the court row flickered at the hand-off. */
+      strip.toggleAttribute('data-strip-on', true);
+      strip.style.setProperty('--strip-x', `${-Math.round(grid.scrollLeft)}px`);
     };
 
     const onScroll = () => {
@@ -334,7 +357,13 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
        of the grid does not fire a window scroll event. */
     const grid = gridRef.current;
     grid?.addEventListener('scroll', onScroll, { passive: true });
+    /* The column width depends on the grid's own width, which can change
+       without a window resize (the scrollbar appearing, the layout around
+       it). Setting the columns never resizes the grid box, so no loop. */
+    const observer = typeof ResizeObserver !== 'undefined' && grid ? new ResizeObserver(onScroll) : null;
+    if (observer && grid) observer.observe(grid);
     return () => {
+      observer?.disconnect();
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
@@ -366,31 +395,6 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
         </div>
       )}
 
-      {/* The floating header row: a repeat of the court names that lives
-          outside the sideways scroller, so it can be sticky where the in-grid
-          row cannot. Off — no height, nothing drawn — until the effect above
-          says the grid is under the chrome. */}
-      <div
-        ref={stripRef}
-        className={styles.courtHeadStrip}
-        data-multi-court={section.courts.length > 4 ? 'true' : undefined}
-        data-single-court={section.courts.length === 1 ? 'true' : undefined}
-        aria-hidden="true"
-        style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
-      >
-        <div className={styles.courtHeadStripInner}>
-          {section.courts.map(group => (
-            <div key={group.courtName} className={styles.courtHeader}>
-              <span className={styles.courtName}>{group.courtName}</span>
-              <span className={styles.courtCountDot}>·</span>
-              <span className={styles.courtCount}>
-                {group.matches.length} {group.matches.length === 1 ? 'match' : 'matches'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* `canScroll` is measured, so at four courts or fewer — where the grid
           fills the width and nothing overflows — this never appears. The count
           test only keeps it out of the DOM for rosters that could never need
@@ -419,6 +423,31 @@ function CourtSectionBlock({ section, children }: CourtSectionBlockProps) {
           </div>
         </div>
       )}
+
+      {/* The floating header row: a repeat of the court names that lives
+          outside the sideways scroller, so it can be sticky where the in-grid
+          row cannot. Zero-height and directly above the grid, so it overlays
+          the in-grid headers; drawn only while the roster overflows. */}
+      <div
+        ref={stripRef}
+        className={styles.courtHeadStrip}
+        data-multi-court={section.courts.length > 4 ? 'true' : undefined}
+        data-single-court={section.courts.length === 1 ? 'true' : undefined}
+        aria-hidden="true"
+        style={{ '--court-count': section.courts.length || 1 } as CSSProperties}
+      >
+        <div className={styles.courtHeadStripInner}>
+          {section.courts.map(group => (
+            <div key={group.courtName} className={styles.courtHeader}>
+              <span className={styles.courtName}>{group.courtName}</span>
+              <span className={styles.courtCountDot}>·</span>
+              <span className={styles.courtCount}>
+                {group.matches.length} {group.matches.length === 1 ? 'match' : 'matches'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {children({ gridRef, onScroll: updateScroll, courtHeaderProps, isGrabbing })}
     </section>

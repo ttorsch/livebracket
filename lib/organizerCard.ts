@@ -3,6 +3,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { formatDateRange } from './data';
 import { PHASE } from './tournamentLifecycle';
 import { whatsappLink } from './whatsappNumber';
+import { isDemoTournament } from './demoTournament';
 
 /* ── The card behind an organizer's name ──────────────────────────
  *
@@ -103,12 +104,8 @@ function todayLocal(): string {
 function isPublicEvent(t: EventRow): boolean {
   if (t.deleted_at || t.archived_at) return false;
   if (t.phase < PHASE.announced) return false;
-  if (t.is_template) return false;
-  if (t.sandbox_id) return false;
   if (!t.slug) return false;
-  if (t.slug.endsWith('-template')) return false;
-  if (t.slug.startsWith('andaman-masters-') || t.slug.startsWith('khao-lak-open-')) return false;
-  return true;
+  return !isDemoTournament(t);
 }
 
 function toEvent(t: EventRow, today: string): OrganizerEvent {

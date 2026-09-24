@@ -1769,7 +1769,7 @@ export default function LiveBracketHome() {
                 <NotificationBell userId={userId} buttonClassName={styles.navIconBtn} />
                 <button
                   type="button"
-                  className={styles.navIconBtn}
+                  className={`${styles.navIconBtn} ${styles.navChatBtn}`}
                   aria-label="Chat"
                   title="Chat"
                   onClick={() => {}}

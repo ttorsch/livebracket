@@ -358,6 +358,58 @@
 .metaItem { display: inline-flex; align-items: center; gap: 8px; }
 .metaItem svg { color: var(--text-muted); flex-shrink: 0; }
 
+/* "Organized by" — a meta line like the others, but pressable: it opens
+   the organizer's card. The face sits where the other lines' icons do. */
+.organizedBy {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  margin: -3px -8px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.organizedBy > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.organizedBy:hover { background: var(--sand-200, #EFEAE0); }
+.organizedBy:hover .organizedByName { color: var(--color-primary, #EB6F43); }
+.organizedBy:focus-visible {
+  outline: 2px solid var(--color-primary, #EB6F43);
+  outline-offset: 2px;
+}
+.organizedByAvatar {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sand-300, #E7E2D9);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  /* Nudged so the 20px face centres on the 15px icons above it. */
+  margin-left: -2px;
+  margin-right: -1px;
+}
+.organizedByAvatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.organizedByName { font-weight: 700; color: var(--text-primary); transition: color 0.15s ease; }
+
 /* ── Courts today ────────────────────────────────────────────── */
 /* One horizontal rail of courts, above the division picker. */
 .courtsSection { padding-top: 18px; }

@@ -4,6 +4,7 @@ import { redis } from '@/lib/redis';
 import { liveKey, type LiveScore } from '@/lib/scorekeeper';
 import { formatPlayerNames } from '@/lib/teamName';
 import type { HeroLiveMatch, HeroPlayer, HeroTeam } from '@/lib/heroLive';
+import { isDemoTournament } from '@/lib/demoTournament';
 
 /* ── "What is being played anywhere, right now" ───────────────────
  *
@@ -98,8 +99,10 @@ export async function GET() {
 
     /* end_date is nullable, so the "hasn't finished yet" half of the window
      * can't be a query filter without dropping single-day events. */
+    /* Demo sandbox copies and the templates they are cloned from share
+     * this table and carry today's dates, but nobody is playing them. */
     const running = (tRows ?? []).filter(
-      (t) => (t.end_date ?? t.start_date) >= today
+      (t) => (t.end_date ?? t.start_date) >= today && !isDemoTournament(t)
     ) as TournamentRow[];
     if (running.length === 0) return NextResponse.json({ matches: [] });
 

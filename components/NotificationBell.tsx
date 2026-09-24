@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import styles from './NotificationBell.module.css';
@@ -45,6 +46,22 @@ export default function NotificationBell({
   const [anchorTop, setAnchorTop] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /* On a phone the panel is a full-height sheet pinned to the viewport,
+   * and it is drawn into <body> rather than beside the bell. The bars the
+   * bell sits in slide with `transform`, and a transformed ancestor
+   * becomes the box a `position: fixed` child is fixed to — the sheet was
+   * squeezed into the header, off the top of the screen, whenever the
+   * homepage nav had moved. Rendered at the top level it has nothing to
+   * be trapped by. */
+  const [sheet, setSheet] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const sync = () => setSheet(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   const {
     items,
@@ -66,7 +83,9 @@ export default function NotificationBell({
     if (!open) return;
     const measure = () => {
       const r = buttonRef.current?.getBoundingClientRect();
-      if (r) setAnchorTop(r.bottom + 10);
+      // A bar that has slid away leaves the bell above the screen; the
+      // sheet then starts at the top rather than following it off.
+      if (r) setAnchorTop(Math.max(10, r.bottom + 10));
     };
     measure();
     window.addEventListener('scroll', measure, { passive: true });
@@ -80,7 +99,9 @@ export default function NotificationBell({
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // The panel may be portalled out of the wrapper, so check both.
+      if (!wrapRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -114,8 +135,10 @@ export default function NotificationBell({
         )}
       </button>
 
-      {open && (
+      {open && (() => {
+        const panel = (
         <div
+          ref={panelRef}
           className={styles.panel}
           role="dialog"
           aria-label="Notifications"
@@ -144,7 +167,9 @@ export default function NotificationBell({
             {hidden > 0 ? `See all notifications (${items.length})` : 'See all notifications'}
           </Link>
         </div>
-      )}
+        );
+        return sheet ? createPortal(panel, document.body) : panel;
+      })()}
     </div>
   );
 }

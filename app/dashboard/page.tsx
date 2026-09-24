@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Plus, QrCode, Trophy, Settings, Calendar, MapPin, ChevronDown, Clock,
-  Menu, Users, Globe,
+  Users, Globe,
 } from 'lucide-react';
 import styles from './page.module.css';
 import CreateTournamentModal from './CreateTournamentModal';
@@ -148,12 +148,7 @@ export default function OrganizerDashboard() {
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusKey | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
-  /* The account menu on the desktop top bar. Separate from `moreOpen`,
-   * which belongs to the phone bar's own menu — the two nav surfaces are
-   * never on screen at the same time, but they are different menus with
-   * different items and one state could only ever confuse them. */
+  /* The account menu on the top bar — the one menu, at every width. */
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
@@ -161,17 +156,10 @@ export default function OrganizerDashboard() {
   const [liveDetails, setLiveDetails] = useState<Record<string, TournamentDetail>>({});
 
   const [isMobile, setIsMobile] = useState(false);
-  /* 960 is where the top bar gives way to the corner menu (see the
-   * responsive block in page.module.css). The bell rides whichever of
-   * those two is on screen, and is rendered once rather than twice with
-   * one hidden: a second copy would open a second Realtime channel and
-   * re-fetch the same list to draw nothing. */
-  const [narrowNav, setNarrowNav] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
-      setNarrowNav(window.innerWidth <= 960);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -289,20 +277,6 @@ export default function OrganizerDashboard() {
     };
   }, [accountOpen]);
 
-  // Close the More menu on an outside click or Escape, like the other menus.
-  useEffect(() => {
-    if (!moreOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMoreOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [moreOpen]);
 
 
   const [publishingTournament, setPublishingTournament] = useState<CardTournament | null>(null);
@@ -405,11 +379,11 @@ export default function OrganizerDashboard() {
 
   return (
     <div className={styles.page}>
-      {/* ── Top bar (desktop) ───────────────────────────────────
-          Above 960px the dashboard's navigation is a bar across the top:
-          the mark on the left, the three views it holds in the middle,
-          and the account on the right. Below that width it is hidden and
-          the bar in the corner below takes over unchanged. */}
+      {/* ── Top bar ─────────────────────────────────────────────
+          The dashboard's navigation at every width: the mark on the left
+          (its wordmark drops on a phone, where it would crowd the tabs),
+          the two views in the middle, and the bell and account menu on
+          the right. It used to give way to a ☰ corner menu below 960px. */}
       <header
         className={[
           styles.topbar,
@@ -449,7 +423,7 @@ export default function OrganizerDashboard() {
               className={`${styles.topTab} ${activeTab === 'tournament' ? styles.topTabActive : ''}`}
               aria-current={activeTab === 'tournament' ? 'page' : undefined}
             >
-              My Tournament
+              Tournament
             </button>
             <button
               type="button"
@@ -457,7 +431,7 @@ export default function OrganizerDashboard() {
               className={`${styles.topTab} ${activeTab === 'history' ? styles.topTabActive : ''}`}
               aria-current={activeTab === 'history' ? 'page' : undefined}
             >
-              Tournament History
+              History
             </button>
           </nav>
 
@@ -468,13 +442,11 @@ export default function OrganizerDashboard() {
                 it. `organizer` is what keeps it about the events — the
                 same account's invitations and thumbs are addressed here
                 too and belong on /notifications. */}
-            {!narrowNav && (
-              <NotificationBell
-                userId={userId}
-                audience="organizer"
-                seeAllHref="/dashboard/notifications"
-              />
-            )}
+            <NotificationBell
+              userId={userId}
+              audience="organizer"
+              seeAllHref="/dashboard/notifications"
+            />
             <button
               type="button"
               className={styles.topAvatarBtn}
@@ -497,6 +469,28 @@ export default function OrganizerDashboard() {
 
             {accountOpen && (
               <div className={styles.topMenu} role="menu">
+                {/* On a phone the bar has no room for the two views, so
+                    they lead this menu instead (hidden above 640px, where
+                    the bar shows them). */}
+                <div className={styles.topMenuViews}>
+                  <button
+                    type="button"
+                    className={`${styles.topMenuItem} ${activeTab === 'tournament' ? styles.topMenuItemActive : ''}`}
+                    role="menuitem"
+                    onClick={() => { setActiveTab('tournament'); setAccountOpen(false); }}
+                  >
+                    Tournament
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.topMenuItem} ${activeTab === 'history' ? styles.topMenuItemActive : ''}`}
+                    role="menuitem"
+                    onClick={() => { setActiveTab('history'); setAccountOpen(false); }}
+                  >
+                    History
+                  </button>
+                  <div className={styles.topMenuRule} />
+                </div>
                 {/* Inside the dashboard, "Profile" means the organizer
                     identity — the name and photo on the public event pages
                     — which is what the modal edits. The player profile is
@@ -532,86 +526,6 @@ export default function OrganizerDashboard() {
         </div>
       </header>
 
-      {/* ── Corner bar (mobile) ─────────────────────────────────
-          Below 960px this is the whole of the navigation: one menu in the
-          page's top-right corner, holding the views the top bar shows
-          directly. Hidden above that width. */}
-      <aside className={styles.sidebar}>
-        {/* At this width the top bar is gone, so the bell comes here —
-            still a bell, still the same panel, just on the only bar
-            there is. */}
-        {narrowNav && (
-          <div className={styles.sideBell}>
-            <NotificationBell
-              userId={userId}
-              audience="organizer"
-              seeAllHref="/dashboard/notifications"
-            />
-          </div>
-        )}
-        <div className={styles.moreWrap} ref={moreRef}>
-          {moreOpen && (
-            <div className={styles.morePopup} role="menu">
-              {/* Three groups: the tournaments, the person, the way out.
-                  Everything the phone bar cannot hold lives here — the first
-                  group is hidden on desktop, where the top bar shows those
-                  views directly, which leaves the menu there as Profile and
-                  Log out. */}
-              <div className={`${styles.moreGroup} ${styles.moreGroupMobileOnly}`}>
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  role="menuitem"
-                  onClick={() => { setActiveTab('tournament'); setMoreOpen(false); }}
-                >
-                  My Tournament
-                </button>
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  role="menuitem"
-                  onClick={() => { setActiveTab('history'); setMoreOpen(false); }}
-                >
-                  Tournament History
-                </button>
-              </div>
-
-              <div className={styles.moreGroup}>
-                {/* Notifications are not in here any more — the bell sits
-                    beside this menu, wearing its own count. */}
-                <Link href="/profile" className={styles.moreItem} role="menuitem">
-                  Profile
-                </Link>
-              </div>
-
-              <div className={styles.moreGroup}>
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  role="menuitem"
-                  onClick={handleLogout}
-                >
-                  Log out
-                </button>
-              </div>
-            </div>
-          )}
-          <button
-            type="button"
-            className={styles.sideLink}
-            onClick={() => setMoreOpen(v => !v)}
-            aria-expanded={moreOpen}
-            aria-haspopup="menu"
-            title="Menu"
-          >
-            <span className={styles.sideIcon}>
-              <Menu size={23} strokeWidth={1.9} />
-            </span>
-            <span className={styles.sideLabel}>Menu</span>
-          </button>
-        </div>
-      </aside>
-
       {/* ── Main area ─────────────────────────────────────────── */}
       <main className={styles.main} {...tabSwipeHandlers}>
         {/* Header */}
@@ -619,21 +533,6 @@ export default function OrganizerDashboard() {
           <div className={styles.headerIdentity}>
             <p className={styles.headerEyebrow}>Organizer dashboard</p>
             <div className={styles.headerTitleRow}>
-              <button
-                type="button"
-                className={styles.mobileOrganizerAvatarBtn}
-                title="Organizer profile"
-                aria-label="Organizer profile"
-                onClick={() => setProfileOpen(true)}
-              >
-                <span className={styles.mobileOrganizerAvatar}>
-                  {organizerIdentity?.avatarUrl ? (
-                    <img src={organizerIdentity.avatarUrl} alt="" />
-                  ) : (
-                    '🏐'
-                  )}
-                </span>
-              </button>
               <h1 className={styles.headerTitle}>
                 {organizer?.name ?? organizerIdentity?.name ?? 'Organizer'}
               </h1>

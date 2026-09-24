@@ -47,6 +47,7 @@ import AccountButton from '../../../components/auth/AccountButton';
 import CourtScheduleView from '../../../components/schedule/CourtScheduleView';
 import PlayerCardModal, { type PlayerCardTarget } from '../../../components/PlayerCardModal';
 import TeamCardModal, { type TeamCardTarget } from '../../../components/TeamCardModal';
+import OrganizerCardModal, { type OrganizerCardTarget } from '../../../components/OrganizerCardModal';
 import { readRosterLink, clearRosterLink } from '../../../lib/rosterLinkStash';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
 import { hasPrizes, prizeTotal } from '../../../lib/prizes';
@@ -327,6 +328,7 @@ export default function TournamentPage() {
   const [playerCard, setPlayerCard] = useState<PlayerCardTarget | null>(null);
   /* The team whose card is open — where a player gets to their own entry. */
   const [teamCard, setTeamCard] = useState<TeamCardTarget | null>(null);
+  const [organizerCard, setOrganizerCard] = useState<OrganizerCardTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -928,6 +930,31 @@ export default function TournamentPage() {
                   </span>
                 )}
               </div>
+              {/* Who is running it — the same face and card the homepage's
+                  tournament cards open, so "who organizes this?" has one
+                  answer wherever it is asked. */}
+              {tournament.organizer && (
+                <div className={styles.metaLine}>
+                  <button
+                    type="button"
+                    className={styles.organizedBy}
+                    onClick={() => setOrganizerCard({
+                      id: tournament.organizer!.id,
+                      name: tournament.organizer!.name,
+                      avatarUrl: tournament.organizer!.avatarUrl ?? undefined,
+                    })}
+                  >
+                    <span className={styles.organizedByAvatar} aria-hidden="true">
+                      {tournament.organizer.avatarUrl
+                        ? <img src={tournament.organizer.avatarUrl} alt="" />
+                        : tournament.organizer.name.trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span>
+                      Organized by <strong className={styles.organizedByName}>{tournament.organizer.name}</strong>
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1489,6 +1516,7 @@ export default function TournamentPage() {
       </main>
 
       <PlayerCardModal target={playerCard} onClose={() => setPlayerCard(null)} />
+      <OrganizerCardModal target={organizerCard} onClose={() => setOrganizerCard(null)} />
       <TeamCardModal
         target={teamCard}
         onClose={() => setTeamCard(null)}

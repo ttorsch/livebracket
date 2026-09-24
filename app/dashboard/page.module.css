@@ -16,15 +16,7 @@
   position: relative;
 }
 
-/* ── Corner bar (mobile only) ────────────────────────────────────
-   What is left of the old rail. Above 960px the top bar below carries the
-   navigation and this is hidden outright; under it, the @media block near
-   the end of this file turns this into the menu in the page's top-right
-   corner, unchanged from before the bar existed. */
-.sidebar {
-  display: none;
-}
-
+/* The round Live Bracket mark on the top bar. */
 .brandMark {
   display: grid;
   place-items: center;
@@ -34,99 +26,14 @@
   filter: drop-shadow(0 4px 10px rgba(242, 103, 73, 0.45));
 }
 .brandMark svg { width: 100%; height: 100%; }
-.sideLink {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 11px 10px;
-  border-radius: 14px;
-  border: none;
-  background: transparent;
-  color: var(--ink-900, #14181E);
-  font-family: var(--font-text, 'DM Sans', sans-serif);
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  text-align: left;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background 140ms ease, transform 140ms ease;
-}
-.sideLink:hover { background: var(--sand-200, #EFEAE0); }
-.sideLink:active { transform: scale(0.97); }
 
-.sideIcon {
-  position: relative;
-  flex: 0 0 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.sideLabel { min-width: 0; display: none; }
-
-/* ── More menu ──────────────────────────────────────────────────── */
-.moreWrap { position: relative; }
-.morePopup {
-  position: absolute;
-  bottom: 58px;
-  left: 4px;
-  width: 236px;
-  padding: 8px;
-  box-sizing: border-box;
-  background: #fff;
-  border-radius: 20px;
-  border: 1px solid var(--sand-300, #E7E2D9);
-  box-shadow: 0 18px 40px rgba(20, 24, 30, 0.16);
-  display: flex;
-  flex-direction: column;
-  z-index: 40;
-}
-.moreItem {
-  padding: 11px 12px;
-  border: none;
-  border-radius: 12px;
-  background: transparent;
-  font-family: var(--font-text, 'DM Sans', sans-serif);
-  font-size: 15px;
-  color: var(--ink-900, #14181E);
-  text-align: left;
-  cursor: pointer;
-}
-.moreItem:hover:not(:disabled) { background: var(--sand-200, #EFEAE0); }
-.moreItem:disabled { opacity: 0.45; cursor: default; }
-
-/* Three groups, each a rule apart: the tournaments, the person, the way out. */
-.moreGroup {
-  display: flex;
-  flex-direction: column;
-}
-.moreGroup + .moreGroup {
-  margin-top: 7px;
-  padding-top: 7px;
-  border-top: 1px solid var(--sand-300, #E7E2D9);
-}
-/* The rail carries this group on desktop, so it — and the rule that would
-   sit under it — only exist on the phone bar's menu. */
-.moreGroupMobileOnly { display: none; }
-.moreGroupMobileOnly + .moreGroup {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
-}
-
-/* Holds the bell on the mobile corner bar. Nothing at desktop width —
-   .sidebar itself is hidden there, and the bell is on the top bar. */
-.sideBell { display: none; }
-
-/* ── Top bar (desktop) ───────────────────────────────────────────
+/* ── Top bar ───────────────────────────────────────────
    Part of the page rather than a band bolted over it: sticky, so at rest
    it sits above the dashboard and scrolls away with it, and translated
    back down when the organizer scrolls up. See the scroll rules in
    page.tsx for when each of those happens. */
 .topbar {
-  display: none;
+  display: block;
   position: sticky;
   top: 0;
   z-index: 70;
@@ -302,10 +209,39 @@
   border-top: 1px solid var(--sand-300, #E7E2D9);
 }
 
-@media (min-width: 961px) {
-  .topbar { display: block; }
-  /* The account menu hangs off this, so it is the positioned box. */
-  .topAccount { position: relative; }
+/* The account menu hangs off this, so it is the positioned box. */
+.topAccount { position: relative; }
+
+/* The two views inside the account menu — phone only (see below). */
+.topMenuViews { display: none; flex-direction: column; }
+.topMenuItemActive { color: var(--coral-500, #EB6F43); font-weight: 700; }
+
+/* ── Top bar on tablet and phone ──────────────────────────────────
+   The same bar, tightened: shorter, the page's own 16px gutter, and the
+   tabs and account packed closer. The wordmark goes below 600px, where
+   the mark, both tabs, the bell and the account would otherwise
+   collide; the round mark alone still says whose app this is. */
+@media (max-width: 960px) {
+  .topbarInner {
+    height: 60px;
+    gap: 12px;
+    padding: 0 16px;
+  }
+  .topTab { padding: 9px 12px; font-size: 14.5px; }
+  .topTabActive::after { left: 12px; right: 12px; }
+  .topAccount { gap: 2px; }
+  .topAvatarBtn { padding: 3px 6px 3px 3px; gap: 4px; }
+  .topAvatar { width: 32px; height: 32px; }
+}
+/* Phone: no tabs on the bar — the two views lead the account menu
+   instead — which leaves room for the wordmark again on all but the
+   narrowest screens. */
+@media (max-width: 640px) {
+  .topNav { display: none; }
+  .topMenuViews { display: flex; }
+}
+@media (max-width: 359px) {
+  .topBrandName { display: none; }
 }
 
 /* ── Main ─────────────────────────────────────────────────────── */
@@ -337,9 +273,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.mobileOrganizerAvatarBtn {
-  display: none;
 }
 /* The create action reads as an invitation to add something rather than
    as the page's loudest control — the same dashed-outline language the
@@ -1589,126 +1522,15 @@
 @media (max-width: 960px) {
   /* No rail here, so no gutter to reserve. */
   .page { flex-direction: column; padding-left: 0; padding-right: 0; width: 100%; box-sizing: border-box; position: relative; }
-  .sidebar {
-    width: auto;
-    height: auto;
-    /* Down to the menu and the profile, the bar no longer needs a row of
-       its own — it sits in the page's top-right corner and the organizer's
-       name comes up beside it. Absolute rather than fixed: it still
-       scrolls away with the page, it just doesn't reserve a band across
-       the top for two controls. */
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: auto;
-    z-index: 1000;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: space-between;
-    /* A plain bar across the top. It used to be pinned there, and before
-       that it detached into a floating pill on scroll — margins in,
-       corners to 999px, a shadow underneath. All of that is gone: the
-       bar is flush, square, and scrolls off with the page, so nothing
-       about it moves or covers content while you read. */
-    margin: 0;
-    /* Top inset matches .main's, so the menu's top edge lands level with
-       the eyebrow that starts the page beside it. */
-    padding: 16px 14px 12px;
-    gap: 8px;
-    box-shadow: none;
-  }
-  .sidebar { align-self: auto; border-radius: 0; }
-
-  /* ── The mobile bar ──────────────────────────────────────────
-     One control: the menu in the corner, holding every view. The rest of
-     the navigation is the desktop top bar, which is hidden at this width
-     — and .sidebar is hidden at every other, so this is where it comes
-     back on. */
-  .sidebar { display: flex; background: var(--sand-100, #F5F1EA); }
-
-  /* Menu in the top right, with the bell beside it. Order puts the bell
-     first so the pair reads bell-then-menu, left to right. */
-  .moreWrap { display: flex; order: 1; }
-  .sideBell { display: flex; align-items: center; order: 0; }
-
-  .moreGroupMobileOnly { display: flex; }
-  .moreGroupMobileOnly + .moreGroup {
-    margin-top: 7px;
-    padding-top: 7px;
-    border-top: 1px solid var(--sand-300, #E7E2D9);
-  }
-
-  /* The bar sits at the top of the page here, so its menu drops down
-     from the trigger rather than rising off the screen edge. */
-  .morePopup {
-    top: calc(100% + 10px);
-    bottom: auto;
-    left: auto;
-    right: 0;
-  }
-  .sideLink {
-    padding: 9px 11px;
-    font-size: 14px;
-    gap: 0;
-  }
-  .sideLabel { display: none; }
-  .sideIcon { flex: none; height: auto; }
-  .sideLink svg {
-    width: 20px;
-    height: 20px;
-  }
   /* Was 80px of top padding to clear a bar pinned across the top. The
      bar is a corner control now, so this is just page spacing — and the
      header starts at the top of the page, level with the profile. */
   .main { padding: 16px 16px 40px; }
-  /* Sits alongside the bar rather than under it: reserves the width the
-     menu occupies. */
-  .headerIdentity {
-    padding-right: 56px;
-    min-height: auto;
-  }
+  .headerIdentity { min-height: auto; }
   .headerEyebrow {
     font-size: 8px;
     letter-spacing: 0.14em;
     margin-bottom: 2px;
-  }
-  .mobileOrganizerAvatarBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .mobileOrganizerAvatarBtn:focus-visible {
-    outline: 2px solid var(--color-primary, #EB6F43);
-    outline-offset: 2px;
-    border-radius: 50%;
-  }
-  .mobileOrganizerAvatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 8px rgba(20, 24, 30, 0.16);
-    background: var(--color-primary, #EB6F43);
-    color: #FFFFFF;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 700;
-  }
-  .mobileOrganizerAvatar img {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    display: block;
   }
   .headerTitle { font-size: 20px; }
   .heroTitle { font-size: 18px; }

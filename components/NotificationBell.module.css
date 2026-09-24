@@ -138,15 +138,21 @@
    the bell is the first of four icons, not the last, so a box that wide
    anchored to its right edge runs off the left of the screen. It is
    pinned to the viewport instead, at the height the component measures
-   the bell at. */
+   the bell at — and it runs to the bottom of the screen, so the list
+   scrolls inside a full-height sheet with "See all" held at its foot. */
 @media (max-width: 640px) {
   .panel {
     position: fixed;
     top: var(--bell-bottom, 72px);
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     left: 10px;
     right: 10px;
     width: auto;
     border-radius: 16px;
   }
-  .body { max-height: 62vh; }
+  .body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
 }

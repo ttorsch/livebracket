@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isDemoTournament } from './demoTournament';
 import { formatTeamName, formatPlayerNames, extractFirstName } from './teamName';
 import { type ScheduleConfig, normaliseConfig } from './schedule/generate';
 import {
@@ -449,13 +450,7 @@ export async function getPublicTournaments(): Promise<DashboardTournament[]> {
   if (error) throw new Error(`Failed to load tournaments: ${error.message}`);
 
   const filtered = ((data ?? []) as unknown as (TournamentRow & { is_template?: boolean; sandbox_id?: string | null })[])
-    .filter((t) => {
-      if (t.is_template) return false;
-      if (t.sandbox_id) return false;
-      if (t.slug?.endsWith('-template')) return false;
-      if (t.slug?.startsWith('andaman-masters-') || t.slug?.startsWith('khao-lak-open-')) return false;
-      return true;
-    });
+    .filter((t) => !isDemoTournament(t));
 
   return filtered.map(toDashboardTournament);
 }
@@ -515,6 +510,7 @@ export async function getHomepageStats(): Promise<HomepageStats> {
     const { data: tournaments, error } = await supabase
       .from('tournaments')
       .select(`
+        slug,
         phase,
         divisions (
           id,
@@ -522,7 +518,10 @@ export async function getHomepageStats(): Promise<HomepageStats> {
         )
       `)
       .is('archived_at', null)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      // Announced and later — the same events the public list shows. Drafts
+      // are private, and demo copies are not events at all.
+      .gte('phase', 2);
 
     if (error || !tournaments) {
       console.error('Failed to load homepage stats:', error);
@@ -532,7 +531,8 @@ export async function getHomepageStats(): Promise<HomepageStats> {
     let divisions = 0;
     let registeredTeams = 0;
 
-    for (const t of (tournaments as unknown as { divisions: { id: string; teams: { status: string }[] }[] }[])) {
+    for (const t of (tournaments as unknown as { slug: string; divisions: { id: string; teams: { status: string }[] }[] }[])) {
+      if (isDemoTournament(t)) continue;
       for (const d of t.divisions || []) {
         divisions++;
         for (const team of d.teams || []) {
@@ -849,6 +849,9 @@ export interface TournamentDetail {
   scheduleConfig: ScheduleConfig;
   divisions: DetailDivision[];
   vouchers: DetailVoucher[];
+  /** Who is running it — shown as "Organized by" on the public page. Null
+   *  for a tournament with no organizer row behind it. */
+  organizer?: { id: string; name: string; avatarUrl: string | null } | null;
 }
 
 function teamNameToPlayers(name: string, players?: { name: string }[]): DetailMatchPlayer[] {
@@ -1039,6 +1042,7 @@ interface TournamentDetailRow {
   schedule_config?: Record<string, unknown> | null; // absent when migration 0007 not yet applied
   divisions: DetailDivisionRow[];
   vouchers: VoucherRow[];
+  organizers?: { id: string; name: string | null; avatar_url: string | null } | null;
 }
 
 export async function getTournamentDetail(slug: string): Promise<TournamentDetail | null> {
@@ -1060,7 +1064,8 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           )
         )
       ),
-      vouchers ( id, code, discount_type, discount_value )`;
+      vouchers ( id, code, discount_type, discount_value ),
+      organizers ( id, name, avatar_url )`;
   const baseCols = 'slug, title, location, start_date, end_date, is_one_day, phase, description, image_url, archived_at, cancelled_at, deleted_at';
 
   const runQuery = (withScheduleConfig: boolean) =>
@@ -1094,6 +1099,9 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
     archived: !!row.archived_at,
     cancelled: !!row.cancelled_at,
     description: row.description,
+    organizer: row.organizers?.id
+      ? { id: row.organizers.id, name: row.organizers.name || 'Organizer', avatarUrl: row.organizers.avatar_url ?? null }
+      : null,
     scheduleConfig: readScheduleConfig(row.schedule_config),
     divisions: byCreation(row.divisions).map((d) => {
       const draw = (d.settings as { draw?: Partial<DrawConfig> } | null)?.draw;

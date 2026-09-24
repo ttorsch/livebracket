@@ -163,6 +163,11 @@
 .navIconBtn:hover {
   color: var(--color-primary, #EB6F43);
 }
+/* Chat does nothing yet, and a phone's nav has no room for a control that
+   does nothing: search, the bell and the account are what fit. */
+@media (max-width: 640px) {
+  .navChatBtn { display: none; }
+}
 .navSearchBtn:focus-visible,
 .navIconBtn:focus-visible {
   outline: 2px solid var(--color-primary, #EB6F43);
@@ -3196,7 +3201,19 @@
   .progressBarBg { display: none; }
   .moreDivisionsText { display: none; }
 
-  .cardFooter { display: none; }
+  /* Who is running it, and nothing else: the whole card already goes to
+     the event, so the Register button stays off, but the organizer is
+     worth the one line — and still opens their card when tapped. */
+  .cardFooter {
+    margin-top: 14px;
+    padding: 12px 0 0;
+    border-top: 1px solid rgba(20, 31, 46, 0.08);
+  }
+  .cardRegisterBtn { display: none; }
+  .organizerRow { gap: 8px; }
+  .organizerAvatar { width: 28px; height: 28px; font-size: 10px; }
+  .organizerLabel { display: none; }
+  .organizerName { font-size: 13.5px; }
   .cardDivisionsGrid {
     flex-wrap: wrap;
     gap: 16px;
