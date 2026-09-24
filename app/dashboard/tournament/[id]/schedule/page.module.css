@@ -4342,10 +4342,16 @@
   background: transparent;
 }
 
+/* Still zero-height when on: the row is drawn over the grid rather than
+   inserted above it. Taking up space pushed the grid down by one header —
+   bringing its own header back into view under the strip (two rows of court
+   pills), and on the next frame the grid no longer read as covered, so the
+   strip switched off and the page jumped back: a flicker at the hand-off.
+   Clipped sideways only, so the counter-scrolled row cannot widen the page. */
 .courtHeadStrip[data-strip-on] {
-  height: auto;
+  overflow: visible;
+  overflow-x: clip;
   opacity: 1;
-  padding-bottom: 8px;
 }
 
 .courtHeadStripInner {
