@@ -31,7 +31,7 @@ const cardVariants: Variants = {
 };
 import { Button, Card, Badge, Icon } from '../../../../components/livebracket-ds';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type DetailMatch } from '../../../../lib/data';
-import { assignPools, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
+import { assignPools, poolName, divisionPrefix, isThirdPlaceRound, labelDivisionMatches, type MatchLabel } from '../../../../lib/divisionMatches';
 import { isGroupFormat, isKnockoutFormat, roundFormatLabel, isForfeitMatch, STANDING_POINTS, knockoutStageName as roundName } from '../../../../lib/roundFormat';
 import { calculatePoolStandings } from '../../../../lib/standings';
 import { isTournamentLiveDate } from '../../../../lib/tournamentLifecycle';
@@ -333,7 +333,11 @@ export default function OrganizerBracketPage() {
   const [lockError, setLockError] = useState<string | null>(null);
   /* Set when the server refuses a rebuild because it would discard a saved
      schedule. Holds the server's own count, never a client guess. */
-  const [discard, setDiscard] = useState<{ kind: 'draw' | 'crossing' | 'thirdPlace'; cost: DiscardCost } | null>(null);
+  const [discard, setDiscard] = useState<{ kind: 'draw' | 'manual' | 'crossing' | 'thirdPlace'; cost: DiscardCost } | null>(null);
+  /* Manual draw: the organizer fills each pool's slots by hand. Slots hold
+     team ids ('' = empty); the pool sizes are the serpentine split, so the
+     picks can be saved as a seed order every pool reader already understands. */
+  const [manualSlots, setManualSlots] = useState<string[][] | null>(null);
   const [animDiv, setAnimDiv] = useState<string | null>(null); // division whose draw reveal is playing
   const [drawTick, setDrawTick] = useState(0); // remounts the pools grid so the reveal replays on every draw
 
@@ -904,27 +908,16 @@ export default function OrganizerBracketPage() {
   /* confirmDiscard is passed only by the confirm dialog, after the organizer
      has been shown what the rebuild costs. Every other caller runs without it
      and lets the server refuse. */
-  const saveDraw = async (confirmDiscard = false) => {
-    const totalConfirmed = seeds.length + unseededTeams.length;
-    if (!division || totalConfirmed < 2 || saving) return;
+  const submitDraw = async (seedOrder: string[], kind: 'draw' | 'manual', confirmDiscard: boolean) => {
+    if (!division || seedOrder.length < 2 || saving) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const shuffledUnseeded = [...unseededTeams]
-        .map(value => ({ value, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ value }) => value);
-
-      const fullSeedOrder = [
-        ...seeds.map(t => t.id),
-        ...shuffledUnseeded.map(t => t.id)
-      ];
-
       const res = await fetch(`/api/tournaments/${slug}/divisions/${division.id}/draw`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          seedOrder: fullSeedOrder,
+          seedOrder,
           topSeedIds: seeds.map(t => t.id),
           pools: config.pools,
           advance: config.advance,
@@ -939,12 +932,13 @@ export default function OrganizerBracketPage() {
         const cost = readDiscardRefusal(res.status, body);
         if (cost) {
           // Nothing was written: ask, then come back through with the answer.
-          setDiscard({ kind: 'draw', cost });
+          setDiscard({ kind, cost });
           return;
         }
         throw new Error(body?.error ?? `Save failed (${res.status})`);
       }
       setDiscard(null);
+      setManualSlots(null);
       await load(division.id);
       setAnimDiv(division.id);
       setDrawTick(t => t + 1);
@@ -958,6 +952,45 @@ export default function OrganizerBracketPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveDraw = (confirmDiscard = false) => {
+    const shuffledUnseeded = [...unseededTeams]
+      .map(value => ({ value, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ value }) => value);
+    submitDraw([...seeds.map(t => t.id), ...shuffledUnseeded.map(t => t.id)], 'draw', confirmDiscard);
+  };
+
+  /* Seed positions per pool under the serpentine split — manualLayout[p][k]
+     is the seed index that lands in slot k of pool p. Dealing the indices
+     themselves through assignPools keeps this in lockstep with the server. */
+  const manualLayout = assignPools(confirmedTeams.map((_, i) => i), config.pools).map(p => p.items);
+
+  const openManualDraw = () => {
+    // Start from the current draw when it has the same shape, so a small
+    // tweak doesn't mean re-picking every team.
+    const drawn = poolGroups.map(p => p.teams.map(t => t.id));
+    const sameShape = drawn.length === manualLayout.length
+      && drawn.every((ids, p) => ids.length === manualLayout[p].length);
+    setSaveError(null);
+    setManualSlots(sameShape ? drawn : manualLayout.map(slots => slots.map(() => '')));
+  };
+
+  const setManualSlot = (pool: number, slot: number, teamId: string) => {
+    setManualSlots(prev => prev && prev.map((ids, p) => ids.map((id, k) => {
+      if (p === pool && k === slot) return teamId;
+      return teamId && id === teamId ? '' : id; // a team sits in one slot only
+    })));
+  };
+
+  const manualFilled = manualSlots?.every(ids => ids.every(Boolean)) ?? false;
+
+  const saveManualDraw = (confirmDiscard = false) => {
+    if (!manualSlots || !manualFilled) return;
+    const seedOrder: string[] = [];
+    manualLayout.forEach((slots, p) => slots.forEach((seedIdx, k) => { seedOrder[seedIdx] = manualSlots[p][k]; }));
+    submitDraw(seedOrder, 'manual', confirmDiscard);
   };
 
   /* Crossing config is its own action: the pools have already been drawn and
@@ -1601,14 +1634,22 @@ export default function OrganizerBracketPage() {
                     variant="primary"
                     size="small"
                     fullWidth
-                    loading={saving}
+                    loading={saving && !manualSlots}
                     disabled={confirmedTeams.length < 2}
                     onClick={() => saveDraw()}
                     style={{ height: 32, fontSize: 12.5 }}
                   >
                     Draw Pool
                   </Button>
-                  {saveError && <p className={styles.saveError}>{saveError}</p>}
+                  <button
+                    type="button"
+                    className={styles.manualDrawBtn}
+                    disabled={confirmedTeams.length < 2 || saving}
+                    onClick={openManualDraw}
+                  >
+                    Manual Input
+                  </button>
+                  {saveError && !manualSlots && <p className={styles.saveError}>{saveError}</p>}
                 </div>
               </div>
             </div>
@@ -2368,6 +2409,62 @@ export default function OrganizerBracketPage() {
         </div>
       </main>
 
+      {/* ── MANUAL POOL DRAW ──────────────────────────────────────── */}
+      {manualSlots && (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Manual pool draw">
+          <div className={styles.manualDialog}>
+            <h3 className={styles.confirmTitle}>Manual Pool Draw</h3>
+            <p className={styles.confirmBody}>
+              Place each team of <strong>{division?.label}</strong> into a pool.
+              {' '}{confirmedTeams.length} teams · {manualLayout.length} pools.
+            </p>
+            <div className={styles.manualGrid}>
+              {manualSlots.map((ids, p) => (
+                <div key={p} className={styles.poolCard}>
+                  <div className={styles.poolCardHeader}>
+                    <span className={styles.poolBadge}>{poolName(p)}</span>
+                    <span className={styles.poolCardCount}>{ids.filter(Boolean).length}/{ids.length} teams</span>
+                  </div>
+                  <div className={styles.manualSlots}>
+                    {ids.map((id, k) => (
+                      <select
+                        key={k}
+                        className={styles.manualSelect}
+                        value={id}
+                        onChange={e => setManualSlot(p, k, e.target.value)}
+                        aria-label={`Pool ${poolName(p)}, slot ${k + 1}`}
+                      >
+                        <option value="">Select team…</option>
+                        {confirmedTeams
+                          .filter(t => t.id === id || !manualSlots.some(pool => pool.includes(t.id)))
+                          .map(t => (
+                            <option key={t.id} value={t.id}>{formatTeamFirstName(t.name)}</option>
+                          ))}
+                      </select>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {saveError && <p className={styles.saveError}>{saveError}</p>}
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.btnGhost} onClick={() => setManualSlots(null)} disabled={saving}>
+                Cancel
+              </button>
+              <Button
+                variant="primary"
+                size="small"
+                loading={saving}
+                disabled={!manualFilled}
+                onClick={() => saveManualDraw()}
+              >
+                Save Pools
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── DISCARD-A-SCHEDULE CONFIRM ─────────────────────────────────
           The draw route refuses a rebuild that would destroy placements and
           hands back what it counted; this is where that count is spent. The
@@ -2381,14 +2478,14 @@ export default function OrganizerBracketPage() {
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Discard saved schedule">
           <div className={styles.confirmDialog}>
             <h3 className={styles.confirmTitle}>
-              {discard.kind === 'draw'
+              {discard.kind === 'draw' || discard.kind === 'manual'
                 ? 'Redraw and discard the schedule?'
                 : discard.kind === 'thirdPlace'
                   ? 'Remove the play-off and discard its schedule?'
                   : 'Rebuild the bracket and discard its schedule?'}
             </h3>
             <p className={styles.confirmBody}>
-              {discard.kind === 'draw' ? (
+              {discard.kind === 'draw' || discard.kind === 'manual' ? (
                 <>
                   Redrawing <strong>{division?.label}</strong> rebuilds every match in it from
                   scratch, so its saved schedule goes with them —{' '}
@@ -2422,13 +2519,14 @@ export default function OrganizerBracketPage() {
                   const kind = discard.kind;
                   setDiscard(null);
                   if (kind === 'draw') saveDraw(true);
+                  else if (kind === 'manual') saveManualDraw(true);
                   else if (kind === 'thirdPlace') applyThirdPlace(true);
                   else applyCrossing(true);
                 }}
               >
                 {saving || applying || applyingThird
                   ? 'Working…'
-                  : discard.kind === 'draw'
+                  : discard.kind === 'draw' || discard.kind === 'manual'
                     ? 'Redraw anyway'
                     : discard.kind === 'thirdPlace'
                       ? 'Remove anyway'

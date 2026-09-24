@@ -1237,6 +1237,8 @@ export default function TournamentPage() {
                       id: `${team.id}-${idx}`,
                       name: n,
                       userId: null,
+                      nationality: '',
+                      club: '',
                     }));
 
                 /* The whole card is the way in to a team's own details.
@@ -1277,6 +1279,13 @@ export default function TournamentPage() {
                           const avatarKey = player.userId || (idx === 0 && team.registeredBy ? team.registeredBy : undefined);
                           const avatarUrl = avatarKey ? playerAvatars[avatarKey] : undefined;
                           const hasAccount = Boolean(avatarKey);
+                          const origin = [player.nationality, player.club].filter(Boolean).join(' · ');
+                          const nameBlock = (
+                            <span className={styles.teamPlayerText}>
+                              <span className={styles.teamPlayerName}>{player.name}</span>
+                              {origin && <span className={styles.teamPlayerOrigin}>{origin}</span>}
+                            </span>
+                          );
 
                           if (hasAccount) {
                             return (
@@ -1295,7 +1304,7 @@ export default function TournamentPage() {
                                 title={`About ${player.name}`}
                               >
                                 <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
-                                <span className={styles.teamPlayerName}>{player.name}</span>
+                                {nameBlock}
                               </button>
                             );
                           }
@@ -1306,7 +1315,7 @@ export default function TournamentPage() {
                               className={styles.teamPlayerRow}
                             >
                               <PlayerAvatar name={player.name} avatarUrl={avatarUrl} />
-                              <span className={styles.teamPlayerName}>{player.name}</span>
+                              {nameBlock}
                             </div>
                           );
                         })}

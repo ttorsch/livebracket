@@ -4,7 +4,7 @@ import { type ScheduleConfig, normaliseConfig } from './schedule/generate';
 import {
   normalizeGender, normalizeAgeLimit, type DivisionGender, type AgeLimit,
 } from './divisionEligibility';
-import { normalizeRegFields, rosterSize, type RegField } from './registrationFields';
+import { normalizeRegFields, presetAnswers, rosterSize, type RegField } from './registrationFields';
 import { normalizeCurrency } from './currency';
 import { readPrizes, prizeTotal, type DivisionPrizes } from './prizes';
 import { plannedPools as readPlannedPools, plannedThirdPlace as readPlannedThirdPlace } from './provisionalDraw';
@@ -988,7 +988,9 @@ export interface DetailTeam {
   seed: number;
   status: string;
   registeredBy?: string | null;
-  players?: { id: string; name: string; userId?: string | null }[];
+  /* Nationality and club/hometown ride along only when the division asks
+     that question — '' otherwise, so the card has nothing to print. */
+  players?: { id: string; name: string; userId?: string | null; nationality?: string; club?: string }[];
 }
 
 interface TeamRow {
@@ -998,7 +1000,7 @@ interface TeamRow {
   seed: number;
   status: string;
   registered_by?: string | null;
-  players?: { id: string; name: string; user_id?: string | null }[];
+  players?: { id: string; name: string; user_id?: string | null; custom_fields?: Record<string, unknown> | null }[];
 }
 
 interface DetailDivisionRow {
@@ -1047,7 +1049,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
   const rest = `
       divisions (
         id, name, division_team_cap, registration_fee, format_type_on_sand, reg_fields, settings, created_at,
-        teams ( id, name, team_name, seed, status, registered_by, players ( id, name, user_id ) ),
+        teams ( id, name, team_name, seed, status, registered_by, players ( id, name, user_id, custom_fields ) ),
         rounds (
           id, sequence, format, name, scoring_rules,
           matches (
@@ -1104,6 +1106,9 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         draw?: { thirdPlace?: unknown } | null;
       };
       const divTeamMap = new Map(d.teams.map((t) => [t.id, t]));
+      const regFields = normalizeRegFields(d.reg_fields);
+      const asksNationality = regFields.some((f) => f.preset === 'nationality');
+      const asksClub = regFields.some((f) => f.preset === 'hometown');
       return {
         id: d.id,
         label: d.name,
@@ -1118,11 +1123,16 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
             seed: team.seed,
             status: team.status,
             registeredBy: (team as any).registered_by ?? null,
-            players: (team.players || []).map((p) => ({
-              id: p.id,
-              name: p.name,
-              userId: p.user_id ?? null,
-            })),
+            players: (team.players || []).map((p) => {
+              const answers = presetAnswers(regFields, p.custom_fields);
+              return {
+                id: p.id,
+                name: p.name,
+                userId: p.user_id ?? null,
+                nationality: asksNationality ? answers.nationality.trim() : '',
+                club: asksClub ? answers.club.trim() : '',
+              };
+            }),
           })),
         bracket: [...d.rounds]
           .sort((a, b) => a.sequence - b.sequence)

@@ -1831,57 +1831,108 @@ export default function OrganizerSetup() {
     setShowImportMenu(false);
   };
 
-  // Export every stored field for every registered team in this division.
-  const exportRegistrations = () => {
-    if (!activeDivision || registeredTeams.length === 0) return;
-    const maxPlayers = registeredTeams.reduce((m, t) => Math.max(m, t.players.length), 0);
+  // Export every stored field for every registered team, one tab per division.
+  const [exporting, setExporting] = useState(false);
+  const exportRegistrations = async () => {
+    if (divisions.length === 0 || exporting) return;
+    const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!tournamentId) return;
+    setExporting(true);
+    setImportError('');
+    try {
+      // The active division's list is already loaded (and may hold edits the
+      // server hasn't echoed back yet); fetch the rest.
+      const teamsByDivision = await Promise.all(divisions.map(d =>
+        activeDivision && d.id === activeDivision.id
+          ? Promise.resolve(registeredTeams)
+          : getDivisionTeams(tournamentId, d.id)));
 
-    /* Every stored field, which now means the entry's one contact plus
-       each player's answers to the questions this division actually asks
-       — it used to print a Phone, Email and Shirt Size column per player
-       regardless, so it repeated the contact and invented an apparel
-       column for divisions that never asked for one. */
-    const rosterFields = playerRegFields(activeDivision.regFields).filter(f => targetFor(f) !== 'name');
-    const teamFields = teamRegFields(activeDivision.regFields);
-    const headers = ['No.', 'Players', 'Seed', 'Status', 'Payment', ...teamFields.map(f => f.label)];
-    for (let i = 1; i <= maxPlayers; i++) {
-      headers.push(`Player ${i} Name`, ...rosterFields.map(f => `Player ${i} ${f.label}`));
+      // exceljs is ~1MB, so it only loads when someone actually exports.
+      const { default: ExcelJS } = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const usedNames = new Set<string>();
+
+      divisions.forEach((division, idx) => {
+        const teams = teamsByDivision[idx];
+        const maxPlayers = teams.reduce((m, t) => Math.max(m, t.players.length), 0);
+
+        /* Every stored field, which now means the entry's one contact plus
+           each player's answers to the questions this division actually asks
+           — it used to print a Phone, Email and Shirt Size column per player
+           regardless, so it repeated the contact and invented an apparel
+           column for divisions that never asked for one. */
+        const rosterFields = playerRegFields(division.regFields).filter(f => targetFor(f) !== 'name');
+        const teamFields = teamRegFields(division.regFields);
+        const headers = ['No.', 'Players', 'Seed', 'Status', 'Payment', ...teamFields.map(f => f.label)];
+        for (let i = 1; i <= maxPlayers; i++) {
+          headers.push(`Player ${i} Name`, ...rosterFields.map(f => `Player ${i} ${f.label}`));
+        }
+
+        const confirmedRows = teams.filter(t => t.status !== 'waitlist');
+        const waitlistRows = teams.filter(t => t.status === 'waitlist');
+        const rows = teams.map((t) => {
+          const num = t.status === 'waitlist' ? waitlistRows.indexOf(t) + 1 : confirmedRows.indexOf(t) + 1;
+          const cells: (string | number)[] = [
+            num,
+            formatPlayerNames(t.players, t.name, t.seed),
+            t.seed ?? '',
+            t.status,
+            t.paymentCleared ? 'Paid' : 'Unpaid',
+            ...teamFields.map(f => teamAnswerFor(f, t)),
+          ];
+          for (let i = 0; i < maxPlayers; i++) {
+            const p = t.players[i];
+            cells.push(
+              p?.name ?? '',
+              ...rosterFields.map(f => (p ? answerFor(f, p) : '')),
+            );
+          }
+          return cells;
+        });
+
+        // Excel tab names: max 31 chars, no []:*?/\, unique within the file.
+        const base = (division.name.replace(/[[\]:*?/\\]/g, ' ').trim() || `Division ${idx + 1}`).slice(0, 31);
+        let sheetName = base;
+        for (let n = 2; usedNames.has(sheetName.toLowerCase()); n++) {
+          sheetName = `${base.slice(0, 31 - String(n).length - 1)} ${n}`;
+        }
+        usedNames.add(sheetName.toLowerCase());
+
+        const sheet = workbook.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 1 }] });
+        sheet.addRow(headers);
+        rows.forEach(r => sheet.addRow(r));
+
+        const header = sheet.getRow(1);
+        header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+        header.alignment = { vertical: 'middle' };
+        header.height = 22;
+        sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+
+        // Fit each column to its longest value, within reason.
+        sheet.columns.forEach((col, c) => {
+          const longest = [headers, ...rows].reduce((m, r) => Math.max(m, String(r[c] ?? '').length), 0);
+          col.width = Math.min(Math.max(longest + 2, 8), 50);
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const title = basicInfo?.title || tournamentInfo?.title || tournamentId;
+      a.download = `${title.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'tournament'}-registrations.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed', err);
+      setImportError('Could not export registrations. Please try again.');
+    } finally {
+      setExporting(false);
     }
-
-    const confirmedRows = registeredTeams.filter(t => t.status !== 'waitlist');
-    const rows = registeredTeams.map((t) => {
-      const isWait = t.status === 'waitlist';
-      const num = isWait
-        ? registeredTeams.filter(x => x.status === 'waitlist').indexOf(t) + 1
-        : confirmedRows.indexOf(t) + 1;
-      const cells = [
-        String(num),
-        formatPlayerNames(t.players, t.name, t.seed),
-        t.seed == null ? '' : String(t.seed),
-        t.status,
-        t.paymentCleared ? 'Paid' : 'Unpaid',
-        ...teamFields.map(f => teamAnswerFor(f, t)),
-      ];
-      for (let i = 0; i < maxPlayers; i++) {
-        const p = t.players[i];
-        cells.push(
-          p?.name ?? '',
-          ...rosterFields.map(f => (p ? answerFor(f, p) : '')),
-        );
-      }
-      return cells;
-    });
-
-    const csv = [headers, ...rows].map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n';
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${activeDivision.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-registrations.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2743,10 +2794,11 @@ export default function OrganizerSetup() {
                               type="button"
                               className={styles.btnGhost}
                               onClick={exportRegistrations}
-                              disabled={registeredTeams.length === 0}
-                              title="Download every registration field as CSV"
+                              disabled={exporting || (registeredTeams.length === 0
+                                && !overview?.divisions.some(d => d.confirmed + d.waitlisted > 0))}
+                              title="Download every division's registrations as an Excel file (one tab per division)"
                             >
-                              <Download size={15} /> Export
+                              <Download size={15} /> {exporting ? 'Exporting…' : 'Export'}
                             </button>
                             <input ref={importFileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleImportFile} />
                           </div>
