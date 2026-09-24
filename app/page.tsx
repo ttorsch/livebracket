@@ -1680,7 +1680,7 @@ export default function LiveBracketHome() {
                   onClick={() => saveScrollPosition()}
                   className={styles.navSignInLink}
                 >
-                  Sign In
+                  Log In
                 </Link>
 
                 {/* Signed-out Hamburger Menu Button & Dropdown */}
@@ -1709,7 +1709,7 @@ export default function LiveBracketHome() {
                         }}
                       >
                         <LogIn size={15} className={styles.menuIcon} aria-hidden="true" />
-                        <span>Sign In</span>
+                        <span>Log In</span>
                       </Link>
 
                       <Link

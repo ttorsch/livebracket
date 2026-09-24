@@ -176,10 +176,10 @@ function Card({ target, onClose }: { target: OrganizerCardTarget; onClose: () =>
             <Link
               href={`/login?next=${encodeURIComponent(`/?organizer=${organizerId}`)}`}
               className={`${styles.chat} ${styles.chatLocked}`}
-              title="Sign in to chat with this organizer"
+              title="Log in to chat with this organizer"
             >
               <LogIn size={16} aria-hidden="true" />
-              Sign in to chat
+              Log in to chat
             </Link>
           )}
 

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   if (!code) {
     return NextResponse.redirect(
-      `${origin}/auth/auth-error?message=${encodeURIComponent('This link is missing its sign-in code.')}`
+      `${origin}/auth/auth-error?message=${encodeURIComponent('This link is missing its log-in code.')}`
     );
   }
 

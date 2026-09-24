@@ -151,12 +151,12 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginBottom: 14 }}>
             <Logo variant="mark" size={38} />
             <h2 className="lb-h2" style={{ marginTop: 2, fontSize: 18, textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 'bold' }}>Welcome back</h2>
-            <p className="lb-body" style={{ textAlign: "center", fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>Sign in to follow brackets live.</p>
+            <p className="lb-body" style={{ textAlign: "center", fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>Log in to follow brackets live.</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {field("Email", email, setEmail, "email", "you@email.com")}
             {field("Password", pw, setPw, "password", "••••••••")}
-            <Button variant="primary" fullWidth onClick={onLogin} style={{ marginTop: 4, height: 36 }}>Sign In</Button>
+            <Button variant="primary" fullWidth onClick={onLogin} style={{ marginTop: 4, height: 36 }}>Log In</Button>
             <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: 10, justifyContent: 'center', margin: '2px 0' }}>
               <div style={{ width: 60, height: 1, background: "var(--border-hairline)" }} /> or <div style={{ width: 60, height: 1, background: "var(--border-hairline)" }} />
             </div>

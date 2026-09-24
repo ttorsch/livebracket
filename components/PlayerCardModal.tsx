@@ -192,7 +192,7 @@ function Card({ target, onClose }: { target: PlayerCardTarget; onClose: () => vo
               signed-out viewer, so say so instead of showing a blank. */}
           {card && !signedIn && (
             <p className={styles.gated}>
-              <Link href="/login" className={styles.gatedLink}>Sign in</Link> to see this player&apos;s
+              <Link href="/login" className={styles.gatedLink}>Log in</Link> to see this player&apos;s
               club, hometown and player ID.
             </p>
           )}
@@ -276,7 +276,7 @@ function Card({ target, onClose }: { target: PlayerCardTarget; onClose: () => vo
                   isSelf
                     ? 'You cannot thumb yourself up'
                     : !signedIn
-                      ? 'Sign in to thumb a player up'
+                      ? 'Log in to thumb a player up'
                       : thumbs.mine
                         ? 'Take your thumb up back'
                         : 'Thumb this player up'

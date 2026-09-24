@@ -3,7 +3,7 @@
 ```jsx
 <Button variant="primary" onClick={register}>Register Team</Button>
 <Button variant="secondary">Divisions</Button>
-<Button variant="general" iconRight={<span>→</span>}>Sign In</Button>
+<Button variant="general" iconRight={<span>→</span>}>Log In</Button>
 <Button variant="arrow" aria-label="Next" />
 <Button variant="primary" loading>Saving</Button>
 ```

@@ -82,7 +82,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
             )}
             {!viewer && (
               <p className={styles.gated}>
-                <Link href={`/login?next=/player/${id}`} className={styles.gatedLink}>Sign in</Link>{' '}
+                <Link href={`/login?next=/player/${id}`} className={styles.gatedLink}>Log in</Link>{' '}
                 to see this player&apos;s club, hometown and player ID.
               </p>
             )}

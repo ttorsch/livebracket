@@ -460,7 +460,7 @@ export default function DesignSystemPage() {
               <h3>Content fundamentals</h3>
               <p>How Live Bracket writes:</p>
               <ul>
-                <li><strong>Voice — direct & warm.</strong> Short, active, second-person. Real product copy: "Register Team", "See all division", "Divisions", "Sign In", "Live Now", "Add Favorite". Speaks to the player.</li>
+                <li><strong>Voice — direct & warm.</strong> Short, active, second-person. Real product copy: "Register Team", "See all division", "Divisions", "Log In", "Live Now", "Add Favorite". Speaks to the player.</li>
                 <li><strong>Energetic, never hype.</strong> The sport supplies the adrenaline; copy stays plain and confident. No exclamation spam, no marketing fluff.</li>
                 <li><strong>Casing.</strong> Title Case for buttons, tabs, and tournament names (<em>Khao Lak Open 2027</em>). UPPERCASE is reserved for the wordmark (LIVE BRACKET) and micro/overline labels (LIVE). Sentence case for body text.</li>
                 <li><strong>Numbers carry meaning.</strong> Scores, set tallies, and slot counts (<em>19/24</em>) are first-class — shown in tabular Space Grotesk numerals.</li>
@@ -494,7 +494,7 @@ export default function DesignSystemPage() {
                 <div className="btn-matrix">
                   <button className="btn-primary">Register Team</button>
                   <button className="btn-primary" style={{ background: 'transparent', color: 'var(--ink-900)', border: '1px solid var(--sand-300)', boxShadow: 'none' }}>Divisions</button>
-                  <button className="btn-primary" style={{ background: 'none', color: 'var(--ink-600)', boxShadow: 'none' }}>Sign In</button>
+                  <button className="btn-primary" style={{ background: 'none', color: 'var(--ink-600)', boxShadow: 'none' }}>Log In</button>
                 </div>
               </div>
               <button className="usage-notes-btn">📑 Usage notes for Claude</button>

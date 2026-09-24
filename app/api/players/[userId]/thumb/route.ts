@@ -35,7 +35,7 @@ export async function POST(
 
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: 'Sign in to thumb a player up' }, { status: 401 });
+    return NextResponse.json({ error: 'Log in to thumb a player up' }, { status: 401 });
   }
   if (user.id === userId) {
     return NextResponse.json({ error: 'You cannot thumb yourself up' }, { status: 400 });

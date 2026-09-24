@@ -563,7 +563,7 @@ function AccountStage({
       /* Still handled, though the screen before should have prevented it:
          an account could appear between the lookup and this click. */
       if (res.status === 409 && data?.exists) {
-        throw new Error('You already have an account for this address — sign in instead');
+        throw new Error('You already have an account for this address — log in instead');
       }
       if (!res.ok) throw new Error(data?.error ?? 'Could not create the account');
       /* The account route already linked the slot, with the new user id it
@@ -588,7 +588,7 @@ function AccountStage({
       if (playerId) await linkRosterSlot(teamId, playerId);
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in');
+      setError(err instanceof Error ? err.message : 'Could not log in');
     } finally {
       setBusy(false);
     }
@@ -615,7 +615,7 @@ function AccountStage({
       });
       if (error) throw new Error(error.message);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start sign-in');
+      setError(err instanceof Error ? err.message : 'Could not start logging in');
       setBusy(false);
     }
   };
@@ -686,7 +686,7 @@ function AccountStage({
       {account.exists && (
         <p className={styles.blurb}>
           This address already has an account
-          {oauthOnly ? <> with {oauthProviders.map(prettyProvider).join(' or ')}</> : null}. Sign in
+          {oauthOnly ? <> with {oauthProviders.map(prettyProvider).join(' or ')}</> : null}. Log in
           and this team joins your profile.
         </p>
       )}
@@ -763,7 +763,7 @@ function AccountStage({
           disabled={!answered || !password}
           loading={busy}
         >
-          Sign in
+          Log in
         </Button>
       ) : (
         <Button

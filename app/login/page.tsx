@@ -28,7 +28,7 @@ const ROLE_CONTENT: Record<Role, {
     accent: '#204ECF',
     asideTitle: <>Find your court. <em>Play the match.</em> Follow it live.</>,
     asideSub:
-      'Sign in to register for tournaments, follow your bracket, and get court assignments in real time.',
+      'Log in to register for tournaments, follow your bracket, and get court assignments in real time.',
   },
   organizer: {
     title: 'Organizer log in',
@@ -36,7 +36,7 @@ const ROLE_CONTENT: Record<Role, {
     accent: '#F26749',
     asideTitle: <>Run the draw. <em>Share one link.</em> Watch it go live.</>,
     asideSub:
-      'Sign in to create a tournament, seed the bracket, and hand score keepers a court-side scoring link.',
+      'Log in to create a tournament, seed the bracket, and hand score keepers a court-side scoring link.',
   },
 };
 
@@ -193,7 +193,7 @@ function LiveBracketLoginInner() {
       router.push(signInDestination('organizer', nextPath));
       router.refresh();
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'An error occurred during sign in.');
+      setErrorMsg(err instanceof Error ? err.message : 'An error occurred while logging in.');
     } finally {
       setLoading(false);
     }
@@ -257,7 +257,7 @@ function LiveBracketLoginInner() {
         setLoading(false);
       }
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Sign-in with that provider failed.');
+      setErrorMsg(err instanceof Error ? err.message : 'Logging in with that provider failed.');
       setLoading(false);
     }
   };
@@ -512,7 +512,7 @@ function LiveBracketLoginInner() {
                 />
               </label>
               <button type="submit" className={styles.signIn} disabled={loading}>
-                {loading ? 'Processing...' : `Sign in as ${role}`}
+                {loading ? 'Processing...' : `Log in as ${role}`}
               </button>
               <Link href="/forgot-password" className={styles.forgot}>
                 Forgot your password?

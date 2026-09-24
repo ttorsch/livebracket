@@ -96,7 +96,9 @@
 }
 .headerRevealed {
   transform: translateY(0);
-  box-shadow: 0 8px 24px rgba(20, 31, 46, 0.10);
+  /* Flat page: a hairline, not a drop shadow, separates the floating
+     header from the content scrolling under it. */
+  border-bottom: 1px solid var(--sand-300, #E7E2D9);
 }
 @media (prefers-reduced-motion: reduce) {
   .headerFloat { transition: none; }
@@ -120,7 +122,6 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  filter: drop-shadow(0 4px 10px rgba(242, 103, 73, 0.45));
 }
 .brandMark svg { width: 100%; height: 100%; display: block; }
 .brandWord {
@@ -167,7 +168,6 @@
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: var(--shadow-primary);
   transition: background var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard);
 }
 .btnPrimary:hover:not(:disabled) { background: var(--color-primary-hover); transform: translateY(-1px); }
@@ -229,7 +229,6 @@
   width: 140px;
   height: 175px;
   border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   display: block;
 }
 
@@ -464,7 +463,6 @@
 }
 .courtCardLive {
   background: var(--surface-ink);
-  box-shadow: var(--shadow-card);
 }
 .courtCard {
   background: var(--surface-card);
@@ -670,7 +668,6 @@
   inset: 0;
   border-radius: var(--radius-pill);
   background: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(20, 24, 30, 0.08);
   z-index: 0;
   pointer-events: none;
 }
@@ -773,7 +770,6 @@
 .emptyCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   padding: 40px 28px;
   text-align: center;
 }
@@ -810,7 +806,6 @@
   align-items: stretch;
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 /* Header + stats stack on the left; the fee rail spans the card's full height. */
@@ -933,7 +928,6 @@
 .roundCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1030,7 +1024,6 @@
 .noteCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   padding: 24px 32px;
 }
 .noteText {
@@ -1044,7 +1037,6 @@
 .aboutCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   padding: 24px 32px;
 }
 .aboutCard .drawTitle { margin: 4px 0 10px; }
@@ -1066,7 +1058,6 @@
 .prizeCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   padding: 28px 32px;
 }
 
@@ -1209,7 +1200,6 @@
 .fillCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   padding: 14px 18px;
 }
 .fillTop {
@@ -1279,13 +1269,11 @@
   padding: 20px 24px;
   border-radius: 20px;
   background: var(--surface-card, #FFFFFF);
-  box-shadow: 0 1px 3px rgba(20, 24, 30, 0.06), 0 8px 24px rgba(20, 24, 30, 0.04);
   min-height: 90px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .teamCard:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(20, 24, 30, 0.08), 0 12px 28px rgba(20, 24, 30, 0.06);
 }
 .teamCardMuted { opacity: 0.68; }
 
@@ -1448,7 +1436,6 @@
 .tableCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   padding: 8px 4px;
   overflow-x: auto;
 }
@@ -1555,10 +1542,9 @@
 .matchCard {
   background: var(--surface-card);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
   padding: 14px 16px;
 }
-.matchCardLive { box-shadow: 0 0 0 2px var(--status-live), var(--shadow-card); }
+.matchCardLive { box-shadow: 0 0 0 2px var(--status-live); }
 .matchMeta {
   display: flex;
   align-items: center;
@@ -1597,9 +1583,8 @@
   padding: 14px 18px;
   border-radius: var(--radius-lg);
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
 }
-.scheduleRowLive { box-shadow: 0 0 0 2px var(--status-live), var(--shadow-card); }
+.scheduleRowLive { box-shadow: 0 0 0 2px var(--status-live); }
 .scheduleRowDone { opacity: 0.72; }
 .scheduleTime {
   font-family: var(--font-display);
@@ -1643,7 +1628,6 @@
 .voucherCard {
   background: var(--surface-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
   padding: 22px 24px;
 }
 .voucherTitle { margin: 0 0 6px; font-family: var(--font-display); font-weight: 700; font-size: 18px; }
@@ -1799,7 +1783,6 @@
   }
   .activePill {
     background: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(20, 24, 30, 0.08), 0 1px 2px rgba(20, 24, 30, 0.04);
     border: 1px solid rgba(20, 24, 30, 0.06);
     border-radius: var(--radius-pill);
   }
@@ -1910,7 +1893,6 @@
   border: 1px solid var(--border-hairline);
   border-left: 3px solid var(--color-primary, #EF5A24);
   background: var(--surface-card);
-  box-shadow: var(--shadow-card);
 }
 
 .provisionalBannerTag {
@@ -1953,7 +1935,6 @@
 .teamCardOpens:hover {
   transform: translateY(-2px);
   border-color: var(--coral-400, #FF6B5A);
-  box-shadow: 0 8px 20px rgba(18, 22, 31, 0.1);
 }
 
 .teamCardOpens:focus-visible {

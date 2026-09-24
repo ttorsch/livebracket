@@ -4,7 +4,7 @@ import AuthShell from '../../../components/auth/AuthShell';
 import shell from '../../../components/auth/AuthShell.module.css';
 
 export const metadata = {
-  title: 'Sign-in problem · Live Bracket',
+  title: 'Log-in problem · Live Bracket',
 };
 
 /* Every failure path out of /auth/callback ends up here — an expired
@@ -27,7 +27,7 @@ export default async function AuthErrorPage({
         <p>
           {message
             ? message
-            : 'The sign-in link was invalid or has already been used. Links expire an hour after they are sent.'}
+            : 'The log-in link was invalid or has already been used. Links expire an hour after they are sent.'}
         </p>
         <div className={shell.doneActions}>
           <Link href="/login" className={shell.primaryAction}>Back to log in</Link>

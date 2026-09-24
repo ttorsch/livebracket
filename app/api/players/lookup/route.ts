@@ -20,7 +20,7 @@ import { findByPlayerId, isPlayerId } from '../../../../lib/profiles';
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: 'Sign in to search for players' }, { status: 401 });
+    return NextResponse.json({ error: 'Log in to search for players' }, { status: 401 });
   }
 
   const playerId = request.nextUrl.searchParams.get('playerId')?.trim() ?? '';

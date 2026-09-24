@@ -293,7 +293,7 @@ export default function RosterFields({
             {openIdx === i && !signedIn && (
               <div className={styles.playerSearchBox}>
                 <span className={styles.playerSearchNote}>
-                  <Link href={signInHref} className={styles.playerSearchSignIn}>Sign in</Link>
+                  <Link href={signInHref} className={styles.playerSearchSignIn}>Log in</Link>
                   {' '}to add a teammate by their player ID. You can still register by
                   typing everyone&apos;s details in.
                 </span>
