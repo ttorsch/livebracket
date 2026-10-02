@@ -236,21 +236,34 @@ describe('provisionalDivision', () => {
     }
   });
 
-  it('keeps the top qualifiers apart until they have to meet', () => {
-    /* Seeds laid out in plain order pair correctly for the opening round but
-       put seeds 1 and 2 in adjacent matches — which feed the same match next
-       round, so the two pool winners met in the quarter-final. */
-    const d = provisionalDivision(division({ teams: 16, advancePerPool: 2 }), { pools: 4 });
+  /* The opening round as "A1 v C2" pairs, in bracket order. */
+  const openingPairs = (d: DetailDivision) => {
     const labels = labelDivisionMatches(d);
-    const opening = d.bracket[1].matches.map(m => labels.get(m.id));
+    const short = (l: string | undefined) => (l ?? '').replace(/^#(\d+) Pool (\w+)$/, '$2$1');
+    return d.bracket[1].matches.map(m => {
+      const l = labels.get(m.id);
+      return `${short(l?.teamA)} v ${short(l?.teamB)}`;
+    });
+  };
 
-    // #1 Pool A and #1 Pool B are the top two qualifiers; they must not be in
-    // adjacent matches, because adjacent matches feed the same one.
-    const seatOf = (name: string) => opening.findIndex(l => l?.teamA === name || l?.teamB === name);
-    const a = seatOf('#1 Pool A');
-    const b = seatOf('#1 Pool B');
-    assert.ok(a >= 0 && b >= 0, 'both top qualifiers appear in the opening round');
-    assert.notEqual(Math.floor(a / 2), Math.floor(b / 2), 'top two must not feed the same match');
+  it('pairs the opening round by the crossing the organizer picked', () => {
+    /* The preview is a promise about the draw, so it has to be the draw's
+       crossing — not a seeding of its own that the draw then contradicts. */
+    const fivb = provisionalDivision(division({ crossing: 'fivb' }), { pools: 4 });
+    assert.deepEqual(openingPairs(fivb), ['A1 v C2', 'B1 v D2', 'C1 v A2', 'D1 v B2']);
+
+    const fixed = provisionalDivision(division({ crossing: 'static' }), { pools: 4 });
+    assert.deepEqual(openingPairs(fixed), ['A1 v D2', 'B1 v C2', 'C1 v B2', 'D1 v A2']);
+  });
+
+  it('never opens the knockout with two teams from the same pool', () => {
+    /* 2 pools advancing 4 is every team through. FIVB only crosses winners
+       and runners-up, and used to drop the rest in pool order — A3 v A4,
+       B3 v B4: a rematch of a pool match, in the quarter-final. */
+    for (const crossing of ['fivb', 'static']) {
+      const d = provisionalDivision(division({ teams: 8, advancePerPool: 4, crossing }), { pools: 2 });
+      assert.deepEqual(openingPairs(d), ['A1 v B4', 'A2 v B3', 'B1 v A4', 'B2 v A3'], crossing);
+    }
   });
 
   it('reads the 3rd-place play-off off its loser edge', () => {

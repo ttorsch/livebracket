@@ -136,13 +136,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const prevDraw = prevSettings?.draw as Record<string, unknown> | undefined;
   const newAdvance = Math.max(1, Math.min(4, Math.trunc(body.advancePerPool ?? (prevDraw?.advance as number) ?? 2) || 2));
   const newCrossing = ['fivb', 'static'].includes(body.crossing) ? body.crossing : ((prevDraw?.crossing as string) ?? 'fivb');
-  const nextDraw = prevDraw
-    ? {
+  // Once the knockout is drawn its pairings were built *from* these two, so
+  // rewriting them here would relabel a bracket without changing it — which
+  // is how a FIVB-drawn bracket came to say "Static". The setup page rebuilds
+  // the knockout through the draw route instead, and that writes them back.
+  const knockoutDrawn = Object.keys((prevDraw?.crossSlots as object | undefined) ?? {}).length > 0;
+  const nextDraw = !prevDraw || knockoutDrawn
+    ? prevDraw
+    : {
         ...prevDraw,
         advance: newAdvance,
         crossing: newCrossing,
-      }
-    : undefined;
+      };
 
   const { data: division, error: dError } = await supabaseAdmin
     .from('divisions')

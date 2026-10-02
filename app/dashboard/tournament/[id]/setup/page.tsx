@@ -91,6 +91,7 @@ import {
   type RegField, type RegFieldType, type PresetKey, type TeamPresetKey, type RegFieldScope,
 } from '../../../../../lib/registrationFields';
 import { ROUND_FORMAT_LABEL, type RoundFormat } from '../../../../../lib/roundFormat';
+import { describeDiscardCost } from '../../../../../lib/schedule/discardCost';
 import {
   readPrizes, defaultPlacings, prizeTotal, hasPrizes, placeLabel, placingIsMeaningful,
   type DivisionPrizes, type PrizePlacing,
@@ -881,6 +882,34 @@ function regFieldTypeLabel(field: RegField): string {
   return 'short text';
 }
 
+
+/* Rebuilds a drawn division's knockout for a new crossing or advance count.
+   The draw route refuses with a 409 when that would clear scheduled
+   knockout matches; the organizer is asked, and Cancel keeps the bracket
+   exactly as it was drawn. */
+async function rebuildKnockout(
+  tournamentId: string,
+  divisionId: string,
+  config: { pools: number; advance: number; crossing: string; thirdPlace: boolean },
+  confirmDiscard = false,
+): Promise<void> {
+  const res = await fetch(`/api/tournaments/${tournamentId}/divisions/${divisionId}/draw`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'crossing', ...config, ...(confirmDiscard ? { confirmDiscard: true } : {}) }),
+  });
+  if (res.ok) return;
+  const body = await res.json().catch(() => null);
+  if (res.status === 409 && body?.needsDiscardConfirm && body.cost) {
+    const ok = window.confirm(
+      `Changing the crossing rebuilds the knockout bracket and clears ${describeDiscardCost(body.cost)}. ` +
+      'Pools and their results stay. Cancel keeps the bracket as it is.',
+    );
+    if (ok) await rebuildKnockout(tournamentId, divisionId, config, true);
+    return;
+  }
+  throw new Error(body?.error ?? `Saved, but the bracket could not be rebuilt (${res.status})`);
+}
 
 export default function OrganizerSetup() {
   const params = useParams();
@@ -1674,6 +1703,23 @@ export default function OrganizerSetup() {
       );
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed to save division');
+
+      /* A drawn knockout is built from the crossing and the advance count, so
+         changing either here has to rebuild it — the save above deliberately
+         leaves the draw alone. Pools and their results are untouched. */
+      const draw = body.settings?.draw;
+      if (
+        editingDivisionId && !body.bracketCleared && draw &&
+        Object.keys(draw.crossSlots ?? {}).length > 0 &&
+        (draw.crossing !== crossing || draw.advance !== advancePerPool)
+      ) {
+        await rebuildKnockout(id, editingDivisionId, {
+          pools: draw.pools,
+          advance: advancePerPool,
+          crossing,
+          thirdPlace: draw.thirdPlace,
+        });
+      }
 
       const saved = mapDbDivision({
         id: body.id,

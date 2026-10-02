@@ -28,6 +28,7 @@ import type {
   DetailDivision, DetailMatch, DetailRound, DetailTeam, CrossSlot,
 } from './data';
 import { assignPools } from './divisionMatches.ts';
+import { crossBracket } from './crossing.ts';
 import { isGroupFormat, isKnockoutFormat, knockoutStageName } from './roundFormat.ts';
 
 /** Teams per pool the recommendation aims for. Four is the beach default:
@@ -258,24 +259,15 @@ export function provisionalDivision(
   const knockoutRound = rounds.find(r => isKnockoutFormat(r.format));
   if (knockoutRound) {
     const advance = Math.max(1, division.advancePerPool);
-    const qualifiers = poolCount > 0 ? poolCount * advance : cap;
-    const size = bracketSize(Math.max(2, qualifiers));
+
+    /* Each pool sends its top `advance`, or all of itself if it is smaller,
+       and the crossing the organizer picked pairs them — the same call the
+       real draw makes, so this bracket is the one the draw will produce. */
+    const crossed = poolCount > 0
+      ? crossBracket(division.crossing, grouped.map(p => Math.min(advance, p.items.length)))
+      : null;
+    const size = crossed ? crossed.size : bracketSize(Math.max(2, cap));
     const stages = Math.log2(size);
-
-    /* Qualifiers in seeding order — every pool's winner first, then every
-       runner-up, and so on. The crossing the organizer picked decides the
-       real pairings; this is the order the bracket is built from, and it is
-       what the provisional labels describe. */
-    const slots: (CrossSlot | null)[] = [];
-    for (let rank = 1; rank <= advance && poolCount > 0; rank++) {
-      for (let p = 0; p < poolCount; p++) slots.push({ pool: String.fromCharCode(65 + p), rank });
-    }
-    while (slots.length < size) slots.push(null);
-
-    /* Where each seed sits in the bracket. The shortfall is at the end of
-       `slots`, so the seats holding those indices come out as byes — and
-       they land on the strongest qualifiers, which is what a bye is for. */
-    const seats = bracketSeedOrder(size);
 
     /* Where a bye's position lands in the round after it.
      *
@@ -296,10 +288,8 @@ export function provisionalDivision(
       const matches: DetailMatch[] = [];
       for (let i = 0; i < count; i++) {
         const m = provisionalMatch(`prov:${division.id}:k${stage}:${i}`);
-        if (stage === 0 && poolCount > 0) {
-          // Standard bracket seeding: first against last, second against
-          // second-last, so the top qualifiers meet as late as possible.
-          const cross = { a: slots[seats[2 * i]] ?? null, b: slots[seats[2 * i + 1]] ?? null };
+        if (stage === 0 && crossed) {
+          const cross = { a: crossed?.slotsA[i] ?? null, b: crossed?.slotsB[i] ?? null };
           crossSlots[m.id] = cross;
           if ((cross.a === null) !== (cross.b === null)) {
             const next = carried[Math.floor(i / 2)];
