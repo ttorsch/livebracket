@@ -42,12 +42,21 @@ describe('crossBracket', () => {
     }
   });
 
-  it('crosses two pools of four advancing highest against lowest', () => {
-    assert.deepEqual(pairs('fivb', [4, 4]), ['A1 v B4', 'A2 v B3', 'B1 v A4', 'B2 v A3']);
-    assert.deepEqual(pairs('static', [4, 4]), ['A1 v B4', 'A2 v B3', 'B1 v A4', 'B2 v A3']);
+  it('puts a pool winner and its runner-up in opposite halves', () => {
+    // A1 and A2 can only meet in the final; the first two matches are one half.
+    assert.deepEqual(pairs('fivb', [4, 4]), ['A1 v B4', 'B2 v A3', 'B1 v A4', 'A2 v B3']);
+    assert.deepEqual(pairs('static', [4, 4]), ['A1 v B4', 'B2 v A3', 'B1 v A4', 'A2 v B3']);
   });
 
   it('gives the byes to the pool winners when the field is short', () => {
-    assert.deepEqual(pairs('fivb', [3, 3]), ['A1 v —', 'A2 v B3', 'B1 v —', 'B2 v A3']);
+    assert.deepEqual(pairs('fivb', [3, 3]), ['A1 v —', 'B2 v A3', 'B1 v —', 'A2 v B3']);
+  });
+
+  it('spreads four pools of four one to a quarter', () => {
+    const { slotsA, slotsB } = crossBracket('fivb', [4, 4, 4, 4]);
+    for (let q = 0; q < 4; q++) {
+      const pools = [slotsA[2 * q], slotsB[2 * q], slotsA[2 * q + 1], slotsB[2 * q + 1]].map(s => s?.pool).sort();
+      assert.deepEqual(pools, ['A', 'B', 'C', 'D'], `quarter ${q + 1}`);
+    }
   });
 });

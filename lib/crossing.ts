@@ -150,37 +150,60 @@ function getFivbCrossSlots(counts: number[], r1Count: number): CrossSides {
   return { slotsA, slotsB };
 }
 
-/* The advancing pool positions in seeding order, best first.
+/* The advancing pool positions in seeding order, best first, for a bracket
+   of `size`.
 
    Finishing rank is the only ranking available — nothing separates two pools'
    winners before they've played — so every winner outranks every runner-up,
-   and so on. Within a rank the pools are ordered by bracket geometry rather
-   than alphabetically: pool i's winner takes the seed that lands it in the
-   i-th section of the bracket, which is what puts A1 and B1 in one half and
-   C1/D1 in the other, the same arrangement the fixed charts draw. Each
-   following rank runs the pools in the opposite direction, so a pool's
-   runner-up is drawn against a winner from the far side of the bracket. */
-function crossEntrants(counts: number[]): CrossSlot[] {
+   and so on. The winners are ordered by bracket geometry rather than
+   alphabetically: pool i's winner takes the seed that lands it in the i-th
+   section of the bracket, which is what puts A1 and B1 in one half and C1/D1
+   in the other, the same arrangement the fixed charts draw.
+
+   Each later rank then takes its block of seeds by keeping pool-mates apart:
+   a team goes to whichever of its rank's seeds meets its own pool latest —
+   A2 into the half A1 is not in, so the two can only meet in the final.
+   Running each rank the opposite way round, which this used to do, gets
+   that right for four pools and wrong for two: it put A2 in A1's half. That
+   order is kept only to settle ties. */
+function crossEntrants(counts: number[], size: number): CrossSlot[] {
   const pools = counts.length;
   let sectionSize = 1;
   while (sectionSize < pools) sectionSize *= 2;
   // sectionOrder[i] = the seed that sits in the bracket's i-th section.
   const sectionOrder = seedPlacement(sectionSize).filter(seed => seed <= pools);
 
-  const bySeed: (CrossSlot | null)[] = [];
+  // positionOf[seed] = the bracket position (0-based) that seed is drawn into.
+  const positionOf: number[] = [];
+  seedPlacement(size).forEach((seed, pos) => { positionOf[seed] = pos; });
+  // The round in which two bracket positions would meet: 1 = the opening
+  // round, log2(size) = the final.
+  const meetRound = (x: number, y: number) => 32 - Math.clz32(x ^ y);
+
+  const bySeed: CrossSlot[] = [];
+  const placed: number[][] = counts.map(() => []); // positions per pool
   const maxRank = Math.max(...counts, 0);
   for (let rank = 1; rank <= maxRank; rank++) {
-    counts.forEach((count, p) => {
-      if (rank > count) return;
-      const order = rank % 2 === 1 ? sectionOrder[p] : sectionOrder[pools - 1 - p];
-      bySeed[(rank - 1) * pools + order - 1] = { pool: poolName(p), rank };
+    // This rank's pools, in the order the alternating geometry would seed them.
+    const inRank = counts.map((_, p) => p).filter(p => rank <= counts[p]);
+    const geometric = (p: number) => (rank % 2 === 1 ? sectionOrder[p] : sectionOrder[pools - 1 - p]);
+    inRank.sort((a, b) => geometric(a) - geometric(b));
+
+    const base = bySeed.length;
+    const free = new Set(inRank.map((_, i) => base + i + 1));
+    inRank.forEach((p, i) => {
+      // How late this seed would meet the pool's own teams; later is better.
+      const apart = (seed: number) =>
+        Math.min(Infinity, ...placed[p].map(pos => meetRound(positionOf[seed], pos)));
+      let best = base + i + 1;
+      if (!free.has(best)) best = Math.min(...free);
+      for (const seed of free) if (apart(seed) > apart(best)) best = seed;
+      free.delete(best);
+      bySeed[best - 1] = { pool: poolName(p), rank };
+      placed[p].push(positionOf[best]);
     });
   }
-
-  // Uneven pools leave gaps mid-list (a short pool sends no 3rd place, say).
-  // Closing them keeps the seeding order intact and puts every empty seat at
-  // the bottom, where byes belong.
-  return bySeed.filter((slot): slot is CrossSlot => !!slot);
+  return bySeed;
 }
 
 /* Seeds the advancing pool positions into a `size` bracket exactly the way a
@@ -193,7 +216,7 @@ function crossEntrants(counts: number[]): CrossSlot[] {
    power of two (they pair whole ranks against each other and assume every
    seat is taken), or a shape their charts don't cover — see crossBracket. */
 function getSeededCrossSlots(counts: number[], size: number): CrossSides {
-  const entrants = crossEntrants(counts);
+  const entrants = crossEntrants(counts, size);
   // field[position] = the pool position seeded there, or null for a bye.
   const field: (CrossSlot | null)[] = seedPlacement(size).map(seed => entrants[seed - 1] ?? null);
 

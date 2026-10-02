@@ -262,7 +262,7 @@ describe('provisionalDivision', () => {
        B3 v B4: a rematch of a pool match, in the quarter-final. */
     for (const crossing of ['fivb', 'static']) {
       const d = provisionalDivision(division({ teams: 8, advancePerPool: 4, crossing }), { pools: 2 });
-      assert.deepEqual(openingPairs(d), ['A1 v B4', 'A2 v B3', 'B1 v A4', 'B2 v A3'], crossing);
+      assert.deepEqual(openingPairs(d), ['A1 v B4', 'B2 v A3', 'B1 v A4', 'A2 v B3'], crossing);
     }
   });
 
