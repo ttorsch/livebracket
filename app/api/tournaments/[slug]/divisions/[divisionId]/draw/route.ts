@@ -1,11 +1,12 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../../../lib/supabaseAdmin';
+import { advanceDivision } from '../../../../../../../lib/advanceDivision';
 import type { CrossSlot } from '../../../../../../../lib/data';
 import { crossBracket, seedPlacement } from '../../../../../../../lib/crossing';
 import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
-import { isGroupFormat, isKnockoutFormat, knockoutStageName as stageName } from '../../../../../../../lib/roundFormat';
+import { isGroupFormat, isKnockoutFormat, isSpecialFormat, knockoutStageName as stageName } from '../../../../../../../lib/roundFormat';
 import { planThirdPlace, type KnockoutRound } from '../../../../../../../lib/thirdPlacePlan';
 import {
   NO_DISCARD_COST,
@@ -70,6 +71,9 @@ async function getDivision(slug: string, divisionId: string) {
     .eq('tournaments.slug', slug)
     .maybeSingle();
   if (error) throw new Error(error.message);
+  /* A special match's round is not part of the draw (migration 0025): a
+     redraw neither counts it, rebuilds it nor deletes it. */
+  if (data?.rounds) data.rounds = data.rounds.filter(r => !isSpecialFormat(r.format));
   return data;
 }
 
@@ -490,6 +494,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
       const err = await saveDrawConfig({ ...prevDraw, thirdPlace: true, slots, loserFeeders });
       if (err) return NextResponse.json({ error: err }, { status: 500 });
+
+      /* Added after the semifinals were played, the play-off already knows
+         its two teams — name them now rather than leaving the match empty
+         until the next result in the division happens to re-plan it. */
+      try {
+        await advanceDivision(divisionId);
+      } catch (advanceErr) {
+        console.error('Advancement after adding the 3rd-place play-off failed:', advanceErr);
+      }
       return NextResponse.json({ ok: true, mode: 'thirdPlace', thirdPlace: true, changed: true });
     }
 
@@ -558,7 +571,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const poolRules = prevRounds.find(r => isGroupFormat(r.format))?.scoring_rules ?? {};
     const elimRules = prevRounds.find(r => isKnockoutFormat(r.format))?.scoring_rules ?? {};
 
-    const { error: delError } = await supabaseAdmin.from('rounds').delete().eq('division_id', divisionId);
+    const { error: delError } = await supabaseAdmin
+      .from('rounds')
+      .delete()
+      .eq('division_id', divisionId)
+      .neq('format', 'special');
     if (delError) return NextResponse.json({ error: `Failed to clear rounds: ${delError.message}` }, { status: 500 });
 
     const hasRoundRobin = prevRounds.some(r => isGroupFormat(r.format));

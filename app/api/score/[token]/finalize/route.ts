@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   // A slot still waiting on an earlier round has nobody to award a win to,
   // and a winnerless "done" match would stall the bracket behind it.
-  if (!match.teamA.id || !match.teamB.id) {
+  if (!match.teamA.named || !match.teamB.named) {
     return NextResponse.json(
       { error: 'Both teams have to be decided before this match can be finalized.' },
       { status: 400 }
@@ -50,6 +50,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'The match is tied on sets — play a deciding set before finalizing.' }, { status: 400 });
   }
 
+  // Null when the winning side is a name typed onto a special match — it has
+  // no team to point at, and its win is read off the sets instead.
   const winnerTeamId = wins.a > wins.b ? match.teamA.id : match.teamB.id;
 
   const updatePayload: Record<string, unknown> = {

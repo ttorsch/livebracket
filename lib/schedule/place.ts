@@ -102,6 +102,11 @@ export interface PinnedPlacement {
   day: number;
   /** Minutes into the day, matching the grid's own frame. */
   startMin: number;
+  /** For a match the solver is not dealing — a special match, which belongs
+   *  to no division's draw — how long it holds the court. With it, the pin is
+   *  court time spoken for and nothing more; without it, a pin the graph
+   *  doesn't know is ignored. */
+  durationMinutes?: number;
 }
 
 export function placeMatches(
@@ -183,9 +188,22 @@ export function placeMatches(
 
   for (const pin of pinned) {
     const node = graph.nodes.get(pin.matchId);
-    if (!node || !remaining.has(pin.matchId)) continue;
     const courtIndex = grid.courts.findIndex(c => c.name === pin.courtName);
     if (courtIndex < 0) continue;
+
+    /* Not one of the solver's matches, only its court time: blocked, like a
+       venue block, with no placement or team of its own to record. */
+    if (!node) {
+      if (!pin.durationMinutes || pin.durationMinutes <= 0) continue;
+      const start = pin.day * DAY_SPAN + pin.startMin;
+      const key = spanKey(courtIndex, pin.day);
+      const span = { start, end: start + pin.durationMinutes };
+      const list = pinnedSpans.get(key);
+      if (list) list.push(span);
+      else pinnedSpans.set(key, [span]);
+      continue;
+    }
+    if (!remaining.has(pin.matchId)) continue;
 
     const start = pin.day * DAY_SPAN + pin.startMin;
     const end = start + node.durationMinutes;

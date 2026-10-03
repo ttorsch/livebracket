@@ -38,6 +38,7 @@ function mockTournament(
     cancelled: false,
     description: '',
     vouchers: [],
+    specialMatches: [],
     scheduleConfig: normaliseConfig({}),
     divisions: [
       {

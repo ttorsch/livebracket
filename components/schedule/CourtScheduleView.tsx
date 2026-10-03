@@ -15,6 +15,8 @@ const COURT_PEEK = 20;
 
 interface ScheduleMatch {
   id: string;
+  /** An exhibition the organizer added (lib/data SpecialMatch). */
+  isSpecial?: boolean;
   divisionLabel: string;
   divisionId: string;
   roundName: string;
@@ -554,6 +556,39 @@ export default function CourtScheduleView({
       });
     });
 
+    /* Special matches belong to the tournament, not a division: no pool,
+       round or number, and shown whichever division is being looked at. */
+    for (const m of tournament.specialMatches ?? []) {
+      if (!m.court && !m.time) continue;
+      const day = m.scheduledDate ? dayIndexOf(tournament.startDate, m.scheduledDate) : 0;
+      const dateStr = m.scheduledDate || tournament.startDate || '';
+      const teamA = m.teamAName ?? 'TBD';
+      const teamB = m.teamBName ?? 'TBD';
+      const players = [...m.teamA, ...m.teamB].map(pl => pl.name);
+      list.push({
+        id: m.id,
+        isSpecial: true,
+        divisionLabel: 'Special',
+        divisionId: m.divisionId,
+        roundName: '',
+        pool: null,
+        matchNo: 'Special',
+        court: m.court || 'Court 1',
+        time: m.time || '—',
+        teamA,
+        teamB,
+        haystack: [teamA, teamB, ...players, m.court, 'special'].join(' ').toLowerCase(),
+        scoreA: m.scoreA,
+        scoreB: m.scoreB,
+        winner: m.winner ?? null,
+        status: m.status,
+        day,
+        date: dateStr,
+        dateLabel: dateStr ? shortDate(dateStr) : '',
+        durationMinutes: m.durationMinutes,
+      });
+    }
+
     return list;
   }, [tournament, labelsByDivision]);
 
@@ -564,7 +599,7 @@ export default function CourtScheduleView({
 
   const filteredMatches = useMemo(() => {
     return allMatches.filter(m => {
-      if (!showAllDivisions && currentDivisionId && m.divisionId !== currentDivisionId) {
+      if (!showAllDivisions && currentDivisionId && !m.isSpecial && m.divisionId !== currentDivisionId) {
         return false;
       }
       if (activeDay !== 'all' && m.day !== activeDay) {
@@ -887,6 +922,7 @@ export default function CourtScheduleView({
                               .filter(Boolean)
                               .join(' ')}
                             data-div={divColorIndex.get(m.divisionLabel) ?? 0}
+                            data-special={m.isSpecial ? 'true' : undefined}
                           >
                             <div className={styles.matchItemTop}>
                               <span className={styles.matchTime}>

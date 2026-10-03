@@ -881,6 +881,13 @@
   --div-badge-bg: var(--cal-bg);
 }
 
+/* A special match belongs to no division, so it wears none of their colours. */
+.matchItem[data-special='true'] {
+  --div-accent: var(--ink-700, #2B313B);
+  --div-border: rgba(43, 49, 59, 0.30);
+  --div-badge-bg: rgba(43, 49, 59, 0.08);
+}
+
 .filterDot[data-div="0"] { background: #E06838; }
 .filterDot[data-div="1"] { background: #2563EB; }
 .filterDot[data-div="2"] { background: #059669; }

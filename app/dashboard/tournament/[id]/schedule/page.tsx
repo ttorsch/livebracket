@@ -61,6 +61,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core';
 import styles from './page.module.css';
+import { AddMatchModal, type AddMatchTeamOption } from './AddMatchModal';
 import { getTournamentDetail, type TournamentDetail, type DetailDivision, type ScheduleConfig } from '../../../../../lib/data';
 import { fetchLiveScores } from '../../../../../lib/liveScores';
 import { Badge, BracketIcon } from '../../../../../components/livebracket-ds';
@@ -86,6 +87,10 @@ import { labelDivisions, toSchedulableDivisions } from '../../../../../lib/sched
    long enough that sweeping across a run of cards does not ripple every one
    of them on the way past. */
 const INSERT_PREVIEW_DELAY_MS = 1000;
+
+/** What a special match is called on the board — in the number badge, in
+ *  fault messages, and as the "division" it is coloured by. */
+const SPECIAL_LABEL = 'Special';
 
 /** The two per-division numbers the generator needs before a draw exists:
  *  how many pools the group stage splits into, and whether the knockout ends
@@ -126,6 +131,9 @@ interface ScheduleMatch {
    *  Set here rather than in the card: the card is a nested draggable that
    *  would otherwise need the division and the provisional flag as props. */
   provisionalDivision: string | null;
+  /** An exhibition added by hand (lib/data SpecialMatch): no division of its
+   *  own on the board, no number, and nothing the solver deals. */
+  isSpecial?: boolean;
   matchNo: string;
   court: string;
   time: string;
@@ -520,9 +528,11 @@ function GridMatchCardItem({
   divIdx,
   faults,
   movable,
+  draggable,
   editMode,
   isPinned,
   onTogglePin,
+  onRemoveSpecial,
   shiftPx,
   editingTime,
   insertAt,
@@ -550,11 +560,18 @@ function GridMatchCardItem({
   ci: number;
   divIdx: number;
   faults: ScheduleProblem[];
+  /** Has a court and time to edit: time, buffer and pin controls. */
   movable: boolean;
+  /** Can be picked up — every placed match, and a waiting one from the
+   *  Unscheduled tray, which has nowhere to be moved *from* but somewhere to
+   *  go. */
+  draggable: boolean;
   editMode: boolean;
   /** Fixed to its time: drops elsewhere on the court flow around it. */
   isPinned: boolean;
   onTogglePin: (matchId: string) => void;
+  /** Takes a special match off the schedule entirely. */
+  onRemoveSpecial: (m: ScheduleMatch) => void;
   /** Pixels to slide down by, to make room for a card being inserted above.
    *  Measured from the ghost rather than worked out from --cal-slot-h: grid
    *  rows are `minmax(nominal, auto)`, and on a phone the nominal row is
@@ -587,7 +604,7 @@ function GridMatchCardItem({
     isDragging,
   } = useDraggable({
     id: b.m.id,
-    disabled: !movable,
+    disabled: !draggable,
     data: {
       type: 'match',
       match: b.m,
@@ -598,7 +615,8 @@ function GridMatchCardItem({
 
   const { isOver, setNodeRef: setDropRef } = useDroppable({
     id: `drop-match-${b.m.id}`,
-    disabled: !editMode,
+    // Nothing is inserted "before" a waiting match — the tray has no times.
+    disabled: !editMode || b.court === 'Unscheduled',
     data: {
       type: 'match',
       match: b.m,
@@ -618,11 +636,11 @@ function GridMatchCardItem({
     <div
       id={`match-card-${b.m.id}`}
       ref={setCardRef}
-      {...(movable ? listeners : {})}
-      {...(movable ? attributes : {})}
+      {...(draggable ? listeners : {})}
+      {...(draggable ? attributes : {})}
       className={[
         styles.gridMatchCard,
-        movable ? styles.gridMatchCardDraggable : '',
+        draggable ? styles.gridMatchCardDraggable : '',
         isDragging || isSelfDragging ? styles.gridMatchCardDragging : '',
         b.m.status === 'live' ? styles.gridMatchCardLive : '',
         b.m.status === 'done' ? styles.gridMatchCardDone : '',
@@ -631,7 +649,8 @@ function GridMatchCardItem({
         isPulsing ? styles.matchCardPulse : '',
       ].filter(Boolean).join(' ')}
       data-div={divIdx}
-      data-pickable={movable ? 'true' : undefined}
+      data-special={b.m.isSpecial ? 'true' : undefined}
+      data-pickable={draggable ? 'true' : undefined}
       style={{
         gridColumn: ci + 2,
         gridRow: `${b.startSlot + 2} / span ${b.spanSlots}`,
@@ -751,7 +770,23 @@ function GridMatchCardItem({
               where the card is barely wider than its own text. The grip is no
               loss: the whole card is the drag handle and it already shows a
               grab cursor, so the icon was decoration. */}
-          {editMode && !b.m.unscheduled && (
+          {/* A special match has no pin: Generate already holds it where it
+              is. What it has instead is a way back off the schedule. */}
+          {editMode && b.m.isSpecial && b.m.status !== 'live' && (
+            <button
+              type="button"
+              className={styles.cardRemoveBtn}
+              title="Remove this special match"
+              aria-label={`Remove special match ${b.m.teamA} v ${b.m.teamB}`}
+              onPointerDown={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+              onTouchStart={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); onRemoveSpecial(b.m); }}
+            >
+              <X size={12} strokeWidth={2.5} />
+            </button>
+          )}
+          {editMode && !b.m.unscheduled && !b.m.isSpecial && (
             <button
               type="button"
               className={`${styles.cardPinBtn} ${isPinned ? styles.cardPinBtnOn : ''}`}
@@ -1337,6 +1372,9 @@ export default function TournamentSchedulePage() {
       | undefined;
 
     if (!overData) return;
+    /* The tray is where matches wait for a place, not a place: a drop on it
+       has no court or time to give, so the card goes back where it was. */
+    if (overData.court === 'Unscheduled') return;
 
     if (overData.type === 'match' && overData.match) {
       if (overData.match.id === activeMatchId) return;
@@ -1669,13 +1707,19 @@ export default function TournamentSchedulePage() {
        so a regenerate deals everything else around them instead of moving
        them. Anything unscheduled or off the board cannot anchor anything, so
        it is not a pin as far as the solver is concerned. */
+    /* A placed special match is held where it is too: the solver has no
+       match for it to deal, only court time to keep clear — see
+       PinnedPlacement.durationMinutes. */
     const pinnedPlacements: PinnedPlacement[] = allMatches
-      .filter(m => pinnedIds.has(m.id) && !m.unscheduled && m.court !== 'Unscheduled' && m.day >= 0)
+      .filter(m => (pinnedIds.has(m.id) || m.isSpecial) && !m.unscheduled && m.court !== 'Unscheduled' && m.day >= 0)
       .flatMap(m => {
         const startMin = fromHHMM(m.time);
         return startMin == null
           ? []
-          : [{ matchId: m.id, courtName: m.court, day: m.day, startMin }];
+          : [{
+              matchId: m.id, courtName: m.court, day: m.day, startMin,
+              ...(m.isSpecial ? { durationMinutes: m.durationMinutes } : {}),
+            }];
       });
 
     const res = generateSchedule(schedulableDivisions, config, detail.dayCount, pinnedPlacements);
@@ -1784,6 +1828,43 @@ export default function TournamentSchedulePage() {
         });
       });
     });
+
+    /* Special matches. The generator never deals them, so only a hand edit
+       or what is saved places one — never the preview. */
+    for (const m of detail.specialMatches ?? []) {
+      const ed = edits.get(m.id);
+      const court = ed?.court ?? m.court ?? '';
+      const time = ed?.time ?? m.time ?? '';
+      const day = ed ? ed.day : m.scheduledDate ? dayIndexOf(detail.startDate, m.scheduledDate) : -1;
+      const dateStr = ed ? addDaysUTC(detail.startDate || '2026-01-01', ed.day) : (m.scheduledDate || '');
+      list.push({
+        id: m.id,
+        divisionLabel: SPECIAL_LABEL,
+        divisionId: m.divisionId,
+        roundName: '',
+        poolLabel: null,
+        provisionalDivision: null,
+        isSpecial: true,
+        matchNo: SPECIAL_LABEL,
+        court: court || 'Unscheduled',
+        time: time || '—',
+        teamA: m.teamAName ?? 'TBD',
+        teamB: m.teamBName ?? 'TBD',
+        scoreA: m.scoreA,
+        scoreB: m.scoreB,
+        winner: m.winner ?? null,
+        status: m.status,
+        day,
+        date: dateStr,
+        dateLabel: dateStr ? shortDate(dateStr) : '',
+        isPreview: false,
+        isEdited: !!ed,
+        unscheduled: !court || court === 'Unscheduled' || !time || time === '—',
+        overScheduled: false,
+        durationMinutes: m.durationMinutes,
+        scoringRules: readScoringRules(m.scoringRules),
+      });
+    }
 
     return list;
   }, [detail, previewMap, overflowIds, labelsByDivision, edits]);
@@ -1922,7 +2003,9 @@ export default function TournamentSchedulePage() {
       detail.dayCount,
       schedulableDivisions.flatMap(d => d.matches.map(m => m.durationMinutes ?? config.blockMinutes)),
     );
+    const specialIds = new Set((detail.specialMatches ?? []).map(m => m.id));
     const labelOf = (id: string) => {
+      if (specialIds.has(id)) return 'the special match';
       for (const [, labels] of labelsByDivision) {
         const l = labels.get(id);
         if (l) return l.no;
@@ -2264,7 +2347,8 @@ export default function TournamentSchedulePage() {
   // Filtered matches
   const filteredMatches = useMemo(() => {
     return allMatches.filter(m => {
-      if (activeDivisionId !== 'all' && m.divisionId !== activeDivisionId) return false;
+      // A special match is the tournament's, so it shows under every division.
+      if (activeDivisionId !== 'all' && !m.isSpecial && m.divisionId !== activeDivisionId) return false;
       if (activeDay !== 'all' && m.day !== activeDay) return false;
       if (statusFilter !== 'all' && m.status !== statusFilter) return false;
       return true;
@@ -3112,6 +3196,7 @@ export default function TournamentSchedulePage() {
       key={label}
       className={styles.divKeyChip}
       data-div={divColorIndex.get(label) ?? 0}
+      data-special={label === SPECIAL_LABEL ? 'true' : undefined}
     >
       <span className={styles.divKeyDot} aria-hidden="true" />
       {label}
@@ -3342,6 +3427,64 @@ export default function TournamentSchedulePage() {
         : prev,
     );
   };
+
+  /* ── Special matches ─────────────────────────────────────────
+   * Added and removed on the server straight away rather than held behind
+   * Save like a placement: the match has to exist before it can be placed,
+   * and a new one arrives unscheduled, so there is nothing for Save to say
+   * about it yet. The board is re-read so it appears in the tray. */
+  const [addMatchOpen, setAddMatchOpen] = useState(false);
+
+  const reloadDetail = async () => {
+    const fresh = await getTournamentDetail(slug).catch(() => null);
+    if (fresh) setLoadedDetail(fresh);
+  };
+
+  const onSpecialAdded = async (matchId: string) => {
+    setAddMatchOpen(false);
+    await reloadDetail();
+    // Straight into Edit, where the tray card can be dragged onto a court.
+    selectBarMode('edit');
+    setSaveMsg('Match added to Unscheduled — drag it onto a court.');
+    setPulsingMatchId(matchId);
+    if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+    pulseTimerRef.current = setTimeout(() => setPulsingMatchId(null), 1500);
+  };
+
+  const removeSpecialMatch = async (m: ScheduleMatch) => {
+    if (!window.confirm(`Remove the special match ${m.teamA} v ${m.teamB}?`)) return;
+    try {
+      const res = await fetch(`/api/tournaments/${slug}/special-matches/${m.id}`, { method: 'DELETE' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaveMsg(body.error || 'Could not remove the match.');
+        return;
+      }
+      // An unsaved move of a match that no longer exists is nothing to save.
+      setEdits(prev => {
+        if (!prev.has(m.id)) return prev;
+        const next = new Map(prev);
+        next.delete(m.id);
+        return next;
+      });
+      await reloadDetail();
+      setSaveMsg('Special match removed.');
+    } catch {
+      setSaveMsg('Could not reach the server.');
+    }
+  };
+
+  /** The teams a special match can be between: every seated team in the
+   *  tournament, grouped by division in the dropdown. */
+  const addMatchTeams = useMemo<AddMatchTeamOption[]>(
+    () =>
+      (loadedDetail?.divisions ?? []).flatMap(d =>
+        d.teamsList
+          .filter(t => t.status !== 'waitlist')
+          .map(t => ({ id: t.id, name: t.name, division: d.label })),
+      ),
+    [loadedDetail],
+  );
 
   /** A result can move teams into later matches (lib/advancement), which the
    *  saved match alone doesn't say. Re-read the tournament and take only the
@@ -3777,11 +3920,31 @@ export default function TournamentSchedulePage() {
             </div>
 
             <div className={styles.controlsGroup}>
+              {loadedDetail && (
+                <button
+                  type="button"
+                  className={styles.addMatchBtn}
+                  onClick={() => setAddMatchOpen(true)}
+                  title="Add a special match — an exhibition outside the competition"
+                >
+                  <Plus size={14} />
+                  <span className={styles.addMatchBtnText}>Add match</span>
+                </button>
+              )}
               {modeSegmented}
             </div>
           </div>
         </div>
       </div>
+
+      {addMatchOpen && (
+        <AddMatchModal
+          slug={slug}
+          teams={addMatchTeams}
+          onClose={() => setAddMatchOpen(false)}
+          onAdded={onSpecialAdded}
+        />
+      )}
 
       {/* ── Generator Modal ─────────────────────────────────── */}
       {panelOpen && config && (
@@ -4213,6 +4376,7 @@ export default function TournamentSchedulePage() {
                             pulsingMatchId === m.id ? styles.matchCardPulse : '',
                           ].filter(Boolean).join(' ')}
                           data-div={divColorIndex.get(m.divisionLabel) ?? 0}
+                          data-special={m.isSpecial ? 'true' : undefined}
                         >
                           {/* The buffer handle hangs off the edge the gap would
                               go in at, so the first match on a court can have
@@ -4668,6 +4832,7 @@ export default function TournamentSchedulePage() {
                           const divIdx = divColorIndex.get(b.m.divisionLabel) ?? 0;
                           const faults = problemsByMatch.get(b.m.id) ?? [];
                           const movable = canMove(b.m) && b.court !== 'Unscheduled';
+                          const draggable = movable || (editMode && b.court === 'Unscheduled');
                           /* Only the hovered card's own court moves, and only
                              from the hovered card downward — the rest of the
                              board is not affected by where this one lands. */
@@ -4689,9 +4854,11 @@ export default function TournamentSchedulePage() {
                               divIdx={divIdx}
                               faults={faults}
                               movable={movable}
+                              draggable={draggable}
                               editMode={editMode}
                               isPinned={pinnedIds.has(b.m.id)}
                               onTogglePin={togglePin}
+                              onRemoveSpecial={removeSpecialMatch}
                               shiftPx={shiftPx}
                               editingTime={editingTime}
                               insertAt={insertAt}

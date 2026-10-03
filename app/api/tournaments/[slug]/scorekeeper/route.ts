@@ -39,11 +39,11 @@ export async function GET(
   const { data, error } = await supabaseAdmin
     .from('matches')
     .select(`
-      id, court, scheduled_time, planned_time, status, scorekeeper_token,
+      id, court, scheduled_time, planned_time, status, scorekeeper_token, team_a_label, team_b_label,
       team_a:teams!matches_team_a_id_fkey(id,name,seed,players(id,name)),
       team_b:teams!matches_team_b_id_fkey(id,name,seed,players(id,name)),
       rounds!inner (
-        name,
+        name, format,
         divisions!inner ( name, tournament_id )
       )
     `)
@@ -57,9 +57,11 @@ export async function GET(
     planned_time: string | null;
     status: 'upcoming' | 'live' | 'done';
     scorekeeper_token: string;
+    team_a_label: string | null;
+    team_b_label: string | null;
     team_a: { id: string; name: string; seed?: number | null; players?: { id: string; name: string }[] } | null;
     team_b: { id: string; name: string; seed?: number | null; players?: { id: string; name: string }[] } | null;
-    rounds: { name: string; divisions: { name: string } | null } | null;
+    rounds: { name: string; format: string; divisions: { name: string } | null } | null;
   }
 
   /* Which day of the event a match falls on. An organizer reads "Day 2"
@@ -98,10 +100,11 @@ export async function GET(
         time,
         day: date ? dayByDate.get(date) ?? null : null,
         status: m.status,
-        division: m.rounds?.divisions?.name ?? '',
-        round: m.rounds?.name ?? '',
-        teamA: formatPlayerNames(m.team_a?.players, m.team_a?.name, m.team_a?.seed) || 'TBD',
-        teamB: formatPlayerNames(m.team_b?.players, m.team_b?.name, m.team_b?.seed) || 'TBD',
+        // A special match is the tournament's, not the division storing it.
+        division: m.rounds?.format === 'special' ? 'Special' : (m.rounds?.divisions?.name ?? ''),
+        round: m.rounds?.format === 'special' ? '' : (m.rounds?.name ?? ''),
+        teamA: formatPlayerNames(m.team_a?.players, m.team_a?.name, m.team_a?.seed) || m.team_a_label || 'TBD',
+        teamB: formatPlayerNames(m.team_b?.players, m.team_b?.name, m.team_b?.seed) || m.team_b_label || 'TBD',
       };
     });
 

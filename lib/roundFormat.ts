@@ -21,6 +21,10 @@
  * Kept free of imports so the organizer's setup page, the public page
  * and anything server-side can all share it. */
 
+/* The formats an organizer sets a division up with. 'special' is a fourth
+ * value the column can hold (see isSpecialFormat) but deliberately not one of
+ * these: nothing is set up as a special round, so the setup picker, which is
+ * built from this type, must not offer it. */
 export type RoundFormat = 'round-robin' | 'single' | 'double';
 
 export const ROUND_FORMAT_LABEL: Record<RoundFormat, string> = {
@@ -33,6 +37,7 @@ export const ROUND_FORMAT_LABEL: Record<RoundFormat, string> = {
  * format is a display problem, not a reason to blank the page. It should
  * be impossible now that the keys match the schema. */
 export function roundFormatLabel(format: string): string {
+  if (isSpecialFormat(format)) return 'Special';
   return ROUND_FORMAT_LABEL[format as RoundFormat] ?? format;
 }
 
@@ -47,6 +52,15 @@ export function roundFormatLabel(format: string): string {
  * hear about it. */
 export function isGroupFormat(format: string): boolean {
   return format === 'round-robin';
+}
+
+/* A special match's round (migration 0025): an exhibition the organizer
+ * added by hand. Neither a group nor a knockout, so it ranks nobody and
+ * feeds nothing; lib/data keeps these rounds out of a division's bracket
+ * and serves their matches separately. Never offered as a format to set up
+ * — only the special-match route writes it. */
+export function isSpecialFormat(format: string): boolean {
+  return format === 'special';
 }
 
 /* A round teams get knocked out of, and so the only kind that has a

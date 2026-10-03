@@ -9,6 +9,8 @@ import { normalizeRegFields, presetAnswers, rosterSize, type RegField } from './
 import { normalizeCurrency } from './currency';
 import { readPrizes, prizeTotal, type DivisionPrizes } from './prizes';
 import { plannedPools as readPlannedPools, plannedThirdPlace as readPlannedThirdPlace } from './provisionalDraw';
+import { isSpecialFormat } from './roundFormat';
+import { scoreWinner } from './matchScore';
 
 export type { ScheduleConfig };
 
@@ -177,6 +179,7 @@ export async function getSetupDivisions(slug: string): Promise<SetupDivisionRow[
   return divisions.map((d) => {
     const settings = d.settings ?? {};
     const stored = [...(d.rounds ?? [])]
+      .filter((r) => !isSpecialFormat(r.format)) // exhibitions aren't setup
       .sort((a, b) => a.sequence - b.sequence)
       .map((r) => {
         // durationMinutes rides inside scoring_rules; split it back out so the
@@ -591,7 +594,10 @@ export async function getRecentlyCompletedDivisions(daysCutoff: number = 14): Pr
 
   for (const t of rows) {
     for (const d of t.divisions ?? []) {
-      const rounds = [...(d.rounds ?? [])].sort((a, b) => a.sequence - b.sequence);
+      // Exhibitions crown nobody and a division can finish around them.
+      const rounds = [...(d.rounds ?? [])]
+        .filter((r) => !isSpecialFormat(r.format))
+        .sort((a, b) => a.sequence - b.sequence);
       if (rounds.length === 0) continue;
 
       // Find the championship final round: a round named 'Final', 'Grand Final', or 'Championship'
@@ -833,6 +839,20 @@ export interface DetailVoucher {
   code: string;
 }
 
+/* An exhibition the organizer added by hand (migration 0025). It belongs to
+   the tournament, not to a bracket: kept out of every division's `bracket`
+   so nothing that numbers, ranks, draws or advances can see it, and handed
+   to the views that do want it — the schedules and live scores — here.
+   A side is a registered team from any division, or a name typed for this
+   match alone (then its id is null). */
+export interface SpecialMatch extends DetailMatch {
+  /** The division whose round holds it — storage only; it is shown as the
+   *  tournament's, not that division's. */
+  divisionId: string;
+  durationMinutes: number;
+  scoringRules: Record<string, unknown> | null;
+}
+
 export interface TournamentDetail {
   slug: string;
   title: string;
@@ -848,6 +868,7 @@ export interface TournamentDetail {
   description: string | null;
   scheduleConfig: ScheduleConfig;
   divisions: DetailDivision[];
+  specialMatches: SpecialMatch[];
   vouchers: DetailVoucher[];
   /** Who is running it — shown as "Organized by" on the public page. Null
    *  for a tournament with no organizer row behind it. */
@@ -910,6 +931,8 @@ interface MatchRow {
   team_a_id: string;
   team_b_id: string;
   winner_team_id: string | null;
+  team_a_label?: string | null;
+  team_b_label?: string | null;
   team_a: { id: string; name: string } | null;
   team_b: { id: string; name: string } | null;
 }
@@ -1045,6 +1068,60 @@ interface TournamentDetailRow {
   organizers?: { id: string; name: string | null; avatar_url: string | null } | null;
 }
 
+/* The tournament's special matches, earliest first. A side's team can be
+   from any division, so names are looked up across the whole tournament. */
+function readSpecialMatches(divisions: DetailDivisionRow[]): SpecialMatch[] {
+  const teams = new Map(divisions.flatMap((d) => d.teams.map((t) => [t.id, t] as const)));
+  const sideName = (id: string | null, label: string | null | undefined, joined: { name: string } | null) => {
+    if (!id) return (label ?? '').trim() || 'TBD';
+    const t = teams.get(id);
+    return formatPlayerNames(t?.players, joined?.name ?? t?.name ?? null, t?.seed) || 'TBD';
+  };
+
+  const out: (SpecialMatch & { at: string })[] = [];
+  for (const d of divisions) {
+    for (const r of d.rounds) {
+      if (!isSpecialFormat(r.format)) continue;
+      for (const m of r.matches) {
+        const nameA = sideName(m.team_a_id, m.team_a_label, m.team_a);
+        const nameB = sideName(m.team_b_id, m.team_b_label, m.team_b);
+        /* A typed-in side has no id to record as the winner, so a finished
+           match's winner is read off its sets whenever the id doesn't say. */
+        const byId =
+          m.winner_team_id && m.winner_team_id === m.team_a_id ? 'A'
+          : m.winner_team_id && m.winner_team_id === m.team_b_id ? 'B'
+          : undefined;
+        const bySets = m.status === 'done' && m.score_a && m.score_b
+          ? scoreWinner(m.score_a.map((a, i) => ({ a, b: m.score_b?.[i] ?? 0 }))) ?? undefined
+          : undefined;
+        out.push({
+          id: m.id,
+          divisionId: d.id,
+          court: m.court ?? '',
+          time: formatMatchTime(m.scheduled_time),
+          scheduledDate: formatMatchDate(m.scheduled_time),
+          teamA: teamNameToPlayers(nameA, m.team_a_id ? teams.get(m.team_a_id)?.players : undefined),
+          teamB: teamNameToPlayers(nameB, m.team_b_id ? teams.get(m.team_b_id)?.players : undefined),
+          teamAId: m.team_a_id ?? null,
+          teamBId: m.team_b_id ?? null,
+          teamAName: nameA,
+          teamBName: nameB,
+          scoreA: m.score_a ?? undefined,
+          scoreB: m.score_b ?? undefined,
+          winner: byId ?? bySets,
+          status: m.status,
+          durationMinutes: readRoundMinutes(r.scoring_rules),
+          scoringRules: r.scoring_rules ?? null,
+          at: m.scheduled_time ?? '',
+        });
+      }
+    }
+  }
+  // Unscheduled last; a sort on the raw instant keeps days in order too.
+  out.sort((a, b) => (a.at || '\uffff').localeCompare(b.at || '\uffff'));
+  return out.map(({ at: _at, ...m }) => m);
+}
+
 export async function getTournamentDetail(slug: string): Promise<TournamentDetail | null> {
   // schedule_config is added by migration 0007. Query with it, but if the
   // column isn't there yet (migration not applied), retry without it so the
@@ -1058,7 +1135,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
           id, sequence, format, name, scoring_rules,
           matches (
             id, court, scheduled_time, status, score_a, score_b,
-            team_a_id, team_b_id, winner_team_id,
+            team_a_id, team_b_id, winner_team_id, team_a_label, team_b_label,
             team_a:teams!matches_team_a_id_fkey(id,name),
             team_b:teams!matches_team_b_id_fkey(id,name)
           )
@@ -1143,6 +1220,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
             }),
           })),
         bracket: [...d.rounds]
+          .filter((r) => !isSpecialFormat(r.format))
           .sort((a, b) => a.sequence - b.sequence)
           .map((r) => ({
             round: r.name,
@@ -1187,7 +1265,10 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         ageLimit: normalizeAgeLimit(settings.ageLimit),
         registrationOpens: typeof settings.registrationOpenDate === 'string' ? settings.registrationOpenDate : '',
         registrationCloses: typeof settings.registrationCloseDate === 'string' ? settings.registrationCloseDate : '',
-        configuredRounds: readConfiguredRounds(settings as Record<string, unknown>, d.rounds),
+        configuredRounds: readConfiguredRounds(
+          settings as Record<string, unknown>,
+          d.rounds.filter((r) => !isSpecialFormat(r.format)),
+        ),
         advancePerPool: typeof settings.advancePerPool === 'number'
           ? Math.max(1, Math.min(4, Math.trunc(settings.advancePerPool)))
           : 2,
@@ -1205,6 +1286,7 @@ export async function getTournamentDetail(slug: string): Promise<TournamentDetai
         confirmationMessage: typeof settings.confirmationMessage === 'string' ? settings.confirmationMessage : '',
       };
     }),
+    specialMatches: readSpecialMatches(row.divisions),
     vouchers: row.vouchers.map((v) => ({
       id: v.id,
       title: v.discount_type === 'percent' ? `${v.discount_value}% off with code ${v.code}` : `${v.discount_value} THB off with code ${v.code}`,

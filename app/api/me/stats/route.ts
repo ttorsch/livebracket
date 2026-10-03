@@ -104,6 +104,8 @@ export async function GET() {
       )
     `)
     .or(`team_a_id.in.(${teamIdList.join(',')}),team_b_id.in.(${teamIdList.join(',')})`)
+    // Special matches are exhibitions — they count for nothing on a record.
+    .neq('rounds.format', 'special')
     .order('scheduled_time', { ascending: true });
 
   let matchesCount = 0;

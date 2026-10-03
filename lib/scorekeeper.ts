@@ -91,8 +91,10 @@ export interface ScorekeeperMatch {
   tournamentTitle: string;
   divisionName: string;
   roundName: string;
-  teamA: { id: string | null; name: string };
-  teamB: { id: string | null; name: string };
+  /* `named` is whether the side is decided: a registered team, or on a
+     special match a name typed in for it (id null, still a side). */
+  teamA: { id: string | null; name: string; named: boolean };
+  teamB: { id: string | null; name: string; named: boolean };
   rules: ScoringRules;
   live: LiveScore | null;
   finalScoreA: number[] | null;
@@ -104,6 +106,8 @@ export interface ScorekeeperMatch {
 interface MatchTokenRow {
   id: string;
   division_id: string;
+  team_a_label: string | null;
+  team_b_label: string | null;
   court: string | null;
   scheduled_time: string | null;
   status: 'upcoming' | 'live' | 'done';
@@ -113,6 +117,7 @@ interface MatchTokenRow {
   team_b: { id: string; name: string; seed?: number | null; players?: { id: string; name: string }[] } | null;
   rounds: {
     name: string;
+    format: string;
     scoring_rules: Partial<ScoringRules> | null;
     divisions: {
       name: string;
@@ -132,11 +137,11 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
   const { data, error } = await supabaseAdmin
     .from('matches')
     .select(`
-      id, division_id, court, scheduled_time, status, score_a, score_b,
+      id, division_id, team_a_label, team_b_label, court, scheduled_time, status, score_a, score_b,
       team_a:teams!matches_team_a_id_fkey(id,name,seed,players(id,name)),
       team_b:teams!matches_team_b_id_fkey(id,name,seed,players(id,name)),
       rounds!inner (
-        name, scoring_rules,
+        name, format, scoring_rules,
         divisions!inner (
           name,
           tournaments!inner ( slug, title )
@@ -181,10 +186,19 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
     scheduledTime: row.scheduled_time,
     tournamentSlug: tournament?.slug ?? '',
     tournamentTitle: tournament?.title ?? '',
-    divisionName: division?.name ?? '',
-    roundName: round?.name ?? '',
-    teamA: { id: row.team_a?.id ?? null, name: formatPlayerNames(row.team_a?.players, row.team_a?.name, row.team_a?.seed) || 'TBD' },
-    teamB: { id: row.team_b?.id ?? null, name: formatPlayerNames(row.team_b?.players, row.team_b?.name, row.team_b?.seed) || 'TBD' },
+    // A special match is the tournament's, not the division storing it.
+    divisionName: round?.format === 'special' ? 'Special' : (division?.name ?? ''),
+    roundName: round?.format === 'special' ? '' : (round?.name ?? ''),
+    teamA: {
+      id: row.team_a?.id ?? null,
+      name: formatPlayerNames(row.team_a?.players, row.team_a?.name, row.team_a?.seed) || row.team_a_label || 'TBD',
+      named: !!row.team_a || !!row.team_a_label?.trim(),
+    },
+    teamB: {
+      id: row.team_b?.id ?? null,
+      name: formatPlayerNames(row.team_b?.players, row.team_b?.name, row.team_b?.seed) || row.team_b_label || 'TBD',
+      named: !!row.team_b || !!row.team_b_label?.trim(),
+    },
     rules,
     live,
     finalScoreA: row.score_a,

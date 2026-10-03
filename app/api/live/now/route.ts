@@ -75,7 +75,9 @@ interface MatchRow {
   status: 'live' | 'upcoming' | 'done';
   team_a_id: string | null;
   team_b_id: string | null;
-  rounds: { name: string; divisions: { name: string; tournament_id: string } };
+  team_a_label: string | null;
+  team_b_label: string | null;
+  rounds: { name: string; format: string; divisions: { name: string; tournament_id: string } };
 }
 
 const EMPTY: HeroTeam = { name: 'TBD', players: [] };
@@ -111,8 +113,8 @@ export async function GET() {
     const { data: mRows, error: mError } = await supabaseAdmin
       .from('matches')
       .select(
-        'id, court, scheduled_time, status, team_a_id, team_b_id, ' +
-          'rounds!inner ( name, divisions!inner ( name, tournament_id ) )'
+        'id, court, scheduled_time, status, team_a_id, team_b_id, team_a_label, team_b_label, ' +
+          'rounds!inner ( name, format, divisions!inner ( name, tournament_id ) )'
       )
       .in('rounds.divisions.tournament_id', Array.from(byId.keys()))
       .neq('status', 'done');
@@ -243,12 +245,13 @@ export async function GET() {
         location: t.location,
         dateLabel: formatDateRange(t.start_date, t.end_date, t.is_one_day),
         court: m.court || 'Court TBD',
-        division: m.rounds.divisions.name,
-        round: m.rounds.name,
+        // A special match is the tournament's, not the division storing it.
+        division: m.rounds.format === 'special' ? 'Special' : m.rounds.divisions.name,
+        round: m.rounds.format === 'special' ? '' : m.rounds.name,
         status: m.status === 'live' ? 'live' : 'upcoming',
         startTime: formatMatchTime(m.scheduled_time),
-        teamA: toTeam(m.team_a_id),
-        teamB: toTeam(m.team_b_id),
+        teamA: m.team_a_id || !m.team_a_label ? toTeam(m.team_a_id) : { name: m.team_a_label, players: [] },
+        teamB: m.team_b_id || !m.team_b_label ? toTeam(m.team_b_id) : { name: m.team_b_label, players: [] },
         sets: s?.sets ?? [],
         pointsA: s?.a ?? 0,
         pointsB: s?.b ?? 0,

@@ -42,6 +42,9 @@ interface MatchRow {
   status: 'upcoming' | 'live' | 'done';
   team_a_id: string | null;
   team_b_id: string | null;
+  /* A side's name on a special match when it isn't a registered team. */
+  team_a_label: string | null;
+  team_b_label: string | null;
   /* The round this match belongs to, for its scoring format. */
   rounds: { scoring_rules: Record<string, unknown> | null } | null;
 }
@@ -72,7 +75,7 @@ export async function PUT(
    * tournament's divisions. */
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .select('id, division_id, status, team_a_id, team_b_id, rounds!inner ( scoring_rules, divisions!inner ( tournament_id ) )')
+    .select('id, division_id, status, team_a_id, team_b_id, team_a_label, team_b_label, rounds!inner ( scoring_rules, divisions!inner ( tournament_id ) )')
     .eq('id', matchId)
     .eq('rounds.divisions.tournament_id', tournamentId)
     .maybeSingle();
@@ -106,7 +109,10 @@ export async function PUT(
 
   // A result needs two teams to have a winner between them. A slot still
   // waiting on an earlier round has nobody to award it to.
-  if (!clearing && (!match.team_a_id || !match.team_b_id)) {
+  // A typed-in name on a special match is a decided side too.
+  const sideA = !!match.team_a_id || !!match.team_a_label?.trim();
+  const sideB = !!match.team_b_id || !!match.team_b_label?.trim();
+  if (!clearing && (!sideA || !sideB)) {
     return NextResponse.json(
       { error: 'Both teams have to be decided before this match can be scored.' },
       { status: 400 }

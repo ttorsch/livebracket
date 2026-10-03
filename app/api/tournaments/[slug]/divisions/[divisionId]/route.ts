@@ -6,6 +6,7 @@ import { authErrorResponse } from '../../../../../../lib/authResponse';
 import { toStoredPrizes } from '../../../../../../lib/prizes';
 import { normalizeCurrency } from '../../../../../../lib/currency';
 import { plannedPools } from '../../../../../../lib/provisionalDraw';
+import { isSpecialFormat } from '../../../../../../lib/roundFormat';
 
 interface DivisionBody {
   name: string;
@@ -191,7 +192,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .order('sequence', { ascending: true });
   if (exError) return NextResponse.json({ error: exError.message }, { status: 500 });
 
-  const current = existingRounds ?? [];
+  /* Special matches' rounds (migration 0025) are not the configuration's —
+     an exhibition keeps its own length and survives a rebuild — so they are
+     neither compared, re-ruled nor deleted here. */
+  const current = (existingRounds ?? []).filter(r => !isSpecialFormat(r.format));
   const hasDraw = !!settings.draw;
 
   // The configuration as it stood before this save, by the same three-step
@@ -239,7 +243,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ ...division, rounds: updated, bracketCleared: false });
   }
 
-  const { error: delError } = await supabaseAdmin.from('rounds').delete().eq('division_id', divisionId);
+  const { error: delError } = await supabaseAdmin
+    .from('rounds')
+    .delete()
+    .eq('division_id', divisionId)
+    .neq('format', 'special');
   if (delError) return NextResponse.json({ error: delError.message }, { status: 500 });
 
   const roundRows = incoming.map((r, i) => ({

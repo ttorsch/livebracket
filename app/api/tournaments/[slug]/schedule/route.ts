@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { requireTournamentOwner } from '../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../lib/authResponse';
 import { scheduleSaveGate, type GateDivision } from '../../../../../lib/scheduleGate';
+import { isSpecialFormat } from '../../../../../lib/roundFormat';
 
 // Persists the tournament's schedule: the venue configuration (PATCH) and the
 // generated court/time assignments written back onto matches (PUT). The
@@ -189,20 +190,21 @@ async function readGateDivisions(slug: string): Promise<GateDivision[] | { error
     .from('divisions')
     // rounds(matches(id)) rather than settings.draw alone: the draw key can
     // exist as a stub before a draw has run, so only matches prove one has.
-    .select('id, name, settings, rounds(matches(id)), tournaments!inner(slug)')
+    .select('id, name, settings, rounds(format, matches(id)), tournaments!inner(slug)')
     .eq('tournaments.slug', slug);
   if (error) return { error: error.message };
   return (data ?? []).map((d) => {
     const row = d as {
       id: string; name: string; settings: unknown;
-      rounds?: { matches?: { id: string }[] }[];
+      rounds?: { format: string; matches?: { id: string }[] }[];
     };
     const settings = row.settings as { draw?: { isLocked?: boolean } } | null;
     return {
       id: row.id,
       label: row.name,
       drawLocked: !!settings?.draw?.isLocked,
-      hasMatches: (row.rounds ?? []).some(r => (r.matches ?? []).length > 0),
+      // A special match is not a draw, so it neither opens nor holds the gate.
+      hasMatches: (row.rounds ?? []).some(r => !isSpecialFormat(r.format) && (r.matches ?? []).length > 0),
     };
   });
 }

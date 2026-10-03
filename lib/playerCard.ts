@@ -121,7 +121,7 @@ const MATCH_COLUMNS = `
   team_a:teams!matches_team_a_id_fkey(id, name),
   team_b:teams!matches_team_b_id_fkey(id, name),
   rounds!inner (
-    name,
+    name, format,
     divisions!inner (
       name,
       tournaments!inner ( slug, title )
@@ -148,6 +148,8 @@ export async function recordForTeams(
     .select(MATCH_COLUMNS)
     // Played order, which is what makes the streak mean anything.
     .or(`team_a_id.in.(${list}),team_b_id.in.(${list})`)
+    // Special matches are exhibitions — they count for nothing on a record.
+    .neq('rounds.format', 'special')
     .order('scheduled_time', { ascending: true });
 
   const rows = (data ?? []) as unknown as MatchRow[];

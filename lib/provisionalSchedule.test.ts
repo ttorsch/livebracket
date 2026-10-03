@@ -44,7 +44,7 @@ function tournament(divisions: DetailDivision[]): TournamentDetail {
     date: 'Sep 19, 2026', startDate: '2026-09-19', endDate: '2026-09-20', dayCount: 2,
     phase: 3, imageUrl: null, archived: false, cancelled: false, description: null,
     scheduleConfig: { ...DEFAULT_SCHEDULE_CONFIG, courtCount: 4 },
-    divisions, vouchers: [],
+    divisions, specialMatches: [], vouchers: [],
   };
 }
 

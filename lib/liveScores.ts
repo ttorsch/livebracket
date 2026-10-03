@@ -1,4 +1,4 @@
-import type { TournamentDetail } from './data';
+import type { DetailMatch, TournamentDetail } from './data';
 
 /* ── Live scores, merged into the detail both read paths already use ──
  *
@@ -44,30 +44,30 @@ export async function fetchLiveScores(slug: string): Promise<LiveScoreMap> {
 export function applyLiveScores(detail: TournamentDetail, live: LiveScoreMap): TournamentDetail {
   if (Object.keys(live).length === 0) return detail;
 
+  const fold = <M extends DetailMatch>(m: M): M => {
+    const l = live[m.id];
+    // A finalized match keeps its Postgres result even if a stale key
+    // lingers in Redis — the durable score always wins.
+    if (!l || m.status === 'done') return m;
+    return {
+      ...m,
+      // Completed sets, then the one on court. The in-progress set is
+      // included at 0–0 so a court that has just started reads as
+      // playing rather than as having no score at all.
+      scoreA: [...l.sets.map(s => s.a), l.a],
+      scoreB: [...l.sets.map(s => s.b), l.b],
+      lastScorer: l.lastScorer ?? null,
+      startedAt: l.startedAt ?? null,
+      status: 'live' as const,
+    };
+  };
+
   return {
     ...detail,
     divisions: detail.divisions.map(d => ({
       ...d,
-      bracket: d.bracket.map(r => ({
-        ...r,
-        matches: r.matches.map(m => {
-          const l = live[m.id];
-          // A finalized match keeps its Postgres result even if a stale key
-          // lingers in Redis — the durable score always wins.
-          if (!l || m.status === 'done') return m;
-          return {
-            ...m,
-            // Completed sets, then the one on court. The in-progress set is
-            // included at 0–0 so a court that has just started reads as
-            // playing rather than as having no score at all.
-            scoreA: [...l.sets.map(s => s.a), l.a],
-            scoreB: [...l.sets.map(s => s.b), l.b],
-            lastScorer: l.lastScorer ?? null,
-            startedAt: l.startedAt ?? null,
-            status: 'live' as const,
-          };
-        }),
-      })),
+      bracket: d.bracket.map(r => ({ ...r, matches: r.matches.map(fold) })),
     })),
+    specialMatches: (detail.specialMatches ?? []).map(fold),
   };
 }

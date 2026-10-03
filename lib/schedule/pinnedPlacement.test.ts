@@ -122,3 +122,29 @@ describe('a pinned match survives a regenerate', () => {
     );
   });
 });
+
+describe('a special match holds its court through a regenerate', () => {
+  const divisions = [division('m', 5), division('w', 5)];
+  // Not one of the solver's matches: only its court time is handed over.
+  const special = { matchId: 'special-1', courtName: 'Court 1', day: 0, startMin: H('09:00'), durationMinutes: 60 };
+
+  it('keeps every generated match off the special match’s court time', () => {
+    const again = generateSchedule(divisions, CONFIG, 1, [special]);
+    const clash = again.placements.find(
+      p => p.courtName === 'Court 1' && p.startAbs < H('10:00') && p.startAbs + 30 > H('09:00'),
+    );
+    assert.equal(clash, undefined, 'a match was dealt on top of the special match');
+  });
+
+  it('places no match for it — it was never the solver’s to place', () => {
+    const again = generateSchedule(divisions, CONFIG, 1, [special]);
+    assert.equal(again.placements.find(p => p.matchId === 'special-1'), undefined);
+  });
+
+  it('is ignored without a length, as an unknown pin always was', () => {
+    const { durationMinutes: _d, ...bare } = special;
+    const plain = generateSchedule(divisions, CONFIG, 1);
+    const again = generateSchedule(divisions, CONFIG, 1, [bare]);
+    assert.deepEqual(again.placements, plain.placements);
+  });
+});
