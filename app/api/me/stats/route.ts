@@ -130,6 +130,8 @@ export async function GET() {
     const isTeamA = userTeamIds.has(m.team_a_id);
     const isTeamB = userTeamIds.has(m.team_b_id);
     if (!isTeamA && !isTeamB) continue;
+    // A bye is never played — one team, an empty seat — so it counts for nothing.
+    if (!m.team_a_id || !m.team_b_id) continue;
 
     const userTeamId = isTeamA ? m.team_a_id : m.team_b_id;
     const scoreUser = isTeamA ? m.score_a : m.score_b;

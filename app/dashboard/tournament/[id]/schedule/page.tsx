@@ -3343,6 +3343,41 @@ export default function TournamentSchedulePage() {
     );
   };
 
+  /** A result can move teams into later matches (lib/advancement), which the
+   *  saved match alone doesn't say. Re-read the tournament and take only the
+   *  teams from it — placements and anything mid-edit stay as they are. */
+  const refreshAdvancedTeams = async () => {
+    const fresh = await getTournamentDetail(slug).catch(() => null);
+    if (!fresh) return;
+    const teamsById = new Map(
+      fresh.divisions.flatMap(d => d.bracket.flatMap(r => r.matches)).map(mm => [mm.id, mm]),
+    );
+    setLoadedDetail(prev =>
+      prev
+        ? {
+            ...prev,
+            divisions: prev.divisions.map(d => ({
+              ...d,
+              bracket: d.bracket.map(r => ({
+                ...r,
+                matches: r.matches.map(mm => {
+                  const f = teamsById.get(mm.id);
+                  return f
+                    ? {
+                        ...mm,
+                        teamA: f.teamA, teamB: f.teamB,
+                        teamAId: f.teamAId, teamBId: f.teamBId,
+                        teamAName: f.teamAName, teamBName: f.teamBName,
+                      }
+                    : mm;
+                }),
+              })),
+            })),
+          }
+        : prev,
+    );
+  };
+
   /* A result is not a placement: it goes to the server on its own, the
    * moment the organizer leaves the cells, rather than waiting behind the
    * Save button with the schedule's layout. It also isn't held back by the
@@ -3384,6 +3419,7 @@ export default function TournamentSchedulePage() {
         return;
       }
       applyMatchScore(m.id, body.match);
+      if (body.advanced > 0) void refreshAdvancedTeams();
       // The organizer may have moved on to another match's cells while this
       // was in flight; only the draft this saved is finished with.
       if (scoreDraftRef.current?.id === m.id) putDraft(null);

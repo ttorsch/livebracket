@@ -6,6 +6,7 @@ import { requireTournamentOwner } from '../../../../../../../lib/auth';
 import { authErrorResponse } from '../../../../../../../lib/authResponse';
 import { cleanSets, scoreWinner } from '../../../../../../../lib/matchScore';
 import { readScoringRules, matchScoreProblem } from '../../../../../../../lib/setScoreRules';
+import { advanceDivision } from '../../../../../../../lib/advanceDivision';
 
 /* ── The organizer's own way in to a result ───────────────────────
  *
@@ -37,6 +38,7 @@ import { readScoringRules, matchScoreProblem } from '../../../../../../../lib/se
 
 interface MatchRow {
   id: string;
+  division_id: string;
   status: 'upcoming' | 'live' | 'done';
   team_a_id: string | null;
   team_b_id: string | null;
@@ -70,7 +72,7 @@ export async function PUT(
    * tournament's divisions. */
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .select('id, status, team_a_id, team_b_id, rounds!inner ( scoring_rules, divisions!inner ( tournament_id ) )')
+    .select('id, division_id, status, team_a_id, team_b_id, rounds!inner ( scoring_rules, divisions!inner ( tournament_id ) )')
     .eq('id', matchId)
     .eq('rounds.divisions.tournament_id', tournamentId)
     .maybeSingle();
@@ -145,8 +147,20 @@ export async function PUT(
     /* ignore */
   }
 
+  /* Carry the result forward — or, for a correction or a clear, take back
+   * what it carried, wherever the next match has not been played yet. The
+   * result is already saved, so a failure here is reported rather than
+   * failing the request; the next result in the division re-plans it all. */
+  let advanced = 0;
+  try {
+    advanced = (await advanceDivision(match.division_id)).length;
+  } catch (err) {
+    console.error('Advancement after score entry failed:', err);
+  }
+
   return NextResponse.json({
     ok: true,
+    advanced,
     match: {
       id: saved.id,
       scoreA: saved.score_a ?? undefined,

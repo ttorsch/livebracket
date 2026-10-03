@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
+import { Fragment, useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
@@ -62,9 +62,9 @@ const NAV_TOP_EPSILON = 8;
 // Spectators are watching a match happen; the page has to keep up.
 const LIVE_POLL_MS = 15000;
 
-/* A bracket card plus the breathing room under it. Cards are a fixed two
-   rows, so this holds unless a very long name wraps — then the column grows
-   and takes its slots with it. */
+/* The least a bracket row can be: a two-line card and the gap around it.
+   Rows grow past it when a long name wraps — together, since every column
+   shares them — so the tree stays aligned whatever the card heights. */
 const BRACKET_SLOT_H = 126;
 
 /* Dates are read in UTC everywhere in this app — a browser west of Greenwich
@@ -507,11 +507,11 @@ export default function TournamentPage() {
     [activeDivision],
   );
 
-  /* One slot per match in the widest round, tall enough for a card and the
-     gap under it. The tree is sized from that so every column divides into
-     the same slots and the rounds line up with each other. */
-  const bracketTreeHeight = useMemo(
-    () => Math.max(1, ...knockoutRounds.map(r => r.matches.length)) * BRACKET_SLOT_H,
+  /* One grid row per match in the widest round. Every column shares those
+     rows, and a later round's match spans the rows of the pair feeding it,
+     so it sits halfway between them however tall any card grows. */
+  const bracketRows = useMemo(
+    () => Math.max(1, ...knockoutRounds.map(r => r.matches.length)),
     [knockoutRounds],
   );
 
@@ -1369,40 +1369,54 @@ export default function TournamentPage() {
           (activeRoundTab?.isKnockout || currentTab === 'Bracket') ? (
             knockoutRounds.length > 0 ? (
               <div className={styles.bracketScroll}>
-                <div className={styles.bracketGrid}>
+                <div
+                  className={styles.bracketGrid}
+                  style={{
+                    gridTemplateColumns: `repeat(${knockoutRounds.length}, 300px)`,
+                    gridTemplateRows: `auto repeat(${bracketRows}, minmax(${BRACKET_SLOT_H}px, 1fr)) auto`,
+                  }}
+                >
                   {knockoutRounds.map((round, ri) => {
                     const feedsAnother = ri < knockoutRounds.length - 1;
+                    // Rows each match covers: one in the widest round, two in
+                    // the round after it, and so on down the tree.
+                    const span = Math.max(1, Math.floor(bracketRows / Math.max(1, round.matches.length)));
                     return (
-                      <div key={round.round} className={styles.bracketColumn}>
-                        <div className={styles.bracketRoundLabel}>{round.round}</div>
-
-                        {/* Every round's tree is the same height, so each slot in
-                            it is the same height, so a match sits exactly halfway
-                            between the two it is fed by. */}
-                        <div className={styles.bracketMatches} style={{ minHeight: bracketTreeHeight }}>
-                          {round.matches.map((m, mi) => (
-                            <div key={m.id} className={styles.bracketSlot}>
-                              <BracketCard match={m} label={matchLabels.get(m.id)} />
-                              {feedsAnother && <span className={styles.connRight} aria-hidden="true" />}
-                              {/* One spine per pair, drawn from the upper match
-                                  down to the lower one's middle. */}
-                              {feedsAnother && mi % 2 === 0 && (
-                                <span className={styles.connSpine} aria-hidden="true" />
-                              )}
-                            </div>
-                          ))}
+                      <Fragment key={round.round}>
+                        <div className={styles.bracketRoundLabel} style={{ gridColumn: ri + 1, gridRow: 1 }}>
+                          {round.round}
                         </div>
+
+                        {round.matches.map((m, mi) => (
+                          <div
+                            key={m.id}
+                            className={styles.bracketSlot}
+                            style={{ gridColumn: ri + 1, gridRow: `${2 + mi * span} / span ${span}` }}
+                          >
+                            <BracketCard match={m} label={matchLabels.get(m.id)} />
+                            {feedsAnother && <span className={styles.connRight} aria-hidden="true" />}
+                            {/* One spine per pair, drawn from the upper match
+                                down to the lower one's middle — exactly one
+                                slot, since slots in a column are equal. */}
+                            {feedsAnother && mi % 2 === 0 && (
+                              <span className={styles.connSpine} aria-hidden="true" />
+                            )}
+                          </div>
+                        ))}
 
                         {/* The play-off for 3rd hangs off the semifinals, not off
                             the round before the final, so it sits under the final
                             rather than inside the tree. */}
                         {ri === knockoutRounds.length - 1 && thirdPlaceRound?.matches[0] && (
-                          <div className={styles.thirdPlaceBlock}>
+                          <div
+                            className={styles.thirdPlaceBlock}
+                            style={{ gridColumn: ri + 1, gridRow: bracketRows + 2 }}
+                          >
                             <div className={styles.thirdPlaceLabel}>3rd Place</div>
                             <BracketCard match={thirdPlaceRound.matches[0]} label={matchLabels.get(thirdPlaceRound.matches[0].id)} />
                           </div>
                         )}
-                      </div>
+                      </Fragment>
                     );
                   })}
                 </div>

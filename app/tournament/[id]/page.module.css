@@ -1482,10 +1482,10 @@
 .bracketScroll::-webkit-scrollbar { height: 8px; }
 .bracketScroll::-webkit-scrollbar-thumb { background: var(--sand-400); border-radius: var(--radius-pill); }
 
-/* flex-start, not stretch: the 3rd-place block hangs below the final and
-   must not stretch the other columns to match. */
-.bracketGrid { display: flex; align-items: flex-start; gap: 40px; min-width: min-content; }
-.bracketColumn { display: flex; flex-direction: column; width: 300px; flex: none; }
+/* One grid for the whole tree: columns are rounds, rows are shared, so a
+   card's height in one round can never pull another round out of line. The
+   column and row tracks are set inline from the bracket's size. */
+.bracketGrid { display: grid; column-gap: 40px; min-width: min-content; }
 .bracketRoundLabel {
   font-size: 11px;
   font-weight: 700;
@@ -1494,18 +1494,14 @@
   color: var(--text-muted);
   padding-bottom: 14px;
 }
-/* The tree: equal slots, so each card centres on the pair that feeds it.
-   Its height comes from the widest round (inline, in the page). */
-.bracketMatches {
-  display: flex;
-  flex-direction: column;
-}
+/* A slot spans the rows of the matches feeding it and centres its card in
+   them. The padding is the gap between neighbouring cards. */
 .bracketSlot {
-  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
   position: relative;
+  padding: 8px 0;
 }
 
 /* Guidelines. The stub reaches half the column gap; the spine drops from

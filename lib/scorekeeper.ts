@@ -83,6 +83,7 @@ export const SCOREKEEPER_COLUMNS = `
 
 export interface ScorekeeperMatch {
   matchId: string;
+  divisionId: string;
   status: 'upcoming' | 'live' | 'done';
   court: string | null;
   scheduledTime: string | null;
@@ -102,6 +103,7 @@ export interface ScorekeeperMatch {
  * object, which the generated Supabase types don't narrow for us here. */
 interface MatchTokenRow {
   id: string;
+  division_id: string;
   court: string | null;
   scheduled_time: string | null;
   status: 'upcoming' | 'live' | 'done';
@@ -130,7 +132,7 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
   const { data, error } = await supabaseAdmin
     .from('matches')
     .select(`
-      id, court, scheduled_time, status, score_a, score_b,
+      id, division_id, court, scheduled_time, status, score_a, score_b,
       team_a:teams!matches_team_a_id_fkey(id,name,seed,players(id,name)),
       team_b:teams!matches_team_b_id_fkey(id,name,seed,players(id,name)),
       rounds!inner (
@@ -173,6 +175,7 @@ export async function resolveScorekeeperToken(token: string): Promise<Scorekeepe
 
   return {
     matchId: row.id,
+    divisionId: row.division_id,
     status: row.status,
     court: row.court,
     scheduledTime: row.scheduled_time,

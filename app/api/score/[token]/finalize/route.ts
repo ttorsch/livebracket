@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
 import { redis } from '../../../../../lib/redis';
 import { resolveScorekeeperToken, liveKey, setWins } from '../../../../../lib/scorekeeper';
+import { advanceDivision } from '../../../../../lib/advanceDivision';
 
 /* The one durable write. Everything up to here lived in Redis; this is what
  * puts the result in the bracket. */
@@ -20,6 +21,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   if (match.status === 'done') {
     return NextResponse.json({ error: 'This match has already been finalized.' }, { status: 409 });
+  }
+  // A slot still waiting on an earlier round has nobody to award a win to,
+  // and a winnerless "done" match would stall the bracket behind it.
+  if (!match.teamA.id || !match.teamB.id) {
+    return NextResponse.json(
+      { error: 'Both teams have to be decided before this match can be finalized.' },
+      { status: 400 }
+    );
   }
 
   const sets = (Array.isArray(body.sets) ? body.sets : []).map(s => ({
@@ -69,6 +78,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await redis.del(liveKey(match.matchId));
   } catch {
     /* ignore */
+  }
+
+  // Carry the result forward. The result itself is already durable, so a
+  // failure here is reported but does not fail the request — the next result
+  // in this division plans from scratch and picks up whatever was missed.
+  try {
+    await advanceDivision(match.divisionId);
+  } catch (err) {
+    console.error('Advancement after finalize failed:', err);
   }
 
   return NextResponse.json({

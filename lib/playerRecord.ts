@@ -52,6 +52,9 @@ export const EMPTY_RECORD: PlayerRecord = {
  * scorekeeper finalizing, an organizer typing it in, or an older row
  * written before `status` was reliable. */
 function isPlayed(m: RecordMatch, scoreOwn: number[] | null): boolean {
+  // A bye — one team against an empty seat — is settled before it starts
+  // and never played, so it is neither a match nor a win on anyone's record.
+  if ((m.teamAId === null) !== (m.teamBId === null)) return false;
   return (
     m.status === 'done' ||
     m.status === 'finished' ||
